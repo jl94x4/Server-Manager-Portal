@@ -430,8 +430,8 @@ export const SettingsDashboard: React.FC = () => {
     const [requestDiscoverRegion, setRequestDiscoverRegion] = useState('');
     const [requestDiscoverLanguage, setRequestDiscoverLanguage] = useState('');
     const [requestHideAvailableMedia, setRequestHideAvailableMedia] = useState(false);
-    const [discoverySource, setDiscoverySource] = useState('tmdb');
-    const [requestEngine, setRequestEngine] = useState('portal');
+    const [discoverySource] = useState('tmdb');
+    const [requestEngine] = useState('portal');
     const [importingSeerrHistory, setImportingSeerrHistory] = useState(false);
     const [requestQuotaLimit, setRequestQuotaLimit] = useState(0);
     const [requestQuotaDays, setRequestQuotaDays] = useState(7);
@@ -1002,15 +1002,19 @@ export const SettingsDashboard: React.FC = () => {
             setTautulliApiKey(initialSettings.tautulliApiKey || '');
             setJellystatUrl(initialSettings.jellystatUrl || '');
             setJellystatApiKey(initialSettings.jellystatApiKey || '');
-            setRequestAppType(initialSettings.requestAppType === 'overseerr' ? 'seerr' : (initialSettings.requestAppType || 'none'));
+            setRequestAppType(
+                initialSettings.requestAppType === 'overseerr'
+                    ? 'seerr'
+                    : (initialSettings.requestAppType === 'jellyseerr' || initialSettings.requestAppType === 'seerr'
+                        ? initialSettings.requestAppType
+                        : 'none'),
+            );
             setRequestAppUrl(initialSettings.requestAppUrl || '');
             setRequestAppFetchUrl(initialSettings.requestAppFetchUrl || '');
             setRequestAppApiKey(initialSettings.requestAppApiKey || '');
             setRequestDiscoverRegion(initialSettings.requestDiscoverRegion || '');
             setRequestDiscoverLanguage(initialSettings.requestDiscoverLanguage || '');
             setRequestHideAvailableMedia(!!initialSettings.requestHideAvailableMedia);
-            setDiscoverySource(initialSettings.discoverySource === 'seerr' ? 'seerr' : 'tmdb');
-            setRequestEngine(initialSettings.requestEngine === 'seerr' ? 'seerr' : 'portal');
             setRequestQuotaLimit(Number(initialSettings.requestQuotaLimit) || 0);
             setRequestQuotaDays(Number(initialSettings.requestQuotaDays) || 7);
             setRequestQuotaLimit4k(Number(initialSettings.requestQuotaLimit4k) || 0);
@@ -2274,16 +2278,16 @@ export const SettingsDashboard: React.FC = () => {
                             <div id={getSettingsSectionElementId('seerr')} className="scroll-mt-24">
                             <IntegrationHeading
                                 app={requestAppType === 'none' ? 'seerr' : requestAppType}
-                                title="Request App Integration"
-                                subtitle="Seerr, Jellyseerr, or Ombi for media requests"
+                                title="Seerr / Jellyseerr import"
+                                subtitle="Optional one-shot history import — portal runs Discover & requests natively"
                                 className="mt-8"
                             />
                             <div className="mb-4">
                                 <SettingFieldLabel
                                     htmlFor="requestAppType"
-                                    hint={<SettingHint>Used by Library Maintenance rules for request-age/status filtering and cleanup workflows.</SettingHint>}
+                                    hint={<SettingHint>Only needed to import past requests/issues/blocklist from Seerr or Jellyseerr. Leave Disabled if you are not migrating.</SettingHint>}
                                 >
-                                    Request App Type
+                                    Import source
                                 </SettingFieldLabel>
                                 <CustomSelect
                                     id="requestAppType"
@@ -2291,9 +2295,8 @@ export const SettingsDashboard: React.FC = () => {
                                     onChange={(val) => setRequestAppType(val)}
                                     options={[
                                         { label: 'Disabled', value: 'none' },
-                                        { label: 'Seerr', value: 'seerr' },
+                                        { label: 'Seerr / Overseerr', value: 'seerr' },
                                         { label: 'Jellyseerr', value: 'jellyseerr' },
-                                        { label: 'Ombi', value: 'ombi' }
                                     ]}
                                 />
                             </div>
@@ -2302,11 +2305,11 @@ export const SettingsDashboard: React.FC = () => {
                                     htmlFor="requestAppUrl"
                                     hint={(
                                         <SettingHint>
-                                            Public URL users see (reverse proxy is fine). Server-side API calls use the internal fetch URL below when set.
+                                            Public URL of your old request app (reverse proxy is fine). Server-side import uses the internal fetch URL below when set.
                                         </SettingHint>
                                     )}
                                 >
-                                    Request App URL
+                                    Seerr URL
                                 </SettingFieldLabel>
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="requestAppUrl" type="text" value={requestAppUrl} onChange={(e) => setRequestAppUrl(e.target.value)} placeholder="https://requests.yourdomain.com" />
                             </div>
@@ -2315,7 +2318,7 @@ export const SettingsDashboard: React.FC = () => {
                                     htmlFor="requestAppFetchUrl"
                                     hint={(
                                         <SettingHint>
-                                            Optional. URL the portal uses to talk to Seerr from inside Docker (e.g. <code>http://jellyseerr:5055</code> or <code>http://192.168.1.10:5055</code>). Leave blank to use the public URL above.
+                                            Optional. URL the portal uses to reach Seerr from inside Docker (e.g. <code>http://jellyseerr:5055</code>). Leave blank to use the public URL above.
                                         </SettingHint>
                                     )}
                                 >
@@ -2324,8 +2327,8 @@ export const SettingsDashboard: React.FC = () => {
                                 <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="requestAppFetchUrl" type="text" value={requestAppFetchUrl} onChange={(e) => setRequestAppFetchUrl(e.target.value)} placeholder="http://jellyseerr:5055" />
                             </div>
                             <div className="mb-8">
-                                <label htmlFor="requestAppApiKey">Request App API Key</label>
-                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="requestAppApiKey" type="password" value={requestAppApiKey} onChange={(e) => setRequestAppApiKey(e.target.value)} placeholder="API key from request app settings" />
+                                <label htmlFor="requestAppApiKey">Seerr API Key</label>
+                                <input className="w-full p-3 rounded-lg border border-border bg-background text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="requestAppApiKey" type="password" value={requestAppApiKey} onChange={(e) => setRequestAppApiKey(e.target.value)} placeholder="API key from Seerr / Jellyseerr settings" />
                             </div>
                             <IntegrationTestButton
                                 type="requestApp"
@@ -2341,62 +2344,32 @@ export const SettingsDashboard: React.FC = () => {
                         <div className="mb-8 animate-fade-in space-y-6">
                             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Request Discovery</h3>
                             <p className="text-muted text-sm max-w-3xl">
-                                Control how the in-portal Discover experience behaves. Region and language are portal-owned (not synced to Seerr).
+                                Built-in Discover &amp; Request uses TMDB plus Sonarr/Radarr. No Seerr required.
                             </p>
 
-                            <div id={getSettingsSectionElementId('discovery-source')} className="scroll-mt-24">
-                                <SettingFieldLabel
-                                    htmlFor="discoverySource"
-                                    hint={(
-                                        <SettingHint>
-                                            TMDB (default) browses Discover without Seerr — needs a TMDB API key; library overlays use Sonarr/Radarr.
-                                            Seerr remains available as a rollback for metadata proxying.
-                                        </SettingHint>
-                                    )}
-                                >
-                                    Discover Metadata Source
-                                </SettingFieldLabel>
-                                <CustomSelect
-                                    id="discoverySource"
-                                    value={discoverySource}
-                                    onChange={setDiscoverySource}
-                                    options={[
-                                        { value: 'tmdb', label: 'TMDB direct (default)' },
-                                        { value: 'seerr', label: 'Seerr / Overseerr (rollback)' },
-                                    ]}
-                                />
-                                {discoverySource === 'tmdb' && !String(tmdbApiKey || '').trim() && !String(initialSettings.tmdbApiKey || '').trim() && (
+                            <div id={getSettingsSectionElementId('discovery-source')} className="scroll-mt-24 rounded-xl border border-border/70 bg-background/30 p-4">
+                                <p className="text-sm font-semibold text-text">Discover metadata: TMDB</p>
+                                <p className="text-xs text-muted mt-1">
+                                    Library availability overlays use Sonarr/Radarr. Set a TMDB API key under Integrations if posters/search are empty.
+                                </p>
+                                {!String(tmdbApiKey || '').trim() && !String(initialSettings.tmdbApiKey || '').trim() && (
                                     <p className="text-amber-300 text-sm mt-2">
-                                        Set a TMDB API key under Integrations — required for Discover browse.
+                                        TMDB API key missing — Discover browse will be empty until you add one.
                                     </p>
                                 )}
                             </div>
 
-                            <div id={getSettingsSectionElementId('request-engine')} className="scroll-mt-24">
-                                <SettingFieldLabel
-                                    htmlFor="requestEngine"
-                                    hint={(
-                                        <SettingHint>
-                                            Portal (default) stores requests/issues as JSON and pushes to *arr on approve.
-                                            Seerr/Jellyseerr is only needed if you want to import history — it is no longer required to run requests.
-                                        </SettingHint>
-                                    )}
-                                >
-                                    Request Engine
-                                </SettingFieldLabel>
-                                <CustomSelect
-                                    id="requestEngine"
-                                    value={requestEngine}
-                                    onChange={setRequestEngine}
-                                    options={[
-                                        { value: 'portal', label: 'Portal (recommended)' },
-                                        { value: 'seerr', label: 'Seerr / Overseerr (legacy rollback)' },
-                                    ]}
-                                />
-                                <div className="mt-3 flex flex-wrap items-center gap-3">
+                            <div id={getSettingsSectionElementId('request-engine')} className="scroll-mt-24 rounded-xl border border-border/70 bg-background/30 p-4 space-y-3">
+                                <div>
+                                    <p className="text-sm font-semibold text-text">Request engine: Portal</p>
+                                    <p className="text-xs text-muted mt-1">
+                                        Requests and issues are stored as JSON and pushed to *arr on approve.
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-3">
                                     <button
                                         type="button"
-                                        disabled={importingSeerrHistory}
+                                        disabled={importingSeerrHistory || requestAppType === 'none'}
                                         onClick={async () => {
                                             setImportingSeerrHistory(true);
                                             try {
@@ -2425,13 +2398,12 @@ export const SettingsDashboard: React.FC = () => {
                                         {importingSeerrHistory ? 'Importing…' : 'Import Seerr history'}
                                     </button>
                                     <p className="text-xs text-white/45 max-w-md">
-                                        One-shot copy from your configured Seerr/Jellyseerr into portal JSON (safe to re-run). Requires Seerr URL + API key under Integrations. New installs should use the setup wizard migrate option instead.
+                                        Optional one-shot copy from Seerr/Jellyseerr. Configure URL + API key under Integrations → Seerr import first.
                                     </p>
                                 </div>
                             </div>
 
-                            {requestEngine === 'portal' && (
-                                <div className="space-y-8">
+                            <div className="space-y-8">
                                     <div id={getSettingsSectionElementId('metadata-providers')} className="scroll-mt-24 space-y-4">
                                         <h4 className="text-sm font-bold text-text uppercase tracking-wider">Metadata providers</h4>
                                         <p className="text-xs text-muted max-w-2xl">
@@ -2580,8 +2552,7 @@ export const SettingsDashboard: React.FC = () => {
                                             {requestQuotaLimit4k === 0 ? 'Unlimited 4K' : `${requestQuotaLimit4k} 4K`}
                                         </p>
                                     </div>
-                                </div>
-                            )}
+                            </div>
 
                             <div id={getSettingsSectionElementId('region')} className="scroll-mt-24">
                                 <SettingFieldLabel
@@ -2629,48 +2600,6 @@ export const SettingsDashboard: React.FC = () => {
                                     Experimental
                                 </span>
                             </div>
-
-                            {requestAppType !== 'none' && requestAppUrl && (
-                                <div className="rounded-xl border border-border bg-card/60 p-4 space-y-3">
-                                    <h4 className="font-bold text-text">Seerr / Overseerr rules</h4>
-                                    <p className="text-sm text-muted">
-                                        Quotas, permissions, auto-approve, override rules, and watchlist sync are managed in your request app.
-                                        The portal reads those rules and hides request / 4K / issue actions when users are not allowed.
-                                    </p>
-                                    <div className="flex flex-wrap gap-2">
-                                        <a
-                                            href={`${String(requestAppUrl).replace(/\/$/, '')}/settings/users`}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-background text-sm font-bold text-text hover:border-plex/40 hover:text-plex transition-colors"
-                                        >
-                                            Users &amp; permissions
-                                        </a>
-                                        <a
-                                            href={`${String(requestAppUrl).replace(/\/$/, '')}/settings/main`}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-background text-sm font-bold text-text hover:border-plex/40 hover:text-plex transition-colors"
-                                        >
-                                            Main settings
-                                        </a>
-                                        <a
-                                            href={`${String(requestAppUrl).replace(/\/$/, '')}/settings/services`}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-background text-sm font-bold text-text hover:border-plex/40 hover:text-plex transition-colors"
-                                        >
-                                            Services &amp; 4K
-                                        </a>
-                                    </div>
-                                </div>
-                            )}
-
-                            {requestAppType === 'none' && (
-                                <p className="text-sm text-yellow-300/90 border border-yellow-500/20 bg-yellow-500/10 rounded-lg px-4 py-3">
-                                    Connect a request app under Integrations to sync these settings automatically.
-                                </p>
-                            )}
                         </div>
                     )}
 
@@ -2686,6 +2615,11 @@ export const SettingsDashboard: React.FC = () => {
                             onHiddenKeysChange={setNavHiddenKeys}
                             downloadsVisibleToMembers={downloadsVisibleToMembers}
                             onDownloadsVisibleToMembersChange={setDownloadsVisibleToMembers}
+                            featureStatus={{
+                                upgrader: upgraderEnabled,
+                                collexions: collexionsEnabled,
+                                maintenance: maintenanceExperimentalEnabled,
+                            }}
                         />
                     )}
 

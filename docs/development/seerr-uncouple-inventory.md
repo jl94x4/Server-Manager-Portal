@@ -125,16 +125,19 @@ Stubs are wired; Phase 4 defaults Discover metadata to TMDB (`discoverySource` d
 - [x] Phase 7 — Status sync from *arr/Plex
 - [x] Phase 8 — Issues + quotas
 - [x] Phase 9 — Watchlist/blocklist + migration
-- [ ] Phase 10 — Hard cut + cleanup
+- [x] Phase 10 — Hard cut + cleanup
   - [x] Setup wizard portal-first + optional Seerr import (`/api/setup/import-seerr`)
-  - [ ] Remove Seerr dual-run routes / `requestEngine=seerr` / seerr service modules
-  - [ ] Docs / Unraid template cleanup
+  - [x] Force `requestEngine=portal` / `discoverySource=tmdb` (Seerr live engine + metadata rollback removed)
+  - [x] Settings reframed: Seerr credentials = import only; engine/source pickers removed
+  - [x] Docs / README updated for portal-native requests
+  - [ ] Optional follow-up: delete unreachable Seerr else-branches + unused `lib/seerr-*` live CRUD (import `rawFetch` + `seerrHistoryImport` stay)
 
-## Phase 10 notes (in progress)
+## Phase 10 notes (done)
 
-- **Setup:** Integrations → Requests defaults to portal Discover & Request (TMDB key). Optional “Coming from Seerr?” imports history via setup-token route; `requestEngine` forced to `portal` on first save.
-- **Import fallback:** Unmapped Seerr request history is labeled with the setup admin Plex id (`fallbackUserId`) for display only (no access change) so wizard imports are not empty before members exist.
-- **Settings:** Seerr engine labeled legacy rollback; import button remains for upgrades.
+- **Runtime:** `getRequestEngine` / `getDiscoverySource` always return portal/tmdb. Dual-run else branches in `index.js` are unreachable.
+- **Setup:** Integrations → Requests defaults to portal Discover & Request (TMDB key). Optional “Coming from Seerr?” imports history via setup-token route.
+- **Import fallback:** Unmapped Seerr request history is labeled with the setup admin Plex id (`fallbackUserId`) for display only (no access change).
+- **Settings:** Request engine / Discover source are fixed copy; Seerr URL+key under Integrations for import only.
 
 ## Phase 2 notes
 

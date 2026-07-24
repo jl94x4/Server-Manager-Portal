@@ -42,7 +42,7 @@ Server Portal can connect to the apps that usually surround a Plex, Jellyfin, or
 |---|---|---|
 | **Media servers** | Plex, Jellyfin, Emby | Login, profiles, library stats, live sessions, Discover, maintenance, and upgrader workflows |
 | **Analytics** | Tautulli, Jellystat | Plex/Jellyfin analytics, personal wrap-ups, leaderboard data, watch history, Jellyfin yearly activity heatmap, and status checks |
-| **Requests** | Jellyseerr, Overseerr, Ombi | Request queue, pending request dashboard widget, approvals, retries, and request navigation |
+| **Requests** | Built-in (TMDB + *arr) | Discover, request queue, approvals, retries, issues, and blocklist — optional Seerr history import |
 | **ARR apps** | Sonarr, Radarr, Lidarr | Calendars, queues, history, download matching, and upgrader actions where supported |
 | **Subtitles** | Bazarr | Multi-instance subtitle widgets, tools, version display, and connection tests |
 | **Download clients** | qBittorrent, Transmission, BitTorrent, Deluge, SABnzbd | Unified Download Status page with progress, speed, source filters, client health, and ARR matching |
@@ -89,7 +89,7 @@ A comprehensive control panel for the server owner:
 - **Audit Log** - Timestamped record of all system actions (access granted, revoked, extended, expired)
 - **Settings UI** - Configure every aspect of the portal from the browser without touching config files
 - **Customizable Home Layout** - Reorder home page sections and show or hide whole blocks (Personal Wrap-Up, Main grid, Pending Requests, Recently / Most Watched, Recently Added) from **Settings → Home Layout**, with a live preview before saving. The main dashboard grid keeps a fixed balanced two-column layout so card heights stay aligned
-- **Pending Requests Widget** - Surface open Seerr/Jellyseerr requests on the home dashboard with quick review actions, fanart-backed cards, and a count badge in the sidebar
+- **Pending Requests Widget** - Surface open portal requests on the home dashboard with quick review actions, fanart-backed cards, and a count badge in the sidebar
 - **Library Maintenance** - Scan libraries for missing or empty media, manage exclusions, and run cleanup tasks from the Maintenance page
 - **Library Upgrader (Plex / Jellyfin)** — Find non-HEVC titles, browse a poster grid with codec/HDR badges, drill into show episodes, open Plex/Jellyfin or Sonarr/Radarr deep links, snooze titles, and optionally switch ARR quality profiles with search triggers (dry-run preview, bulk select, history tab, rate limits). Enable in **Settings → Library Upgrader**.
 - **Collexions (admin)** — Automated Plex collection pinning. UI lives in the portal; the Python worker is **bundled in the portal image**. Enable in **Settings → Collexions** (no second container).
@@ -158,14 +158,14 @@ Configure ARR apps, Bazarr, request apps, and download clients in **Settings →
 
 ### Request Management
 
-Review and approve media requests from Seerr, Jellyseerr, or Ombi without leaving the portal. Connect your request app in **Settings → Media Stack → Request App Integration** with the app URL and API key.
+Built-in Discover & Request — members browse TMDB and submit requests; admins approve into Sonarr/Radarr. No Seerr/Overseerr required. Optional one-shot import from Seerr/Jellyseerr if you are migrating.
 
 **Requests page (admin)**
 - **Status tabs** - Pending, Failed, Approved, and Declined with live counts
-- **Seerr-style cards** - Poster, requester, quality, folder, tags, seasons, and overview with faded fanart backdrops (poster fallback when no backdrop is available)
-- **Review & Approve** - Full-screen modal with season picker, quality profile, root folder, language profile, tags, and request-as user override
+- **Request cards** - Poster, requester, quality, folder, tags, seasons, and overview with faded fanart backdrops
+- **Review & Approve** - Full-screen modal with season picker, quality profile, root folder, tags, and request-as user override
 - **Quick actions** - Approve, edit, decline, retry failed requests, and delete from the list
-- **Rich metadata** - TMDB titles, posters, and backdrops enriched automatically from Seerr media data
+- **Rich metadata** - TMDB titles, posters, and backdrops (TVDB poster fallback when needed)
 
 **Home dashboard widget**
 - **Pending Requests section** - Movable and hideable from **Settings → Home Layout**
@@ -241,7 +241,7 @@ Beautiful, responsive HTML emails sent automatically:
 ### Public-Facing Pages
 
 - **Landing Page** - A sleek login page showing live library stats (total movies, shows, music) and your configured server branding
-- **Status Page** - A public `/status` dashboard showing the live uptime of your media server, request tools (Seerr/Jellyseerr/Ombi), analytics companion, and download clients
+- **Status Page** - A public `/status` dashboard showing the live uptime of your media server, analytics companion, and download clients
 - **Invite Claim Page** - A dedicated, shareable page for invited users to claim their account
 
 ---
@@ -547,7 +547,7 @@ All configuration is managed through the **Settings UI** in the browser. Key opt
 | ARR Instances | Sonarr, Radarr, and Lidarr URLs/API keys for calendars, queues, history, and download matching |
 | Bazarr Instances | Subtitle widgets, tools, version display, and connection tests |
 | Download Clients | qBittorrent, Transmission, BitTorrent, Deluge, and SABnzbd for the Download Status page |
-| Request App (Seerr/Ombi) | Seerr, Jellyseerr, or Ombi URL and API key for in-portal request review |
+| Request App (optional) | Seerr / Jellyseerr URL and API key for one-shot history import only |
 | Tautulli / Jellystat | Tautulli for Plex analytics, Jellystat for Jellyfin analytics |
 | Alerts | Gotify connection and alert rules |
 | Status Page Services | Define services and their health check URLs |
@@ -584,7 +584,7 @@ Server-Manager-Portal/
 │   ├── App.tsx         # App shell, routing, responsive layout
 │   ├── screens.tsx     # Dashboards, Discover, login, and shared screens
 │   ├── home/           # User dashboard layout and widget renderers
-│   ├── requests/       # Seerr-style request review UI (admin panel, approval modal, home widget)
+│   ├── requests/       # Portal request review UI (admin panel, approval modal, home widget)
 │   ├── upgrader/       # Library Upgrader poster browse (non-HEVC scan)
 │   ├── collexions/     # Collexions admin UI (proxied to bundled worker)
 │   ├── settings/       # Settings UI (Media Server, Home Layout, System, Background Tasks)

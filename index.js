@@ -2573,24 +2573,15 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
 
     const { actor: _actor, impersonatingUserId, ...sessionPublic } = req.user;
 
-    const requestAppType = config.requestAppType === 'overseerr' ? 'seerr' : (config.requestAppType || 'none');
-    const resolvedRequestUrl = requestUrl;
     const isPlexMediaServer = String(config.mediaServerType || 'plex').toLowerCase() === 'plex';
-    const portalRequestNav = isPortalRequestNavReady(config);
-    const seerrRequestNav = !!(
-        requestAppType
-        && requestAppType !== 'none'
-        && resolvedRequestUrl
-        && resolvedRequestUrl !== 'https://yourdomain.com'
-    );
     const navFeatures = {
         maintenance: !!config.maintenanceExperimentalEnabled,
         upgrader: !!config.upgraderEnabled,
         // Collexions is Plex-only — hide for Jellyfin/Emby even if the flag is on.
         collexions: !!config.collexionsEnabled && isPlexMediaServer,
-        // Portal engine unlocks Discover; legacy Seerr URL still works for dual-run / external link.
-        request: portalRequestNav || seerrRequestNav,
-        requestsQueue: portalRequestNav || requestAppService.isRequestAppConfigured(config),
+        // Phase 10: portal is always the request engine — Discover / Requests stay unlocked.
+        request: isPortalRequestNavReady(config),
+        requestsQueue: isPortalRequestNavReady(config),
         downloads: config.downloadsVisibleToMembers !== false,
     };
 

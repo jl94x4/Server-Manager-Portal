@@ -4,6 +4,12 @@ import { ALWAYS_VISIBLE_NAV_KEYS, getNavItemLabel, MOBILE_NAV_PRIMARY_SLOTS, nor
 import { SettingsToggleRow } from '../shared/ui';
 import { SettingHint } from './SettingHint';
 
+type NavFeatureStatus = {
+    upgrader?: boolean;
+    collexions?: boolean;
+    maintenance?: boolean;
+};
+
 type Props = {
     navOrder: string[];
     onChange: (next: string[]) => void;
@@ -11,6 +17,14 @@ type Props = {
     onHiddenKeysChange: (next: string[]) => void;
     downloadsVisibleToMembers: boolean;
     onDownloadsVisibleToMembersChange: (next: boolean) => void;
+    /** When false, sidebar still hides these until enabled in their Settings section. */
+    featureStatus?: NavFeatureStatus;
+};
+
+const FEATURE_OFF_HINT: Record<string, string> = {
+    upgrader: 'Feature off — enable under Settings → Library Upgrader',
+    collexions: 'Feature off — enable under Settings → Collexions',
+    maintenance: 'Feature off — enable under Settings → Cleanup',
 };
 
 const reorder = (items: string[], from: number, to: number): string[] => {
@@ -41,6 +55,7 @@ export const NavigationOrderSettings: React.FC<Props> = ({
     onHiddenKeysChange,
     downloadsVisibleToMembers,
     onDownloadsVisibleToMembersChange,
+    featureStatus,
 }) => {
     const [dragIndex, setDragIndex] = useState<number | null>(null);
     const [dropIndex, setDropIndex] = useState<number | null>(null);
@@ -153,7 +168,7 @@ export const NavigationOrderSettings: React.FC<Props> = ({
                 Drag the handle to reorder the desktop sidebar. On phones, press and drag the grip — or use the arrows. The first {MOBILE_NAV_PRIMARY_SLOTS} items stay in the bottom bar; the rest move into More.
             </p>
             <p className="text-xs text-muted mb-4 max-w-2xl">
-                Use the eye icon to hide items from navigation for everyone. Home, Settings, and Logout always stay visible. Hidden items remain here so you can unhide or reorder them.
+                Use the eye icon to hide items from navigation for everyone. Home, Settings, and Logout always stay visible. Hidden items remain here so you can unhide or reorder them. Upgrader, ColleXions, and Cleaner also need their feature toggles turned on before they appear in the sidebar.
             </p>
 
             <div className="mb-6 max-w-xl rounded-xl border border-border/70 p-4 bg-background/30">
@@ -185,6 +200,12 @@ export const NavigationOrderSettings: React.FC<Props> = ({
                         && mobileIndex === moreStartsAtMobileIndex;
                     const isAlwaysVisible = ALWAYS_VISIBLE_NAV_KEYS.has(key);
                     const isHidden = hiddenSet.has(key);
+                    const featureOffHint = (() => {
+                        if (key === 'upgrader' && featureStatus?.upgrader === false) return FEATURE_OFF_HINT.upgrader;
+                        if (key === 'collexions' && featureStatus?.collexions === false) return FEATURE_OFF_HINT.collexions;
+                        if (key === 'maintenance' && featureStatus?.maintenance === false) return FEATURE_OFF_HINT.maintenance;
+                        return null;
+                    })();
 
                     const isDragging = dragIndex === index;
                     const isDropTarget = dropIndex === index && dragIndex !== null && dragIndex !== index;
@@ -243,6 +264,8 @@ export const NavigationOrderSettings: React.FC<Props> = ({
                                     </div>
                                     {isHidden ? (
                                         <p className="text-[11px] text-yellow-300/90 mt-0.5">Hidden from navigation</p>
+                                    ) : featureOffHint ? (
+                                        <p className="text-[11px] text-yellow-300/90 mt-0.5">{featureOffHint}</p>
                                     ) : !isMobileNavKey(key) ? (
                                         <p className="text-[11px] text-muted mt-0.5">Not shown in the mobile bottom bar</p>
                                     ) : null}
