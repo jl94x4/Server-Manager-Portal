@@ -94,7 +94,7 @@ export const ScannerDashboard: React.FC = () => {
     const webhookUrl = (p: string) => `${origin}${portalUrl(p)}`;
 
     return (
-        <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+        <div className="w-full flex flex-col gap-6 pb-8">
             <div className="flex items-start justify-between gap-4">
                 <div>
                     <div className="flex items-center gap-2 text-muted text-xs font-bold uppercase tracking-wider mb-2">

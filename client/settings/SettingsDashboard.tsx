@@ -459,6 +459,7 @@ export const SettingsDashboard: React.FC = () => {
     const [upgraderEnabled, setUpgraderEnabled] = useState(false);
     const [collexionsEnabled, setCollexionsEnabled] = useState(false);
     const [scannerEnabled, setScannerEnabled] = useState(false);
+    const [scannerHomeWidgetEnabled, setScannerHomeWidgetEnabled] = useState(false);
     const [scanner, setScanner] = useState<ScannerSettings>(defaultScannerSettings);
     const [collexionsAutostart, setCollexionsAutostart] = useState(false);
     const [collexionsInternalUrl, setCollexionsInternalUrl] = useState('');
@@ -1081,6 +1082,9 @@ export const SettingsDashboard: React.FC = () => {
             if (initialSettings.upgraderEnabled !== undefined) setUpgraderEnabled(!!initialSettings.upgraderEnabled);
             if (initialSettings.collexionsEnabled !== undefined) setCollexionsEnabled(!!initialSettings.collexionsEnabled);
             if (initialSettings.scannerEnabled !== undefined) setScannerEnabled(!!initialSettings.scannerEnabled);
+            if (initialSettings.scannerHomeWidgetEnabled !== undefined) {
+                setScannerHomeWidgetEnabled(!!initialSettings.scannerHomeWidgetEnabled);
+            }
             if (initialSettings.scanner && typeof initialSettings.scanner === 'object') {
                 setScanner({ ...defaultScannerSettings(), ...initialSettings.scanner });
             }
@@ -1336,6 +1340,7 @@ export const SettingsDashboard: React.FC = () => {
             upgraderEnabled,
             collexionsEnabled,
             scannerEnabled,
+            scannerHomeWidgetEnabled,
             scanner,
             collexionsAutostart,
             collexionsInternalUrl,
@@ -3440,7 +3445,12 @@ export const SettingsDashboard: React.FC = () => {
                     {activeTab === 'scanner' && (
                         <ScannerSettingsPanel
                             enabled={scannerEnabled}
-                            onEnabledChange={setScannerEnabled}
+                            onEnabledChange={(v) => {
+                                setScannerEnabled(v);
+                                if (!v) setScannerHomeWidgetEnabled(false);
+                            }}
+                            homeWidgetEnabled={scannerHomeWidgetEnabled}
+                            onHomeWidgetEnabledChange={setScannerHomeWidgetEnabled}
                             scanner={scanner}
                             onChange={setScanner}
                             sectionId={getSettingsSectionElementId('scanner')}

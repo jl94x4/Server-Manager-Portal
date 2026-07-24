@@ -143,6 +143,8 @@ const TARGET_META = {
 type Props = {
     enabled: boolean;
     onEnabledChange: (v: boolean) => void;
+    homeWidgetEnabled: boolean;
+    onHomeWidgetEnabledChange: (v: boolean) => void;
     scanner: ScannerSettings;
     onChange: (next: ScannerSettings) => void;
     sectionId: string;
@@ -152,6 +154,8 @@ type Props = {
 export const ScannerSettingsPanel: React.FC<Props> = ({
     enabled,
     onEnabledChange,
+    homeWidgetEnabled,
+    onHomeWidgetEnabledChange,
     scanner,
     onChange,
     sectionId,
@@ -310,6 +314,15 @@ export const ScannerSettingsPanel: React.FC<Props> = ({
                     <p className={`text-xs font-semibold ${enabled ? 'text-green-300' : 'text-yellow-300'}`}>
                         Current status: {enabled ? 'ON' : 'OFF'}
                     </p>
+                    <SettingsToggleRow
+                        title="Show Home Widget"
+                        hint={<SettingHint>Adds a premium Scanner card on the Home dashboard for admins (queue, targets, latest activity). Also available under Home → Edit layout.</SettingHint>}
+                        checked={!!homeWidgetEnabled && enabled}
+                        onChange={onHomeWidgetEnabledChange}
+                        disabled={!enabled}
+                        border={false}
+                        className="!py-0"
+                    />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                         <div>
                             <label className="font-semibold text-sm block mb-2 text-text">Minimum Age</label>

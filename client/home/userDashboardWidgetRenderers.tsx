@@ -23,6 +23,7 @@ import { ScrollReveal } from '../shared/ui';
 import { ANALYTICS_PERIOD_OPTIONS } from '../shared/analyticsPeriodOptions';
 import { PendingRequestsHomeWidget } from '../requests/PendingRequestsHomeWidget';
 import { CollexionsHomeWidget } from '../collexions/CollexionsHomeWidget';
+import { ScannerHomeWidget } from '../scanner/ScannerHomeWidget';
 
 type PosterCardProps = {
     item: { title: string; thumb?: string; plexUrl: string; tags?: string[]; year?: number | string; parentTitle?: string };
@@ -59,6 +60,7 @@ export type UserDashboardWidgetDeps = {
     onViewSettings?: () => void;
     onViewLogs?: () => void;
     onViewCollexions?: () => void;
+    onViewScanner?: () => void;
     onViewRequests?: (reviewId?: number) => void;
     onPendingRequestsChange?: () => void;
     setToast: (toast: { id: number; message: string; type: 'success' | 'error' }) => void;
@@ -216,6 +218,7 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
         onViewSettings,
         onViewLogs,
         onViewCollexions,
+        onViewScanner,
         onViewRequests,
         onPendingRequestsChange,
         setToast,
@@ -446,6 +449,8 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
                 );
             case 'collexions':
                 return <CollexionsHomeWidget onOpen={onViewCollexions} />;
+            case 'scanner':
+                return <ScannerHomeWidget onOpen={onViewScanner} />;
             case 'analytics':
                 if (!sessionInfo.session.isAdmin && !user) return null;
                 if (!isJellyfinPortal) return null;

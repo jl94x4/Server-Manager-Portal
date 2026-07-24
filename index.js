@@ -2608,6 +2608,7 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
         // Collexions is Plex-only — hide for Jellyfin/Emby even if the flag is on.
         collexions: !!config.collexionsEnabled && isPlexMediaServer,
         scanner: !!config.scannerEnabled,
+        scannerHomeWidget: !!config.scannerEnabled && !!config.scannerHomeWidgetEnabled,
         // Portal engine unlocks Discover; Seerr URL still works when using Seerr as engine.
         request: portalRequestNav || seerrRequestNav,
         requestsQueue: portalRequestNav || requestAppService.isRequestAppConfigured(config),
@@ -2703,7 +2704,7 @@ const DEFAULT_DASHBOARD_LAYOUT = {
     sections: ['wrapUp', 'mainGrid', 'pendingRequests', 'watchRow', 'recentlyAdded', 'bazarrTools'],
     mainGridOrder: [
         'adminBadge', 'quickActions', 'accessStatus', 'announcement', 'referral',
-        'newsletterPrefs', 'support', 'libraryStats', 'analytics'
+        'newsletterPrefs', 'support', 'libraryStats', 'collexions', 'scanner', 'analytics'
     ],
     recentlyAddedOrder: ['recentMovies', 'recentShows', 'recentMusic'],
     hiddenSections: [],
@@ -2717,7 +2718,7 @@ const DEFAULT_DASHBOARD_LAYOUT = {
 const DASHBOARD_SECTIONS = ['wrapUp', 'mainGrid', 'pendingRequests', 'watchRow', 'recentlyAdded', 'bazarrTools'];
 const DASHBOARD_MAIN_GRID_WIDGETS = [
     'adminBadge', 'accessStatus', 'tempAccessSetup', 'quickActions', 'announcement',
-    'referral', 'newsletterPrefs', 'support', 'libraryStats', 'analytics'
+    'referral', 'newsletterPrefs', 'support', 'libraryStats', 'collexions', 'scanner', 'analytics'
 ];
 const DASHBOARD_RECENTLY_ADDED_WIDGETS = ['recentMovies', 'recentShows', 'recentMusic'];
 const DASHBOARD_WIDGETS = [...DASHBOARD_MAIN_GRID_WIDGETS, ...DASHBOARD_RECENTLY_ADDED_WIDGETS];
@@ -2951,6 +2952,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 upgraderEnabled: !!config.upgraderEnabled,
                 collexionsEnabled: !!config.collexionsEnabled,
                 scannerEnabled: !!config.scannerEnabled,
+                scannerHomeWidgetEnabled: !!config.scannerHomeWidgetEnabled,
                 scanner: maskScannerConfigForApi(
                     normalizeScannerConfig(config.scanner, getDefaultScannerConfig()),
                     SECRET_MASK
@@ -3061,6 +3063,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 upgraderEnabled: false,
                 collexionsEnabled: false,
                 scannerEnabled: false,
+                scannerHomeWidgetEnabled: false,
                 scanner: maskScannerConfigForApi(getDefaultScannerConfig(), SECRET_MASK),
                 collexionsAutostart: false,
                 collexionsInternalUrl: '',
@@ -3098,7 +3101,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         inactiveCleanupEnabled, inactiveCleanupDays,
         primaryColor, customLogoUrl, brandingTheme, sidebarIdentityPosition, pwaIconSource, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, navHiddenKeys, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges, showDashboardWatchingBadge, dashboardWatchingBadgePollSeconds,
         showPublicStatusMonitor, showPublicLibraryStats,
-        autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, upgraderEnabled, collexionsEnabled, scannerEnabled, scanner, collexionsAutostart, collexionsInternalUrl, collexionsServiceKey, upgraderDefaultPreset, upgraderMinSizeGB, upgraderAutomationEnabled, upgraderProfileMap, upgraderMaxActionsPerHour, upgraderDefaultSort, upgraderDrawerPosition, dashboardLayout,
+        autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, upgraderEnabled, collexionsEnabled, scannerEnabled, scannerHomeWidgetEnabled, scanner, collexionsAutostart, collexionsInternalUrl, collexionsServiceKey, upgraderDefaultPreset, upgraderMinSizeGB, upgraderAutomationEnabled, upgraderProfileMap, upgraderMaxActionsPerHour, upgraderDefaultSort, upgraderDrawerPosition, dashboardLayout,
         showUsernamesInAnalytics, useTrendingSlideshowOnLogin, downloadsVisibleToMembers
     } = req.body;
 
@@ -3337,6 +3340,13 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         maintenanceExperimentalEnabled: maintenanceExperimentalEnabled !== undefined ? !!maintenanceExperimentalEnabled : !!existingConfig.maintenanceExperimentalEnabled,
         upgraderEnabled: upgraderEnabled !== undefined ? !!upgraderEnabled : !!existingConfig.upgraderEnabled,
         scannerEnabled: scannerEnabled !== undefined ? !!scannerEnabled : !!existingConfig.scannerEnabled,
+        scannerHomeWidgetEnabled: (() => {
+            const scannerOn = scannerEnabled !== undefined ? !!scannerEnabled : !!existingConfig.scannerEnabled;
+            if (!scannerOn) return false;
+            return scannerHomeWidgetEnabled !== undefined
+                ? !!scannerHomeWidgetEnabled
+                : !!existingConfig.scannerHomeWidgetEnabled;
+        })(),
         scanner: resolveScannerSecrets(
             scanner !== undefined ? scanner : existingConfig.scanner,
             existingConfig.scanner || getDefaultScannerConfig(),
@@ -17813,6 +17823,8 @@ app.get('/api/scanner/status', requireAdmin, requireScanner, async (req, res) =>
         const config = await loadFile(CONFIG_PATH, {});
         const scanner = normalizeScannerConfig(config.scanner, getDefaultScannerConfig());
         const stats = await getQueueStats();
+        const logPayload = await listLog(1);
+        const last = Array.isArray(logPayload.entries) && logPayload.entries[0] ? logPayload.entries[0] : null;
         const targets = buildTargets(scannerPortalConfig(config), scanner);
         res.json({
             enabled: true,
@@ -17821,6 +17833,15 @@ app.get('/api/scanner/status', requireAdmin, requireScanner, async (req, res) =>
             remaining: stats.remaining,
             processed: stats.processed,
             targetCount: targets.length,
+            lastActivity: last
+                ? {
+                    at: last.at,
+                    ok: !!last.ok,
+                    folder: last.folder || '',
+                    source: last.source || '',
+                    error: last.error || undefined,
+                }
+                : null,
             triggers: {
                 sonarr: (scanner.triggers.sonarr || []).map((t) => t.name),
                 radarr: (scanner.triggers.radarr || []).map((t) => t.name),

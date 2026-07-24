@@ -11,6 +11,7 @@ export type MainGridWidgetId =
     | 'support'
     | 'libraryStats'
     | 'collexions'
+    | 'scanner'
     | 'analytics';
 
 export type RecentlyAddedWidgetId = 'recentMovies' | 'recentShows' | 'recentMusic';
@@ -51,6 +52,7 @@ export const MAIN_GRID_WIDGET_META: Record<MainGridWidgetId, { label: string; co
     support: { label: 'Need Help / contact', column: 'left', userOnly: true },
     libraryStats: { label: 'Server Library Size', column: 'right' },
     collexions: { label: 'ColleXions', column: 'right', adminOnly: true },
+    scanner: { label: 'Scanner', column: 'right', adminOnly: true },
     analytics: { label: 'Your Analytics', column: 'right' },
 };
 
@@ -73,6 +75,7 @@ export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayoutConfig = {
         'support',
         'libraryStats',
         'collexions',
+        'scanner',
         'analytics',
     ],
     recentlyAddedOrder: ['recentMovies', 'recentShows', 'recentMusic'],
@@ -165,6 +168,7 @@ export type DashboardLayoutContext = {
     referralEnabled?: boolean;
     requestsQueueEnabled?: boolean;
     collexionsEnabled?: boolean;
+    scannerHomeWidgetEnabled?: boolean;
     mediaServerType?: string;
 };
 
@@ -181,6 +185,9 @@ export const isMainGridWidgetAvailable = (id: MainGridWidgetId, ctx: DashboardLa
         if (!ctx.collexionsEnabled) return false;
         // Collexions is a Plex-only integration.
         if (String(ctx.mediaServerType || 'plex').toLowerCase() !== 'plex') return false;
+    }
+    if (id === 'scanner') {
+        if (!ctx.scannerHomeWidgetEnabled) return false;
     }
     if (id === 'analytics') {
         const isJellyfin = String(ctx.mediaServerType || '').toLowerCase() === 'jellyfin';
