@@ -937,14 +937,17 @@ const Creator: React.FC = () => {
             );
             if (res.success) {
                 showToast(`Success! Matched ${res.matched}/${res.total} items.`, "success");
-                // Clear state
-                setImportedItems([]);
+                // Clear form state for this flow but stay on the current tab
+                // (Import List / Discover) so users can create another collection.
+                if (isDiscover) {
+                    setDiscoverResults([]);
+                } else {
+                    setImportedItems([]);
+                    setImportUrl('');
+                }
                 setCollectionTitle('');
-                setImportUrl('');
                 setExternalQuery('');
                 setExternalResults([]);
-                setDiscoverResults([]);
-                setActiveSubTab('trending');
             } else showToast("Error: " + res.error, "error");
         } catch (e) {
             showToast("Failed to create collection.", "error");
