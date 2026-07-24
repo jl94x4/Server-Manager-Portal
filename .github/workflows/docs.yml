@@ -18,6 +18,7 @@ on:
 
 permissions:
   contents: read
+  pages: read
 
 concurrency:
   group: docs-${{ github.ref }}
@@ -34,14 +35,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          # Caching has been flaky on recent runners and can make `npm ci` exit 1
+          # before a real install starts. Prefer a clean install for docs builds.
+
+      - name: Install dependencies
+        run: |
+          node -v
+          npm -v
+          npm ci --no-fund --no-audit
 
       - name: Setup Pages
         if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
-
-      - name: Install dependencies
-        run: npm ci
 
       - name: Build docs
         run: npm run docs:build
