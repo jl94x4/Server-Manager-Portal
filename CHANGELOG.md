@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.0](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.7.0...v1.8.0) (2026-07-23)
+
+
+### Features
+
+* add Test Connection button for TMDB Integration ([#77](https://github.com/jl94x4/Server-Manager-Portal/issues/77)) ([58460b9](https://github.com/jl94x4/Server-Manager-Portal/commit/58460b93585a5acdeeddc6141cecf06d6573a9c6))
+* move Public Base URL into Portal UI for invite and share links. ([c193e9c](https://github.com/jl94x4/Server-Manager-Portal/commit/c193e9c2b3e50bb64028b1920b51e6f4c31ecd92))
+
+
+### Bug Fixes
+
+* correct Unraid template Registry URL and publish Docker Schema 2 manifests ([44b8dcf](https://github.com/jl94x4/Server-Manager-Portal/commit/44b8dcf5eefc0bc70478aa999b51811e6b753812))
+* exclude not-configured integrations from Health Score alerts ([1757f83](https://github.com/jl94x4/Server-Manager-Portal/commit/1757f8338def2ec595a6e7f10ba2090a67ace99e))
+* hide empty Music and other zero rows from Server Library Size widget ([20e15fb](https://github.com/jl94x4/Server-Manager-Portal/commit/20e15fbd93f40359661c3aa9fbcd1c23cca2ec93))
+* match Download Clients add button to other Add Instance controls ([693e9ba](https://github.com/jl94x4/Server-Manager-Portal/commit/693e9ba7ce7b40745b42df38ff670c1caf3e5887))
+
 ## [1.7.0](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.6.2...v1.7.0) (2026-07-22)
 
 ### Features
