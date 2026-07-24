@@ -42,7 +42,7 @@ Server Portal can connect to the apps that usually surround a Plex, Jellyfin, or
 |---|---|---|
 | **Media servers** | Plex, Jellyfin, Emby | Login, profiles, library stats, live sessions, Discover, maintenance, and upgrader workflows |
 | **Analytics** | Tautulli, Jellystat | Plex/Jellyfin analytics, personal wrap-ups, leaderboard data, watch history, Jellyfin yearly activity heatmap, and status checks |
-| **Requests** | Built-in (TMDB + *arr) | Discover, request queue, approvals, retries, issues, and blocklist — optional Seerr history import |
+| **Requests** | Built-in portal (default) or Seerr | Discover, request queue, approvals — Seerr optional as engine or history import |
 | **ARR apps** | Sonarr, Radarr, Lidarr | Calendars, queues, history, download matching, and upgrader actions where supported |
 | **Subtitles** | Bazarr | Multi-instance subtitle widgets, tools, version display, and connection tests |
 | **Download clients** | qBittorrent, Transmission, BitTorrent, Deluge, SABnzbd | Unified Download Status page with progress, speed, source filters, client health, and ARR matching |
@@ -158,7 +158,7 @@ Configure ARR apps, Bazarr, request apps, and download clients in **Settings →
 
 ### Request Management
 
-Built-in Discover & Request — members browse TMDB and submit requests; admins approve into Sonarr/Radarr. No Seerr/Overseerr required. Optional one-shot import from Seerr/Jellyseerr if you are migrating.
+Built-in Discover & Request (default) — members browse TMDB and submit requests; admins approve into Sonarr/Radarr. Seerr/Overseerr/Jellyseerr remains an optional request engine, or a one-shot history import source.
 
 **Requests page (admin)**
 - **Status tabs** - Pending, Failed, Approved, and Declined with live counts
@@ -547,7 +547,7 @@ All configuration is managed through the **Settings UI** in the browser. Key opt
 | ARR Instances | Sonarr, Radarr, and Lidarr URLs/API keys for calendars, queues, history, and download matching |
 | Bazarr Instances | Subtitle widgets, tools, version display, and connection tests |
 | Download Clients | qBittorrent, Transmission, BitTorrent, Deluge, and SABnzbd for the Download Status page |
-| Request App (optional) | Seerr / Jellyseerr URL and API key for one-shot history import only |
+| Request App (optional) | Seerr / Jellyseerr URL and API key — use as request engine, Discover metadata source, or history import |
 | Tautulli / Jellystat | Tautulli for Plex analytics, Jellystat for Jellyfin analytics |
 | Alerts | Gotify connection and alert rules |
 | Status Page Services | Define services and their health check URLs |

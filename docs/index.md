@@ -35,7 +35,7 @@ Use these docs when you need to install the app, configure integrations, run it 
 
 ## Integration Highlights
 
-Server Portal supports Plex, Jellyfin, Emby, Tautulli, Jellystat, Sonarr, Radarr, Lidarr, Bazarr, qBittorrent, Transmission, BitTorrent, Deluge, SABnzbd, Gotify, TMDB, and SMTP. Optional Seerr/Jellyseerr import for migrating request history.
+Server Portal supports Plex, Jellyfin, Emby, Tautulli, Jellystat, Sonarr, Radarr, Lidarr, Bazarr, qBittorrent, Transmission, BitTorrent, Deluge, SABnzbd, Gotify, TMDB, and SMTP. Discover &amp; Request is built in by default; Seerr/Jellyseerr is optional as an engine or history import.
 
 See the full [integration list](/guide/integrations) for setup notes and feature coverage.
 

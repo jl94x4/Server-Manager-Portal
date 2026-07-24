@@ -2573,15 +2573,24 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
 
     const { actor: _actor, impersonatingUserId, ...sessionPublic } = req.user;
 
+    const requestAppType = config.requestAppType === 'overseerr' ? 'seerr' : (config.requestAppType || 'none');
+    const resolvedRequestUrl = requestUrl;
     const isPlexMediaServer = String(config.mediaServerType || 'plex').toLowerCase() === 'plex';
+    const portalRequestNav = isPortalRequestNavReady(config);
+    const seerrRequestNav = !!(
+        requestAppType
+        && requestAppType !== 'none'
+        && resolvedRequestUrl
+        && resolvedRequestUrl !== 'https://yourdomain.com'
+    );
     const navFeatures = {
         maintenance: !!config.maintenanceExperimentalEnabled,
         upgrader: !!config.upgraderEnabled,
         // Collexions is Plex-only — hide for Jellyfin/Emby even if the flag is on.
         collexions: !!config.collexionsEnabled && isPlexMediaServer,
-        // Phase 10: portal is always the request engine — Discover / Requests stay unlocked.
-        request: isPortalRequestNavReady(config),
-        requestsQueue: isPortalRequestNavReady(config),
+        // Portal engine unlocks Discover; Seerr URL still works when using Seerr as engine.
+        request: portalRequestNav || seerrRequestNav,
+        requestsQueue: portalRequestNav || requestAppService.isRequestAppConfigured(config),
         downloads: config.downloadsVisibleToMembers !== false,
     };
 
@@ -3348,10 +3357,10 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
             : normalizeSectionLayout(existingConfig.dashboardLayout)
     };
     const config = migrateArrConfig(configDraft);
-    // Phase 10: first-time setup always uses the portal request engine.
+    // New installs default to portal + TMDB; admins can switch to Seerr later in Settings.
     if (!isConfigured) {
         config.requestEngine = 'portal';
-        config.discoverySource = String(config.tmdbApiKey || '').trim() ? 'tmdb' : 'tmdb';
+        config.discoverySource = 'tmdb';
     }
     const { config: collexionsConfig, changed: collexionsDefaultsChanged } = applyCollexionsBundledDefaults(config, {
         configDir: CONFIG_DIR,

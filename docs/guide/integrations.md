@@ -108,8 +108,8 @@ Most integrations are configured in **Settings → Media Stack**. Branding, aler
     </tr>
     <tr>
       <td><img src="https://cdn.jsdelivr.net/gh/selfhst/icons/svg/jellyseerr.svg" alt="" /> Jellyseerr / Seerr</td>
-      <td>Migration (optional)</td>
-      <td>One-shot import of past requests, issues, and blocklist into the portal</td>
+      <td>Requests (optional)</td>
+      <td>Optional request engine, Discover metadata proxy, or one-shot history import into the portal</td>
     </tr>
     <tr>
       <td><img src="https://cdn.jsdelivr.net/gh/selfhst/icons/svg/sonarr.svg" alt="" /> Sonarr</td>

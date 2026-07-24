@@ -125,19 +125,19 @@ Stubs are wired; Phase 4 defaults Discover metadata to TMDB (`discoverySource` d
 - [x] Phase 7 — Status sync from *arr/Plex
 - [x] Phase 8 — Issues + quotas
 - [x] Phase 9 — Watchlist/blocklist + migration
-- [x] Phase 10 — Hard cut + cleanup
+- [x] Phase 10 — Portal default + optional Seerr dual-run
   - [x] Setup wizard portal-first + optional Seerr import (`/api/setup/import-seerr`)
-  - [x] Force `requestEngine=portal` / `discoverySource=tmdb` (Seerr live engine + metadata rollback removed)
-  - [x] Settings reframed: Seerr credentials = import only; engine/source pickers removed
-  - [x] Docs / README updated for portal-native requests
-  - [ ] Optional follow-up: delete unreachable Seerr else-branches + unused `lib/seerr-*` live CRUD (import `rawFetch` + `seerrHistoryImport` stay)
+  - [x] Portal is the default request engine / TMDB is the default Discover source
+  - [x] Seerr retained as selectable request engine + Discover metadata option
+  - [x] Settings + docs describe portal default with Seerr as optional feature
+  - [ ] Optional later: hard-cut Seerr (only if product decides to drop dual-run)
 
-## Phase 10 notes (done)
+## Phase 10 notes
 
-- **Runtime:** `getRequestEngine` / `getDiscoverySource` always return portal/tmdb. Dual-run else branches in `index.js` are unreachable.
-- **Setup:** Integrations → Requests defaults to portal Discover & Request (TMDB key). Optional “Coming from Seerr?” imports history via setup-token route.
+- **Default:** New installs use `requestEngine=portal` + `discoverySource=tmdb`.
+- **Optional:** Admins can switch Request Engine / Discover Metadata Source to Seerr in Settings (needs Seerr URL + API key under Integrations).
+- **Import:** One-shot Seerr history import remains available when using the portal engine.
 - **Import fallback:** Unmapped Seerr request history is labeled with the setup admin Plex id (`fallbackUserId`) for display only (no access change).
-- **Settings:** Request engine / Discover source are fixed copy; Seerr URL+key under Integrations for import only.
 
 ## Phase 2 notes
 

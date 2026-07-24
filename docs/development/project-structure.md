@@ -29,7 +29,7 @@ Server-Manager-Portal/
 
 `index.js` contains the Express API, authentication, Plex and Jellyfin integrations, email handling, security headers, rate limiting, background jobs, and static asset serving.
 
-`lib/portal-request/` holds the portal-native Discover/request engine (Seerr uncouple complete through Phase 10). JSON requests/issues/blocklist, *arr approve + status sync, portal quotas/auto-approve. Seerr remains optional for one-shot history import only. See [seerr-uncouple-inventory.md](./seerr-uncouple-inventory.md).
+`lib/portal-request/` holds the portal-native Discover/request engine (Seerr uncouple through Phase 10). JSON requests/issues/blocklist, *arr approve + status sync, portal quotas/auto-approve. Portal is the default; Seerr remains an optional dual-run engine and history import. See [seerr-uncouple-inventory.md](./seerr-uncouple-inventory.md).
 
 ## Frontend
 
