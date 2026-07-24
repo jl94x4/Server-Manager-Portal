@@ -1328,7 +1328,6 @@ def run_sync_job(job_id=None):
             next_run_str = job.get('next_run')
             if next_run_str:
                 try:
-                    from datetime import datetime
                     next_run_dt = datetime.strptime(next_run_str, "%Y-%m-%d %H:%M:%S")
                     if datetime.now() < next_run_dt:
                         continue # Skip, not time yet
