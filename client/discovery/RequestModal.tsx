@@ -31,7 +31,6 @@ type QualityFormState = {
     serverId: number | null;
     profileId: number | null;
     rootFolder: string;
-    languageProfileId: number | null;
     selectedTags: number[];
     serviceOptions: PortalServiceOptions | null;
     loaded: boolean;
@@ -42,7 +41,6 @@ const emptyQualityForm = (): QualityFormState => ({
     serverId: null,
     profileId: null,
     rootFolder: '',
-    languageProfileId: null,
     selectedTags: [],
     serviceOptions: null,
     loaded: false,
@@ -112,9 +110,7 @@ export const RequestModal: React.FC<Props> = ({
         const server: PortalServiceOptions['server'] = data.server;
         const profiles = Array.isArray(data.profiles) ? data.profiles : [];
         const folders = Array.isArray(data.rootFolders) ? data.rootFolders : [];
-        const languageProfiles = Array.isArray(data.languageProfiles) ? data.languageProfiles : [];
         const isAnime = !!opts.isAnime;
-        const resolvedType = opts.mediaType === 'tv' || mediaType === 'tv' ? 'tv' : 'movie';
 
         let nextProfileId = defaults?.profileId != null ? Number(defaults.profileId) : Number.NaN;
         if (!Number.isFinite(nextProfileId)) {
@@ -132,18 +128,6 @@ export const RequestModal: React.FC<Props> = ({
             nextRootFolder = activeFolder || folders[0]?.path || '';
         }
 
-        let nextLanguageProfileId = defaults?.languageProfileId != null
-            ? Number(defaults.languageProfileId)
-            : Number.NaN;
-        if (resolvedType === 'tv' && !Number.isFinite(nextLanguageProfileId)) {
-            const activeLang = isAnime && server.activeAnimeLanguageProfileId != null
-                ? Number(server.activeAnimeLanguageProfileId)
-                : (server.activeLanguageProfileId != null ? Number(server.activeLanguageProfileId) : Number.NaN);
-            nextLanguageProfileId = Number.isFinite(activeLang)
-                ? activeLang
-                : (languageProfiles[0]?.id ?? Number.NaN);
-        }
-
         const nextTags = Array.isArray(defaults?.tags)
             ? defaults.tags.map((tag) => Number(tag)).filter((tag) => Number.isFinite(tag))
             : [];
@@ -156,10 +140,9 @@ export const RequestModal: React.FC<Props> = ({
             serverId: Number.isFinite(nextServerId) ? nextServerId : null,
             profileId: Number.isFinite(nextProfileId) ? nextProfileId : null,
             rootFolder: nextRootFolder,
-            languageProfileId: Number.isFinite(nextLanguageProfileId) ? nextLanguageProfileId : null,
             selectedTags: nextTags,
         };
-    }, [mediaType]);
+    }, []);
 
     const loadServiceOptions = useCallback(async (
         opts: RequestOptionsPayload,
@@ -198,9 +181,6 @@ export const RequestModal: React.FC<Props> = ({
                             rootFolder: preserveSelections && current.rootFolder
                                 ? current.rootFolder
                                 : applied.rootFolder,
-                            languageProfileId: preserveSelections && current.languageProfileId != null
-                                ? current.languageProfileId
-                                : applied.languageProfileId,
                             selectedTags: preserveSelections
                                 ? current.selectedTags
                                 : applied.selectedTags,
@@ -589,9 +569,6 @@ export const RequestModal: React.FC<Props> = ({
             else if (fallbackServer?.id != null) body.serverId = fallbackServer.id;
             if (form.profileId != null) body.profileId = form.profileId;
             if (form.rootFolder) body.rootFolder = form.rootFolder;
-            if (mediaType === 'tv' && form.languageProfileId != null) {
-                body.languageProfileId = form.languageProfileId;
-            }
             if (form.selectedTags.length) body.tags = form.selectedTags;
         } else if (fallbackServer?.id != null) {
             body.serverId = fallbackServer.id;
@@ -1007,24 +984,6 @@ export const RequestModal: React.FC<Props> = ({
                                             </p>
                                         )}
                                     </div>
-
-                                    {mediaType === 'tv' && (activeForm.serviceOptions?.languageProfiles?.length ?? 0) > 0 && (
-                                        <div>
-                                            <label className="block text-xs font-bold uppercase tracking-wider text-white/40 mb-2">
-                                                Language Profile
-                                            </label>
-                                            <CustomSelect
-                                                value={String(activeForm.languageProfileId ?? '')}
-                                                onChange={(val) => updateQualityForm(advancedQuality, {
-                                                    languageProfileId: Number(val),
-                                                })}
-                                                options={(activeForm.serviceOptions?.languageProfiles || []).map((profile) => ({
-                                                    value: String(profile.id),
-                                                    label: profile.name,
-                                                }))}
-                                            />
-                                        </div>
-                                    )}
 
                                     <div>
                                         <label className="block text-xs font-bold uppercase tracking-wider text-white/40 mb-2">
