@@ -3357,11 +3357,6 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
             : normalizeSectionLayout(existingConfig.dashboardLayout)
     };
     const config = migrateArrConfig(configDraft);
-    // New installs default to portal + TMDB; admins can switch to Seerr later in Settings.
-    if (!isConfigured) {
-        config.requestEngine = 'portal';
-        config.discoverySource = 'tmdb';
-    }
     const { config: collexionsConfig, changed: collexionsDefaultsChanged } = applyCollexionsBundledDefaults(config, {
         configDir: CONFIG_DIR,
         log,

@@ -78,6 +78,8 @@ const MIGRATE_SEERR_OPTIONS = [
     { label: 'Jellyseerr', value: 'jellyseerr' },
 ];
 
+type RequestSetupMode = 'portal' | 'seerr';
+
 const SELFHST_ICON_BASE = 'https://cdn.jsdelivr.net/gh/selfhst/icons/svg';
 const APP_ICONS: Record<string, string> = {
     sonarr: `${SELFHST_ICON_BASE}/sonarr.svg`,
@@ -190,6 +192,7 @@ const readStoredSetupPlex = () => {
             requestAppApiKey?: string;
             tmdbApiKey?: string;
             migrateFromSeerr?: boolean;
+            requestSetupMode?: RequestSetupMode;
         };
     } catch {
         return null;
@@ -243,6 +246,9 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
     const [jellystatUrl, setJellystatUrl] = useState(storedPlex?.jellystatUrl ?? '');
     const [jellystatApiKey, setJellystatApiKey] = useState(storedPlex?.jellystatApiKey ?? '');
     const [tmdbApiKey, setTmdbApiKey] = useState(storedPlex?.tmdbApiKey ?? '');
+    const [requestSetupMode, setRequestSetupMode] = useState<RequestSetupMode>(
+        storedPlex?.requestSetupMode === 'seerr' ? 'seerr' : 'portal',
+    );
     const [migrateFromSeerr, setMigrateFromSeerr] = useState(!!storedPlex?.migrateFromSeerr);
     const [requestAppType, setRequestAppType] = useState(
         storedPlex?.requestAppType === 'jellyseerr' ? 'jellyseerr' : 'seerr',
@@ -273,7 +279,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
         if (brandTheme === 'plex' || brandTheme === 'jellyfin') {
             applyBrandTheme(nextType);
         }
-        if (migrateFromSeerr) {
+        if (requestSetupMode === 'seerr' || migrateFromSeerr) {
             setRequestAppType(nextType === 'jellyfin' || nextType === 'emby' ? 'jellyseerr' : 'seerr');
         }
     };
@@ -351,6 +357,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
             jellystatUrl,
             jellystatApiKey,
             tmdbApiKey,
+            requestSetupMode,
             migrateFromSeerr,
             requestAppType,
             requestAppUrl,
@@ -518,18 +525,31 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                     tautulliApiKey,
                     jellystatUrl,
                     jellystatApiKey,
-                    tmdbApiKey,
-                    requestEngine: 'portal',
-                    discoverySource: 'tmdb',
-                    // Keep Seerr credentials only when migrating — engine stays portal.
-                    requestAppType: migrateFromSeerr && requestAppUrl && requestAppApiKey ? requestAppType : 'none',
-                    requestAppUrl: migrateFromSeerr ? requestAppUrl : '',
-                    requestAppApiKey: migrateFromSeerr ? requestAppApiKey : '',
+                    tmdbApiKey: requestSetupMode === 'portal' ? tmdbApiKey : (tmdbApiKey || ''),
+                    requestEngine: requestSetupMode === 'seerr' ? 'seerr' : 'portal',
+                    discoverySource: requestSetupMode === 'seerr' ? 'seerr' : 'tmdb',
+                    requestAppType: (
+                        requestSetupMode === 'seerr' || (migrateFromSeerr && requestAppUrl && requestAppApiKey)
+                    ) && requestAppUrl && requestAppApiKey
+                        ? requestAppType
+                        : 'none',
+                    requestAppUrl: (
+                        requestSetupMode === 'seerr' || migrateFromSeerr
+                    ) ? requestAppUrl : '',
+                    requestAppApiKey: (
+                        requestSetupMode === 'seerr' || migrateFromSeerr
+                    ) ? requestAppApiKey : '',
                     ...(setupToken ? { setupToken } : {}),
                 }),
             });
 
-            if (migrateFromSeerr && requestAppUrl && requestAppApiKey && !seerrImportDone) {
+            if (
+                requestSetupMode === 'portal'
+                && migrateFromSeerr
+                && requestAppUrl
+                && requestAppApiKey
+                && !seerrImportDone
+            ) {
                 try {
                     const summary = await apiFetch('/api/setup/import-seerr', {
                         method: 'POST',
@@ -1083,145 +1103,225 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
 
                             {integrationTab === 'requests' && (
                                 <div className={`${sectionCardClass} flex flex-col gap-3.5`}>
-                                    <div className="flex items-start gap-3">
-                                        <ProgramIcon app="tmdb" label="TMDB" />
-                                        <div className="min-w-0 flex-1">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <h3 className="font-bold text-text text-base leading-tight">Portal Discover &amp; Request</h3>
-                                                <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-200">
-                                                    Always on
-                                                </span>
-                                            </div>
-                                            <p className="text-xs text-muted mt-1">
-                                                Built-in requests — no Seerr required. Paste your TMDB API key below, and connect Sonarr/Radarr under Arr Apps.
-                                            </p>
-                                        </div>
-                                    </div>
                                     <div>
-                                        <label className={labelClass}>TMDB API Key</label>
-                                        <input
-                                            type="password"
-                                            className={inputClass}
-                                            value={tmdbApiKey}
-                                            onChange={(e) => setTmdbApiKey(e.target.value)}
-                                            placeholder="Paste key to enable Discover posters &amp; search"
-                                            autoComplete="off"
-                                        />
-                                        <p className="text-[11px] text-muted mt-1.5">
-                                            Free from{' '}
-                                            <a
-                                                href="https://www.themoviedb.org/settings/api"
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-plex hover:underline"
-                                            >
-                                                themoviedb.org/settings/api
-                                            </a>
-                                            . You can skip this and add it later in Settings, but Discover will be empty until then.
+                                        <h3 className="font-bold text-text text-base leading-tight">How should members request media?</h3>
+                                        <p className="text-xs text-muted mt-1">
+                                            Choose the built-in portal engine, or connect Seerr / Jellyseerr. You can change this later in Settings.
                                         </p>
-                                        <div className="mt-2">
-                                            <IntegrationTestButton
-                                                type="tmdb"
-                                                payload={{ tmdbApiKey }}
-                                                disabled={!String(tmdbApiKey || '').trim()}
-                                            />
-                                        </div>
                                     </div>
 
-                                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
-                                        <label className="flex items-start gap-3 cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                className="mt-1 accent-plex"
-                                                checked={migrateFromSeerr}
-                                                onChange={(e) => setMigrateFromSeerr(e.target.checked)}
-                                            />
-                                            <span>
-                                                <span className="block text-sm font-bold text-text">Coming from Seerr / Jellyseerr?</span>
-                                                <span className="block text-xs text-muted mt-0.5">
-                                                    Optional one-time import of requests, issues, and blocklist. Portal stays the request engine.
-                                                </span>
-                                            </span>
-                                        </label>
-                                        {migrateFromSeerr && (
-                                            <>
-                                                <div className="flex items-center gap-3">
-                                                    <ProgramIcon app={requestAppType} label="Seerr" />
-                                                    <CustomSelect
-                                                        value={requestAppType}
-                                                        onChange={setRequestAppType}
-                                                        options={MIGRATE_SEERR_OPTIONS}
-                                                    />
-                                                </div>
-                                                <input
-                                                    type="text"
-                                                    className={inputClass}
-                                                    value={requestAppUrl}
-                                                    onChange={(e) => setRequestAppUrl(e.target.value)}
-                                                    placeholder="http://localhost:5055"
-                                                />
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setRequestSetupMode('portal');
+                                                persistSetupPlex({ requestSetupMode: 'portal' });
+                                            }}
+                                            className={`text-left rounded-xl border p-4 transition-colors ${
+                                                requestSetupMode === 'portal'
+                                                    ? 'border-plex/50 bg-plex/10 ring-1 ring-plex/30'
+                                                    : 'border-white/10 bg-white/[0.03] hover:border-white/20'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <ProgramIcon app="tmdb" label="TMDB" />
+                                                <span className="font-bold text-text text-sm">Built-in (Portal)</span>
+                                            </div>
+                                            <p className="text-[11px] text-muted leading-relaxed">
+                                                Discover &amp; Request in the portal. Needs TMDB + Sonarr/Radarr. No Seerr required.
+                                            </p>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setRequestSetupMode('seerr');
+                                                setMigrateFromSeerr(false);
+                                                const nextType = mediaServerType === 'jellyfin' || mediaServerType === 'emby'
+                                                    ? 'jellyseerr'
+                                                    : 'seerr';
+                                                setRequestAppType(nextType);
+                                                persistSetupPlex({ requestSetupMode: 'seerr', migrateFromSeerr: false, requestAppType: nextType });
+                                            }}
+                                            className={`text-left rounded-xl border p-4 transition-colors ${
+                                                requestSetupMode === 'seerr'
+                                                    ? 'border-plex/50 bg-plex/10 ring-1 ring-plex/30'
+                                                    : 'border-white/10 bg-white/[0.03] hover:border-white/20'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <ProgramIcon app={requestAppType === 'jellyseerr' ? 'jellyseerr' : 'seerr'} label="Seerr" />
+                                                <span className="font-bold text-text text-sm">Seerr / Jellyseerr</span>
+                                            </div>
+                                            <p className="text-[11px] text-muted leading-relaxed">
+                                                Keep using your existing request app for queue, quotas, and approvals.
+                                            </p>
+                                        </button>
+                                    </div>
+
+                                    {requestSetupMode === 'portal' && (
+                                        <>
+                                            <div>
+                                                <label className={labelClass}>TMDB API Key</label>
                                                 <input
                                                     type="password"
                                                     className={inputClass}
-                                                    value={requestAppApiKey}
-                                                    onChange={(e) => setRequestAppApiKey(e.target.value)}
-                                                    placeholder="API Key"
+                                                    value={tmdbApiKey}
+                                                    onChange={(e) => setTmdbApiKey(e.target.value)}
+                                                    placeholder="Paste key to enable Discover posters &amp; search"
+                                                    autoComplete="off"
                                                 />
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                    <IntegrationTestButton
-                                                        type="requestApp"
-                                                        payload={{ requestAppType, requestAppUrl, requestAppApiKey }}
-                                                        disabled={!requestAppUrl || !requestAppApiKey}
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        disabled={seerrImportBusy || !requestAppUrl || !requestAppApiKey}
-                                                        onClick={async () => {
-                                                            setSeerrImportBusy(true);
-                                                            setSeerrImportSummary(null);
-                                                            setError('');
-                                                            try {
-                                                                const summary = await apiFetch('/api/setup/import-seerr', {
-                                                                    method: 'POST',
-                                                                    headers: setupAuthHeaders(setupToken),
-                                                                    body: JSON.stringify({
-                                                                        requestAppType,
-                                                                        requestAppUrl,
-                                                                        requestAppApiKey,
-                                                                        plexToken: token.trim(),
-                                                                        includeIssues: true,
-                                                                        includeBlocklist: true,
-                                                                        ...(setupToken ? { setupToken } : {}),
-                                                                    }),
-                                                                });
-                                                                const req = summary?.requests || {};
-                                                                setSeerrImportSummary(
-                                                                    `Imported ${req.imported || 0} requests` +
-                                                                    (req.importedWithFallback ? ` (${req.importedWithFallback} labeled under your name until members sign in)` : '') +
-                                                                    `, ${summary?.issues?.imported || 0} issues` +
-                                                                    `, ${summary?.blocklist?.imported || 0} blocklist.`,
-                                                                );
-                                                                setSeerrImportDone(true);
-                                                            } catch (e) {
-                                                                setError(e instanceof Error ? e.message : 'Seerr import failed');
-                                                            } finally {
-                                                                setSeerrImportBusy(false);
-                                                            }
-                                                        }}
-                                                        className="inline-flex items-center rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 px-3 py-2 text-sm font-semibold disabled:opacity-50"
+                                                <p className="text-[11px] text-muted mt-1.5">
+                                                    Free from{' '}
+                                                    <a
+                                                        href="https://www.themoviedb.org/settings/api"
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-plex hover:underline"
                                                     >
-                                                        {seerrImportBusy ? 'Importing…' : 'Import now'}
-                                                    </button>
-                                                </div>
-                                                {seerrImportSummary && (
-                                                    <p className="text-xs text-emerald-300/90">{seerrImportSummary}</p>
-                                                )}
-                                                <p className="text-[11px] text-muted">
-                                                    If a Seerr user isn&apos;t in the portal yet, their imported request history is temporarily labeled under your name for display only — it does not grant them access or permissions. Re-run import from Settings after they sign in to attribute correctly.
+                                                        themoviedb.org/settings/api
+                                                    </a>
+                                                    . You can skip this and add it later in Settings, but Discover will be empty until then.
                                                 </p>
-                                            </>
-                                        )}
-                                    </div>
+                                                <div className="mt-2">
+                                                    <IntegrationTestButton
+                                                        type="tmdb"
+                                                        payload={{ tmdbApiKey }}
+                                                        disabled={!String(tmdbApiKey || '').trim()}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
+                                                <label className="flex items-start gap-3 cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="mt-1 accent-plex"
+                                                        checked={migrateFromSeerr}
+                                                        onChange={(e) => setMigrateFromSeerr(e.target.checked)}
+                                                    />
+                                                    <span>
+                                                        <span className="block text-sm font-bold text-text">Coming from Seerr / Jellyseerr?</span>
+                                                        <span className="block text-xs text-muted mt-0.5">
+                                                            Optional one-time import of requests, issues, and blocklist into the portal.
+                                                        </span>
+                                                    </span>
+                                                </label>
+                                                {migrateFromSeerr && (
+                                                    <>
+                                                        <div className="flex items-center gap-3">
+                                                            <ProgramIcon app={requestAppType} label="Seerr" />
+                                                            <CustomSelect
+                                                                value={requestAppType}
+                                                                onChange={setRequestAppType}
+                                                                options={MIGRATE_SEERR_OPTIONS}
+                                                            />
+                                                        </div>
+                                                        <input
+                                                            type="text"
+                                                            className={inputClass}
+                                                            value={requestAppUrl}
+                                                            onChange={(e) => setRequestAppUrl(e.target.value)}
+                                                            placeholder="http://localhost:5055"
+                                                        />
+                                                        <input
+                                                            type="password"
+                                                            className={inputClass}
+                                                            value={requestAppApiKey}
+                                                            onChange={(e) => setRequestAppApiKey(e.target.value)}
+                                                            placeholder="API Key"
+                                                        />
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <IntegrationTestButton
+                                                                type="requestApp"
+                                                                payload={{ requestAppType, requestAppUrl, requestAppApiKey }}
+                                                                disabled={!requestAppUrl || !requestAppApiKey}
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                disabled={seerrImportBusy || !requestAppUrl || !requestAppApiKey}
+                                                                onClick={async () => {
+                                                                    setSeerrImportBusy(true);
+                                                                    setSeerrImportSummary(null);
+                                                                    setError('');
+                                                                    try {
+                                                                        const summary = await apiFetch('/api/setup/import-seerr', {
+                                                                            method: 'POST',
+                                                                            headers: setupAuthHeaders(setupToken),
+                                                                            body: JSON.stringify({
+                                                                                requestAppType,
+                                                                                requestAppUrl,
+                                                                                requestAppApiKey,
+                                                                                plexToken: token.trim(),
+                                                                                includeIssues: true,
+                                                                                includeBlocklist: true,
+                                                                                ...(setupToken ? { setupToken } : {}),
+                                                                            }),
+                                                                        });
+                                                                        const req = summary?.requests || {};
+                                                                        setSeerrImportSummary(
+                                                                            `Imported ${req.imported || 0} requests` +
+                                                                            (req.importedWithFallback ? ` (${req.importedWithFallback} labeled under your name until members sign in)` : '') +
+                                                                            `, ${summary?.issues?.imported || 0} issues` +
+                                                                            `, ${summary?.blocklist?.imported || 0} blocklist.`,
+                                                                        );
+                                                                        setSeerrImportDone(true);
+                                                                    } catch (e) {
+                                                                        setError(e instanceof Error ? e.message : 'Seerr import failed');
+                                                                    } finally {
+                                                                        setSeerrImportBusy(false);
+                                                                    }
+                                                                }}
+                                                                className="inline-flex items-center rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 px-3 py-2 text-sm font-semibold disabled:opacity-50"
+                                                            >
+                                                                {seerrImportBusy ? 'Importing…' : 'Import now'}
+                                                            </button>
+                                                        </div>
+                                                        {seerrImportSummary && (
+                                                            <p className="text-xs text-emerald-300/90">{seerrImportSummary}</p>
+                                                        )}
+                                                        <p className="text-[11px] text-muted">
+                                                            If a Seerr user isn&apos;t in the portal yet, their imported request history is temporarily labeled under your name for display only — it does not grant them access or permissions. Re-run import from Settings after they sign in to attribute correctly.
+                                                        </p>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {requestSetupMode === 'seerr' && (
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-3">
+                                                <ProgramIcon app={requestAppType} label="Seerr" />
+                                                <CustomSelect
+                                                    value={requestAppType}
+                                                    onChange={setRequestAppType}
+                                                    options={MIGRATE_SEERR_OPTIONS}
+                                                />
+                                            </div>
+                                            <input
+                                                type="text"
+                                                className={inputClass}
+                                                value={requestAppUrl}
+                                                onChange={(e) => setRequestAppUrl(e.target.value)}
+                                                placeholder="http://localhost:5055"
+                                            />
+                                            <input
+                                                type="password"
+                                                className={inputClass}
+                                                value={requestAppApiKey}
+                                                onChange={(e) => setRequestAppApiKey(e.target.value)}
+                                                placeholder="API Key"
+                                            />
+                                            <IntegrationTestButton
+                                                type="requestApp"
+                                                payload={{ requestAppType, requestAppUrl, requestAppApiKey }}
+                                                disabled={!requestAppUrl || !requestAppApiKey}
+                                            />
+                                            <p className="text-[11px] text-muted">
+                                                Quotas, permissions, and auto-approve stay in Seerr. Connect Sonarr/Radarr there as usual. You can switch to the built-in portal engine later in Settings.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
