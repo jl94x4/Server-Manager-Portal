@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Upload } from 'lucide-react';
+import { FileUp, Loader2, Plus, Trash2, Upload } from 'lucide-react';
 import { SettingsToggleRow } from '../shared/ui';
 import { SettingHint } from './SettingHint';
 import { apiFetch } from '../shared/api';
@@ -49,56 +49,96 @@ export const defaultScannerSettings = (): ScannerSettings => ({
     },
 });
 
+const FIELD =
+    'w-full p-2.5 rounded-lg border border-border bg-background text-text placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/30 disabled:opacity-50';
+
+const SectionCard: React.FC<{ title: string; description?: string; children: React.ReactNode }> = ({
+    title,
+    description,
+    children,
+}) => (
+    <div className="rounded-xl border border-border/60 bg-white/[0.02] p-4 sm:p-5 space-y-4">
+        <div>
+            <h4 className="font-bold text-text tracking-tight">{title}</h4>
+            {description ? <p className="text-xs text-muted mt-1 leading-relaxed">{description}</p> : null}
+        </div>
+        {children}
+    </div>
+);
+
 const RewriteEditor: React.FC<{
     rules: RewriteRule[];
     onChange: (rules: RewriteRule[]) => void;
     disabled?: boolean;
 }> = ({ rules, onChange, disabled }) => (
-    <div className="space-y-2 mt-2">
-        {(rules || []).map((rule, i) => (
-            <div key={i} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2">
-                <input
-                    className="bg-black/30 border border-border rounded px-3 py-2 text-sm"
-                    placeholder="From (regexp)"
-                    value={rule.from}
-                    disabled={disabled}
-                    onChange={(e) => {
-                        const next = [...rules];
-                        next[i] = { ...next[i], from: e.target.value };
-                        onChange(next);
-                    }}
-                />
-                <input
-                    className="bg-black/30 border border-border rounded px-3 py-2 text-sm"
-                    placeholder="To"
-                    value={rule.to}
-                    disabled={disabled}
-                    onChange={(e) => {
-                        const next = [...rules];
-                        next[i] = { ...next[i], to: e.target.value };
-                        onChange(next);
-                    }}
-                />
-                <button
-                    type="button"
-                    className="text-xs text-red-300 px-2"
-                    disabled={disabled}
-                    onClick={() => onChange(rules.filter((_, idx) => idx !== i))}
-                >
-                    Remove
-                </button>
+    <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+            <label className="text-xs font-semibold text-muted uppercase tracking-wider">Path Rewrites</label>
+            <button
+                type="button"
+                className="btn-secondary inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs disabled:opacity-50"
+                disabled={disabled}
+                onClick={() => onChange([...(rules || []), { from: '', to: '' }])}
+            >
+                <Plus className="w-3.5 h-3.5" />
+                Add rewrite
+            </button>
+        </div>
+        {(rules || []).length === 0 ? (
+            <p className="text-xs text-muted py-2">No rewrite rules. Paths are used as received from the trigger.</p>
+        ) : (
+            <div className="space-y-2">
+                {(rules || []).map((rule, i) => (
+                    <div key={i} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2 items-center">
+                        <input
+                            className={FIELD}
+                            placeholder="From (regexp)"
+                            value={rule.from}
+                            disabled={disabled}
+                            onChange={(e) => {
+                                const next = [...rules];
+                                next[i] = { ...next[i], from: e.target.value };
+                                onChange(next);
+                            }}
+                        />
+                        <input
+                            className={FIELD}
+                            placeholder="To"
+                            value={rule.to}
+                            disabled={disabled}
+                            onChange={(e) => {
+                                const next = [...rules];
+                                next[i] = { ...next[i], to: e.target.value };
+                                onChange(next);
+                            }}
+                        />
+                        <button
+                            type="button"
+                            className="inline-flex items-center justify-center h-10 w-10 rounded-lg border border-border/60 text-red-300 hover:bg-red-500/10 disabled:opacity-50"
+                            disabled={disabled}
+                            title="Remove rewrite"
+                            onClick={() => onChange(rules.filter((_, idx) => idx !== i))}
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                    </div>
+                ))}
             </div>
-        ))}
-        <button
-            type="button"
-            className="text-xs text-plex font-semibold"
-            disabled={disabled}
-            onClick={() => onChange([...(rules || []), { from: '', to: '' }])}
-        >
-            + Add rewrite
-        </button>
+        )}
     </div>
 );
+
+const TRIGGER_META = {
+    sonarr: { title: 'Sonarr', description: 'Webhook path /triggers/sonarr (or custom name below).' },
+    radarr: { title: 'Radarr', description: 'Webhook path /triggers/radarr (or custom name below).' },
+    lidarr: { title: 'Lidarr', description: 'Webhook path /triggers/lidarr (or custom name below).' },
+} as const;
+
+const TARGET_META = {
+    plex: { title: 'Plex', enableTitle: 'Enable Plex' },
+    jellyfin: { title: 'Jellyfin', enableTitle: 'Enable Jellyfin' },
+    emby: { title: 'Emby', enableTitle: 'Enable Emby' },
+} as const;
 
 type Props = {
     enabled: boolean;
@@ -138,12 +178,12 @@ export const ScannerSettingsPanel: React.FC<Props> = ({
 
     const summarizeImport = (imported: ScannerSettings) => {
         const parts = [
-            `min-age ${imported.minimumAge || '1m'}`,
-            imported.authUsername ? `auth @${imported.authUsername}` : null,
-            `sonarr ${(imported.triggers?.sonarr?.[0]?.rewrite || []).length} rewrites`,
-            `radarr ${(imported.triggers?.radarr?.[0]?.rewrite || []).length} rewrites`,
-            `lidarr ${(imported.triggers?.lidarr?.[0]?.rewrite || []).length} rewrites`,
-            `plex ${(imported.targets?.plex?.[0]?.rewrite || []).length} rewrites`,
+            `Min age ${imported.minimumAge || '1m'}`,
+            imported.authUsername ? `Auth @${imported.authUsername}` : null,
+            `Sonarr ${(imported.triggers?.sonarr?.[0]?.rewrite || []).length} rewrites`,
+            `Radarr ${(imported.triggers?.radarr?.[0]?.rewrite || []).length} rewrites`,
+            `Lidarr ${(imported.triggers?.lidarr?.[0]?.rewrite || []).length} rewrites`,
+            `Plex ${(imported.targets?.plex?.[0]?.rewrite || []).length} rewrites`,
         ].filter(Boolean);
         return parts.join(' · ');
     };
@@ -204,146 +244,157 @@ export const ScannerSettingsPanel: React.FC<Props> = ({
     return (
         <div className="mb-8 animate-fade-in space-y-6">
             <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Scanner</h3>
-            <section id={sectionId} className="space-y-4 scroll-mt-24">
-                <p className="text-xs text-muted -mt-2">
-                    Native Autoscan-style library refresh for Sonarr / Radarr / Lidarr webhooks and manual paths.
-                    Admin-only Scanner page appears in the nav when enabled.
+            <section id={sectionId} className="space-y-5 scroll-mt-24">
+                <p className="text-sm text-muted -mt-1 leading-relaxed">
+                    Autoscan-style library refresh for Sonarr, Radarr, and Lidarr. When enabled, an admin-only Scanner page
+                    appears in the nav for manual paths and queue status.
                 </p>
 
-                <div className="rounded-xl border border-accent/30 bg-accent/5 p-4 space-y-3">
-                    <h4 className="font-bold text-sm text-white">Import from Autoscan</h4>
-                    <p className="text-xs text-muted">
-                        Upload or paste your Autoscan <code className="text-white/80">config.yml</code> to fill minimum age,
-                        webhook auth, Sonarr/Radarr/Lidarr triggers + rewrites, and Plex target rewrites.
-                        Plex URL/token still come from Settings → Plex. Review the fields below, then click <strong>Save Settings</strong>.
-                    </p>
+                <SectionCard
+                    title="Import from Autoscan"
+                    description="Upload or paste your Autoscan config.yml to fill minimum age, webhook auth, triggers, and rewrites. Plex URL and token still come from Settings → Plex."
+                >
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".yml,.yaml,text/yaml,text/plain"
+                        className="hidden"
+                        onChange={(e) => {
+                            const file = e.target.files?.[0] || null;
+                            e.target.value = '';
+                            void onPickFile(file);
+                        }}
+                    />
                     <div className="flex flex-wrap gap-2">
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept=".yml,.yaml,text/yaml,text/plain"
-                            className="hidden"
-                            onChange={(e) => {
-                                const file = e.target.files?.[0] || null;
-                                e.target.value = '';
-                                void onPickFile(file);
-                            }}
-                        />
                         <button
                             type="button"
                             disabled={importing}
                             onClick={() => fileInputRef.current?.click()}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-accent text-black text-sm font-semibold disabled:opacity-50"
+                            className="btn-primary inline-flex items-center gap-2 px-4 py-2.5 text-sm disabled:opacity-50"
                         >
-                            <Upload className="w-4 h-4" />
-                            {importing ? 'Importing…' : 'Upload config.yml'}
+                            {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                            Upload config.yml
                         </button>
                         <button
                             type="button"
                             disabled={!yamlText.trim() || importing}
                             onClick={() => void importYaml()}
-                            className="px-4 py-2 rounded-lg border border-white/15 text-sm font-semibold text-white hover:bg-white/5 disabled:opacity-50"
+                            className="btn-secondary inline-flex items-center gap-2 px-4 py-2.5 text-sm disabled:opacity-50"
                         >
+                            <FileUp className="w-4 h-4" />
                             Import pasted YAML
                         </button>
                     </div>
                     <textarea
-                        className="w-full min-h-[120px] bg-black/30 border border-border rounded px-3 py-2 text-xs font-mono"
+                        className={`${FIELD} min-h-[130px] font-mono text-xs`}
                         value={yamlText}
                         onChange={(e) => setYamlText(e.target.value)}
-                        placeholder={"# Paste Autoscan config.yml here\nminimum-age: 1m\nauthentication:\n  username: admin\n  ..."}
+                        placeholder={'# Paste Autoscan config.yml here\nminimum-age: 1m\nauthentication:\n  username: admin\n  ...'}
                     />
-                    {importSummary && (
-                        <p className="text-xs text-emerald-300 font-semibold">Imported: {importSummary}</p>
-                    )}
-                </div>
+                    {importSummary ? (
+                        <div className="rounded-lg border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200 font-semibold">
+                            Imported: {importSummary}
+                        </div>
+                    ) : null}
+                </SectionCard>
 
-                <SettingsToggleRow
-                    title="Enable Scanner"
-                    hint={<SettingHint>Turns on webhook endpoints under /triggers/* and the admin Scanner page.</SettingHint>}
-                    checked={enabled}
-                    onChange={onEnabledChange}
-                    border={false}
-                />
-                <p className={`text-xs font-semibold ${enabled ? 'text-green-300' : 'text-yellow-300'}`}>
-                    Current status: {enabled ? 'ON' : 'OFF'}
-                </p>
+                <SectionCard title="General">
+                    <SettingsToggleRow
+                        title="Enable Scanner"
+                        hint={<SettingHint>Turns on /triggers/* webhooks and the admin Scanner page.</SettingHint>}
+                        checked={enabled}
+                        onChange={onEnabledChange}
+                        border={false}
+                        className="!py-0"
+                    />
+                    <p className={`text-xs font-semibold ${enabled ? 'text-green-300' : 'text-yellow-300'}`}>
+                        Current status: {enabled ? 'ON' : 'OFF'}
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                        <div>
+                            <label className="font-semibold text-sm block mb-2 text-text">Minimum Age</label>
+                            <input
+                                className={FIELD}
+                                value={scanner.minimumAge}
+                                disabled={!enabled}
+                                onChange={(e) => update({ minimumAge: e.target.value })}
+                                placeholder="1m"
+                            />
+                            <p className="text-[11px] text-muted mt-1.5">Examples: 30s, 1m, 5m. Scans wait this long before targets are called.</p>
+                        </div>
+                        <div className="flex items-end">
+                            <SettingsToggleRow
+                                title="Verify Path Exists"
+                                hint={<SettingHint>Only process queue items when the portal can see the folder on disk. Leave off if media is not mounted in the portal container.</SettingHint>}
+                                checked={!!scanner.verifyPathExists}
+                                onChange={(v) => update({ verifyPathExists: v })}
+                                disabled={!enabled}
+                                border={false}
+                                className="!py-0 w-full"
+                            />
+                        </div>
+                    </div>
+                </SectionCard>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="font-semibold text-sm block mb-2">Minimum age</label>
-                        <input
-                            className="w-full bg-black/30 border border-border rounded px-3 py-2 text-sm"
-                            value={scanner.minimumAge}
-                            disabled={!enabled}
-                            onChange={(e) => update({ minimumAge: e.target.value })}
-                            placeholder="1m"
-                        />
-                        <p className="text-[11px] text-muted mt-1">Examples: 30s, 1m, 5m. Scans wait this long before targets are called.</p>
+                <SectionCard
+                    title="Webhook Authentication"
+                    description="Sonarr, Radarr, and Lidarr Connect webhooks must use this username and password (HTTP Basic Auth)."
+                >
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="font-semibold text-sm block mb-2 text-text">Username</label>
+                            <input
+                                className={FIELD}
+                                value={scanner.authUsername}
+                                disabled={!enabled}
+                                onChange={(e) => update({ authUsername: e.target.value })}
+                                autoComplete="off"
+                            />
+                        </div>
+                        <div>
+                            <label className="font-semibold text-sm block mb-2 text-text">Password</label>
+                            <input
+                                type="password"
+                                className={FIELD}
+                                value={scanner.authPassword}
+                                disabled={!enabled}
+                                onChange={(e) => update({ authPassword: e.target.value })}
+                                autoComplete="new-password"
+                            />
+                        </div>
                     </div>
-                    <div className="pt-6">
-                        <SettingsToggleRow
-                            title="Verify path exists"
-                            hint={<SettingHint>Only process queue items when the portal can fs.stat the folder. Leave OFF if media is not mounted in the portal container.</SettingHint>}
-                            checked={!!scanner.verifyPathExists}
-                            onChange={(v) => update({ verifyPathExists: v })}
-                            disabled={!enabled}
-                            border={false}
-                        />
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="font-semibold text-sm block mb-2">Webhook username</label>
-                        <input
-                            className="w-full bg-black/30 border border-border rounded px-3 py-2 text-sm"
-                            value={scanner.authUsername}
-                            disabled={!enabled}
-                            onChange={(e) => update({ authUsername: e.target.value })}
-                            autoComplete="off"
-                        />
-                    </div>
-                    <div>
-                        <label className="font-semibold text-sm block mb-2">Webhook password</label>
-                        <input
-                            type="password"
-                            className="w-full bg-black/30 border border-border rounded px-3 py-2 text-sm"
-                            value={scanner.authPassword}
-                            disabled={!enabled}
-                            onChange={(e) => update({ authPassword: e.target.value })}
-                            autoComplete="new-password"
-                        />
-                    </div>
-                </div>
+                </SectionCard>
 
                 {(['sonarr', 'radarr', 'lidarr'] as const).map((kind) => (
-                    <div key={kind} className="rounded-xl border border-border p-4 space-y-3">
-                        <h4 className="font-bold text-sm uppercase tracking-wider text-muted">{kind} triggers</h4>
+                    <SectionCard
+                        key={kind}
+                        title={`${TRIGGER_META[kind].title} Triggers`}
+                        description={TRIGGER_META[kind].description}
+                    >
                         {(scanner.triggers[kind] || []).map((trig, i) => (
-                            <div key={i} className="space-y-2 border-t border-border/60 pt-3 first:border-0 first:pt-0">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div key={i} className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="text-xs text-muted block mb-1">Name (URL /triggers/name)</label>
+                                        <label className="font-semibold text-sm block mb-2 text-text">Trigger Name</label>
                                         <input
-                                            className="w-full bg-black/30 border border-border rounded px-3 py-2 text-sm"
+                                            className={FIELD}
                                             value={trig.name}
                                             disabled={!enabled}
                                             onChange={(e) => updateTrigger(kind, i, { name: e.target.value })}
                                         />
+                                        <p className="text-[11px] text-muted mt-1.5">URL becomes /triggers/{trig.name || kind}</p>
                                     </div>
                                     <div>
-                                        <label className="text-xs text-muted block mb-1">Priority</label>
+                                        <label className="font-semibold text-sm block mb-2 text-text">Priority</label>
                                         <input
                                             type="number"
-                                            className="w-full bg-black/30 border border-border rounded px-3 py-2 text-sm"
+                                            className={FIELD}
                                             value={trig.priority}
                                             disabled={!enabled}
                                             onChange={(e) => updateTrigger(kind, i, { priority: Number(e.target.value) || 0 })}
                                         />
                                     </div>
                                 </div>
-                                <label className="text-xs text-muted block">Path rewrites</label>
                                 <RewriteEditor
                                     rules={trig.rewrite || []}
                                     disabled={!enabled}
@@ -351,7 +402,7 @@ export const ScannerSettingsPanel: React.FC<Props> = ({
                                 />
                             </div>
                         ))}
-                    </div>
+                    </SectionCard>
                 ))}
 
                 {([
@@ -359,12 +410,19 @@ export const ScannerSettingsPanel: React.FC<Props> = ({
                     { kind: 'jellyfin' as const, secret: 'apiKey' as const, portalOnly: false },
                     { kind: 'emby' as const, secret: 'apiKey' as const, portalOnly: false },
                 ]).map(({ kind, secret, portalOnly }) => (
-                    <div key={kind} className="rounded-xl border border-border p-4 space-y-3">
-                        <h4 className="font-bold text-sm uppercase tracking-wider text-muted">{kind} target</h4>
+                    <SectionCard
+                        key={kind}
+                        title={`${TARGET_META[kind].title} Target`}
+                        description={
+                            portalOnly
+                                ? 'Uses the Plex token and server URL from Settings → Plex. Add rewrites only if mount paths differ.'
+                                : `Optional ${TARGET_META[kind].title} library refresh target.`
+                        }
+                    >
                         {(scanner.targets[kind] || []).map((tgt, i) => (
-                            <div key={i} className="space-y-2">
+                            <div key={i} className="space-y-4">
                                 <SettingsToggleRow
-                                    title={`Enable ${kind}`}
+                                    title={TARGET_META[kind].enableTitle}
                                     checked={!!tgt.enabled}
                                     onChange={(v) => updateTarget(kind, i, {
                                         enabled: v,
@@ -372,45 +430,46 @@ export const ScannerSettingsPanel: React.FC<Props> = ({
                                     })}
                                     disabled={!enabled}
                                     border={false}
+                                    className="!py-0"
                                 />
-                                {portalOnly ? (
-                                    <p className="text-xs text-muted">
-                                        Uses the <strong>Plex token</strong> and <strong>server URL</strong> from Settings → Plex.
-                                        Configure path rewrites below if Plex sees different mount paths than the ARR apps.
-                                    </p>
-                                ) : (
+                                {!portalOnly ? (
                                     <>
                                         <SettingsToggleRow
-                                            title="Use portal credentials"
-                                            hint={<SettingHint>When ON, uses the media server URL/API key from Settings. Override below when OFF.</SettingHint>}
+                                            title="Use Portal Credentials"
+                                            hint={<SettingHint>When on, uses the media server URL and API key from Settings. Override below when off.</SettingHint>}
                                             checked={tgt.usePortalCredentials !== false}
                                             onChange={(v) => updateTarget(kind, i, { usePortalCredentials: v })}
                                             disabled={!enabled || !tgt.enabled}
                                             border={false}
+                                            className="!py-0"
                                         />
-                                        {!tgt.usePortalCredentials && (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                <input
-                                                    className="bg-black/30 border border-border rounded px-3 py-2 text-sm"
-                                                    placeholder="URL"
-                                                    value={tgt.url}
-                                                    disabled={!enabled}
-                                                    onChange={(e) => updateTarget(kind, i, { url: e.target.value })}
-                                                />
-                                                <input
-                                                    type="password"
-                                                    className="bg-black/30 border border-border rounded px-3 py-2 text-sm"
-                                                    placeholder="API key"
-                                                    value={(tgt as any)[secret] || ''}
-                                                    disabled={!enabled}
-                                                    onChange={(e) => updateTarget(kind, i, { [secret]: e.target.value } as any)}
-                                                    autoComplete="new-password"
-                                                />
+                                        {!tgt.usePortalCredentials ? (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="font-semibold text-sm block mb-2 text-text">URL</label>
+                                                    <input
+                                                        className={FIELD}
+                                                        placeholder="https://…"
+                                                        value={tgt.url}
+                                                        disabled={!enabled}
+                                                        onChange={(e) => updateTarget(kind, i, { url: e.target.value })}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="font-semibold text-sm block mb-2 text-text">API Key</label>
+                                                    <input
+                                                        type="password"
+                                                        className={FIELD}
+                                                        value={(tgt as any)[secret] || ''}
+                                                        disabled={!enabled}
+                                                        onChange={(e) => updateTarget(kind, i, { [secret]: e.target.value } as any)}
+                                                        autoComplete="new-password"
+                                                    />
+                                                </div>
                                             </div>
-                                        )}
+                                        ) : null}
                                     </>
-                                )}
-                                <label className="text-xs text-muted block">Target path rewrites</label>
+                                ) : null}
                                 <RewriteEditor
                                     rules={tgt.rewrite || []}
                                     disabled={!enabled || !tgt.enabled}
@@ -418,8 +477,12 @@ export const ScannerSettingsPanel: React.FC<Props> = ({
                                 />
                             </div>
                         ))}
-                    </div>
+                    </SectionCard>
                 ))}
+
+                <p className="text-[11px] text-muted">
+                    After changing these options, click <strong className="text-text">Save Settings</strong> at the bottom of the page.
+                </p>
             </section>
         </div>
     );
