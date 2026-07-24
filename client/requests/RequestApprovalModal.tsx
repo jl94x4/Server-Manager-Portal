@@ -85,7 +85,6 @@ export const RequestApprovalModal: React.FC<Props> = ({
     const [serverId, setServerId] = useState<number | null>(null);
     const [profileId, setProfileId] = useState<number | null>(null);
     const [rootFolder, setRootFolder] = useState('');
-    const [languageProfileId, setLanguageProfileId] = useState<number | null>(null);
     const [userId, setUserId] = useState<string | null>(null);
     const [selectedTags, setSelectedTags] = useState<number[]>([]);
     const [selectedSeasons, setSelectedSeasons] = useState<number[]>([]);
@@ -144,7 +143,6 @@ export const RequestApprovalModal: React.FC<Props> = ({
                 let nextServerId = initialServerId;
                 let nextProfileId = nextDetail.profileId ?? null;
                 let nextRootFolder = nextDetail.rootFolder || '';
-                let nextLanguageProfileId = nextDetail.languageProfileId ?? null;
                 let nextTags = Array.isArray(nextDetail.tags) ? nextDetail.tags : [];
                 const resolvedUserId = resolveRequestAsUserId(usersList, nextDetail.requestedBy);
 
@@ -162,9 +160,6 @@ export const RequestApprovalModal: React.FC<Props> = ({
                         if (defaults?.serverId != null && nextDetail.serverId == null) nextServerId = defaults.serverId;
                         if (defaults?.profileId != null && nextDetail.profileId == null) nextProfileId = defaults.profileId;
                         if (defaults?.rootFolder && !nextDetail.rootFolder) nextRootFolder = defaults.rootFolder;
-                        if (defaults?.languageProfileId != null && nextDetail.languageProfileId == null) {
-                            nextLanguageProfileId = defaults.languageProfileId;
-                        }
                         if (Array.isArray(defaults?.tags) && (!nextDetail.tags || nextDetail.tags.length === 0)) {
                             nextTags = defaults.tags;
                         }
@@ -176,7 +171,6 @@ export const RequestApprovalModal: React.FC<Props> = ({
                 setServerId(nextServerId);
                 setProfileId(nextProfileId);
                 setRootFolder(nextRootFolder);
-                setLanguageProfileId(nextLanguageProfileId);
                 setSelectedTags(nextTags);
                 setUserId(resolvedUserId);
                 setSelectedSeasons(
@@ -212,13 +206,7 @@ export const RequestApprovalModal: React.FC<Props> = ({
                 : serviceOptions.server.activeDirectory;
             setRootFolder(defaultFolder || serviceOptions.rootFolders[0]?.path || '');
         }
-        if (detail.type === 'tv' && languageProfileId == null && serviceOptions.languageProfiles?.length) {
-            const defaultLang = detail.isAnime && serviceOptions.server.activeAnimeLanguageProfileId
-                ? serviceOptions.server.activeAnimeLanguageProfileId
-                : serviceOptions.server.activeLanguageProfileId;
-            setLanguageProfileId(defaultLang ?? serviceOptions.languageProfiles[0]?.id ?? null);
-        }
-    }, [serviceOptions, detail, profileId, rootFolder, languageProfileId]);
+    }, [serviceOptions, detail, profileId, rootFolder]);
 
     const tvSeasonRows = useMemo(() => {
         if (!detail || detail.type !== 'tv') return [];
@@ -243,11 +231,10 @@ export const RequestApprovalModal: React.FC<Props> = ({
         serverId: serverId ?? undefined,
         profileId: profileId ?? undefined,
         rootFolder: rootFolder || undefined,
-        languageProfileId: detail?.type === 'tv' ? (languageProfileId ?? undefined) : undefined,
         userId: userId ?? undefined,
         tags: selectedTags,
         seasons: detail?.type === 'tv' ? selectedSeasons : undefined,
-    }), [serverId, profileId, rootFolder, languageProfileId, userId, selectedTags, selectedSeasons, detail?.type]);
+    }), [serverId, profileId, rootFolder, userId, selectedTags, selectedSeasons, detail?.type]);
 
     const requestAsOptions = useMemo(() => {
         const opts = users.map((u) => ({
@@ -478,19 +465,6 @@ export const RequestApprovalModal: React.FC<Props> = ({
                                         }))}
                                     />
                                 </div>
-                                {detail.type === 'tv' && (serviceOptions?.languageProfiles?.length ?? 0) > 0 && (
-                                    <div className="sm:col-span-2">
-                                        <label className="block text-xs font-semibold text-muted mb-1.5">Language Profile</label>
-                                        <CustomSelect
-                                            value={String(languageProfileId ?? '')}
-                                            onChange={(val) => setLanguageProfileId(Number(val))}
-                                            options={(serviceOptions?.languageProfiles || []).map((lp) => ({
-                                                value: String(lp.id),
-                                                label: lp.name,
-                                            }))}
-                                        />
-                                    </div>
-                                )}
                                 {requestAsOptions.length > 1 && (
                                     <div className="sm:col-span-2">
                                         <label className="block text-xs font-semibold text-muted mb-1.5">Request As</label>
