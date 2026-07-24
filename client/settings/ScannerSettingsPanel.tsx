@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
+import { Upload } from 'lucide-react';
 import { SettingsToggleRow } from '../shared/ui';
 import { SettingHint } from './SettingHint';
 import { apiFetch } from '../shared/api';
@@ -118,6 +119,8 @@ export const ScannerSettingsPanel: React.FC<Props> = ({
 }) => {
     const [yamlText, setYamlText] = useState('');
     const [importing, setImporting] = useState(false);
+    const [importSummary, setImportSummary] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const update = (patch: Partial<ScannerSettings>) => onChange({ ...scanner, ...patch });
 
@@ -133,22 +136,68 @@ export const ScannerSettingsPanel: React.FC<Props> = ({
         update({ targets: { ...scanner.targets, [kind]: list } });
     };
 
-    const importYaml = async () => {
+    const summarizeImport = (imported: ScannerSettings) => {
+        const parts = [
+            `min-age ${imported.minimumAge || '1m'}`,
+            imported.authUsername ? `auth @${imported.authUsername}` : null,
+            `sonarr ${(imported.triggers?.sonarr?.[0]?.rewrite || []).length} rewrites`,
+            `radarr ${(imported.triggers?.radarr?.[0]?.rewrite || []).length} rewrites`,
+            `lidarr ${(imported.triggers?.lidarr?.[0]?.rewrite || []).length} rewrites`,
+            `plex ${(imported.targets?.plex?.[0]?.rewrite || []).length} rewrites`,
+        ].filter(Boolean);
+        return parts.join(' · ');
+    };
+
+    const applyImported = (imported: ScannerSettings) => {
+        const next = {
+            ...defaultScannerSettings(),
+            ...imported,
+            triggers: {
+                ...defaultScannerSettings().triggers,
+                ...(imported.triggers || {}),
+            },
+            targets: {
+                ...defaultScannerSettings().targets,
+                ...(imported.targets || {}),
+            },
+        };
+        onChange(next);
+        setImportSummary(summarizeImport(next));
+        addToast?.('Autoscan config imported — review below, then Save Settings', 'success');
+    };
+
+    const importYaml = async (raw?: string) => {
+        const yaml = String(raw ?? yamlText || '').trim();
+        if (!yaml) {
+            addToast?.('Paste or upload an Autoscan config.yml first', 'error');
+            return;
+        }
         setImporting(true);
         try {
             const res = await apiFetch('/api/scanner/import-yaml', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ yaml: yamlText }),
+                body: JSON.stringify({ yaml }),
             });
             if (res?.imported) {
-                onChange({ ...defaultScannerSettings(), ...res.imported });
-                addToast?.('Imported Autoscan YAML into Scanner settings (Save to apply)', 'success');
+                applyImported(res.imported);
+                if (raw && raw !== yamlText) setYamlText(raw);
             }
         } catch (e: any) {
             addToast?.(e?.message || 'Import failed', 'error');
         } finally {
             setImporting(false);
+        }
+    };
+
+    const onPickFile = async (file: File | null) => {
+        if (!file) return;
+        try {
+            const text = await file.text();
+            setYamlText(text);
+            await importYaml(text);
+        } catch {
+            addToast?.('Could not read that file', 'error');
         }
     };
 
@@ -160,6 +209,55 @@ export const ScannerSettingsPanel: React.FC<Props> = ({
                     Native Autoscan-style library refresh for Sonarr / Radarr / Lidarr webhooks and manual paths.
                     Admin-only Scanner page appears in the nav when enabled.
                 </p>
+
+                <div className="rounded-xl border border-accent/30 bg-accent/5 p-4 space-y-3">
+                    <h4 className="font-bold text-sm text-white">Import from Autoscan</h4>
+                    <p className="text-xs text-muted">
+                        Upload or paste your Autoscan <code className="text-white/80">config.yml</code> to fill minimum age,
+                        webhook auth, Sonarr/Radarr/Lidarr triggers + rewrites, and Plex target rewrites.
+                        Plex URL/token still come from Settings → Plex. Review the fields below, then click <strong>Save Settings</strong>.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".yml,.yaml,text/yaml,text/plain"
+                            className="hidden"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0] || null;
+                                e.target.value = '';
+                                void onPickFile(file);
+                            }}
+                        />
+                        <button
+                            type="button"
+                            disabled={importing}
+                            onClick={() => fileInputRef.current?.click()}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-accent text-black text-sm font-semibold disabled:opacity-50"
+                        >
+                            <Upload className="w-4 h-4" />
+                            {importing ? 'Importing…' : 'Upload config.yml'}
+                        </button>
+                        <button
+                            type="button"
+                            disabled={!yamlText.trim() || importing}
+                            onClick={() => void importYaml()}
+                            className="px-4 py-2 rounded-lg border border-white/15 text-sm font-semibold text-white hover:bg-white/5 disabled:opacity-50"
+                        >
+                            Import pasted YAML
+                        </button>
+                    </div>
+                    <textarea
+                        className="w-full min-h-[120px] bg-black/30 border border-border rounded px-3 py-2 text-xs font-mono"
+                        value={yamlText}
+                        onChange={(e) => setYamlText(e.target.value)}
+                        placeholder={"# Paste Autoscan config.yml here\nminimum-age: 1m\nauthentication:\n  username: admin\n  ..."}
+                    />
+                    {importSummary && (
+                        <p className="text-xs text-emerald-300 font-semibold">Imported: {importSummary}</p>
+                    )}
+                </div>
+
                 <SettingsToggleRow
                     title="Enable Scanner"
                     hint={<SettingHint>Turns on webhook endpoints under /triggers/* and the admin Scanner page.</SettingHint>}
@@ -322,25 +420,6 @@ export const ScannerSettingsPanel: React.FC<Props> = ({
                         ))}
                     </div>
                 ))}
-
-                <div className="rounded-xl border border-border p-4 space-y-3">
-                    <h4 className="font-bold text-sm text-white">Import Autoscan config.yml</h4>
-                    <p className="text-xs text-muted">Paste your Autoscan YAML to prefill triggers, rewrites, auth, and targets. Review, then Save Settings.</p>
-                    <textarea
-                        className="w-full min-h-[140px] bg-black/30 border border-border rounded px-3 py-2 text-xs font-mono"
-                        value={yamlText}
-                        onChange={(e) => setYamlText(e.target.value)}
-                        placeholder="minimum-age: 1m&#10;authentication:&#10;  username: admin&#10;  ..."
-                    />
-                    <button
-                        type="button"
-                        disabled={!yamlText.trim() || importing}
-                        onClick={() => void importYaml()}
-                        className="px-4 py-2 rounded-lg bg-accent text-black text-sm font-semibold disabled:opacity-50"
-                    >
-                        {importing ? 'Importing…' : 'Import YAML'}
-                    </button>
-                </div>
             </section>
         </div>
     );

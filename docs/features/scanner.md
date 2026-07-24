@@ -12,12 +12,10 @@
 ## Enable
 
 1. Open **Settings → Scanner**.
-2. Turn **Enable Scanner** on.
-3. Set webhook username/password (required for `/triggers/*`).
-4. Configure trigger rewrites and enable targets (portal credentials or overrides).
-5. Save Settings, then open **Scanner** in the nav.
-
-Optional: paste an Autoscan `config.yml` into **Import Autoscan config.yml** to prefill settings.
+2. (Optional) Use **Import from Autoscan** — upload or paste your Autoscan `config.yml` to fill auth, triggers, and rewrites. Plex URL/token still come from Settings → Plex.
+3. Turn **Enable Scanner** on (if not already).
+4. Review webhook username/password and rewrites, then Save Settings.
+5. Open **Scanner** in the nav.
 
 ## Manual scan
 
