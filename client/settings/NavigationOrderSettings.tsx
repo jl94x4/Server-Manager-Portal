@@ -7,6 +7,7 @@ import { SettingHint } from './SettingHint';
 type NavFeatureStatus = {
     upgrader?: boolean;
     collexions?: boolean;
+    scanner?: boolean;
     maintenance?: boolean;
 };
 
@@ -24,6 +25,7 @@ type Props = {
 const FEATURE_OFF_HINT: Record<string, string> = {
     upgrader: 'Feature off — enable under Settings → Library Upgrader',
     collexions: 'Feature off — enable under Settings → Collexions',
+    scanner: 'Feature off — enable under Settings → Scanner',
     maintenance: 'Feature off — enable under Settings → Cleanup',
 };
 
@@ -203,6 +205,7 @@ export const NavigationOrderSettings: React.FC<Props> = ({
                     const featureOffHint = (() => {
                         if (key === 'upgrader' && featureStatus?.upgrader === false) return FEATURE_OFF_HINT.upgrader;
                         if (key === 'collexions' && featureStatus?.collexions === false) return FEATURE_OFF_HINT.collexions;
+                        if (key === 'scanner' && featureStatus?.scanner === false) return FEATURE_OFF_HINT.scanner;
                         if (key === 'maintenance' && featureStatus?.maintenance === false) return FEATURE_OFF_HINT.maintenance;
                         return null;
                     })();

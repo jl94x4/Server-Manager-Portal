@@ -40,6 +40,7 @@ export default defineConfig({
           { text: 'Discover & Request', link: '/features/discover-request' },
           { text: 'Calendar', link: '/features/calendar' },
           { text: 'ColleXions', link: '/features/collexions' },
+          { text: 'Scanner', link: '/features/scanner' },
           { text: 'Upgrader', link: '/features/upgrader' },
           { text: 'Cleaner', link: '/features/cleaner' },
         ],

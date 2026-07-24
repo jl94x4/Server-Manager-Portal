@@ -39,6 +39,7 @@ Important browser-managed settings include:
 | Home Layout | Section ordering and visibility |
 | Media Stack | Sonarr, Radarr, Lidarr, Bazarr, and download clients |
 | Request | Portal request engine (default), quotas, auto-approve, optional Seerr |
+| Scanner | Enable Scanner, webhook auth, trigger/target rewrites, Autoscan YAML import |
 | Collexions | Enable bundled Plex collection worker and related options |
 | Library Upgrader | Enable upgrader, instance maps, rate limits |
 | Cleaner | Maintenance / cleanup feature settings |

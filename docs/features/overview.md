@@ -14,6 +14,7 @@ Server Portal combines user onboarding, access management, analytics, requests, 
 | Downloads | Unified download-client status |
 | Analytics | Deeper personal / server analytics views |
 | ColleXions | Admin Plex collection automation (bundled worker) |
+| Scanner | Admin library refresh from ARR webhooks / manual paths |
 | Upgrader | Library quality upgrades via Sonarr / Radarr |
 | Cleaner | Library maintenance rules and candidates |
 | Status | Public / admin service status |
@@ -69,6 +70,7 @@ Users can choose among built-in dark themes, while admins can set the default th
 - [Discover & Request](/features/discover-request)
 - [Calendar](/features/calendar)
 - [ColleXions](/features/collexions)
+- [Scanner](/features/scanner)
 - [Upgrader](/features/upgrader)
 - [Cleaner](/features/cleaner)
 - [Admin Dashboard](/features/admin)

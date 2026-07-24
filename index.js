@@ -16,6 +16,25 @@ import fsSync from 'fs';
 import net from 'net';
 import { makeCircularPwaIconPng } from './lib/circular-icon.js';
 import { resolvePackageVersion } from './lib/resolve-package-version.js';
+import {
+    getDefaultScannerConfig,
+    normalizeScannerConfig,
+    maskScannerConfigForApi,
+    resolveScannerSecrets,
+    findTriggerByName,
+    enqueueScans,
+    getQueueStats,
+    listLog,
+    processOne,
+    startScannerWorker,
+    createBasicAuthMiddleware,
+    pathsFromSonarrEvent,
+    pathsFromRadarrEvent,
+    pathsFromLidarrEvent,
+    buildScansFromPaths,
+    parseAutoscanYaml,
+    buildTargets,
+} from './lib/scanner/index.js';
 
 const resolveAppVersion = () => {
     const pkgVersion = resolvePackageVersion();
@@ -2588,6 +2607,7 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
         upgrader: !!config.upgraderEnabled,
         // Collexions is Plex-only — hide for Jellyfin/Emby even if the flag is on.
         collexions: !!config.collexionsEnabled && isPlexMediaServer,
+        scanner: !!config.scannerEnabled,
         // Portal engine unlocks Discover; Seerr URL still works when using Seerr as engine.
         request: portalRequestNav || seerrRequestNav,
         requestsQueue: portalRequestNav || requestAppService.isRequestAppConfigured(config),
@@ -2930,6 +2950,11 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 maintenanceExperimentalEnabled: !!config.maintenanceExperimentalEnabled,
                 upgraderEnabled: !!config.upgraderEnabled,
                 collexionsEnabled: !!config.collexionsEnabled,
+                scannerEnabled: !!config.scannerEnabled,
+                scanner: maskScannerConfigForApi(
+                    normalizeScannerConfig(config.scanner, getDefaultScannerConfig()),
+                    SECRET_MASK
+                ),
                 collexionsAutostart: !!config.collexionsAutostart,
                 collexionsInternalUrl: config.collexionsInternalUrl || '',
                 collexionsServiceKey: config.collexionsServiceKey ? '********' : '',
@@ -3035,6 +3060,8 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 maintenanceExperimentalEnabled: false,
                 upgraderEnabled: false,
                 collexionsEnabled: false,
+                scannerEnabled: false,
+                scanner: maskScannerConfigForApi(getDefaultScannerConfig(), SECRET_MASK),
                 collexionsAutostart: false,
                 collexionsInternalUrl: '',
                 collexionsServiceKey: '',
@@ -3071,7 +3098,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         inactiveCleanupEnabled, inactiveCleanupDays,
         primaryColor, customLogoUrl, brandingTheme, sidebarIdentityPosition, pwaIconSource, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, navOrder, navHiddenKeys, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges, showDashboardWatchingBadge, dashboardWatchingBadgePollSeconds,
         showPublicStatusMonitor, showPublicLibraryStats,
-        autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, upgraderEnabled, collexionsEnabled, collexionsAutostart, collexionsInternalUrl, collexionsServiceKey, upgraderDefaultPreset, upgraderMinSizeGB, upgraderAutomationEnabled, upgraderProfileMap, upgraderMaxActionsPerHour, upgraderDefaultSort, upgraderDrawerPosition, dashboardLayout,
+        autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, upgraderEnabled, collexionsEnabled, scannerEnabled, scanner, collexionsAutostart, collexionsInternalUrl, collexionsServiceKey, upgraderDefaultPreset, upgraderMinSizeGB, upgraderAutomationEnabled, upgraderProfileMap, upgraderMaxActionsPerHour, upgraderDefaultSort, upgraderDrawerPosition, dashboardLayout,
         showUsernamesInAnalytics, useTrendingSlideshowOnLogin, downloadsVisibleToMembers
     } = req.body;
 
@@ -3309,6 +3336,12 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         autoBackupRetentionCount: Math.max(1, parseInt(autoBackupRetentionCount, 10) || 10),
         maintenanceExperimentalEnabled: maintenanceExperimentalEnabled !== undefined ? !!maintenanceExperimentalEnabled : !!existingConfig.maintenanceExperimentalEnabled,
         upgraderEnabled: upgraderEnabled !== undefined ? !!upgraderEnabled : !!existingConfig.upgraderEnabled,
+        scannerEnabled: scannerEnabled !== undefined ? !!scannerEnabled : !!existingConfig.scannerEnabled,
+        scanner: resolveScannerSecrets(
+            scanner !== undefined ? scanner : existingConfig.scanner,
+            existingConfig.scanner || getDefaultScannerConfig(),
+            SECRET_MASK
+        ),
         collexionsEnabled: (() => {
             // Plex-only integration — never leave enabled for Jellyfin/Emby.
             if (normalizedMediaServerType !== 'plex') return false;
@@ -17633,6 +17666,251 @@ const requireUpgrader = async (req, res, next) => {
     }
 };
 
+const requireScanner = async (req, res, next) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        if (!config.scannerEnabled) {
+            return res.status(403).json({ error: 'Scanner is disabled. Enable it in Settings first.' });
+        }
+        return next();
+    } catch (e) {
+        return res.status(500).json({ error: 'Failed to check Scanner feature flag.' });
+    }
+};
+
+/** Ensure Scanner can reach Plex using the same URL/token as Settings → Plex. */
+const scannerPortalConfig = (config = {}) => ({
+    ...config,
+    plexServerUrl: String(config.plexServerUrl || '').trim() || resolveConfiguredPlexServerUrl(config),
+});
+
+const scannerTriggerAuth = createBasicAuthMiddleware({
+    getCredentials: () => {
+        // Sync read via cached promise is awkward; middleware loads async below.
+        return scannerAuthCache;
+    },
+    realm: 'Scanner',
+});
+
+let scannerAuthCache = { username: '', password: '' };
+const refreshScannerAuthCache = async () => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const scanner = normalizeScannerConfig(config.scanner, getDefaultScannerConfig());
+        scannerAuthCache = {
+            username: scanner.authUsername || '',
+            password: scanner.authPassword || '',
+        };
+    } catch {
+        scannerAuthCache = { username: '', password: '' };
+    }
+};
+
+const requireScannerEnabledForTriggers = async (req, res, next) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        if (!config.scannerEnabled) {
+            return res.status(503).json({ error: 'Scanner is disabled' });
+        }
+        await refreshScannerAuthCache();
+        return next();
+    } catch (e) {
+        return res.status(500).json({ error: 'Scanner unavailable' });
+    }
+};
+
+const handleArrTrigger = async (req, res, kind) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const scanner = normalizeScannerConfig(config.scanner, getDefaultScannerConfig());
+        const triggerName = String(req.params.name || kind).toLowerCase();
+        const trigger = findTriggerByName(scanner, triggerName);
+        if (!trigger || trigger.kind !== kind) {
+            return res.status(404).json({ error: `Unknown ${kind} trigger "${triggerName}"` });
+        }
+
+        const event = req.body || {};
+        const eventType = String(event.eventType || '');
+        if (/^test$/i.test(eventType)) {
+            return res.status(200).json({ ok: true, test: true });
+        }
+
+        let paths = [];
+        if (kind === 'sonarr') paths = pathsFromSonarrEvent(event);
+        else if (kind === 'radarr') paths = pathsFromRadarrEvent(event);
+        else if (kind === 'lidarr') paths = pathsFromLidarrEvent(event);
+
+        if (!paths.length) {
+            return res.status(200).json({ ok: true, queued: 0 });
+        }
+
+        const scans = buildScansFromPaths(paths, {
+            priority: trigger.priority,
+            source: `${kind}:${trigger.name}`,
+            rewrite: trigger.rewrite,
+        });
+        await enqueueScans(scans);
+        return res.status(200).json({ ok: true, queued: scans.length, folders: scans.map((s) => s.folder) });
+    } catch (e) {
+        const status = e?.status || 500;
+        return res.status(status).json({ error: e?.message || 'Trigger failed' });
+    }
+};
+
+// Autoscan-compatible webhook endpoints (Basic Auth — not portal JWT).
+app.post('/triggers/manual', requireScannerEnabledForTriggers, scannerTriggerAuth, async (req, res) => {
+    try {
+        const dirs = []
+            .concat(req.query.dir || [])
+            .concat(req.body?.dir || [])
+            .concat(req.body?.path ? [req.body.path] : [])
+            .flat()
+            .map((d) => String(d || '').trim())
+            .filter(Boolean);
+        if (!dirs.length) {
+            return res.status(400).json({ error: 'Provide dir query/body path(s) to scan' });
+        }
+        const config = await loadFile(CONFIG_PATH, {});
+        const scanner = normalizeScannerConfig(config.scanner, getDefaultScannerConfig());
+        const scans = buildScansFromPaths(dirs, { priority: 5, source: 'manual', rewrite: [] });
+        await enqueueScans(scans);
+        // Optional: process immediately when minimum-age is 0
+        void processOne(scannerPortalConfig(config), scanner);
+        return res.status(200).json({ ok: true, queued: scans.length, folders: scans.map((s) => s.folder) });
+    } catch (e) {
+        return res.status(500).json({ error: e?.message || 'Manual trigger failed' });
+    }
+});
+
+app.get('/triggers/manual', requireScannerEnabledForTriggers, scannerTriggerAuth, (req, res) => {
+    // Browser-friendly hint; primary UI is /scanner in the portal.
+    res.type('html').send(`<!doctype html><html><head><meta charset="utf-8"><title>Scanner manual trigger</title></head>
+<body style="font-family:system-ui;max-width:40rem;margin:2rem auto;padding:0 1rem">
+<h1>Scanner</h1>
+<p>Use the portal <strong>Scanner</strong> page to submit paths, or POST <code>/triggers/manual?dir=/path</code> with Basic Auth.</p>
+</body></html>`);
+});
+
+app.post('/triggers/sonarr', requireScannerEnabledForTriggers, scannerTriggerAuth, (req, res) => handleArrTrigger(req, res, 'sonarr'));
+app.post('/triggers/radarr', requireScannerEnabledForTriggers, scannerTriggerAuth, (req, res) => handleArrTrigger(req, res, 'radarr'));
+app.post('/triggers/lidarr', requireScannerEnabledForTriggers, scannerTriggerAuth, (req, res) => handleArrTrigger(req, res, 'lidarr'));
+app.post('/triggers/:name', requireScannerEnabledForTriggers, scannerTriggerAuth, async (req, res) => {
+    const config = await loadFile(CONFIG_PATH, {});
+    const scanner = normalizeScannerConfig(config.scanner, getDefaultScannerConfig());
+    const trigger = findTriggerByName(scanner, req.params.name);
+    if (!trigger) return res.status(404).json({ error: 'Unknown trigger' });
+    return handleArrTrigger(req, res, trigger.kind);
+});
+
+app.get('/api/scanner/status', requireAdmin, requireScanner, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const scanner = normalizeScannerConfig(config.scanner, getDefaultScannerConfig());
+        const stats = await getQueueStats();
+        const targets = buildTargets(scannerPortalConfig(config), scanner);
+        res.json({
+            enabled: true,
+            minimumAge: scanner.minimumAge,
+            verifyPathExists: !!scanner.verifyPathExists,
+            remaining: stats.remaining,
+            processed: stats.processed,
+            targetCount: targets.length,
+            triggers: {
+                sonarr: (scanner.triggers.sonarr || []).map((t) => t.name),
+                radarr: (scanner.triggers.radarr || []).map((t) => t.name),
+                lidarr: (scanner.triggers.lidarr || []).map((t) => t.name),
+            },
+            webhookPaths: {
+                manual: '/triggers/manual',
+                sonarr: (scanner.triggers.sonarr || []).map((t) => `/triggers/${t.name}`),
+                radarr: (scanner.triggers.radarr || []).map((t) => `/triggers/${t.name}`),
+                lidarr: (scanner.triggers.lidarr || []).map((t) => `/triggers/${t.name}`),
+            },
+        });
+    } catch (e) {
+        res.status(500).json({ error: e?.message || 'Failed to load scanner status' });
+    }
+});
+
+app.get('/api/scanner/queue', requireAdmin, requireScanner, async (req, res) => {
+    try {
+        const stats = await getQueueStats();
+        res.json(stats);
+    } catch (e) {
+        res.status(500).json({ error: e?.message || 'Failed to load queue' });
+    }
+});
+
+app.get('/api/scanner/log', requireAdmin, requireScanner, async (req, res) => {
+    try {
+        const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 50));
+        res.json(await listLog(limit));
+    } catch (e) {
+        res.status(500).json({ error: e?.message || 'Failed to load log' });
+    }
+});
+
+app.post('/api/scanner/manual', requireAdmin, requireScanner, async (req, res) => {
+    try {
+        const pathValue = String(req.body?.path || req.body?.dir || '').trim();
+        if (!pathValue) return res.status(400).json({ error: 'Path is required' });
+        const config = await loadFile(CONFIG_PATH, {});
+        const scanner = normalizeScannerConfig(config.scanner, getDefaultScannerConfig());
+        const scans = buildScansFromPaths([pathValue], { priority: 5, source: 'manual-ui', rewrite: [] });
+        await enqueueScans(scans);
+        void processOne(scannerPortalConfig(config), scanner);
+        res.json({ ok: true, queued: scans.length, folder: scans[0]?.folder });
+    } catch (e) {
+        res.status(500).json({ error: e?.message || 'Failed to enqueue scan' });
+    }
+});
+
+app.post('/api/scanner/process', requireAdmin, requireScanner, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const scanner = normalizeScannerConfig(config.scanner, getDefaultScannerConfig());
+        const result = await processOne(scannerPortalConfig(config), scanner);
+        res.json({ ok: true, ...result });
+    } catch (e) {
+        res.status(500).json({ error: e?.message || 'Process failed' });
+    }
+});
+
+app.post('/api/scanner/test-targets', requireAdmin, requireScanner, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const scanner = normalizeScannerConfig(config.scanner, getDefaultScannerConfig());
+        const targets = buildTargets(scannerPortalConfig(config), scanner);
+        const results = [];
+        for (const target of targets) {
+            try {
+                await target.available();
+                results.push({ type: target.type, ok: true });
+            } catch (e) {
+                results.push({ type: target.type, ok: false, error: e?.message || String(e) });
+            }
+        }
+        res.json({ targets: results });
+    } catch (e) {
+        res.status(500).json({ error: e?.message || 'Target test failed' });
+    }
+});
+
+app.post('/api/scanner/import-yaml', requireAdmin, async (req, res) => {
+    try {
+        const yaml = String(req.body?.yaml || '');
+        if (!yaml.trim()) return res.status(400).json({ error: 'yaml is required' });
+        const imported = parseAutoscanYaml(yaml);
+        res.json({
+            scanner: maskScannerConfigForApi(normalizeScannerConfig(imported, getDefaultScannerConfig()), SECRET_MASK),
+            // Return unmasked imported secrets only to admin for one-shot apply in Settings UI
+            imported,
+        });
+    } catch (e) {
+        res.status(400).json({ error: e?.message || 'Failed to parse Autoscan YAML' });
+    }
+});
+
 app.use('/api/upgrader', requireAdmin, requireUpgrader);
 
 app.get('/api/upgrader/status', requireAdmin, async (req, res) => {
@@ -19107,6 +19385,8 @@ app.listen(PORT, BIND_HOST, async () => {
     startUpgraderIndexBackgroundTask();
     startPortalRequestStatusSyncBackgroundTask();
     startDiscoveryAvailabilityCacheBackgroundTask();
+    startScannerWorker(async () => scannerPortalConfig(await loadFile(CONFIG_PATH, {})));
+    void refreshScannerAuthCache();
     systemJobs.maintenanceIndex.nextRun = new Date(Date.now() + (20 * 1000)).toISOString();
     setTimeout(async () => {
         try {

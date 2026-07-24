@@ -24,6 +24,7 @@ import { useAppDynamicTheme } from './shared/useAppDynamicTheme';
 import { useOpenIssueCount } from './requests/useOpenIssueCount';
 const UpgraderDashboard = lazy(() => import('./upgrader/UpgraderDashboard').then(m => ({ default: m.UpgraderDashboard })));
 const CollexionsDashboard = lazy(() => import('./collexions/CollexionsDashboard').then(m => ({ default: m.CollexionsDashboard })));
+const ScannerDashboard = lazy(() => import('./scanner/ScannerDashboard').then(m => ({ default: m.ScannerDashboard })));
 import {
     updateFavicon,
     Login,
@@ -71,7 +72,7 @@ export const MainApp: React.FC = () => {
         closeConfirm();
     };
 
-    const [currentRoute, setCurrentRoute] = useState<'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'downloads' | 'mediastack' | 'maintenance' | 'upgrader' | 'collexions' | 'requests' | 'discovery' | 'about' | 'invite' | 'loading'>('loading');
+    const [currentRoute, setCurrentRoute] = useState<'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'downloads' | 'mediastack' | 'maintenance' | 'upgrader' | 'collexions' | 'scanner' | 'requests' | 'discovery' | 'about' | 'invite' | 'loading'>('loading');
     const [sessionInfo, setSessionInfo] = useState<any>(null);
     const [publicConfig, setPublicConfig] = useState<any>({});
     const [releaseNotes, setReleaseNotes] = useState<ReleaseNotes | null>(null);
@@ -242,7 +243,7 @@ export const MainApp: React.FC = () => {
         setShowWhatsNew(false);
     }, [publicConfig?.appVersion]);
 
-    const setRoute = useCallback((route: 'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'downloads' | 'mediastack' | 'maintenance' | 'upgrader' | 'collexions' | 'requests' | 'discovery' | 'about' | 'invite' | 'loading', options?: { hash?: string; reviewId?: number }) => {
+    const setRoute = useCallback((route: 'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'downloads' | 'mediastack' | 'maintenance' | 'upgrader' | 'collexions' | 'scanner' | 'requests' | 'discovery' | 'about' | 'invite' | 'loading', options?: { hash?: string; reviewId?: number }) => {
         if (route === 'logs') {
             setCurrentRoute('settings');
             window.history.pushState({}, '', portalUrl('/settings#logs'));
@@ -263,6 +264,7 @@ export const MainApp: React.FC = () => {
             if (route === 'maintenance') path = '/maintenance';
             if (route === 'upgrader') path = '/upgrader';
             if (route === 'collexions') path = '/collexions';
+            if (route === 'scanner') path = '/scanner';
             if (route === 'requests') {
                 path = options?.reviewId ? `/requests?review=${options.reviewId}` : '/requests';
             }
@@ -322,6 +324,11 @@ export const MainApp: React.FC = () => {
                 && String(data.mediaServerType || 'plex').toLowerCase() === 'plex'
             ) setCurrentRoute('collexions');
             else if (path.startsWith('/collexions')) {
+                window.history.replaceState({}, '', portalUrl('/portal'));
+                setCurrentRoute('user');
+            }
+            else if (path.startsWith('/scanner') && data.session.isAdmin && data.navFeatures?.scanner) setCurrentRoute('scanner');
+            else if (path.startsWith('/scanner')) {
                 window.history.replaceState({}, '', portalUrl('/portal'));
                 setCurrentRoute('user');
             }
@@ -435,6 +442,13 @@ export const MainApp: React.FC = () => {
             && sessionInfo?.navFeatures?.collexions
             && String(sessionInfo?.mediaServerType || publicConfig?.mediaServerType || 'plex').toLowerCase() === 'plex'
         ) return <CollexionsDashboard />;
+        if (currentRoute === 'scanner' && isAdmin && sessionInfo?.navFeatures?.scanner) {
+            return (
+                <Suspense fallback={<Loader isLoading={true} isCinematic={!!publicConfig?.useCinematicLoading} />}>
+                    <ScannerDashboard />
+                </Suspense>
+            );
+        }
         if (currentRoute === 'requests' && isAdmin) {
             return (
                 <RequestQueueDashboard

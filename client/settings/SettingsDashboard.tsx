@@ -38,6 +38,7 @@ import { formatDateTime, formatEventName, hexToRgb, accentHoverRgb, getDaysUntil
 import { StreamKillRulesPanel } from './StreamKillRulesPanel';
 import { InvitesSettings } from './InvitesSettings';
 import { StatusMonitorSettings } from './StatusMonitorSettings';
+import { ScannerSettingsPanel, defaultScannerSettings, type ScannerSettings } from './ScannerSettingsPanel';
 import { BroadcastSettingsTab } from './BroadcastSettingsTab';
 import { IntegrationTestButton } from '../shared/IntegrationTestButton';
 import { HomeLayoutSettings } from './HomeLayoutSettings';
@@ -159,6 +160,7 @@ const SETTINGS_TAB_ICONS: Record<string, React.ComponentType<{ className?: strin
     tasks: ListTodo,
     upgrader: Wand2,
     collexions: Layers,
+    scanner: Activity,
     system: Settings,
     contact: Phone,
     broadcast: Radio,
@@ -456,6 +458,8 @@ export const SettingsDashboard: React.FC = () => {
     const [maintenanceExperimentalEnabled, setMaintenanceExperimentalEnabled] = useState(false);
     const [upgraderEnabled, setUpgraderEnabled] = useState(false);
     const [collexionsEnabled, setCollexionsEnabled] = useState(false);
+    const [scannerEnabled, setScannerEnabled] = useState(false);
+    const [scanner, setScanner] = useState<ScannerSettings>(defaultScannerSettings);
     const [collexionsAutostart, setCollexionsAutostart] = useState(false);
     const [collexionsInternalUrl, setCollexionsInternalUrl] = useState('');
     const [collexionsServiceKey, setCollexionsServiceKey] = useState('');
@@ -1076,6 +1080,10 @@ export const SettingsDashboard: React.FC = () => {
             if (initialSettings.maintenanceExperimentalEnabled !== undefined) setMaintenanceExperimentalEnabled(!!initialSettings.maintenanceExperimentalEnabled);
             if (initialSettings.upgraderEnabled !== undefined) setUpgraderEnabled(!!initialSettings.upgraderEnabled);
             if (initialSettings.collexionsEnabled !== undefined) setCollexionsEnabled(!!initialSettings.collexionsEnabled);
+            if (initialSettings.scannerEnabled !== undefined) setScannerEnabled(!!initialSettings.scannerEnabled);
+            if (initialSettings.scanner && typeof initialSettings.scanner === 'object') {
+                setScanner({ ...defaultScannerSettings(), ...initialSettings.scanner });
+            }
             if (initialSettings.collexionsAutostart !== undefined) setCollexionsAutostart(!!initialSettings.collexionsAutostart);
             if (initialSettings.collexionsInternalUrl !== undefined) setCollexionsInternalUrl(String(initialSettings.collexionsInternalUrl || ''));
             if (initialSettings.collexionsServiceKey !== undefined) setCollexionsServiceKey(String(initialSettings.collexionsServiceKey || ''));
@@ -1327,6 +1335,8 @@ export const SettingsDashboard: React.FC = () => {
             maintenanceExperimentalEnabled,
             upgraderEnabled,
             collexionsEnabled,
+            scannerEnabled,
+            scanner,
             collexionsAutostart,
             collexionsInternalUrl,
             collexionsServiceKey,
@@ -2700,6 +2710,7 @@ export const SettingsDashboard: React.FC = () => {
                             featureStatus={{
                                 upgrader: upgraderEnabled,
                                 collexions: collexionsEnabled,
+                                scanner: scannerEnabled,
                                 maintenance: maintenanceExperimentalEnabled,
                             }}
                         />
@@ -3425,6 +3436,16 @@ export const SettingsDashboard: React.FC = () => {
                                 <p className="text-[11px] text-muted mt-2">After changing these options, click Save Settings. Admins use portal login — no Collexions password.</p>
                             </section>
                         </div>
+                    )}
+                    {activeTab === 'scanner' && (
+                        <ScannerSettingsPanel
+                            enabled={scannerEnabled}
+                            onEnabledChange={setScannerEnabled}
+                            scanner={scanner}
+                            onChange={setScanner}
+                            sectionId={getSettingsSectionElementId('scanner')}
+                            addToast={addToast}
+                        />
                     )}
                     {activeTab === 'system' && (
                         <div className="mb-8 animate-fade-in space-y-6">

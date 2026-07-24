@@ -2,6 +2,7 @@ export type NavFeatureFlags = {
     maintenance?: boolean;
     upgrader?: boolean;
     collexions?: boolean;
+    scanner?: boolean;
     request?: boolean;
     requestsQueue?: boolean;
     /** When false, Downloads is hidden from non-admins. Default/undefined = visible. */
@@ -18,6 +19,7 @@ export const DEFAULT_NAV_ORDER = [
     'downloads',
     'upgrader',
     'collexions',
+    'scanner',
     'mediastack',
     'requests',
     'status',
@@ -40,6 +42,7 @@ export const NAV_ITEM_LABELS: Record<string, string> = {
     downloads: 'Downloads',
     upgrader: 'Upgrader',
     collexions: 'ColleXions',
+    scanner: 'Scanner',
     mediastack: 'Calendar',
     requests: 'Requests',
     status: 'Status',
@@ -54,6 +57,7 @@ const ADMIN_ONLY_NAV_KEYS = new Set([
     'users',
     'upgrader',
     'collexions',
+    'scanner',
     'requests',
     'maintenance',
     'settings',
@@ -184,6 +188,7 @@ export const filterNavOrder = (
     const maintenanceEnabled = features.maintenance !== false;
     const upgraderEnabled = !!features.upgrader;
     const collexionsEnabled = !!features.collexions;
+    const scannerEnabled = !!features.scanner;
     const requestsQueueEnabled = !!features.requestsQueue;
     const requestEnabled = features.request !== false || requestsQueueEnabled;
     const hidden = new Set(normalizeNavHiddenKeys(options.hiddenKeys));
@@ -191,11 +196,12 @@ export const filterNavOrder = (
     return (Array.isArray(order) ? order : []).filter((key) => {
         if (key === 'logout' || key === 'logs') return false;
         if (hidden.has(key) && !ALWAYS_VISIBLE_NAV_KEYS.has(key)) return false;
-        if ((key === 'users' || key === 'settings' || key === 'maintenance' || key === 'upgrader' || key === 'collexions' || key === 'requests') && !options.isAdmin) return false;
+        if ((key === 'users' || key === 'settings' || key === 'maintenance' || key === 'upgrader' || key === 'collexions' || key === 'scanner' || key === 'requests') && !options.isAdmin) return false;
         if (key === 'downloads' && !options.isAdmin && features.downloads === false) return false;
         if (key === 'maintenance' && !maintenanceEnabled) return false;
         if (key === 'upgrader' && !upgraderEnabled) return false;
         if (key === 'collexions' && !collexionsEnabled) return false;
+        if (key === 'scanner' && !scannerEnabled) return false;
         if (key === 'request' && !requestEnabled) return false;
         if (key === 'requests' && !requestsQueueEnabled) return false;
         return true;
