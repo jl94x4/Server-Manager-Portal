@@ -448,6 +448,7 @@ import {
     getDiscoveryPreferences,
     getDiscoverySource,
     getRequestEngine,
+    isPortalRequestNavReady,
     isAllowedDiscoveryProxyPath,
     normalizeDiscoveryProxyPath,
     normalizeDiscoverySource,
@@ -2575,13 +2576,21 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
     const requestAppType = config.requestAppType === 'overseerr' ? 'seerr' : (config.requestAppType || 'none');
     const resolvedRequestUrl = requestUrl;
     const isPlexMediaServer = String(config.mediaServerType || 'plex').toLowerCase() === 'plex';
+    const portalRequestNav = isPortalRequestNavReady(config);
+    const seerrRequestNav = !!(
+        requestAppType
+        && requestAppType !== 'none'
+        && resolvedRequestUrl
+        && resolvedRequestUrl !== 'https://yourdomain.com'
+    );
     const navFeatures = {
         maintenance: !!config.maintenanceExperimentalEnabled,
         upgrader: !!config.upgraderEnabled,
         // Collexions is Plex-only — hide for Jellyfin/Emby even if the flag is on.
         collexions: !!config.collexionsEnabled && isPlexMediaServer,
-        request: !!(requestAppType && requestAppType !== 'none' && resolvedRequestUrl && resolvedRequestUrl !== 'https://yourdomain.com'),
-        requestsQueue: requestAppService.isRequestAppConfigured(config),
+        // Portal engine unlocks Discover; legacy Seerr URL still works for dual-run / external link.
+        request: portalRequestNav || seerrRequestNav,
+        requestsQueue: portalRequestNav || requestAppService.isRequestAppConfigured(config),
         downloads: config.downloadsVisibleToMembers !== false,
     };
 
