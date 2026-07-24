@@ -171,7 +171,8 @@ GALLERY_CACHE = {
 PRESETS_CACHE = {
     'data': None,
     'timestamp': 0,
-    'ttl': 21600 # 6 hours
+    'ttl': 21600,  # 6 hours
+    'version': 3,  # bump when preset catalog changes
 }
 IMAGE_CACHE = {} # Cache for proxied posters: { thumb_path: { 'data': binary, 'mimetype': type } }
 SUMMARY_CACHE = {
@@ -274,7 +275,7 @@ def save_managed_collections(data):
     except Exception as e:
         logging.error(f"Failed to save managed collections: {e}")
 
-# Trending-tab preset ids → fetch_source_items source_type
+# Legacy trending-tab preset ids → fetch_source_items source_type (older jobs)
 TRENDING_PRESET_SOURCE_TYPES = {
     'tmdb_movie_week': 'tmdb_trending_movie',
     'tmdb_tv_week': 'tmdb_trending_tv',
@@ -290,14 +291,303 @@ TRENDING_PRESET_SOURCE_TYPES = {
     'trakt_show_anticipated': 'trakt_anticipated_show',
 }
 
+def _preset_recipe(kind, media, **extra):
+    recipe = {'kind': kind, 'media': 'tv' if media in ('tv', 'show') else 'movie'}
+    recipe.update(extra)
+    return recipe
+
+
+# Declarative Trending-tab catalog. source_type is always trending_preset;
+# source_id is the JSON recipe used by fetch_source_items for auto-sync.
+TRENDING_PRESET_CATALOG = [
+    # --- Movies: charts ---
+    {'id': 'tmdb_movie_top10_week', 'name': 'Top 10 Movies This Week', 'description': 'The hottest 10 movies on TMDb right now.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_trending', 'movie', window='week', limit=10)},
+    {'id': 'tmdb_movie_top25_week', 'name': 'Top 25 Movies This Week', 'description': 'This week\'s top 25 trending movies.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_trending', 'movie', window='week', limit=25)},
+    {'id': 'tmdb_movie_week', 'name': 'TMDb Weekly Trending Movies', 'description': 'The most popular movies on TMDb this week.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_trending', 'movie', window='week', limit=30)},
+    {'id': 'tmdb_movie_day', 'name': 'Trending Movies Today', 'description': 'Movies spiking in popularity today.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_trending', 'movie', window='day', limit=30)},
+    {'id': 'tmdb_movie_popular', 'name': 'Popular Movies', 'description': 'What TMDb users are watching most right now.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_endpoint', 'movie', path='movie/popular', limit=50)},
+    {'id': 'tmdb_movie_top', 'name': 'Top Rated Movies', 'description': 'All-time highest rated movies on TMDb.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_endpoint', 'movie', path='movie/top_rated', limit=100)},
+    {'id': 'tmdb_movie_now_playing', 'name': 'Now Playing in Theatres', 'description': 'Movies currently in cinemas.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_endpoint', 'movie', path='movie/now_playing', limit=40)},
+    {'id': 'tmdb_movie_upcoming', 'name': 'Upcoming Movies', 'description': 'Coming soon to theatres.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_endpoint', 'movie', path='movie/upcoming', limit=40)},
+    {'id': 'tmdb_movie_hidden_gems', 'name': 'Hidden Gem Movies', 'description': 'Highly rated films with fewer votes — quality over hype.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_discover', 'movie', limit=50, params={
+         'sort_by': 'vote_average.desc', 'vote_average.gte': '7.5',
+         'vote_count.gte': '50', 'vote_count.lte': '1500',
+     })},
+    # --- Movies: genres ---
+    {'id': 'tmdb_kids', 'name': 'Kids & Family Hits', 'description': 'Top animated and family-friendly movies.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_discover', 'movie', limit=100, params={'with_genres': '10751,16', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_horror', 'name': 'Horror Hits', 'description': 'Top trending horror movies for spooky season.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_discover', 'movie', limit=100, params={'with_genres': '27', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_docs', 'name': 'Top Documentaries', 'description': 'Highly rated and popular documentaries.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_discover', 'movie', limit=100, params={'with_genres': '99', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_scifi', 'name': 'Sci-Fi Classics', 'description': 'Out-of-this-world science fiction favorites.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_discover', 'movie', limit=100, params={'with_genres': '878', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_action', 'name': 'Action Blockbusters', 'description': 'High-octane action movies.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_discover', 'movie', limit=100, params={'with_genres': '28', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_comedy', 'name': 'Comedy Hits', 'description': 'Popular comedies worth a laugh.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_discover', 'movie', limit=100, params={'with_genres': '35', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_drama', 'name': 'Drama Essentials', 'description': 'Powerful dramatic films.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_discover', 'movie', limit=100, params={'with_genres': '18', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_thriller', 'name': 'Thriller Night', 'description': 'Suspenseful thrillers to keep you guessing.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_discover', 'movie', limit=100, params={'with_genres': '53', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_romance', 'name': 'Romance Favourites', 'description': 'Popular romantic movies.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_discover', 'movie', limit=100, params={'with_genres': '10749', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_animation', 'name': 'Animation Showcase', 'description': 'Top animated movies for all ages.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_discover', 'movie', limit=100, params={'with_genres': '16', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_crime', 'name': 'Crime Movies', 'description': 'Heists, detectives, and underworld drama.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_discover', 'movie', limit=100, params={'with_genres': '80', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_adventure', 'name': 'Adventure Epics', 'description': 'Epic adventures and journeys.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_discover', 'movie', limit=100, params={'with_genres': '12', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_fantasy', 'name': 'Fantasy Worlds', 'description': 'Magic, myths, and fantasy epics.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_discover', 'movie', limit=100, params={'with_genres': '14', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_war', 'name': 'War Movies', 'description': 'War and battlefield dramas.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_discover', 'movie', limit=80, params={'with_genres': '10752', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_western', 'name': 'Westerns', 'description': 'Classic and modern westerns.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_discover', 'movie', limit=60, params={'with_genres': '37', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_mystery', 'name': 'Mystery Movies', 'description': 'Whodunits and mysterious plots.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_discover', 'movie', limit=80, params={'with_genres': '9648', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_music', 'name': 'Music & Musicals', 'description': 'Music-driven films and musicals.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_discover', 'movie', limit=60, params={'with_genres': '10402', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_history', 'name': 'History Films', 'description': 'Historical dramas and period pieces.', 'source': 'TMDb', 'media': 'movie',
+     'recipe': _preset_recipe('tmdb_discover', 'movie', limit=80, params={'with_genres': '36', 'sort_by': 'popularity.desc'})},
+    # --- TV: charts ---
+    {'id': 'tmdb_tv_top10_week', 'name': 'Top 10 Shows This Week', 'description': 'The hottest 10 TV shows on TMDb this week.', 'source': 'TMDb', 'media': 'tv',
+     'recipe': _preset_recipe('tmdb_trending', 'tv', window='week', limit=10)},
+    {'id': 'tmdb_tv_top25_week', 'name': 'Top 25 Shows This Week', 'description': 'This week\'s top 25 trending TV shows.', 'source': 'TMDb', 'media': 'tv',
+     'recipe': _preset_recipe('tmdb_trending', 'tv', window='week', limit=25)},
+    {'id': 'tmdb_tv_week', 'name': 'TMDb Weekly Trending Shows', 'description': 'The most watched TV series on TMDb this week.', 'source': 'TMDb', 'media': 'tv',
+     'recipe': _preset_recipe('tmdb_trending', 'tv', window='week', limit=30)},
+    {'id': 'tmdb_tv_day', 'name': 'Trending Shows Today', 'description': 'TV shows spiking in popularity today.', 'source': 'TMDb', 'media': 'tv',
+     'recipe': _preset_recipe('tmdb_trending', 'tv', window='day', limit=30)},
+    {'id': 'tmdb_tv_popular', 'name': 'Popular TV Shows', 'description': 'The most popular TV shows on TMDb right now.', 'source': 'TMDb', 'media': 'tv',
+     'recipe': _preset_recipe('tmdb_endpoint', 'tv', path='tv/popular', limit=50)},
+    {'id': 'tmdb_tv_top', 'name': 'Top Rated TV Shows', 'description': 'All-time highest rated series on TMDb.', 'source': 'TMDb', 'media': 'tv',
+     'recipe': _preset_recipe('tmdb_endpoint', 'tv', path='tv/top_rated', limit=100)},
+    {'id': 'tmdb_tv_airing_today', 'name': 'Airing Today', 'description': 'TV episodes airing today.', 'source': 'TMDb', 'media': 'tv',
+     'recipe': _preset_recipe('tmdb_endpoint', 'tv', path='tv/airing_today', limit=40)},
+    {'id': 'tmdb_tv_on_the_air', 'name': 'Currently On The Air', 'description': 'Series currently broadcasting new episodes.', 'source': 'TMDb', 'media': 'tv',
+     'recipe': _preset_recipe('tmdb_endpoint', 'tv', path='tv/on_the_air', limit=40)},
+    {'id': 'tmdb_tv_hidden_gems', 'name': 'Hidden Gem Shows', 'description': 'Highly rated series with fewer votes.', 'source': 'TMDb', 'media': 'tv',
+     'recipe': _preset_recipe('tmdb_discover', 'tv', limit=50, params={
+         'sort_by': 'vote_average.desc', 'vote_average.gte': '7.5',
+         'vote_count.gte': '50', 'vote_count.lte': '1500',
+     })},
+    # --- TV: genres ---
+    {'id': 'tmdb_tv_family', 'name': 'Family TV', 'description': 'Family-friendly television.', 'source': 'TMDb', 'media': 'tv',
+     'recipe': _preset_recipe('tmdb_discover', 'tv', limit=80, params={'with_genres': '10751', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_tv_kids', 'name': 'Kids TV', 'description': 'Shows made for kids.', 'source': 'TMDb', 'media': 'tv',
+     'recipe': _preset_recipe('tmdb_discover', 'tv', limit=80, params={'with_genres': '10762', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_tv_comedy', 'name': 'Comedy Series', 'description': 'Popular TV comedies.', 'source': 'TMDb', 'media': 'tv',
+     'recipe': _preset_recipe('tmdb_discover', 'tv', limit=100, params={'with_genres': '35', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_tv_drama', 'name': 'Drama Series', 'description': 'Must-watch TV dramas.', 'source': 'TMDb', 'media': 'tv',
+     'recipe': _preset_recipe('tmdb_discover', 'tv', limit=100, params={'with_genres': '18', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_tv_scifi', 'name': 'Sci-Fi & Fantasy TV', 'description': 'Sci-fi and fantasy television.', 'source': 'TMDb', 'media': 'tv',
+     'recipe': _preset_recipe('tmdb_discover', 'tv', limit=100, params={'with_genres': '10765', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_tv_crime', 'name': 'Crime TV', 'description': 'Crime dramas and procedurals.', 'source': 'TMDb', 'media': 'tv',
+     'recipe': _preset_recipe('tmdb_discover', 'tv', limit=100, params={'with_genres': '80', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_tv_mystery', 'name': 'Mystery TV', 'description': 'Mystery and detective series.', 'source': 'TMDb', 'media': 'tv',
+     'recipe': _preset_recipe('tmdb_discover', 'tv', limit=80, params={'with_genres': '9648', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_tv_animation', 'name': 'Animated Series', 'description': 'Popular animated TV shows.', 'source': 'TMDb', 'media': 'tv',
+     'recipe': _preset_recipe('tmdb_discover', 'tv', limit=100, params={'with_genres': '16', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_tv_docs', 'name': 'Documentary Series', 'description': 'Non-fiction TV worth bingeing.', 'source': 'TMDb', 'media': 'tv',
+     'recipe': _preset_recipe('tmdb_discover', 'tv', limit=80, params={'with_genres': '99', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_tv_action', 'name': 'Action & Adventure TV', 'description': 'Action-packed television.', 'source': 'TMDb', 'media': 'tv',
+     'recipe': _preset_recipe('tmdb_discover', 'tv', limit=100, params={'with_genres': '10759', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_tv_reality', 'name': 'Reality TV', 'description': 'Popular reality television.', 'source': 'TMDb', 'media': 'tv',
+     'recipe': _preset_recipe('tmdb_discover', 'tv', limit=60, params={'with_genres': '10764', 'sort_by': 'popularity.desc'})},
+    {'id': 'tmdb_tv_war', 'name': 'War & Politics TV', 'description': 'War and political dramas.', 'source': 'TMDb', 'media': 'tv',
+     'recipe': _preset_recipe('tmdb_discover', 'tv', limit=60, params={'with_genres': '10768', 'sort_by': 'popularity.desc'})},
+    # --- Trakt ---
+    {'id': 'trakt_movie_trending', 'name': 'Trakt Trending Movies', 'description': 'Movies being watched right now across the Trakt community.', 'source': 'Trakt', 'media': 'movie',
+     'recipe': _preset_recipe('trakt', 'movie', path='movies/trending', limit=30)},
+    {'id': 'trakt_show_trending', 'name': 'Trakt Trending Shows', 'description': 'Most watched TV shows right now.', 'source': 'Trakt', 'media': 'tv',
+     'recipe': _preset_recipe('trakt', 'tv', path='shows/trending', limit=30)},
+    {'id': 'trakt_movie_popular', 'name': 'Trakt Popular Movies', 'description': 'Most popular movies on Trakt.', 'source': 'Trakt', 'media': 'movie',
+     'recipe': _preset_recipe('trakt', 'movie', path='movies/popular', limit=50)},
+    {'id': 'trakt_show_popular', 'name': 'Trakt Popular Shows', 'description': 'Most popular shows on Trakt.', 'source': 'Trakt', 'media': 'tv',
+     'recipe': _preset_recipe('trakt', 'tv', path='shows/popular', limit=50)},
+    {'id': 'trakt_movie_anticipated', 'name': 'Trakt Most Anticipated Movies', 'description': 'Movies people are most looking forward to.', 'source': 'Trakt', 'media': 'movie',
+     'recipe': _preset_recipe('trakt', 'movie', path='movies/anticipated', limit=100)},
+    {'id': 'trakt_show_anticipated', 'name': 'Most Anticipated Shows', 'description': 'Upcoming TV shows with the most hype.', 'source': 'Trakt', 'media': 'tv',
+     'recipe': _preset_recipe('trakt', 'tv', path='shows/anticipated', limit=100)},
+    {'id': 'trakt_movie_recommended', 'name': 'Trakt Recommended Movies', 'description': 'Weekly Trakt movie recommendations.', 'source': 'Trakt', 'media': 'movie',
+     'recipe': _preset_recipe('trakt', 'movie', path='movies/recommended/weekly', limit=50)},
+    {'id': 'trakt_show_recommended', 'name': 'Trakt Recommended Shows', 'description': 'Weekly Trakt TV recommendations.', 'source': 'Trakt', 'media': 'tv',
+     'recipe': _preset_recipe('trakt', 'tv', path='shows/recommended/weekly', limit=50)},
+]
+
+
+def _parse_preset_recipe(source_id):
+    if isinstance(source_id, dict):
+        return source_id
+    raw = str(source_id or '').strip()
+    if not raw:
+        return None
+    if raw.startswith('{'):
+        try:
+            data = json.loads(raw)
+            return data if isinstance(data, dict) else None
+        except Exception:
+            return None
+    # Legacy bare preset id → look up catalog recipe
+    for entry in TRENDING_PRESET_CATALOG:
+        if entry['id'] == raw:
+            return dict(entry['recipe'])
+    return None
+
+
+def fetch_trending_preset_recipe(recipe, config, include_posters=False):
+    """Fetch titles for a trending_preset recipe (preview + auto-sync)."""
+    recipe = recipe or {}
+    kind = recipe.get('kind')
+    media = 'tv' if recipe.get('media') in ('tv', 'show') else 'movie'
+    item_type = 'show' if media == 'tv' else 'movie'
+    title_key = 'name' if media == 'tv' else 'title'
+    date_key = 'first_air_date' if media == 'tv' else 'release_date'
+    limit = int(recipe.get('limit') or 50)
+    tmdb_key = config.get('tmdb_api_key')
+    trakt_id = config.get('trakt_client_id')
+    items = []
+
+    def attach_poster(entry, m=None):
+        if not include_posters:
+            return entry
+        if m and m.get('poster_path'):
+            entry['poster'] = f"https://image.tmdb.org/t/p/w200{m.get('poster_path')}"
+        return entry
+
+    try:
+        if kind == 'tmdb_trending' and tmdb_key:
+            window = recipe.get('window') or 'week'
+            pages_needed = max(1, min(5, (limit + 19) // 20))
+            for page in range(1, pages_needed + 1):
+                url = f"https://api.themoviedb.org/3/trending/{media}/{window}?api_key={tmdb_key}&page={page}"
+                resp = requests.get(url, timeout=8)
+                if resp.status_code != 200:
+                    break
+                results = resp.json().get('results') or []
+                if not results:
+                    break
+                for m in results:
+                    tid = m.get('id')
+                    entry = {
+                        'title': m.get(title_key),
+                        'id': tid,
+                        'tmdb_id': tid,
+                        'year': (m.get(date_key) or '')[:4],
+                        'type': item_type,
+                    }
+                    items.append(attach_poster(entry, m))
+                if len(items) >= limit:
+                    break
+            items = items[:limit]
+
+        elif kind == 'tmdb_endpoint' and tmdb_key:
+            path = str(recipe.get('path') or '').lstrip('/')
+            if path:
+                pages_needed = max(1, min(8, (limit + 19) // 20))
+                for page in range(1, pages_needed + 1):
+                    url = f"https://api.themoviedb.org/3/{path}?api_key={tmdb_key}&page={page}"
+                    resp = requests.get(url, timeout=8)
+                    if resp.status_code != 200:
+                        break
+                    results = resp.json().get('results') or []
+                    if not results:
+                        break
+                    for m in results:
+                        tid = m.get('id')
+                        entry = {
+                            'title': m.get(title_key) or m.get('title') or m.get('name'),
+                            'id': tid,
+                            'tmdb_id': tid,
+                            'year': (m.get(date_key) or m.get('release_date') or m.get('first_air_date') or '')[:4],
+                            'type': item_type,
+                        }
+                        items.append(attach_poster(entry, m))
+                    if len(items) >= limit:
+                        break
+                items = items[:limit]
+
+        elif kind == 'tmdb_discover' and tmdb_key:
+            params = {'api_key': tmdb_key, 'language': 'en-US', **(recipe.get('params') or {})}
+            pages_needed = max(1, min(10, (limit + 19) // 20))
+            for page in range(1, pages_needed + 1):
+                params['page'] = page
+                url = f"https://api.themoviedb.org/3/discover/{media}"
+                resp = requests.get(url, params=params, timeout=8)
+                if resp.status_code != 200:
+                    break
+                results = resp.json().get('results') or []
+                if not results:
+                    break
+                for m in results:
+                    tid = m.get('id')
+                    entry = {
+                        'title': m.get(title_key),
+                        'id': tid,
+                        'tmdb_id': tid,
+                        'year': (m.get(date_key) or '')[:4],
+                        'type': item_type,
+                    }
+                    items.append(attach_poster(entry, m))
+                if len(items) >= limit:
+                    break
+            items = items[:limit]
+
+        elif kind == 'trakt' and trakt_id:
+            path = str(recipe.get('path') or '').lstrip('/')
+            headers = {
+                'Content-Type': 'application/json',
+                'trakt-api-version': '2',
+                'trakt-api-key': trakt_id,
+            }
+            url = f"https://api.trakt.tv/{path}?limit={limit}"
+            resp = requests.get(url, headers=headers, timeout=8)
+            if resp.status_code == 200:
+                for idx, row in enumerate(resp.json() or []):
+                    node = row.get('movie') or row.get('show') or row
+                    ids = (node.get('ids') or {}) if isinstance(node, dict) else {}
+                    tid = ids.get('tmdb')
+                    entry = {
+                        'title': node.get('title'),
+                        'year': node.get('year'),
+                        'id': tid,
+                        'tmdb_id': tid,
+                        'type': item_type,
+                    }
+                    # Limit poster lookups — Trakt rows have no poster paths.
+                    if include_posters and tid and idx < 5:
+                        entry['poster'] = get_tmdb_poster(tid, 'tv' if media == 'tv' else 'movie')
+                    items.append(entry)
+                items = items[:limit]
+    except Exception as e:
+        logging.error(f"trending preset fetch error ({kind}/{media}): {e}")
+
+    return [it for it in items if it.get('title')]
+
+
 def normalize_source_type(source_type, source_id=''):
     """Fix legacy jobs that stored tmdb_trending_undefined when preset.type was missing."""
     st = (source_type or '').strip()
     sid = (source_id or '').strip()
+    if st == 'trending_preset' or (sid.startswith('{') and '"kind"' in sid):
+        return 'trending_preset'
     if ('undefined' in st or not st) and sid in TRENDING_PRESET_SOURCE_TYPES:
         return TRENDING_PRESET_SOURCE_TYPES[sid]
     if st in TRENDING_PRESET_SOURCE_TYPES:
         return TRENDING_PRESET_SOURCE_TYPES[st]
+    # Catalog id used as source_type/source_id
+    if sid in {e['id'] for e in TRENDING_PRESET_CATALOG} or st in {e['id'] for e in TRENDING_PRESET_CATALOG}:
+        return 'trending_preset'
     return st
 
 def heal_managed_job_sources(managed):
@@ -359,6 +649,11 @@ def expected_media_for_source(source_type, source_id='', items=None):
     st = normalize_source_type(source_type, source_id)
     if st in SOURCE_TYPE_MEDIA:
         return SOURCE_TYPE_MEDIA[st]
+    if st == 'trending_preset':
+        recipe = _parse_preset_recipe(source_id)
+        if recipe:
+            return normalize_media_kind(recipe.get('media', 'movie')) or 'movie'
+        return 'movie'
     if st == 'tmdb_discover':
         try:
             params = json.loads(source_id or '{}')
@@ -458,7 +753,11 @@ def fetch_source_items(source_type, source_id, config):
     
     items = []
     try:
-        if source_type == 'tmdb_trending_movie':
+        if source_type == 'trending_preset':
+            recipe = _parse_preset_recipe(source_id)
+            if recipe:
+                items = fetch_trending_preset_recipe(recipe, config, include_posters=False)
+        elif source_type == 'tmdb_trending_movie':
             # Trending weekly - User wants cap of 30
             for page in range(1, 3): # 2 pages = 40 items total, we slice at 30
                 url = f"https://api.themoviedb.org/3/trending/movie/week?api_key={tmdb_key}&page={page}"
@@ -2464,7 +2763,12 @@ def update_managed_hub_visibility():
 def get_trending():
     global PRESETS_CACHE
     now = time.time()
-    if PRESETS_CACHE['data'] and (now - PRESETS_CACHE['timestamp'] < PRESETS_CACHE['ttl']):
+    cache_ver = PRESETS_CACHE.get('version')
+    if (
+        PRESETS_CACHE['data']
+        and cache_ver == 3
+        and (now - PRESETS_CACHE['timestamp'] < PRESETS_CACHE['ttl'])
+    ):
         logging.debug("Returning cached trending presets")
         return jsonify(PRESETS_CACHE['data'])
 
@@ -2472,312 +2776,63 @@ def get_trending():
     config = load_config()
     tmdb_key = config.get('tmdb_api_key')
     trakt_id = config.get('trakt_client_id')
-    
+
+    catalog = []
+    for entry in TRENDING_PRESET_CATALOG:
+        src = entry.get('source')
+        if src == 'TMDb' and not tmdb_key:
+            continue
+        if src == 'Trakt' and not trakt_id:
+            continue
+        catalog.append(entry)
+
     presets = []
-    
-    if tmdb_key:
-        try:
-            # Trending Movies
-            all_data = []
-            for page in range(1, 3): # 2 pages = 40 items
-                url = f"https://api.themoviedb.org/3/trending/movie/week?api_key={tmdb_key}&page={page}"
-                resp = requests.get(url, timeout=5)
-                if resp.status_code == 200:
-                    results = resp.json().get('results', [])
-                    if not results: break
-                    all_data.extend(results)
-                else: break
 
-            presets.append({
-                'id': 'tmdb_movie_week',
-                'source_type': TRENDING_PRESET_SOURCE_TYPES['tmdb_movie_week'],
-                'name': 'TMDb Weekly Trending Movies',
-                'description': 'The most popular movies on TMDb this week.',
-                'source': 'TMDb',
-                'items': [{
-                    'title': m.get('title'),
-                    'id': m.get('id'),
-                    'year': m.get('release_date', '')[:4] if m.get('release_date') else '',
-                    'poster': f"https://image.tmdb.org/t/p/w200{m.get('poster_path')}",
-                    'type': 'movie'
-                } for m in all_data[:30]] # Slice at 30
-            })
-                
-            # Trending Shows
-            all_data = []
-            for page in range(1, 3):
-                url = f"https://api.themoviedb.org/3/trending/tv/week?api_key={tmdb_key}&page={page}"
-                resp = requests.get(url, timeout=5)
-                if resp.status_code == 200:
-                    results = resp.json().get('results', [])
-                    if not results: break
-                    all_data.extend(results)
-                else: break
+    def build_one(entry):
+        recipe = dict(entry['recipe'])
+        items = fetch_trending_preset_recipe(recipe, config, include_posters=True)
+        if not items:
+            return None
+        return {
+            'id': entry['id'],
+            'source_type': 'trending_preset',
+            'source_id': json.dumps(recipe, separators=(',', ':')),
+            'name': entry['name'],
+            'description': entry['description'],
+            'source': entry['source'],
+            'media': entry['media'],
+            'items': items,
+        }
 
-            presets.append({
-                'id': 'tmdb_tv_week',
-                'source_type': TRENDING_PRESET_SOURCE_TYPES['tmdb_tv_week'],
-                'name': 'TMDb Weekly Trending Shows',
-                'description': 'The most watched TV series on TMDb this week.',
-                'source': 'TMDb',
-                'items': [{
-                    'title': m.get('name'),
-                    'id': m.get('id'),
-                    'year': m.get('first_air_date', '')[:4] if m.get('first_air_date') else '',
-                    'poster': f"https://image.tmdb.org/t/p/w200{m.get('poster_path')}",
-                    'type': 'show'
-                } for m in all_data[:30]] # Slice at 30
-            })
+    try:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            futures = {pool.submit(build_one, entry): entry['id'] for entry in catalog}
+            by_id = {}
+            for fut in as_completed(futures):
+                try:
+                    result = fut.result()
+                    if result:
+                        by_id[result['id']] = result
+                except Exception as e:
+                    logging.error(f"Preset build failed for {futures[fut]}: {e}")
+        # Keep catalog order
+        for entry in catalog:
+            if entry['id'] in by_id:
+                presets.append(by_id[entry['id']])
+    except Exception as e:
+        logging.error(f"Trending presets parallel fetch failed, falling back: {e}")
+        for entry in catalog:
+            try:
+                built = build_one(entry)
+                if built:
+                    presets.append(built)
+            except Exception as inner:
+                logging.error(f"Preset build failed for {entry.get('id')}: {inner}")
 
-            # Popular TV Shows
-            all_data = []
-            for page in range(1, 4): # 3 pages = 60 items
-                url = f"https://api.themoviedb.org/3/tv/popular?api_key={tmdb_key}&page={page}"
-                resp = requests.get(url, timeout=5)
-                if resp.status_code == 200:
-                    results = resp.json().get('results', [])
-                    if not results: break
-                    all_data.extend(results)
-                else: break
-
-            presets.append({
-                'id': 'tmdb_tv_popular',
-                'source_type': TRENDING_PRESET_SOURCE_TYPES['tmdb_tv_popular'],
-                'name': 'Popular TV Shows',
-                'description': 'The most popular TV shows on TMDb right now.',
-                'source': 'TMDb',
-                'items': [{
-                    'title': m.get('name'),
-                    'id': m.get('id'),
-                    'year': m.get('first_air_date', '')[:4] if m.get('first_air_date') else '',
-                    'poster': f"https://image.tmdb.org/t/p/w200{m.get('poster_path')}",
-                    'type': 'show'
-                } for m in all_data[:50]] # Slice at 50
-            })
-
-            # Top Rated Movies
-            all_data = []
-            for page in range(1, 6): # 5 pages = 100 items
-                url = f"https://api.themoviedb.org/3/movie/top_rated?api_key={tmdb_key}&page={page}"
-                resp = requests.get(url, timeout=5)
-                if resp.status_code == 200:
-                    results = resp.json().get('results', [])
-                    if not results: break
-                    all_data.extend(results)
-                else: break
-
-            presets.append({
-                'id': 'tmdb_movie_top',
-                'source_type': TRENDING_PRESET_SOURCE_TYPES['tmdb_movie_top'],
-                'name': 'Top Rated Movies',
-                'description': 'All-time highest rated movies on TMDb.',
-                'source': 'TMDb',
-                'items': [{
-                    'title': m.get('title'),
-                    'id': m.get('id'),
-                    'year': m.get('release_date', '')[:4] if m.get('release_date') else '',
-                    'poster': f"https://image.tmdb.org/t/p/w200{m.get('poster_path')}",
-                    'type': 'movie'
-                } for m in all_data[:100]] # Slice at 100
-            })
-
-            # TMDb Kids & Family
-            all_data = []
-            for page in range(1, 6):
-                url = f"https://api.themoviedb.org/3/discover/movie?api_key={tmdb_key}&with_genres=10751,16&sort_by=popularity.desc&page={page}"
-                resp = requests.get(url, timeout=5)
-                if resp.status_code == 200:
-                    results = resp.json().get('results', [])
-                    if not results: break
-                    all_data.extend(results)
-                else: break
-
-            presets.append({
-                'id': 'tmdb_kids',
-                'source_type': TRENDING_PRESET_SOURCE_TYPES['tmdb_kids'],
-                'name': 'Kids & Family Hits',
-                'description': 'Top animated and family-friendly movies.',
-                'source': 'TMDb',
-                'items': [{
-                    'title': m.get('title'),
-                    'id': m.get('id'),
-                    'year': m.get('release_date', '')[:4] if m.get('release_date') else '',
-                    'poster': f"https://image.tmdb.org/t/p/w200{m.get('poster_path')}",
-                    'type': 'movie'
-                } for m in all_data]
-            })
-
-            # TMDb Horror Hits
-            all_data = []
-            for page in range(1, 6):
-                url = f"https://api.themoviedb.org/3/discover/movie?api_key={tmdb_key}&with_genres=27&sort_by=popularity.desc&page={page}"
-                resp = requests.get(url, timeout=5)
-                if resp.status_code == 200:
-                    results = resp.json().get('results', [])
-                    if not results: break
-                    all_data.extend(results)
-                else: break
-
-            presets.append({
-                'id': 'tmdb_horror',
-                'source_type': TRENDING_PRESET_SOURCE_TYPES['tmdb_horror'],
-                'name': 'Horror Hits',
-                'description': 'Top trending horror movies for spooky season.',
-                'source': 'TMDb',
-                'items': [{
-                    'title': m.get('title'),
-                    'id': m.get('id'),
-                    'year': m.get('release_date', '')[:4] if m.get('release_date') else '',
-                    'poster': f"https://image.tmdb.org/t/p/w200{m.get('poster_path')}",
-                    'type': 'movie'
-                } for m in all_data]
-            })
-
-            # TMDb Documentaries
-            all_data = []
-            for page in range(1, 6):
-                url = f"https://api.themoviedb.org/3/discover/movie?api_key={tmdb_key}&with_genres=99&sort_by=popularity.desc&page={page}"
-                resp = requests.get(url, timeout=5)
-                if resp.status_code == 200:
-                    results = resp.json().get('results', [])
-                    if not results: break
-                    all_data.extend(results)
-                else: break
-
-            presets.append({
-                'id': 'tmdb_docs',
-                'source_type': TRENDING_PRESET_SOURCE_TYPES['tmdb_docs'],
-                'name': 'Top Documentaries',
-                'description': 'Highly rated and popular documentaries.',
-                'source': 'TMDb',
-                'items': [{
-                    'title': m.get('title'),
-                    'id': m.get('id'),
-                    'year': m.get('release_date', '')[:4] if m.get('release_date') else '',
-                    'poster': f"https://image.tmdb.org/t/p/w200{m.get('poster_path')}",
-                    'type': 'movie'
-                } for m in all_data]
-            })
-
-            # TMDb Sci-Fi Classics
-            all_data = []
-            for page in range(1, 6):
-                url = f"https://api.themoviedb.org/3/discover/movie?api_key={tmdb_key}&with_genres=878&sort_by=popularity.desc&page={page}"
-                resp = requests.get(url, timeout=5)
-                if resp.status_code == 200:
-                    results = resp.json().get('results', [])
-                    if not results: break
-                    all_data.extend(results)
-                else: break
-
-            presets.append({
-                'id': 'tmdb_scifi',
-                'source_type': TRENDING_PRESET_SOURCE_TYPES['tmdb_scifi'],
-                'name': 'Sci-Fi Classics',
-                'description': 'Out-of-this-world science fiction favorites.',
-                'source': 'TMDb',
-                'items': [{
-                    'title': m.get('title'),
-                    'id': m.get('id'),
-                    'year': m.get('release_date', '')[:4] if m.get('release_date') else '',
-                    'poster': f"https://image.tmdb.org/t/p/w200{m.get('poster_path')}",
-                    'type': 'movie'
-                } for m in all_data]
-            })
-        except Exception as e:
-            logging.error(f"TMDB Trending error: {e}")
-            
-    if trakt_id:
-        try:
-            headers = {
-                'Content-Type': 'application/json',
-                'trakt-api-version': '2',
-                'trakt-api-key': trakt_id
-            }
-            # Trakt Trending Movies
-            url = "https://api.trakt.tv/movies/trending?limit=30"
-            resp = requests.get(url, headers=headers, timeout=5)
-            if resp.status_code == 200:
-                data = resp.json()
-                presets.append({
-                    'id': 'trakt_movie_trending',
-                    'source_type': TRENDING_PRESET_SOURCE_TYPES['trakt_movie_trending'],
-                    'name': 'Trakt Trending Movies',
-                    'description': 'Movies being watched right now across the Trakt community.',
-                    'source': 'Trakt',
-                    'items': [{
-                        'title': itm.get('movie', {}).get('title'),
-                        'year': itm.get('movie', {}).get('year'),
-                        'id': itm.get('movie', {}).get('ids', {}).get('tmdb'),
-                        'poster': get_tmdb_poster(itm.get('movie', {}).get('ids', {}).get('tmdb'), 'movie'),
-                        'type': 'movie'
-                    } for itm in data] # limit=30 already handled by API
-                })
-
-            # Trakt Trending Shows
-            url = "https://api.trakt.tv/shows/trending?limit=30"
-            resp = requests.get(url, headers=headers, timeout=5)
-            if resp.status_code == 200:
-                data = resp.json()
-                presets.append({
-                    'id': 'trakt_show_trending',
-                    'source_type': TRENDING_PRESET_SOURCE_TYPES['trakt_show_trending'],
-                    'name': 'Trakt Trending Shows',
-                    'description': 'Most watched TV shows right now.',
-                    'source': 'Trakt',
-                    'items': [{
-                        'title': itm.get('show', {}).get('title'),
-                        'year': itm.get('show', {}).get('year'),
-                        'id': itm.get('show', {}).get('ids', {}).get('tmdb'),
-                        'poster': get_tmdb_poster(itm.get('show', {}).get('ids', {}).get('tmdb'), 'tv'),
-                        'type': 'show'
-                    } for itm in data]
-                })
-
-            # Trakt Anticipated Movies
-            url = "https://api.trakt.tv/movies/anticipated?limit=100"
-            resp = requests.get(url, headers=headers, timeout=5)
-            if resp.status_code == 200:
-                data = resp.json()
-                presets.append({
-                    'id': 'trakt_movie_anticipated',
-                    'source_type': TRENDING_PRESET_SOURCE_TYPES['trakt_movie_anticipated'],
-                    'name': 'Trakt Most Anticipated',
-                    'description': 'Movies people are most looking forward to.',
-                    'source': 'Trakt',
-                    'items': [{
-                        'title': itm.get('movie', {}).get('title'),
-                        'year': itm.get('movie', {}).get('year'),
-                        'id': itm.get('movie', {}).get('ids', {}).get('tmdb'),
-                        'poster': get_tmdb_poster(itm.get('movie', {}).get('ids', {}).get('tmdb'), 'movie'),
-                        'type': 'movie'
-                    } for itm in data]
-                })
-
-            # Trakt Anticipated Shows
-            url = "https://api.trakt.tv/shows/anticipated?limit=100"
-            resp = requests.get(url, headers=headers, timeout=5)
-            if resp.status_code == 200:
-                data = resp.json()
-                presets.append({
-                    'id': 'trakt_show_anticipated',
-                    'source_type': TRENDING_PRESET_SOURCE_TYPES['trakt_show_anticipated'],
-                    'name': 'Most Anticipated Shows',
-                    'description': 'Upcoming TV shows with the most hype.',
-                    'source': 'Trakt',
-                    'items': [{
-                        'title': itm.get('show', {}).get('title'),
-                        'year': itm.get('show', {}).get('year'),
-                        'id': itm.get('show', {}).get('ids', {}).get('tmdb'),
-                        'poster': get_tmdb_poster(itm.get('show', {}).get('ids', {}).get('tmdb'), 'tv'),
-                        'type': 'show'
-                    } for itm in data]
-                })
-        except Exception as e:
-            logging.error(f"Trakt Trending error: {e}")
-            
     PRESETS_CACHE['data'] = presets
     PRESETS_CACHE['timestamp'] = now
+    PRESETS_CACHE['version'] = 3
     return jsonify(presets)
 
 @app.route('/api/proxy/image')

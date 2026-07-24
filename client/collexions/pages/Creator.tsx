@@ -306,16 +306,21 @@ const Creator: React.FC = () => {
     }, [templates, templateCategory, selectedLibraryMedia, matchLibraryMedia]);
 
     const filteredTrendingPresets = useMemo(() => {
+        const mediaOf = (p: any): MediaKind | null =>
+            normalizeMediaKind(p?.media)
+            || mediaFromItems(p?.items)
+            || mediaFromSourceType(p?.source_type);
+
         if (!selectedLibraryMedia || !matchLibraryMedia) {
             if (!selectedLibraryMedia) return trendingPresets;
             return [...trendingPresets].sort((a, b) => {
-                const am = (mediaFromSourceType(a.source_type) || mediaFromItems(a.items)) === selectedLibraryMedia ? 0 : 1;
-                const bm = (mediaFromSourceType(b.source_type) || mediaFromItems(b.items)) === selectedLibraryMedia ? 0 : 1;
+                const am = mediaOf(a) === selectedLibraryMedia ? 0 : 1;
+                const bm = mediaOf(b) === selectedLibraryMedia ? 0 : 1;
                 return am - bm;
             });
         }
         return trendingPresets.filter((p) => {
-            const m = mediaFromSourceType(p.source_type) || mediaFromItems(p.items);
+            const m = mediaOf(p);
             return !m || m === selectedLibraryMedia;
         });
     }, [trendingPresets, selectedLibraryMedia, matchLibraryMedia]);
@@ -437,7 +442,6 @@ const Creator: React.FC = () => {
             showToast("Please select a target library first!", "error");
             return;
         }
-        // source_type comes from the API (falls back for older cached presets)
         const sourceType = preset.source_type
             || ({
                 tmdb_movie_week: 'tmdb_trending_movie',
@@ -453,8 +457,12 @@ const Creator: React.FC = () => {
                 trakt_movie_anticipated: 'trakt_anticipated_movie',
                 trakt_show_anticipated: 'trakt_anticipated_show',
             } as Record<string, string>)[preset.id]
-            || preset.id;
-        if (!ensureLibraryMatchesMedia(mediaFromSourceType(sourceType) || mediaFromItems(preset.items))) return;
+            || 'trending_preset';
+        const sourceId = preset.source_id || preset.id;
+        const expectedMedia = normalizeMediaKind(preset.media)
+            || mediaFromSourceType(sourceType)
+            || mediaFromItems(preset.items);
+        if (!ensureLibraryMatchesMedia(expectedMedia)) return;
         setCreating(true);
         startBusy({
             headline: `Creating “${preset.name}”`,
@@ -474,14 +482,13 @@ const Creator: React.FC = () => {
                 sortOrder,
                 autoSync,
                 sourceType,
-                preset.id
+                sourceId
             );
 
             setSelectionPool([]);
             if (res.success) {
                 showToast(`Successfully created '${preset.name}'! Matched ${res.matched}/${res.total} items.`, "success");
                 setViewingPreset(null);
-                setActiveSubTab('trending');
             } else showToast("Error: " + res.error, "error");
         } catch (e) {
             showToast("Failed to create collection.", "error");
