@@ -28,6 +28,8 @@
     "node-fetch": "^3.3.2",
     "nodemailer": "^9.0.1",
     "pngjs": "^7.0.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "react-router-dom": "^7.18.1",
     "recharts": "^3.9.0"
   },
@@ -39,5 +41,12 @@
     "postcss": "^8.5.15",
     "tailwindcss": "^3.4.19",
     "vitepress": "^1.6.4"
+  },
+  "overrides": {
+    "@docsearch/react": {
+      "react": "$react",
+      "react-dom": "$react-dom",
+      "@types/react": "$@types/react"
+    }
   }
 }
