@@ -19,6 +19,9 @@ export type PortalRequestItem = {
     title: string;
     year: string | null;
     overview: string;
+    genres?: string[];
+    /** ISO 639-1 code from TMDB (e.g. en, ko). */
+    originalLanguage?: string | null;
     posterUrl: string;
     posterPath?: string | null;
     backdropUrl?: string;

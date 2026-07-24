@@ -6,6 +6,7 @@ import { Loader, ToastContainer, pushToast, type ToastMessage } from '../shared/
 import { CustomSelect } from '../shared/ui';
 import { RequestApprovalModal } from './RequestApprovalModal';
 import { RequestCardActions, RequestCardShell, requestCardActionBtnClass } from './RequestCardShell';
+import { RequestMetaChips } from './RequestMetaChips';
 import { OpenInArrButton } from '../shared/OpenInArrButton';
 import {
     type AdminRequestFilter,
@@ -569,6 +570,11 @@ export const RequestsAdminPanel: React.FC<Props> = ({ onCountsChange, embedded =
                                                 ? ` · Updated ${formatRelativeTime(item.updatedAt)}`
                                                 : ''}
                                         </p>
+                                        <RequestMetaChips
+                                            genres={item.genres}
+                                            originalLanguage={item.originalLanguage}
+                                            className="mb-2"
+                                        />
                                         {item.modifiedBy && (
                                             <p className="text-xs text-muted mb-1">
                                                 Last action by {item.modifiedBy.displayName}

@@ -4,6 +4,7 @@ import { Check, ChevronRight, Film, Loader2, Pencil, RefreshCw, Tv } from 'lucid
 import { apiFetch } from '../shared/api';
 import { RequestApprovalModal } from './RequestApprovalModal';
 import { RequestCardActions, RequestCardShell, requestCardActionBtnClass } from './RequestCardShell';
+import { RequestMetaChips } from './RequestMetaChips';
 import type { PortalRequestItem } from './types';
 
 const formatRelativeTime = (value?: string | null) => {
@@ -184,6 +185,12 @@ export const PendingRequestsHomeWidget: React.FC<{
                                 {item.requestedBy.displayName} · {formatRelativeTime(item.createdAt)}
                                 {item.is4k ? ' · 4K' : ''}
                             </p>
+                            <RequestMetaChips
+                                genres={item.genres}
+                                originalLanguage={item.originalLanguage}
+                                maxGenres={3}
+                                className="mt-1.5"
+                            />
                             {item.overview && (
                                 <p className="text-[11px] text-muted/90 line-clamp-2 mt-1.5 hidden md:block">{item.overview}</p>
                             )}

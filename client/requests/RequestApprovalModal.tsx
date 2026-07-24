@@ -3,6 +3,7 @@ import { Check, Film, Loader2, Tv, X } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { formatDateTime } from '../shared/format';
 import { CustomSelect, StyledCheckbox } from '../shared/ui';
+import { RequestMetaChips } from './RequestMetaChips';
 import type {
     PortalRequestDetail,
     PortalRequestOverrides,
@@ -349,6 +350,13 @@ export const RequestApprovalModal: React.FC<Props> = ({
                                 {detail.is4k ? ' · 4K' : ''}
                                 {detail.isAnime ? ' · Anime' : ''}
                             </p>
+                        )}
+                        {detail && (
+                            <RequestMetaChips
+                                genres={detail.genres}
+                                originalLanguage={detail.originalLanguage}
+                                className="mt-2"
+                            />
                         )}
                     </div>
                     <button type="button" onClick={onClose} className="p-2 rounded-lg text-muted hover:text-text hover:bg-white/5">
