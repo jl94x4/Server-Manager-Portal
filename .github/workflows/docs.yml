@@ -18,6 +18,7 @@ on:
 
 permissions:
   contents: read
+  pages: read
 
 concurrency:
   group: docs-${{ github.ref }}
@@ -34,14 +35,32 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+
+      - name: Install dependencies
+        id: install
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          node -v
+          npm -v
+          npm ci --no-fund --no-audit 2>&1 | tee npm-ci.log
+
+      - name: Upload npm ci log
+        if: steps.install.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-ci-log
+          path: npm-ci.log
+
+      - name: Fail if install failed
+        if: steps.install.outcome == 'failure'
+        run: |
+          echo "::error::npm ci failed — see npm-ci-log artifact"
+          exit 1
 
       - name: Setup Pages
         if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
-
-      - name: Install dependencies
-        run: npm ci
 
       - name: Build docs
         run: npm run docs:build
