@@ -17710,6 +17710,7 @@ const requireScannerEnabledForTriggers = async (req, res, next) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
         if (!config.scannerEnabled) {
+            log('[scanner] Webhook rejected — Scanner is disabled');
             return res.status(503).json({ error: 'Scanner is disabled' });
         }
         await refreshScannerAuthCache();
@@ -17726,12 +17727,14 @@ const handleArrTrigger = async (req, res, kind) => {
         const triggerName = String(req.params.name || kind).toLowerCase();
         const trigger = findTriggerByName(scanner, triggerName);
         if (!trigger || trigger.kind !== kind) {
+            log(`[scanner] Unknown ${kind} trigger "${triggerName}"`);
             return res.status(404).json({ error: `Unknown ${kind} trigger "${triggerName}"` });
         }
 
         const event = req.body || {};
         const eventType = String(event.eventType || '');
         if (/^test$/i.test(eventType)) {
+            log(`[scanner] ${kind} test webhook OK`);
             return res.status(200).json({ ok: true, test: true });
         }
 
@@ -17741,6 +17744,7 @@ const handleArrTrigger = async (req, res, kind) => {
         else if (kind === 'lidarr') paths = pathsFromLidarrEvent(event);
 
         if (!paths.length) {
+            log(`[scanner] ${kind} ${eventType || 'event'} produced no paths`);
             return res.status(200).json({ ok: true, queued: 0 });
         }
 
@@ -17750,8 +17754,10 @@ const handleArrTrigger = async (req, res, kind) => {
             rewrite: trigger.rewrite,
         });
         await enqueueScans(scans);
+        log(`[scanner] Queued ${scans.length} from ${kind}:${trigger.name} (${eventType}): ${scans.map((s) => s.folder).join(' | ')}`);
         return res.status(200).json({ ok: true, queued: scans.length, folders: scans.map((s) => s.folder) });
     } catch (e) {
+        log(`[scanner] ${kind} trigger failed: ${e?.message || e}`);
         const status = e?.status || 500;
         return res.status(status).json({ error: e?.message || 'Trigger failed' });
     }
