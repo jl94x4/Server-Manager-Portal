@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.0](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.7.0...v1.8.0) (2026-07-24)
+
+
+### Features
+
+* add Test Connection button for TMDB Integration ([#77](https://github.com/jl94x4/Server-Manager-Portal/issues/77)) ([b24ee92](https://github.com/jl94x4/Server-Manager-Portal/commit/b24ee92c7cf940ba192e9ba7dd41629668e76a1c))
+* move Public Base URL into Portal UI for invite and share links. ([874119e](https://github.com/jl94x4/Server-Manager-Portal/commit/874119e35a711f8f9b7fe694d7b1e9fd27d4333a))
+
+
+### Bug Fixes
+
+* **ci:** make Docs npm ci resilient by skipping flaky npm cache. ([10fad7f](https://github.com/jl94x4/Server-Manager-Portal/commit/10fad7f5697f13ada5a4c831bc6fcbe2e65964b7))
+* **ci:** pin React 19 and override docsearch peers so Docs npm ci succeeds. ([6d73ea7](https://github.com/jl94x4/Server-Manager-Portal/commit/6d73ea7105048195be071102033b325305cdde0c))
+* **ci:** surface npm ci errors and fall back to npm install for Docs. ([ad98c01](https://github.com/jl94x4/Server-Manager-Portal/commit/ad98c0127c83619a937ec04412444d7f69c79abc))
+* **ci:** sync lockfile for React 19 so Docs npm ci succeeds. ([26720c6](https://github.com/jl94x4/Server-Manager-Portal/commit/26720c6b05794dccaeb823e273c2e9bcab1b72a4))
+* **ci:** upload npm ci log artifact when Docs install fails. ([b43217a](https://github.com/jl94x4/Server-Manager-Portal/commit/b43217ab5cdc04a364215f194a89740c8b1185fe))
+* correct Unraid template Registry URL and publish Docker Schema 2 manifests ([238f241](https://github.com/jl94x4/Server-Manager-Portal/commit/238f241057cbba39400c9c120cd379a0d5037d7b))
+* exclude not-configured integrations from Health Score alerts ([133bedc](https://github.com/jl94x4/Server-Manager-Portal/commit/133bedce9efc3ffd8890690a56a028b56bc2a6f6))
+* hide empty Music and other zero rows from Server Library Size widget ([e7d4ab7](https://github.com/jl94x4/Server-Manager-Portal/commit/e7d4ab7d05282af4c74cf19c942f36bd24245d1b))
+* match Download Clients add button to other Add Instance controls ([d741741](https://github.com/jl94x4/Server-Manager-Portal/commit/d7417410896e57fa98540e0aacbc3186fe537c6b))
+
 ## [1.8.0](https://github.com/jl94x4/Server-Manager-Portal/compare/v1.7.0...v1.8.0) (2026-07-23)
 
 
