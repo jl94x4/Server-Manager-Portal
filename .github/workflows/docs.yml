@@ -37,26 +37,19 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        id: install
-        continue-on-error: true
         run: |
-          set -o pipefail
+          set -euo pipefail
           node -v
           npm -v
-          npm ci --no-fund --no-audit 2>&1 | tee npm-ci.log
-
-      - name: Upload npm ci log
-        if: steps.install.outcome == 'failure'
-        uses: actions/upload-artifact@v4
-        with:
-          name: npm-ci-log
-          path: npm-ci.log
-
-      - name: Fail if install failed
-        if: steps.install.outcome == 'failure'
-        run: |
-          echo "::error::npm ci failed — see npm-ci-log artifact"
-          exit 1
+          if ! npm ci --no-fund --no-audit >npm-ci.out 2>npm-ci.err; then
+            echo "::error title=npm ci failed::$(tr '\n' ' ' < npm-ci.err | head -c 1800)"
+            echo "---- npm ci stdout ----"
+            cat npm-ci.out || true
+            echo "---- npm ci stderr ----"
+            cat npm-ci.err || true
+            echo "Falling back to npm install..."
+            npm install --no-fund --no-audit
+          fi
 
       - name: Setup Pages
         if: github.event_name != 'pull_request'
