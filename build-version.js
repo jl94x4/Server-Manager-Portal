@@ -1,5 +1,6 @@
 import fs from 'fs';
 import { execSync } from 'child_process';
+import { resolvePackageVersion } from './lib/resolve-package-version.js';
 
 const normalizeSha = (sha, pkgVersion) => {
     if (!sha) return '';
@@ -26,14 +27,14 @@ const resolveBuildVersion = (pkgVersion) => {
     }
 };
 
-const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-const pkgVersion = pkg.version;
+const pkgVersion = resolvePackageVersion();
 const assetVersion = resolveBuildVersion(pkgVersion);
 
 const isTag = process.env.GITHUB_REF && process.env.GITHUB_REF.startsWith('refs/tags/');
 const finalVersion = isTag ? `v${pkgVersion}` : `v${pkgVersion}-${assetVersion}`;
 
 fs.writeFileSync('version.txt', finalVersion);
+console.log(`Stamped version: ${finalVersion}`);
 
 try {
     const indexPath = 'index.html';

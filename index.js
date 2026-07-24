@@ -15,24 +15,24 @@ import { execSync } from 'child_process';
 import fsSync from 'fs';
 import net from 'net';
 import { makeCircularPwaIconPng } from './lib/circular-icon.js';
+import { resolvePackageVersion } from './lib/resolve-package-version.js';
 
 const resolveAppVersion = () => {
-    let pkgVersion = '1.0.0';
-    try {
-        const pkg = JSON.parse(fsSync.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
-        if (pkg?.version) pkgVersion = String(pkg.version);
-    } catch {
-        // package.json unavailable in unusual deployments
-    }
+    const pkgVersion = resolvePackageVersion();
 
     try {
         const stamped = fsSync.readFileSync(path.join(process.cwd(), 'version.txt'), 'utf8').trim();
-        const pkgPrefix = `v${pkgVersion}`;
-        if (stamped === pkgPrefix || stamped.startsWith(`${pkgPrefix}-`)) {
-            return stamped;
+        // Prefer stamped build when present; strip stale major.minor if package/floor moved on.
+        const match = stamped.match(/^v(\d+\.\d+\.\d+)(?:-(.+))?$/i);
+        if (match) {
+            const stampedPkg = match[1];
+            const stampedSha = match[2] || '';
+            if (stampedPkg === pkgVersion) return stamped;
+            // Rebuild with current package version but keep the build SHA suffix when possible.
+            if (stampedSha) return `v${pkgVersion}-${stampedSha}`;
         }
     } catch {
-        // version.txt missing or stale — rebuild from package.json below
+        // version.txt missing — rebuild below
     }
 
     const isTag = process.env.GITHUB_REF && String(process.env.GITHUB_REF).startsWith('refs/tags/');

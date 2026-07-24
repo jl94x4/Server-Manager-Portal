@@ -16,6 +16,38 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve package version floor from main
+        id: ver
+        shell: bash
+        run: |
+          set -euo pipefail
+          LOCAL_VER=$(node -pe "require('./package.json').version")
+          FLOOR="$LOCAL_VER"
+          if [[ "${GITHUB_REF}" != "refs/heads/main" && "${GITHUB_REF}" != refs/tags/* ]]; then
+            git fetch origin main --depth=1
+            MAIN_VER=$(git show origin/main:package.json | node -pe "JSON.parse(require('fs').readFileSync(0,'utf8')).version")
+            # Use main's version when it is newer so beta/testing are not stuck one release behind.
+            FLOOR=$(LOCAL_VER="$LOCAL_VER" MAIN_VER="$MAIN_VER" node -e "
+              const local = process.env.LOCAL_VER;
+              const main = process.env.MAIN_VER;
+              const parse = (v) => String(v || '0').replace(/^v/i,'').split(/[.+-]/).map((p) => parseInt(p,10)||0);
+              const a = parse(main), b = parse(local);
+              let newer = local;
+              for (let i = 0; i < Math.max(a.length,b.length); i++) {
+                const d = (a[i]||0) - (b[i]||0);
+                if (d > 0) { newer = main; break; }
+                if (d < 0) break;
+              }
+              process.stdout.write(newer);
+            ")
+            echo "Local package.json=${LOCAL_VER}; main=${MAIN_VER}; floor=${FLOOR}"
+          else
+            echo "Using branch package.json=${LOCAL_VER}"
+          fi
+          echo "floor=${FLOOR}" >> "${GITHUB_OUTPUT}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -83,3 +115,4 @@ jobs:
           build-args: |
             GIT_SHA=${{ github.sha }}
             GITHUB_REF=${{ github.ref }}
+            PACKAGE_VERSION_FLOOR=${{ steps.ver.outputs.floor }}

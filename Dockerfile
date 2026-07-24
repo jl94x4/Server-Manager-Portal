@@ -4,10 +4,13 @@ FROM node:22-bookworm-slim AS builder
 WORKDIR /app
 
 # .git is excluded from the build context; CI passes GIT_SHA/GITHUB_REF so version stamps match the commit.
+# PACKAGE_VERSION_FLOOR keeps beta/testing images on main's release number when package.json lags.
 ARG GIT_SHA
 ARG GITHUB_REF
+ARG PACKAGE_VERSION_FLOOR
 ENV GIT_SHA=${GIT_SHA}
 ENV GITHUB_REF=${GITHUB_REF}
+ENV PACKAGE_VERSION_FLOOR=${PACKAGE_VERSION_FLOOR}
 
 COPY package.json package-lock.json ./
 # Use install (not ci) so Windows-generated lockfiles / optional platform pkgs cannot hard-fail the image build.
