@@ -25,6 +25,10 @@ features:
     details: User dashboards include watch history, rankings, media profile cards, peak hours, top titles, and shareable wrap-up exports.
   - title: Admin operations
     details: Live sessions, user management, server status, background jobs, layout controls, and maintenance tools are available from the browser.
+  - title: Discover & Request
+    details: Browse TMDB and submit requests with the built-in engine. Seerr is optional. Admins approve into Sonarr and Radarr.
+  - title: ColleXions
+    details: Admin Plex collection automation with a bundled worker — trending presets, import lists, and scheduled syncs inside the portal.
 ---
 
 ## What Is Server Portal?

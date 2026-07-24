@@ -36,7 +36,12 @@ export default defineConfig({
         items: [
           { text: 'Overview', link: '/features/overview' },
           { text: 'Admin Dashboard', link: '/features/admin' },
-          { text: 'Discover and Media Stack', link: '/features/discover' },
+          { text: 'Dashboard', link: '/features/dashboard' },
+          { text: 'Discover & Request', link: '/features/discover-request' },
+          { text: 'Calendar', link: '/features/calendar' },
+          { text: 'ColleXions', link: '/features/collexions' },
+          { text: 'Upgrader', link: '/features/upgrader' },
+          { text: 'Cleaner', link: '/features/cleaner' },
         ],
       },
       {

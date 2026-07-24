@@ -72,6 +72,18 @@ ALLOW_PRIVATE_INTEGRATION_URLS=true
 
 Use URLs reachable from inside the container. On Docker Desktop, `http://host.docker.internal:8989` is often useful. On Linux, use the host IP or a Docker network shared by the services.
 
+## ColleXions (bundled)
+
+ColleXions is built into the portal image. No second container is required.
+
+1. Deploy a portal image that includes the Python worker (current GHCR tags do).
+2. In **Settings → Collexions**, turn **Enable** on and click **Save Settings**.
+3. Open **ColleXions** in the nav — import an old `config.json` if migrating, or complete onboarding.
+
+Worker data persists under `./config/collexions/` (config + logs). Advanced: set `COLLEXIONS_EMBEDDED_PORT` if you need a different localhost port (default `15755`).
+
+Full product notes: [ColleXions](/features/collexions).
+
 ## Unraid
 
 Server Manager Portal includes an Unraid template at `unraid/server-manager-portal.xml`.

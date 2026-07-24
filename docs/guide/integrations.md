@@ -104,7 +104,7 @@ Most integrations are configured in **Settings → Media Stack**. Branding, aler
     <tr>
       <td><img src="https://cdn.jsdelivr.net/gh/selfhst/icons/svg/tmdb.svg" alt="" /> TMDB</td>
       <td>Requests / Discover</td>
-      <td>Built-in Discover browse, posters, and search (with Sonarr/Radarr for library + fulfill)</td>
+      <td>Built-in Discover &amp; Request browse, posters, and search (with Sonarr/Radarr for library + fulfill). See <a href="/features/discover-request">Discover &amp; Request</a>.</td>
     </tr>
     <tr>
       <td><img src="https://cdn.jsdelivr.net/gh/selfhst/icons/svg/jellyseerr.svg" alt="" /> Jellyseerr / Seerr</td>

@@ -1,6 +1,23 @@
 # Feature Overview
 
-Server Portal combines user onboarding, access management, analytics, public pages, and server operations in one self-hosted app.
+Server Portal combines user onboarding, access management, analytics, requests, collections, and server operations in one self-hosted app.
+
+## Product map
+
+| Nav label | What it is |
+| --- | --- |
+| Home | Personal wrap-up cards and configurable widgets |
+| Dashboard | Live streams and community watch picks |
+| Discover & Request | Built-in TMDB browse and requests (Seerr optional) |
+| Requests | Admin approval queue, issues, and blocklist |
+| Calendar | ARR release calendar, queues, and history |
+| Downloads | Unified download-client status |
+| Analytics | Deeper personal / server analytics views |
+| ColleXions | Admin Plex collection automation (bundled worker) |
+| Upgrader | Library quality upgrades via Sonarr / Radarr |
+| Cleaner | Library maintenance rules and candidates |
+| Status | Public / admin service status |
+| Users / Settings | Access management and configuration |
 
 ## Personal Dashboard
 
@@ -36,10 +53,22 @@ Public-facing routes include the landing/login page, invite claim page, and stat
 
 ## Integrations
 
-Server Portal connects to the surrounding media stack: Plex, Jellyfin, Emby, Tautulli, Jellystat, Sonarr, Radarr, Lidarr, Bazarr, qBittorrent, Transmission, BitTorrent, Deluge, SABnzbd, Gotify, TMDB, and SMTP. Discover &amp; Request is built in by default; Seerr/Jellyseerr is optional as an engine or history import.
+Server Portal connects to the surrounding media stack: Plex, Jellyfin, Emby, Tautulli, Jellystat, Sonarr, Radarr, Lidarr, Bazarr, qBittorrent, Transmission, BitTorrent, Deluge, SABnzbd, Gotify, TMDB, and SMTP.
+
+**Discover & Request is built in by default.** Seerr / Jellyseerr is optional as a request engine or history import — see [Discover & Request](/features/discover-request).
 
 See [Integrations](/guide/integrations) for the full matrix.
 
 ## Themes
 
 Users can choose among built-in dark themes, while admins can set the default theme and branding.
+
+## Feature guides
+
+- [Dashboard](/features/dashboard)
+- [Discover & Request](/features/discover-request)
+- [Calendar](/features/calendar)
+- [ColleXions](/features/collexions)
+- [Upgrader](/features/upgrader)
+- [Cleaner](/features/cleaner)
+- [Admin Dashboard](/features/admin)
