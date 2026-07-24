@@ -1083,12 +1083,17 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
 
                             {integrationTab === 'requests' && (
                                 <div className={`${sectionCardClass} flex flex-col gap-3.5`}>
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-start gap-3">
                                         <ProgramIcon app="tmdb" label="TMDB" />
-                                        <div>
-                                            <h3 className="font-bold text-text text-base leading-tight">Portal Discover &amp; Request</h3>
-                                            <p className="text-xs text-muted mt-0.5">
-                                                Built-in requests (no Seerr required). Needs a TMDB API key plus Sonarr/Radarr above.
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <h3 className="font-bold text-text text-base leading-tight">Portal Discover &amp; Request</h3>
+                                                <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-200">
+                                                    Always on
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-muted mt-1">
+                                                Built-in requests — no Seerr required. Paste your TMDB API key below, and connect Sonarr/Radarr under Arr Apps.
                                             </p>
                                         </div>
                                     </div>
@@ -1099,7 +1104,8 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                                             className={inputClass}
                                             value={tmdbApiKey}
                                             onChange={(e) => setTmdbApiKey(e.target.value)}
-                                            placeholder="Required for Discover posters &amp; search"
+                                            placeholder="Paste key to enable Discover posters &amp; search"
+                                            autoComplete="off"
                                         />
                                         <p className="text-[11px] text-muted mt-1.5">
                                             Free from{' '}
@@ -1111,6 +1117,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                                             >
                                                 themoviedb.org/settings/api
                                             </a>
+                                            . You can skip this and add it later in Settings, but Discover will be empty until then.
                                         </p>
                                         <div className="mt-2">
                                             <IntegrationTestButton
@@ -1125,7 +1132,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                                         <label className="flex items-start gap-3 cursor-pointer">
                                             <input
                                                 type="checkbox"
-                                                className="mt-1"
+                                                className="mt-1 accent-plex"
                                                 checked={migrateFromSeerr}
                                                 onChange={(e) => setMigrateFromSeerr(e.target.checked)}
                                             />
