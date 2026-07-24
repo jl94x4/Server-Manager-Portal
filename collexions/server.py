@@ -386,6 +386,69 @@ def library_media_mismatch_error(library, source_type, source_id='', items=None)
         f'Select a matching Target Library.'
     )
 
+def _normalize_mdblist_item(itm, default_type='movie'):
+    """Map one MDBList item dict into ColleXions external-item shape."""
+    if not isinstance(itm, dict):
+        return None
+    ids = itm.get('ids') if isinstance(itm.get('ids'), dict) else {}
+    tmdb_id = (
+        itm.get('tmdb_id')
+        or itm.get('tmdbid')
+        or ids.get('tmdb')
+        or ids.get('tmdbid')
+        or itm.get('id')
+    )
+    media = str(itm.get('mediatype') or itm.get('media_type') or default_type or 'movie').lower()
+    if media in ('tv', 'show', 'shows'):
+        media = 'show'
+    else:
+        media = 'movie'
+    title = itm.get('title') or itm.get('name')
+    if not title:
+        return None
+    year = itm.get('year') or itm.get('release_year') or ''
+    return {
+        'title': title,
+        'year': str(year) if year is not None else '',
+        'id': tmdb_id,
+        'tmdb_id': tmdb_id,
+        'type': media,
+    }
+
+
+def parse_mdblist_items_payload(data):
+    """
+    MDBList /lists/.../items used to return a flat array; current API returns
+    {"movies": [...], "shows": [...]}. Support both.
+    """
+    items = []
+    if isinstance(data, list):
+        for itm in data:
+            parsed = _normalize_mdblist_item(itm)
+            if parsed:
+                items.append(parsed)
+        return items
+    if isinstance(data, dict):
+        # Prefer explicit buckets when present.
+        movies = data.get('movies')
+        shows = data.get('shows')
+        if isinstance(movies, list) or isinstance(shows, list):
+            for itm in movies or []:
+                parsed = _normalize_mdblist_item(itm, 'movie')
+                if parsed:
+                    items.append(parsed)
+            for itm in shows or []:
+                parsed = _normalize_mdblist_item(itm, 'show')
+                if parsed:
+                    items.append(parsed)
+            return items
+        # Some endpoints wrap as {"items": [...]} or {"results": [...]}
+        nested = data.get('items') or data.get('results')
+        if isinstance(nested, list):
+            return parse_mdblist_items_payload(nested)
+    return items
+
+
 def fetch_source_items(source_type, source_id, config):
     """Fetches the latest items for a specific source."""
     source_type = normalize_source_type(source_type, source_id)
@@ -421,8 +484,12 @@ def fetch_source_items(source_type, source_id, config):
             # User wants cap of 500 for "others"
             try:
                 params_dict = json.loads(source_id)
-                media_type = params_dict.pop('type', 'movie')
-                params_dict['api_key'] = tmdb_key
+                media_type, discover_params = build_tmdb_discover_params(
+                    params_dict.get('type', 'movie'),
+                    params_dict,
+                    tmdb_key,
+                )
+                params_dict = {**discover_params, 'api_key': tmdb_key}
                 url = f"https://api.themoviedb.org/3/discover/{media_type}"
                 for page in range(1, 26): # 25 pages = 500 items
                     params_dict['page'] = page
@@ -555,12 +622,7 @@ def fetch_source_items(source_type, source_id, config):
                             api_url = f"https://api.mdblist.com/lists/{username}/{list_slug}/items/?apikey={api_key}"
                             resp = requests.get(api_url, timeout=10)
                             if resp.status_code == 200:
-                                for itm in resp.json():
-                                    items.append({
-                                        'title': itm.get('title'),
-                                        'tmdb_id': itm.get('tmdbid'),
-                                        'type': 'movie' if itm.get('mediatype') == 'movie' else 'show'
-                                    })
+                                items.extend(parse_mdblist_items_payload(resp.json()))
             except Exception as e:
                 logging.error(f"Error parse/fetch mdblist: {e}")
         elif source_type == 'tmdb_collection':
@@ -3172,6 +3234,141 @@ def get_tmdb_genres():
         
     return jsonify([])
 
+def _resolve_tmdb_keyword_ids(tmdb_key, keywords_text, joiner='|'):
+    """Resolve comma-separated keyword names/IDs to TMDB keyword IDs."""
+    if not keywords_text or not tmdb_key:
+        return None
+    keyword_ids = []
+    for raw in str(keywords_text).replace('|', ',').split(','):
+        kw = raw.strip()
+        if not kw:
+            continue
+        if kw.isdigit():
+            keyword_ids.append(kw)
+            continue
+        kw_url = f"https://api.themoviedb.org/3/search/keyword?api_key={tmdb_key}&query={requests.utils.quote(kw)}"
+        try:
+            kw_resp = requests.get(kw_url, timeout=5).json()
+            results = kw_resp.get('results') or []
+            if results:
+                keyword_ids.append(str(results[0]['id']))
+        except Exception:
+            pass
+    if not keyword_ids:
+        return None
+    return joiner.join(dict.fromkeys(keyword_ids))
+
+
+def build_tmdb_discover_params(media_type, raw, tmdb_key):
+    """
+    Normalize Creator/UI discover filters into TMDB /discover query params.
+    Accepts both soft UI keys (year, year_mode, year_from/to, keyword text)
+    and native TMDB keys so preview search and auto-sync jobs stay aligned.
+    """
+    media_type = 'tv' if str(media_type or 'movie').lower() in ('tv', 'show', 'shows') else 'movie'
+    raw = dict(raw or {})
+
+    def get(key, default=None):
+        val = raw.get(key, default)
+        if val is None:
+            return default
+        if isinstance(val, str) and not val.strip():
+            return default
+        return val
+
+    params = {
+        'language': get('language') or 'en-US',
+        'include_adult': 'false',
+    }
+
+    date_gte_key = 'primary_release_date.gte' if media_type == 'movie' else 'first_air_date.gte'
+    date_lte_key = 'primary_release_date.lte' if media_type == 'movie' else 'first_air_date.lte'
+    year_exact_key = 'primary_release_year' if media_type == 'movie' else 'first_air_date_year'
+
+    def year_only(value):
+        if value is None:
+            return None
+        text = str(value).strip()
+        if not text:
+            return None
+        if text[:4].isdigit():
+            return text[:4]
+        return None
+
+    # Explicit range (preferred for new UI).
+    y_from = year_only(get('year_from'))
+    y_to = year_only(get('year_to'))
+    if y_from:
+        params[date_gte_key] = f"{y_from}-01-01"
+    if y_to:
+        params[date_lte_key] = f"{y_to}-12-31"
+
+    # Already-normalized date bounds from older saved jobs.
+    for key in (date_gte_key, date_lte_key, 'primary_release_date.gte', 'primary_release_date.lte',
+                'first_air_date.gte', 'first_air_date.lte'):
+        val = get(key)
+        if not val:
+            continue
+        mapped = date_gte_key if key.endswith('.gte') else date_lte_key
+        if mapped not in params:
+            params[mapped] = str(val)[:10] if '-' in str(val) else (
+                f"{year_only(val)}-01-01" if mapped.endswith('.gte') else f"{year_only(val)}-12-31"
+            )
+
+    # Soft year + mode (legacy UI / saved jobs).
+    year = year_only(get('year'))
+    year_mode = get('year_mode') or 'exact'
+    if year and date_gte_key not in params and date_lte_key not in params:
+        if year_mode == 'exact':
+            params[year_exact_key] = year
+        elif year_mode == 'before':
+            params[date_lte_key] = f"{year}-12-31"
+        elif year_mode == 'after':
+            params[date_gte_key] = f"{year}-01-01"
+
+    # Legacy exact year fields on older jobs.
+    for key in (year_exact_key, 'primary_release_year', 'first_air_date_year'):
+        val = year_only(get(key))
+        if val and year_exact_key not in params and date_gte_key not in params and date_lte_key not in params:
+            params[year_exact_key] = val
+            break
+
+    include_kw = get('with_keywords')
+    exclude_kw = get('without_keywords')
+    resolved_include = _resolve_tmdb_keyword_ids(tmdb_key, include_kw, '|')
+    if resolved_include:
+        params['with_keywords'] = resolved_include
+    resolved_exclude = _resolve_tmdb_keyword_ids(tmdb_key, exclude_kw, '|')
+    if resolved_exclude:
+        params['without_keywords'] = resolved_exclude
+
+    optional_params = [
+        'with_genres', 'without_genres', 'with_networks', 'with_companies',
+        'vote_average.gte', 'vote_average.lte',
+        'vote_count.gte', 'vote_count.lte',
+        'with_runtime.gte', 'with_runtime.lte',
+        'sort_by', 'with_original_language',
+        'with_status', 'certification', 'certification.lte', 'certification_country',
+        'with_watch_providers', 'watch_region',
+        'with_release_type', 'region',
+    ]
+    for param in optional_params:
+        val = get(param)
+        if val is not None:
+            params[param] = val
+
+    certification = params.get('certification')
+    if (certification or params.get('certification.lte')) and 'certification_country' not in params:
+        params['certification_country'] = get('certification_country') or 'US'
+    if certification and ',' in str(certification):
+        params['certification'] = str(certification).replace(',', '|')
+
+    if params.get('with_watch_providers') and 'watch_region' not in params:
+        params['watch_region'] = get('watch_region') or 'US'
+
+    return media_type, params
+
+
 @app.route('/api/search/discover')
 @require_auth
 def search_discover():
@@ -3181,49 +3378,16 @@ def search_discover():
     if not tmdb_key:
         return jsonify([])
         
-    media_type = request.args.get('type', 'movie')
-    
-    year = request.args.get('year')
-    year_mode = request.args.get('year_mode', 'exact')
-    keywords_text = request.args.get('with_keywords')
-    
+    media_type, discover_params = build_tmdb_discover_params(
+        request.args.get('type', 'movie'),
+        request.args.to_dict(flat=True),
+        tmdb_key,
+    )
     params = {
+        **discover_params,
         'api_key': tmdb_key,
-        'language': 'en-US',
-        'page': request.args.get('page', 1)
+        'page': request.args.get('page', 1),
     }
-
-    if year:
-        if year_mode == 'exact':
-            params['primary_release_year' if media_type == 'movie' else 'first_air_date_year'] = year
-        elif year_mode == 'before':
-            params['primary_release_date.lte' if media_type == 'movie' else 'first_air_date.lte'] = f"{year}-12-31"
-        elif year_mode == 'after':
-            params['primary_release_date.gte' if media_type == 'movie' else 'first_air_date.gte'] = f"{year}-01-01"
-
-    if keywords_text:
-        keyword_ids = []
-        for kw in [k.strip() for k in keywords_text.split(',')]:
-            # Simple keyword search
-            kw_url = f"https://api.themoviedb.org/3/search/keyword?api_key={tmdb_key}&query={kw}"
-            try:
-                kw_resp = requests.get(kw_url, timeout=5).json()
-                if kw_resp.get('results'):
-                    keyword_ids.append(str(kw_resp['results'][0]['id']))
-            except: pass
-        if keyword_ids:
-            params['with_keywords'] = '|'.join(keyword_ids) # OR search
-
-    optional_params = [
-        'with_genres', 'with_networks', 'with_companies', 
-        'vote_average.gte', 'vote_average.lte',
-        'vote_count.gte', 'sort_by', 'with_original_language'
-    ]
-    
-    for param in optional_params:
-        val = request.args.get(param)
-        if val:
-            params[param] = val
             
     try:
         url = f"https://api.themoviedb.org/3/discover/{media_type}"
@@ -3619,18 +3783,7 @@ def get_mdblist():
         resp = requests.get(api_url, timeout=10)
         
         if resp.status_code == 200:
-            data = resp.json()
-            items = []
-            for itm in data:
-                tmdb_id = itm.get('tmdb_id') or itm.get('id')
-                # Skip per-item TMDB poster lookups — too slow for large lists / Preview.
-                items.append({
-                    'title': itm.get('title'),
-                    'year': str(itm.get('year', '')),
-                    'id': tmdb_id,
-                    'tmdb_id': tmdb_id,
-                    'type': itm.get('mediatype', 'movie'),
-                })
+            items = parse_mdblist_items_payload(resp.json())
             return jsonify(items)
         else:
             return jsonify({"error": f"MDBList API error: {resp.status_code} - {resp.text}"}), 400

@@ -4,6 +4,8 @@ import { Plus, Search, ListMusic, Globe, Loader2, List, Trash2, Sparkles, Filter
 import { api, collexionsImageUrl } from '../api';
 import { CustomSelect } from '../components/ui/Inputs';
 import { AppConfig } from '../types';
+import { DISCOVER_NETWORKS, DISCOVER_STUDIOS } from '../../discovery/discoverConstants';
+import { DISCOVER_LANGUAGE_OPTIONS, TV_STATUS_OPTIONS } from '../../discovery/discoverLanguages';
 
 type CreatorTab = 'templates' | 'trending' | 'discover' | 'search' | 'import' | 'manual';
 
@@ -20,6 +22,103 @@ const CREATOR_TABS: Array<{ id: CreatorTab; label: string }> = [
     { id: 'search', label: 'Global Search' },
     { id: 'import', label: 'Import List' },
     { id: 'manual', label: 'Manual Build' },
+];
+
+const DISCOVER_MOVIE_SORT = [
+    { value: 'popularity.desc', label: 'Most Popular' },
+    { value: 'vote_average.desc', label: 'Highest Rated' },
+    { value: 'vote_count.desc', label: 'Most Voted' },
+    { value: 'revenue.desc', label: 'Highest Revenue' },
+    { value: 'primary_release_date.desc', label: 'Newest First' },
+    { value: 'primary_release_date.asc', label: 'Oldest First' },
+];
+
+const DISCOVER_TV_SORT = [
+    { value: 'popularity.desc', label: 'Most Popular' },
+    { value: 'vote_average.desc', label: 'Highest Rated' },
+    { value: 'vote_count.desc', label: 'Most Voted' },
+    { value: 'first_air_date.desc', label: 'Newest First' },
+    { value: 'first_air_date.asc', label: 'Oldest First' },
+];
+
+const DISCOVER_CERT_OPTIONS = [
+    { value: '', label: 'Any Rating' },
+    { value: 'G', label: 'G' },
+    { value: 'PG', label: 'PG' },
+    { value: 'PG-13', label: 'PG-13' },
+    { value: 'R', label: 'R' },
+    { value: 'NC-17', label: 'NC-17' },
+    { value: 'lte:PG', label: 'Up to PG' },
+    { value: 'lte:PG-13', label: 'Up to PG-13' },
+];
+
+type DiscoverPreset = {
+    id: string;
+    label: string;
+    apply: (type: 'movie' | 'tv') => Record<string, string>;
+};
+
+const DISCOVER_PRESETS: DiscoverPreset[] = [
+    {
+        id: 'hidden-gems',
+        label: 'Hidden Gems',
+        apply: () => ({
+            sort: 'vote_average.desc',
+            rating: '7.5',
+            ratingMax: '10',
+            voteCount: '50',
+            voteCountMax: '1500',
+        }),
+    },
+    {
+        id: 'critically-acclaimed',
+        label: 'Critically Acclaimed',
+        apply: () => ({
+            sort: 'vote_average.desc',
+            rating: '8',
+            ratingMax: '',
+            voteCount: '500',
+            voteCountMax: '',
+        }),
+    },
+    {
+        id: 'fresh',
+        label: 'Fresh Releases',
+        apply: (mediaType) => {
+            const from = new Date();
+            from.setFullYear(from.getFullYear() - 1);
+            return {
+                sort: mediaType === 'movie' ? 'primary_release_date.desc' : 'first_air_date.desc',
+                yearFrom: String(from.getFullYear()),
+                yearTo: '',
+            };
+        },
+    },
+    {
+        id: 'family',
+        label: 'Family Night',
+        apply: () => ({
+            certification: 'lte:PG-13',
+            genre: '10751',
+            rating: '6',
+            ratingMax: '',
+        }),
+    },
+    {
+        id: 'short',
+        label: 'Short Watch',
+        apply: () => ({
+            runtimeMin: '',
+            runtimeMax: '100',
+        }),
+    },
+    {
+        id: 'binge',
+        label: 'Binge Ready',
+        apply: (mediaType) => (mediaType === 'tv'
+            ? { status: '0', sort: 'popularity.desc', voteCount: '100' }
+            : { sort: 'popularity.desc', voteCount: '200', voteCountMax: '' }),
+    },
 ];
 
 type JobTemplate = {
@@ -428,18 +527,97 @@ const Creator: React.FC = () => {
     const [discoverType, setDiscoverType] = useState<'movie' | 'tv'>('movie');
     const [discoverGenres, setDiscoverGenres] = useState<any[]>([]);
     const [selectedGenre, setSelectedGenre] = useState('');
-    const [discoverYear, setDiscoverYear] = useState('');
+    const [selectedGenreAnd, setSelectedGenreAnd] = useState('');
+    const [excludeGenre, setExcludeGenre] = useState('');
+    const [discoverYearFrom, setDiscoverYearFrom] = useState('');
+    const [discoverYearTo, setDiscoverYearTo] = useState('');
     const [discoverRating, setDiscoverRating] = useState('');
+    const [discoverRatingMax, setDiscoverRatingMax] = useState('');
     const [discoverVoteCount, setDiscoverVoteCount] = useState('');
+    const [discoverVoteCountMax, setDiscoverVoteCountMax] = useState('');
+    const [discoverRuntimeMin, setDiscoverRuntimeMin] = useState('');
+    const [discoverRuntimeMax, setDiscoverRuntimeMax] = useState('');
     const [discoverLanguage, setDiscoverLanguage] = useState('');
     const [discoverNetwork, setDiscoverNetwork] = useState('');
     const [discoverCompany, setDiscoverCompany] = useState('');
     const [discoverKeywords, setDiscoverKeywords] = useState('');
-    const [discoverYearMode, setDiscoverYearMode] = useState<'exact' | 'before' | 'after'>('exact');
+    const [discoverExcludeKeywords, setDiscoverExcludeKeywords] = useState('');
     const [discoverSort, setDiscoverSort] = useState('popularity.desc');
+    const [discoverCertification, setDiscoverCertification] = useState('');
+    const [discoverStatus, setDiscoverStatus] = useState('');
     const [discoverResults, setDiscoverResults] = useState<any[]>([]);
     const [discovering, setDiscovering] = useState(false);
     const [showPoolDetails, setShowPoolDetails] = useState(false);
+    const [activeDiscoverPreset, setActiveDiscoverPreset] = useState<string | null>(null);
+
+    const studioOptions = useMemo(
+        () => [
+            { value: '', label: 'Any Studio' },
+            ...DISCOVER_STUDIOS.map((s) => ({ value: String(s.id), label: s.name })),
+        ],
+        [],
+    );
+    const networkOptions = useMemo(
+        () => [
+            { value: '', label: 'Any Network' },
+            ...DISCOVER_NETWORKS.map((n) => ({ value: String(n.id), label: n.name })),
+        ],
+        [],
+    );
+    const genreOptions = useMemo(
+        () => [
+            { value: '', label: 'Any Genre' },
+            ...discoverGenres.map((g) => ({ value: g.id.toString(), label: g.name })),
+        ],
+        [discoverGenres],
+    );
+
+    const buildDiscoverFilterPayload = () => {
+        const genres = [selectedGenre, selectedGenreAnd].filter(Boolean);
+        const cert = discoverCertification.startsWith('lte:')
+            ? { 'certification.lte': discoverCertification.slice(4), certification_country: 'US' }
+            : discoverCertification
+                ? { certification: discoverCertification, certification_country: 'US' }
+                : {};
+        return {
+            type: discoverType,
+            with_genres: genres.length ? genres.join(',') : undefined,
+            without_genres: excludeGenre || undefined,
+            year_from: discoverYearFrom || undefined,
+            year_to: discoverYearTo || undefined,
+            with_keywords: discoverKeywords || undefined,
+            without_keywords: discoverExcludeKeywords || undefined,
+            'vote_average.gte': discoverRating || undefined,
+            'vote_average.lte': discoverRatingMax || undefined,
+            'vote_count.gte': discoverVoteCount || undefined,
+            'vote_count.lte': discoverVoteCountMax || undefined,
+            'with_runtime.gte': discoverRuntimeMin || undefined,
+            'with_runtime.lte': discoverRuntimeMax || undefined,
+            with_original_language: discoverLanguage || undefined,
+            with_networks: discoverType === 'tv' ? discoverNetwork || undefined : undefined,
+            with_companies: discoverType === 'movie' ? discoverCompany || undefined : undefined,
+            with_status: discoverType === 'tv' ? discoverStatus || undefined : undefined,
+            sort_by: discoverSort,
+            ...cert,
+        };
+    };
+
+    const applyDiscoverPreset = (preset: DiscoverPreset) => {
+        const next = preset.apply(discoverType);
+        setActiveDiscoverPreset(preset.id);
+        if (next.sort != null) setDiscoverSort(next.sort);
+        if (next.rating != null) setDiscoverRating(next.rating);
+        if (next.ratingMax != null) setDiscoverRatingMax(next.ratingMax);
+        if (next.voteCount != null) setDiscoverVoteCount(next.voteCount);
+        if (next.voteCountMax != null) setDiscoverVoteCountMax(next.voteCountMax);
+        if (next.yearFrom != null) setDiscoverYearFrom(next.yearFrom);
+        if (next.yearTo != null) setDiscoverYearTo(next.yearTo);
+        if (next.certification != null) setDiscoverCertification(next.certification);
+        if (next.genre != null) setSelectedGenre(next.genre);
+        if (next.runtimeMin != null) setDiscoverRuntimeMin(next.runtimeMin);
+        if (next.runtimeMax != null) setDiscoverRuntimeMax(next.runtimeMax);
+        if (next.status != null) setDiscoverStatus(next.status);
+    };
 
     // Keep Discover media type aligned with the selected library.
     useEffect(() => {
@@ -453,23 +631,18 @@ const Creator: React.FC = () => {
         }
     }, [discoverType, activeSubTab]);
 
+    // Keep sort option valid when switching movie ↔ TV.
+    useEffect(() => {
+        const allowed = (discoverType === 'tv' ? DISCOVER_TV_SORT : DISCOVER_MOVIE_SORT).map((o) => o.value);
+        if (!allowed.includes(discoverSort)) {
+            setDiscoverSort('popularity.desc');
+        }
+    }, [discoverType, discoverSort]);
+
     const handleDiscover = async () => {
         setDiscovering(true);
         try {
-            const params = {
-                type: discoverType,
-                with_genres: selectedGenre,
-                year: discoverYear,
-                year_mode: discoverYearMode,
-                with_keywords: discoverKeywords,
-                'vote_average.gte': discoverRating,
-                'vote_count.gte': discoverVoteCount,
-                with_original_language: discoverLanguage,
-                with_networks: discoverType === 'tv' ? discoverNetwork : undefined,
-                with_companies: discoverType === 'movie' ? discoverCompany : undefined,
-                sort_by: discoverSort
-            };
-            const results = await api.discoverTmdb(params);
+            const results = await api.discoverTmdb(buildDiscoverFilterPayload());
             setDiscoverResults(results);
         } catch (e) {
             showToast("Failed to discover content.", "error");
@@ -751,18 +924,7 @@ const Creator: React.FC = () => {
         });
         try {
             const sourceId = activeSubTab === 'import' ? importUrl :
-                (isDiscover ? JSON.stringify({
-                    type: discoverType,
-                    with_genres: selectedGenre,
-                    primary_release_year: discoverType === 'movie' ? discoverYear : undefined,
-                    first_air_date_year: discoverType === 'tv' ? discoverYear : undefined,
-                    'vote_average.gte': discoverRating,
-                    'vote_count.gte': discoverVoteCount,
-                    with_original_language: discoverLanguage,
-                    with_networks: discoverType === 'tv' ? discoverNetwork : undefined,
-                    with_companies: discoverType === 'movie' ? discoverCompany : undefined,
-                    sort_by: discoverSort
-                }) : externalQuery);
+                (isDiscover ? JSON.stringify(buildDiscoverFilterPayload()) : externalQuery);
 
             const res = await api.createFromExternal(
                 targetLibrary,
@@ -1347,6 +1509,25 @@ const Creator: React.FC = () => {
                 {activeSubTab === 'discover' && (
                     <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300">
                         <Card title="Discover Curated Collections">
+                            <div className="mb-4 space-y-2">
+                                <p className="text-xs text-muted font-medium uppercase tracking-wide">Quick presets</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {DISCOVER_PRESETS.map((preset) => (
+                                        <button
+                                            key={preset.id}
+                                            type="button"
+                                            onClick={() => applyDiscoverPreset(preset)}
+                                            className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                                                activeDiscoverPreset === preset.id
+                                                    ? 'border-plex bg-plex/15 text-plex'
+                                                    : 'border-border bg-background/40 text-text hover:border-plex/40'
+                                            }`}
+                                        >
+                                            {preset.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <div className="relative z-50">
                                     <CustomSelect
@@ -1358,7 +1539,6 @@ const Creator: React.FC = () => {
                                             { value: 'tv', label: 'TV Shows' }
                                         ]}
                                     />
-
                                 </div>
 
                                 <div className="relative z-40">
@@ -1366,12 +1546,32 @@ const Creator: React.FC = () => {
                                         label="Genre"
                                         value={selectedGenre}
                                         onChange={setSelectedGenre}
+                                        options={genreOptions}
+                                    />
+                                </div>
+
+                                <div className="relative z-[39]">
+                                    <CustomSelect
+                                        label="Also Genre (AND)"
+                                        value={selectedGenreAnd}
+                                        onChange={setSelectedGenreAnd}
                                         options={[
-                                            { value: '', label: 'Any Genre' },
-                                            ...discoverGenres.map(g => ({ value: g.id.toString(), label: g.name }))
+                                            { value: '', label: 'None' },
+                                            ...genreOptions.filter((o) => o.value),
                                         ]}
                                     />
+                                </div>
 
+                                <div className="relative z-[38]">
+                                    <CustomSelect
+                                        label="Exclude Genre"
+                                        value={excludeGenre}
+                                        onChange={setExcludeGenre}
+                                        options={[
+                                            { value: '', label: 'None' },
+                                            ...genreOptions.filter((o) => o.value),
+                                        ]}
+                                    />
                                 </div>
 
                                 <div className="relative z-30">
@@ -1379,14 +1579,8 @@ const Creator: React.FC = () => {
                                         label="Sort By"
                                         value={discoverSort}
                                         onChange={setDiscoverSort}
-                                        options={[
-                                            { value: 'popularity.desc', label: 'Most Popular' },
-                                            { value: 'vote_average.desc', label: 'Highest Rated' },
-                                            { value: 'primary_release_date.desc', label: 'Newest First' },
-                                            { value: 'primary_release_date.asc', label: 'Oldest First' }
-                                        ]}
+                                        options={discoverType === 'tv' ? DISCOVER_TV_SORT : DISCOVER_MOVIE_SORT}
                                     />
-
                                 </div>
 
                                 {discoverType === 'tv' ? (
@@ -1395,40 +1589,8 @@ const Creator: React.FC = () => {
                                             label="Network"
                                             value={discoverNetwork}
                                             onChange={setDiscoverNetwork}
-                                            options={[
-                                                { value: '', label: 'Any Network' },
-                                                { value: '213', label: 'Netflix' },
-                                                { value: '1024', label: 'Amazon' },
-                                                { value: '453', label: 'Hulu' },
-                                                { value: '2739', label: 'Disney+' },
-                                                { value: '2552', label: 'Apple TV+' },
-                                                { value: '3353', label: 'Paramount+' },
-                                                { value: '318', label: 'Peacock' },
-                                                { value: '49', label: 'HBO' },
-                                                { value: '67', label: 'Showtime' },
-                                                { value: '88', label: 'FX' },
-                                                { value: '174', label: 'AMC' },
-                                                { value: '3743', label: 'AMC+' },
-                                                { value: '71', label: 'The CW' },
-                                                { value: '19', label: 'FOX' },
-                                                { value: '6', label: 'NBC' },
-                                                { value: '2', label: 'ABC' },
-                                                { value: '16', label: 'CBS' },
-                                                { value: '43', label: 'Nat Geo' },
-                                                { value: '64', label: 'Discovery' },
-                                                { value: '65', label: 'History' },
-                                                { value: '596', label: 'Shudder' },
-                                                { value: '351', label: 'Crunchyroll' },
-                                                { value: '53', label: 'MTV' },
-                                                { value: '56', label: 'Cartoon Network' },
-                                                { value: '13', label: 'Nickelodeon' },
-                                                { value: '4', label: 'BBC One' },
-                                                { value: '21', label: 'BBC Two' },
-                                                { value: '270', label: 'ITV' },
-                                                { value: '26', label: 'Channel 4' }
-                                            ]}
+                                            options={networkOptions}
                                         />
-
                                     </div>
                                 ) : (
                                     <div className="relative z-20">
@@ -1436,26 +1598,8 @@ const Creator: React.FC = () => {
                                             label="Studio / Company"
                                             value={discoverCompany}
                                             onChange={setDiscoverCompany}
-                                            options={[
-                                                { value: '', label: 'Any Studio' },
-                                                { value: '420', label: 'Marvel Studios' },
-                                                { value: '128066', label: 'DC Studios' },
-                                                { value: '3166', label: 'A24' },
-                                                { value: '2', label: 'Walt Disney Pictures' },
-                                                { value: '174', label: 'Warner Bros. Pictures' },
-                                                { value: '33', label: 'Universal Pictures' },
-                                                { value: '4', label: 'Paramount' },
-                                                { value: '453', label: 'Hulu' },
-                                                { value: '24531', label: 'Amazon MGM' },
-                                                { value: '2', label: 'Walt Disney' },
-                                                { value: '12', label: 'New Line Cinema' },
-                                                { value: '5', label: 'Columbia Pictures' },
-                                                { value: '1632', label: 'Lionsgate' },
-                                                { value: '14', label: 'Miramax' },
-                                                { value: '10342', label: 'Studio Ghibli' }
-                                            ]}
+                                            options={studioOptions}
                                         />
-
                                     </div>
                                 )}
 
@@ -1464,67 +1608,114 @@ const Creator: React.FC = () => {
                                         label="Language"
                                         value={discoverLanguage}
                                         onChange={setDiscoverLanguage}
-                                        options={[
-                                            { value: '', label: 'Any' },
-                                            { value: 'en', label: 'English' },
-                                            { value: 'ko', label: 'Korean' },
-                                            { value: 'ja', label: 'Japanese' },
-                                            { value: 'es', label: 'Spanish' },
-                                            { value: 'fr', label: 'French' },
-                                            { value: 'hi', label: 'Hindi' }
-                                        ]}
+                                        options={DISCOVER_LANGUAGE_OPTIONS}
                                     />
-
                                 </div>
 
-                                <div className="space-y-1.5">
-                                    <label className="block text-sm font-medium text-text">Release Year</label>
-                                    <div className="flex gap-2">
-                                        <div className="w-24">
-                                            <CustomSelect
-                                                label=""
-                                                value={discoverYearMode}
-                                                onChange={v => setDiscoverYearMode(v as any)}
-                                                options={[
-                                                    { value: 'exact', label: 'Exact' },
-                                                    { value: 'before', label: 'Before' },
-                                                    { value: 'after', label: 'After' }
-                                                ]}
-                                            />
-                                        </div>
-                                        <input
-                                            type="number" placeholder="1999"
-                                            className="flex-1 bg-background/60 border border-border rounded-lg px-3 py-2 text-text focus:outline-none focus:border-plex/50 transition-all placeholder:text-muted"
-                                            value={discoverYear} onChange={e => setDiscoverYear(e.target.value)}
+                                {discoverType === 'movie' ? (
+                                    <div className="relative z-[9]">
+                                        <CustomSelect
+                                            label="US Content Rating"
+                                            value={discoverCertification}
+                                            onChange={setDiscoverCertification}
+                                            options={DISCOVER_CERT_OPTIONS}
                                         />
                                     </div>
+                                ) : (
+                                    <div className="relative z-[9]">
+                                        <CustomSelect
+                                            label="Series Status"
+                                            value={discoverStatus}
+                                            onChange={setDiscoverStatus}
+                                            options={[
+                                                { value: '', label: 'Any Status' },
+                                                ...TV_STATUS_OPTIONS,
+                                            ]}
+                                        />
+                                    </div>
+                                )}
+
+                                <div className="space-y-1.5">
+                                    <label className="block text-sm font-medium text-text">Year Range</label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="number" placeholder="From"
+                                            className="w-full bg-background/60 border border-border rounded-lg px-3 py-2 text-text focus:outline-none focus:border-plex/50 transition-all placeholder:text-muted"
+                                            value={discoverYearFrom} onChange={e => { setDiscoverYearFrom(e.target.value); setActiveDiscoverPreset(null); }}
+                                        />
+                                        <input
+                                            type="number" placeholder="To"
+                                            className="w-full bg-background/60 border border-border rounded-lg px-3 py-2 text-text focus:outline-none focus:border-plex/50 transition-all placeholder:text-muted"
+                                            value={discoverYearTo} onChange={e => { setDiscoverYearTo(e.target.value); setActiveDiscoverPreset(null); }}
+                                        />
+                                    </div>
+                                    <p className="text-[11px] text-muted">Use the same year in both for an exact match. Leave blank for any year.</p>
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <label className="block text-sm font-medium text-text">Keywords / Text</label>
+                                    <label className="block text-sm font-medium text-text">Include Keywords</label>
                                     <input
-                                        type="text" placeholder="e.g. superhero, mystery"
+                                        type="text" placeholder="e.g. superhero, based on novel"
                                         className="w-full bg-background/60 border border-border rounded-lg px-3 py-2 text-text focus:outline-none focus:border-plex/50 transition-all placeholder:text-muted font-mono"
                                         value={discoverKeywords} onChange={e => setDiscoverKeywords(e.target.value)}
                                     />
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <label className="block text-sm font-medium text-text">Min Rating (0-10)</label>
+                                    <label className="block text-sm font-medium text-text">Exclude Keywords</label>
                                     <input
-                                        type="number" step="0.1" min="0" max="10" placeholder="e.g. 7.5"
-                                        className="w-full bg-background/60 border border-border rounded-lg px-3 py-2 text-text focus:outline-none focus:border-plex/50 transition-all placeholder:text-muted"
-                                        value={discoverRating} onChange={e => setDiscoverRating(e.target.value)}
+                                        type="text" placeholder="e.g. anthology, remake"
+                                        className="w-full bg-background/60 border border-border rounded-lg px-3 py-2 text-text focus:outline-none focus:border-plex/50 transition-all placeholder:text-muted font-mono"
+                                        value={discoverExcludeKeywords} onChange={e => setDiscoverExcludeKeywords(e.target.value)}
                                     />
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <label className="block text-sm font-medium text-text">Min Votes</label>
-                                    <input
-                                        type="number" step="10" min="0" placeholder="e.g. 500"
-                                        className="w-full bg-background/60 border border-border rounded-lg px-3 py-2 text-text focus:outline-none focus:border-plex/50 transition-all placeholder:text-muted"
-                                        value={discoverVoteCount} onChange={e => setDiscoverVoteCount(e.target.value)}
-                                    />
+                                    <label className="block text-sm font-medium text-text">Rating (0–10)</label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="number" step="0.1" min="0" max="10" placeholder="Min"
+                                            className="w-full bg-background/60 border border-border rounded-lg px-3 py-2 text-text focus:outline-none focus:border-plex/50 transition-all placeholder:text-muted"
+                                            value={discoverRating} onChange={e => setDiscoverRating(e.target.value)}
+                                        />
+                                        <input
+                                            type="number" step="0.1" min="0" max="10" placeholder="Max"
+                                            className="w-full bg-background/60 border border-border rounded-lg px-3 py-2 text-text focus:outline-none focus:border-plex/50 transition-all placeholder:text-muted"
+                                            value={discoverRatingMax} onChange={e => setDiscoverRatingMax(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="block text-sm font-medium text-text">Vote Count</label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="number" step="10" min="0" placeholder="Min"
+                                            className="w-full bg-background/60 border border-border rounded-lg px-3 py-2 text-text focus:outline-none focus:border-plex/50 transition-all placeholder:text-muted"
+                                            value={discoverVoteCount} onChange={e => setDiscoverVoteCount(e.target.value)}
+                                        />
+                                        <input
+                                            type="number" step="10" min="0" placeholder="Max"
+                                            className="w-full bg-background/60 border border-border rounded-lg px-3 py-2 text-text focus:outline-none focus:border-plex/50 transition-all placeholder:text-muted"
+                                            value={discoverVoteCountMax} onChange={e => setDiscoverVoteCountMax(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="block text-sm font-medium text-text">Runtime (minutes)</label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="number" step="5" min="0" placeholder="Min"
+                                            className="w-full bg-background/60 border border-border rounded-lg px-3 py-2 text-text focus:outline-none focus:border-plex/50 transition-all placeholder:text-muted"
+                                            value={discoverRuntimeMin} onChange={e => setDiscoverRuntimeMin(e.target.value)}
+                                        />
+                                        <input
+                                            type="number" step="5" min="0" placeholder="Max"
+                                            className="w-full bg-background/60 border border-border rounded-lg px-3 py-2 text-text focus:outline-none focus:border-plex/50 transition-all placeholder:text-muted"
+                                            value={discoverRuntimeMax} onChange={e => setDiscoverRuntimeMax(e.target.value)}
+                                        />
+                                    </div>
                                 </div>
 
                                 <div className="md:col-span-2 lg:col-span-3 flex items-end">
