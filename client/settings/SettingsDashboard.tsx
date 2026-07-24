@@ -2408,8 +2408,8 @@ export const SettingsDashboard: React.FC = () => {
                                                 const iss = summary?.issues || {};
                                                 addToast(
                                                     `Imported ${req.imported || 0} requests` +
-                                                    (req.importedWithFallback ? ` (${req.importedWithFallback} via fallback owner)` : '') +
-                                                    (req.skippedUnmapped ? ` (${req.skippedUnmapped} unmapped)` : '') +
+                                                    (req.importedWithFallback ? ` (${req.importedWithFallback} labeled under your name for display)` : '') +
+                                                    (req.skippedUnmapped ? ` (${req.skippedUnmapped} skipped — no matching user)` : '') +
                                                     `, ${iss.imported || 0} issues` +
                                                     `, ${summary?.blocklist?.imported || 0} blocklist.`,
                                                     'success',

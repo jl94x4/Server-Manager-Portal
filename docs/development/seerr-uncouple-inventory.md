@@ -133,7 +133,7 @@ Stubs are wired; Phase 4 defaults Discover metadata to TMDB (`discoverySource` d
 ## Phase 10 notes (in progress)
 
 - **Setup:** Integrations → Requests defaults to portal Discover & Request (TMDB key). Optional “Coming from Seerr?” imports history via setup-token route; `requestEngine` forced to `portal` on first save.
-- **Import fallback:** Unmapped Seerr users attach to the setup admin Plex id (`fallbackUserId`) so wizard imports are not empty before members exist.
+- **Import fallback:** Unmapped Seerr request history is labeled with the setup admin Plex id (`fallbackUserId`) for display only (no access change) so wizard imports are not empty before members exist.
 - **Settings:** Seerr engine labeled legacy rollback; import button remains for upgrades.
 
 ## Phase 2 notes

@@ -1197,7 +1197,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                                                                 const req = summary?.requests || {};
                                                                 setSeerrImportSummary(
                                                                     `Imported ${req.imported || 0} requests` +
-                                                                    (req.importedWithFallback ? ` (${req.importedWithFallback} under your account for now)` : '') +
+                                                                    (req.importedWithFallback ? ` (${req.importedWithFallback} labeled under your name until members sign in)` : '') +
                                                                     `, ${summary?.issues?.imported || 0} issues` +
                                                                     `, ${summary?.blocklist?.imported || 0} blocklist.`,
                                                                 );
@@ -1217,7 +1217,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                                                     <p className="text-xs text-emerald-300/90">{seerrImportSummary}</p>
                                                 )}
                                                 <p className="text-[11px] text-muted">
-                                                    Unmapped Seerr users are attached to your admin account until those members log into the portal. You can re-run import later from Settings.
+                                                    If a Seerr user isn&apos;t in the portal yet, their imported request history is temporarily labeled under your name for display only — it does not grant them access or permissions. Re-run import from Settings after they sign in to attribute correctly.
                                                 </p>
                                             </>
                                         )}
