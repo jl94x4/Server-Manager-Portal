@@ -32,11 +32,16 @@ Important browser-managed settings include:
 | Jellyfin | Server URL, API key, login behavior, Quick Connect |
 | Analytics | Tautulli for Plex or Jellystat for Jellyfin |
 | Branding and UI | Logo, splash assets, accent colors, default theme |
+| Navigation | Sidebar order and which feature links are visible |
 | Access | Temporary access length, expiry rules, inactivity cleanup |
 | SMTP | Host, port, username, password, sender address |
 | Newsletters | Weekly or monthly schedule and content behavior |
 | Home Layout | Section ordering and visibility |
-| Media Stack | Sonarr, Radarr, Lidarr, Bazarr, request apps, and download clients |
+| Media Stack | Sonarr, Radarr, Lidarr, Bazarr, and download clients |
+| Request | Portal request engine (default), quotas, auto-approve, optional Seerr |
+| Collexions | Enable bundled Plex collection worker and related options |
+| Library Upgrader | Enable upgrader, instance maps, rate limits |
+| Cleaner | Maintenance / cleanup feature settings |
 | Alerts | Gotify connection and alert rules |
 | Status Page | Public service checks and health URLs |
 

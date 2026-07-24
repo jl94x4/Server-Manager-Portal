@@ -102,19 +102,14 @@ Most integrations are configured in **Settings → Media Stack**. Branding, aler
       <td>Jellyfin activity, yearly heatmap data, top libraries, top titles, devices, and playback method stats</td>
     </tr>
     <tr>
-      <td><img src="https://cdn.jsdelivr.net/gh/selfhst/icons/svg/jellyseerr.svg" alt="" /> Jellyseerr</td>
-      <td>Requests</td>
-      <td>Request queue, pending request widget, approvals, retries, and request navigation</td>
+      <td><img src="https://cdn.jsdelivr.net/gh/selfhst/icons/svg/tmdb.svg" alt="" /> TMDB</td>
+      <td>Requests / Discover</td>
+      <td>Built-in Discover &amp; Request browse, posters, and search (with Sonarr/Radarr for library + fulfill). See <a href="/features/discover-request">Discover &amp; Request</a>.</td>
     </tr>
     <tr>
-      <td><img src="https://cdn.jsdelivr.net/gh/selfhst/icons/svg/seerr.svg" alt="" /> Overseerr</td>
-      <td>Requests</td>
-      <td>Request queue, pending request widget, approvals, retries, and request navigation</td>
-    </tr>
-    <tr>
-      <td><img src="https://cdn.jsdelivr.net/gh/selfhst/icons/svg/ombi.svg" alt="" /> Ombi</td>
-      <td>Requests</td>
-      <td>Request queue, pending request widget, approvals, retries, and request navigation</td>
+      <td><img src="https://cdn.jsdelivr.net/gh/selfhst/icons/svg/jellyseerr.svg" alt="" /> Jellyseerr / Seerr</td>
+      <td>Requests (optional)</td>
+      <td>Optional request engine, Discover metadata proxy, or one-shot history import into the portal</td>
     </tr>
     <tr>
       <td><img src="https://cdn.jsdelivr.net/gh/selfhst/icons/svg/sonarr.svg" alt="" /> Sonarr</td>

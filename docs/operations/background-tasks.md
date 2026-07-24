@@ -12,6 +12,7 @@ Task labels adapt to the selected media player:
 | Inactive cleanup | Revoke inactive users | Revoke inactive Jellyfin portal users |
 | Analytics cache | Plex and Tautulli data where configured | Jellyfin and Jellystat data where configured |
 | Library stats | Plex stats builder | Hidden in Jellyfin mode |
+| Discovery availability cache | Rebuilds Sonarr/Radarr badge cache for Discover browse | Same |
 | Maintenance index | Build media/request index | Same |
 | Rolling backup | Create config backups | Same |
 

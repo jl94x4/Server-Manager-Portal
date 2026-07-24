@@ -25,6 +25,10 @@ features:
     details: User dashboards include watch history, rankings, media profile cards, peak hours, top titles, and shareable wrap-up exports.
   - title: Admin operations
     details: Live sessions, user management, server status, background jobs, layout controls, and maintenance tools are available from the browser.
+  - title: Discover & Request
+    details: Browse TMDB and submit requests with the built-in engine. Seerr is optional. Admins approve into Sonarr and Radarr.
+  - title: ColleXions
+    details: Admin Plex collection automation with a bundled worker — trending presets, import lists, and scheduled syncs inside the portal.
 ---
 
 ## What Is Server Portal?
@@ -35,7 +39,7 @@ Use these docs when you need to install the app, configure integrations, run it 
 
 ## Integration Highlights
 
-Server Portal supports Plex, Jellyfin, Emby, Tautulli, Jellystat, Jellyseerr, Overseerr, Ombi, Sonarr, Radarr, Lidarr, Bazarr, qBittorrent, Transmission, BitTorrent, Deluge, SABnzbd, Gotify, TMDB, and SMTP.
+Server Portal supports Plex, Jellyfin, Emby, Tautulli, Jellystat, Sonarr, Radarr, Lidarr, Bazarr, qBittorrent, Transmission, BitTorrent, Deluge, SABnzbd, Gotify, TMDB, and SMTP. Discover &amp; Request is built in by default; Seerr/Jellyseerr is optional as an engine or history import.
 
 See the full [integration list](/guide/integrations) for setup notes and feature coverage.
 

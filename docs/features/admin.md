@@ -1,6 +1,6 @@
 # Admin Dashboard
 
-The admin dashboard is the operations center for the portal owner.
+The admin Home view and related tools are the operations center for the portal owner.
 
 ## Live Session Monitor
 
@@ -8,7 +8,7 @@ Admins can see active streams in real time with user identity, media title, play
 
 ## User Management
 
-The user table includes usernames, email addresses, avatars, access expiry, last-seen data, and quick actions:
+The **Users** page includes usernames, email addresses, avatars, access expiry, last-seen data, and quick actions:
 
 - Add one month.
 - Add one year.
@@ -17,12 +17,19 @@ The user table includes usernames, email addresses, avatars, access expiry, last
 
 ## Settings
 
-The Settings area controls media-player integration, SMTP, scheduled tasks, branding, home layout, status services, media stack integrations, and diagnostics.
+Settings covers media-server integration, SMTP, Gotify, newsletter, Media Stack (ARR + download clients), **Request**, branding, navigation order, home layout, status services, invites, tasks, **Upgrader**, **Collexions**, stream rules, system, and diagnostics.
 
 ## Home Layout
 
-Admins can reorder major home sections, hide or show them, and preview the result before saving. Admin-only widgets remain protected by backend validation.
+Admins can reorder major home sections, hide or show them, and preview the result before saving. Admin-only widgets (for example pending requests or ColleXions) remain protected by backend validation.
 
-## Library Maintenance
+## Related admin tools
 
-The maintenance tools can scan for missing or empty media, manage exclusions, and run cleanup tasks from the portal.
+| Nav | Docs |
+| --- | --- |
+| Requests | [Discover & Request](/features/discover-request) |
+| ColleXions | [ColleXions](/features/collexions) |
+| Upgrader | [Upgrader](/features/upgrader) |
+| Cleaner | [Cleaner](/features/cleaner) |
+| Calendar | [Calendar](/features/calendar) |
+| Dashboard | [Dashboard](/features/dashboard) |
