@@ -167,7 +167,7 @@ export const ScannerSettingsPanel: React.FC<Props> = ({
     };
 
     const importYaml = async (raw?: string) => {
-        const yaml = String(raw ?? yamlText || '').trim();
+        const yaml = String(raw ?? yamlText ?? '').trim();
         if (!yaml) {
             addToast?.('Paste or upload an Autoscan config.yml first', 'error');
             return;
