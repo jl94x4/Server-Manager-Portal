@@ -3,6 +3,7 @@ import { FileUp, Loader2, Plus, RefreshCw, Trash2, Upload } from 'lucide-react';
 import { SettingsToggleRow } from '../shared/ui';
 import { SettingHint } from './SettingHint';
 import { apiFetch } from '../shared/api';
+import { scannerActionStyles, sourceAppLabel } from '../scanner/eventMeta';
 
 export type RewriteRule = { from: string; to: string };
 export type ScannerTrigger = { name: string; priority: number; rewrite: RewriteRule[] };
@@ -510,6 +511,12 @@ type LogEntry = {
     source?: string;
     error?: string;
     results?: any[];
+    reason?: string;
+    action?: string;
+    title?: string;
+    quality?: string;
+    eventType?: string;
+    isUpgrade?: boolean;
 };
 
 const formatLogTime = (iso?: string) => {
@@ -627,16 +634,33 @@ const ScannerLiveLogs: React.FC<{ enabled: boolean }> = ({ enabled }) => {
                     </div>
                 ) : (
                     <ul className="divide-y divide-white/5">
-                        {entries.map((entry, i) => (
+                        {entries.map((entry, i) => {
+                            const style = scannerActionStyles(entry.action || entry.reason, entry.isUpgrade);
+                            return (
                             <li key={`${entry.at}-${i}`} className="px-3 py-2.5 hover:bg-white/[0.03]">
                                 <div className="flex flex-wrap items-center gap-2 mb-1">
                                     <span className={`font-bold uppercase tracking-wide ${entry.ok ? 'text-emerald-300' : 'text-red-300'}`}>
                                         {entry.ok ? 'ok' : 'error'}
                                     </span>
+                                    {(entry.reason || entry.action) ? (
+                                        <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border ${style.className}`}>
+                                            {entry.reason || style.label}
+                                        </span>
+                                    ) : null}
                                     <span className="text-muted">{formatLogTime(entry.at)}</span>
-                                    {entry.source ? <span className="text-blue-300/90">{entry.source}</span> : null}
+                                    {sourceAppLabel(entry.source) ? (
+                                        <span className="text-blue-300/90">{sourceAppLabel(entry.source)}</span>
+                                    ) : entry.source ? (
+                                        <span className="text-blue-300/90">{entry.source}</span>
+                                    ) : null}
                                 </div>
+                                {entry.title ? <div className="text-text font-semibold mb-0.5">{entry.title}</div> : null}
                                 <div className="text-text/90 break-all leading-relaxed">{entry.folder || '—'}</div>
+                                {entry.quality || entry.eventType ? (
+                                    <div className="text-muted mt-1">
+                                        {[entry.quality, entry.eventType].filter(Boolean).join(' · ')}
+                                    </div>
+                                ) : null}
                                 {entry.error ? <div className="text-red-200/90 mt-1">{entry.error}</div> : null}
                                 {Array.isArray(entry.results) && entry.results.length > 0 ? (
                                     <div className="text-muted mt-1">
@@ -649,7 +673,8 @@ const ScannerLiveLogs: React.FC<{ enabled: boolean }> = ({ enabled }) => {
                                     </div>
                                 ) : null}
                             </li>
-                        ))}
+                            );
+                        })}
                     </ul>
                 )}
             </div>

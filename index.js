@@ -31,6 +31,7 @@ import {
     pathsFromSonarrEvent,
     pathsFromRadarrEvent,
     pathsFromLidarrEvent,
+    classifyArrEvent,
     buildScansFromPaths,
     parseAutoscanYaml,
     buildTargets,
@@ -17762,9 +17763,10 @@ const handleArrTrigger = async (req, res, kind) => {
             priority: trigger.priority,
             source: `${kind}:${trigger.name}`,
             rewrite: trigger.rewrite,
+            ...classifyArrEvent(kind, event),
         });
         await enqueueScans(scans);
-        log(`[scanner] Queued ${scans.length} from ${kind}:${trigger.name} (${eventType}): ${scans.map((s) => s.folder).join(' | ')}`);
+        log(`[scanner] Queued ${scans.length} from ${kind}:${trigger.name} (${eventType}${scans[0]?.reason ? ` · ${scans[0].reason}` : ''}): ${scans.map((s) => s.folder).join(' | ')}`);
         return res.status(200).json({ ok: true, queued: scans.length, folders: scans.map((s) => s.folder) });
     } catch (e) {
         log(`[scanner] ${kind} trigger failed: ${e?.message || e}`);
@@ -17788,7 +17790,14 @@ app.post('/triggers/manual', requireScannerEnabledForTriggers, scannerTriggerAut
         }
         const config = await loadFile(CONFIG_PATH, {});
         const scanner = normalizeScannerConfig(config.scanner, getDefaultScannerConfig());
-        const scans = buildScansFromPaths(dirs, { priority: 5, source: 'manual', rewrite: [] });
+        const scans = buildScansFromPaths(dirs, {
+            priority: 5,
+            source: 'manual',
+            rewrite: [],
+            eventType: 'Manual',
+            action: 'manual',
+            reason: 'Manual scan',
+        });
         await enqueueScans(scans);
         // Optional: process immediately when minimum-age is 0
         void processOne(scannerPortalConfig(config), scanner);
@@ -17840,6 +17849,12 @@ app.get('/api/scanner/status', requireAdmin, requireScanner, async (req, res) =>
                     folder: last.folder || '',
                     source: last.source || '',
                     error: last.error || undefined,
+                    eventType: last.eventType || undefined,
+                    action: last.action || undefined,
+                    reason: last.reason || undefined,
+                    title: last.title || undefined,
+                    quality: last.quality || undefined,
+                    isUpgrade: !!last.isUpgrade || undefined,
                 }
                 : null,
             triggers: {
@@ -17888,7 +17903,14 @@ app.post('/api/scanner/manual', requireAdmin, requireScanner, async (req, res) =
         if (!pathValue) return res.status(400).json({ error: 'Path is required' });
         const config = await loadFile(CONFIG_PATH, {});
         const scanner = normalizeScannerConfig(config.scanner, getDefaultScannerConfig());
-        const scans = buildScansFromPaths([pathValue], { priority: 5, source: 'manual-ui', rewrite: [] });
+        const scans = buildScansFromPaths([pathValue], {
+            priority: 5,
+            source: 'manual-ui',
+            rewrite: [],
+            eventType: 'Manual',
+            action: 'manual',
+            reason: 'Manual scan',
+        });
         await enqueueScans(scans);
         void processOne(scannerPortalConfig(config), scanner);
         res.json({ ok: true, queued: scans.length, folder: scans[0]?.folder });

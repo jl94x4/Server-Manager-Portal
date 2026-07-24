@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { CheckCircle2, ListTodo, Radar, RefreshCw, Target } from 'lucide-react';
 import { apiFetch } from '../shared/api';
+import { formatScannerWhen, scannerActionStyles, shortenScannerPath, sourceAppLabel } from './eventMeta';
 
 type ScannerStatus = {
     enabled?: boolean;
@@ -14,30 +15,15 @@ type ScannerStatus = {
         folder?: string;
         source?: string;
         error?: string;
+        reason?: string;
+        action?: string;
+        title?: string;
+        isUpgrade?: boolean;
     } | null;
 };
 
 type Props = {
     onOpen?: () => void;
-};
-
-const formatWhen = (iso?: string) => {
-    if (!iso) return '—';
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return iso;
-    return d.toLocaleString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-};
-
-const shortenPath = (folder?: string) => {
-    if (!folder) return 'No recent activity';
-    const parts = folder.replace(/\\/g, '/').split('/').filter(Boolean);
-    if (parts.length <= 3) return folder;
-    return `…/${parts.slice(-3).join('/')}`;
 };
 
 export const ScannerHomeWidget: React.FC<Props> = ({ onOpen }) => {
@@ -70,6 +56,7 @@ export const ScannerHomeWidget: React.FC<Props> = ({ onOpen }) => {
     const targets = status?.targetCount ?? 0;
     const last = status?.lastActivity;
     const active = !!status?.enabled;
+    const lastStyle = scannerActionStyles(last?.action || last?.reason, last?.isUpgrade);
 
     return (
         <div className="glass-card p-4 md:p-5 shadow-xl w-full self-start overflow-hidden relative">
@@ -99,20 +86,20 @@ export const ScannerHomeWidget: React.FC<Props> = ({ onOpen }) => {
                     <p className="text-xs text-red-300/90 mb-3">{error}</p>
                 ) : (
                     <div className="grid grid-cols-3 gap-2 mb-3">
-                        <div className="rounded-xl bg-background/50 border border-white/5 p-2.5 text-center">
-                            <ListTodo className="w-3.5 h-3.5 text-sky-300 mx-auto mb-1 opacity-80" />
-                            <p className="text-lg font-black text-text leading-none">{remaining}</p>
-                            <p className="text-[9px] uppercase tracking-wider font-bold text-muted mt-1">Queued</p>
+                        <div className="rounded-xl bg-amber-500/10 border border-amber-400/25 p-2.5 text-center">
+                            <ListTodo className="w-3.5 h-3.5 text-amber-300 mx-auto mb-1 opacity-90" />
+                            <p className="text-lg font-black text-amber-50 leading-none">{remaining}</p>
+                            <p className="text-[9px] uppercase tracking-wider font-bold text-amber-200/80 mt-1">Queued</p>
                         </div>
-                        <div className="rounded-xl bg-background/50 border border-white/5 p-2.5 text-center">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300 mx-auto mb-1 opacity-80" />
-                            <p className="text-lg font-black text-text leading-none">{processed}</p>
-                            <p className="text-[9px] uppercase tracking-wider font-bold text-muted mt-1">Processed</p>
+                        <div className="rounded-xl bg-emerald-500/10 border border-emerald-400/25 p-2.5 text-center">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300 mx-auto mb-1 opacity-90" />
+                            <p className="text-lg font-black text-emerald-50 leading-none">{processed}</p>
+                            <p className="text-[9px] uppercase tracking-wider font-bold text-emerald-200/80 mt-1">Processed</p>
                         </div>
-                        <div className="rounded-xl bg-background/50 border border-white/5 p-2.5 text-center">
-                            <Target className="w-3.5 h-3.5 text-plex mx-auto mb-1 opacity-80" />
-                            <p className="text-lg font-black text-text leading-none">{targets}</p>
-                            <p className="text-[9px] uppercase tracking-wider font-bold text-muted mt-1">Targets</p>
+                        <div className="rounded-xl bg-violet-500/10 border border-violet-400/25 p-2.5 text-center">
+                            <Target className="w-3.5 h-3.5 text-violet-300 mx-auto mb-1 opacity-90" />
+                            <p className="text-lg font-black text-violet-50 leading-none">{targets}</p>
+                            <p className="text-[9px] uppercase tracking-wider font-bold text-violet-200/80 mt-1">Targets</p>
                         </div>
                     </div>
                 )}
@@ -121,14 +108,22 @@ export const ScannerHomeWidget: React.FC<Props> = ({ onOpen }) => {
                     <p className="text-[9px] uppercase tracking-wider font-bold text-muted mb-1">Latest activity</p>
                     {last ? (
                         <>
-                            <div className="flex items-center gap-2 mb-1">
+                            <div className="flex flex-wrap items-center gap-1.5 mb-1">
                                 <span className={`text-[10px] font-bold uppercase ${last.ok ? 'text-emerald-300' : 'text-red-300'}`}>
                                     {last.ok ? 'ok' : 'error'}
                                 </span>
-                                <span className="text-[10px] text-muted">{formatWhen(last.at)}</span>
-                                {last.source ? <span className="text-[10px] text-sky-300/90 truncate">{last.source}</span> : null}
+                                {(last.reason || last.action) ? (
+                                    <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border ${lastStyle.className}`}>
+                                        {last.reason || lastStyle.label}
+                                    </span>
+                                ) : null}
+                                <span className="text-[10px] text-muted">{formatScannerWhen(last.at)}</span>
+                                {sourceAppLabel(last.source) ? (
+                                    <span className="text-[10px] text-sky-300/90 truncate">{sourceAppLabel(last.source)}</span>
+                                ) : null}
                             </div>
-                            <p className="text-xs text-text/90 font-medium break-all leading-snug">{shortenPath(last.folder)}</p>
+                            {last.title ? <p className="text-xs text-text font-semibold mb-0.5 truncate">{last.title}</p> : null}
+                            <p className="text-xs text-text/90 font-medium break-all leading-snug">{shortenScannerPath(last.folder)}</p>
                             {last.error ? <p className="text-[10px] text-red-200/90 mt-1">{last.error}</p> : null}
                         </>
                     ) : (

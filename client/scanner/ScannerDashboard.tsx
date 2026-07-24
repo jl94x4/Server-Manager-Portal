@@ -1,7 +1,26 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Copy, Loader2, Radar, RefreshCw, Send } from 'lucide-react';
+import {
+    ArrowUpCircle,
+    Clock3,
+    Copy,
+    FileMinus2,
+    FolderInput,
+    Layers,
+    ListTodo,
+    Loader2,
+    Radar,
+    RefreshCw,
+    Send,
+    Target,
+    Wand2,
+} from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import { portalUrl } from '../shared/basePath';
+import {
+    formatScannerWhen,
+    scannerActionStyles,
+    sourceAppLabel,
+} from './eventMeta';
 
 type ScannerStatus = {
     enabled: boolean;
@@ -25,12 +44,63 @@ type LogEntry = {
     source?: string;
     error?: string;
     results?: any[];
+    eventType?: string;
+    action?: string;
+    reason?: string;
+    title?: string;
+    quality?: string;
+    isUpgrade?: boolean;
 };
+
+type QueueItem = {
+    folder: string;
+    priority?: number;
+    time?: string;
+    source?: string;
+    eventType?: string;
+    action?: string;
+    reason?: string;
+    title?: string;
+    quality?: string;
+    isUpgrade?: boolean;
+};
+
+const ActionIcon: React.FC<{ action?: string; className?: string }> = ({ action, className }) => {
+    const key = String(action || '').toLowerCase();
+    if (key === 'upgrade') return <ArrowUpCircle className={className} />;
+    if (key.includes('delete')) return <FileMinus2 className={className} />;
+    if (key === 'rename') return <Wand2 className={className} />;
+    if (key === 'manual') return <FolderInput className={className} />;
+    if (key === 'import') return <FolderInput className={className} />;
+    return <Radar className={className} />;
+};
+
+const StatCard: React.FC<{
+    label: string;
+    value: React.ReactNode;
+    hint?: string;
+    icon: React.ReactNode;
+    tone: string;
+}> = ({ label, value, hint, icon, tone }) => (
+    <div className={`relative overflow-hidden rounded-2xl border px-4 py-4 ${tone}`}>
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.06] via-transparent to-transparent" />
+        <div className="relative flex items-start justify-between gap-3">
+            <div>
+                <p className="text-[10px] uppercase tracking-[0.18em] font-bold opacity-80">{label}</p>
+                <p className="text-2xl md:text-3xl font-black tracking-tight mt-1.5">{value}</p>
+                {hint ? <p className="text-[11px] mt-1.5 opacity-70">{hint}</p> : null}
+            </div>
+            <div className="w-9 h-9 rounded-xl bg-black/20 border border-white/10 flex items-center justify-center shrink-0">
+                {icon}
+            </div>
+        </div>
+    </div>
+);
 
 export const ScannerDashboard: React.FC = () => {
     const [path, setPath] = useState('');
     const [status, setStatus] = useState<ScannerStatus | null>(null);
-    const [queue, setQueue] = useState<any[]>([]);
+    const [queue, setQueue] = useState<QueueItem[]>([]);
     const [log, setLog] = useState<LogEntry[]>([]);
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
@@ -92,92 +162,134 @@ export const ScannerDashboard: React.FC = () => {
 
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const webhookUrl = (p: string) => `${origin}${portalUrl(p)}`;
+    const webhookRows = [
+        ...(status?.webhookPaths?.sonarr || ['/triggers/sonarr']).map((p) => ({ label: 'Sonarr', tone: 'text-sky-300', path: p })),
+        ...(status?.webhookPaths?.radarr || ['/triggers/radarr']).map((p) => ({ label: 'Radarr', tone: 'text-amber-300', path: p })),
+        ...(status?.webhookPaths?.lidarr || ['/triggers/lidarr']).map((p) => ({ label: 'Lidarr', tone: 'text-violet-300', path: p })),
+        { label: 'Manual', tone: 'text-emerald-300', path: status?.webhookPaths?.manual || '/triggers/manual' },
+    ];
 
     return (
-        <div className="w-full flex flex-col gap-6 pb-8">
-            <div className="flex items-start justify-between gap-4">
-                <div>
-                    <div className="flex items-center gap-2 text-muted text-xs font-bold uppercase tracking-wider mb-2">
-                        <Radar className="w-4 h-4" /> Scanner
+        <div className="w-full flex flex-col gap-6 pb-10 animate-fade-in">
+            <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-sky-500/10 via-background/40 to-plex/10 p-5 md:p-6">
+                <div className="pointer-events-none absolute -top-16 -right-10 w-56 h-56 rounded-full bg-sky-400/10 blur-3xl" />
+                <div className="relative flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
+                    <div className="min-w-0">
+                        <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-sky-300/90 mb-3">
+                            <span className="w-7 h-7 rounded-lg bg-sky-500/15 border border-sky-400/30 inline-flex items-center justify-center">
+                                <Radar className="w-3.5 h-3.5" />
+                            </span>
+                            Library Scanner
+                        </div>
+                        <h1 className="text-3xl md:text-4xl font-black text-text tracking-tight">Refresh with precision</h1>
+                        <p className="text-muted mt-2 text-sm md:text-[15px] max-w-2xl leading-relaxed">
+                            Queue a folder for a partial library refresh on Plex, Jellyfin, or Emby.
+                            ARR webhooks land here automatically as imports, upgrades, deletes, and renames.
+                        </p>
                     </div>
-                    <h1 className="text-3xl font-bold text-white tracking-tight">Path to scan</h1>
-                    <p className="text-muted mt-2 text-sm max-w-xl">
-                        Queue a folder for partial library refresh on your configured Plex, Jellyfin, or Emby targets.
-                        ARR apps should post to the webhook URLs below.
-                    </p>
+                    <button
+                        type="button"
+                        onClick={() => void refresh()}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 bg-black/20 text-sm font-semibold text-muted hover:text-text hover:bg-white/5 transition-colors self-start lg:self-auto"
+                    >
+                        <RefreshCw className="w-4 h-4" /> Refresh
+                    </button>
                 </div>
-                <button
-                    type="button"
-                    onClick={() => void refresh()}
-                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 text-sm text-muted hover:text-white hover:bg-white/5"
-                >
-                    <RefreshCw className="w-4 h-4" /> Refresh
-                </button>
             </div>
 
-            <form onSubmit={submitPath} className="space-y-3">
+            <form onSubmit={submitPath} className="glass-card p-4 md:p-5 shadow-xl space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                    <div>
+                        <h2 className="text-sm font-bold uppercase tracking-wider text-muted">Manual path</h2>
+                        <p className="text-xs text-muted/80 mt-0.5">Add a folder now — processed after the minimum age.</p>
+                    </div>
+                </div>
                 <div className="flex flex-col sm:flex-row gap-2">
                     <input
                         type="text"
                         value={path}
                         onChange={(e) => setPath(e.target.value)}
                         placeholder="Path to scan e.g. /mnt/unionfs/Media/Movies/Movie Name (year)"
-                        className="flex-1 rounded-lg bg-black/30 border border-white/10 px-4 py-3 text-white placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-accent/40"
+                        className="flex-1 rounded-xl bg-background/70 border border-white/10 px-4 py-3 text-text placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-sky-400/30"
                     />
                     <button
                         type="submit"
                         disabled={busy || !path.trim()}
-                        className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-accent text-black font-semibold disabled:opacity-50"
+                        className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-sky-400 text-black font-bold disabled:opacity-50 hover:bg-sky-300 transition-colors"
                     >
                         {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                         Submit
                     </button>
                 </div>
-                <div className="rounded-lg bg-sky-500/10 border border-sky-400/20 text-sky-100 text-sm px-4 py-3">
-                    Clicking <strong>Submit</strong> will add the path to the scan queue
-                    {status?.minimumAge ? <> (processed after minimum age: <code>{status.minimumAge}</code>)</> : null}.
+                <div className="rounded-xl bg-sky-500/10 border border-sky-400/20 text-sky-100/95 text-sm px-4 py-3 leading-relaxed">
+                    Submit adds the path to the scan queue
+                    {status?.minimumAge ? <> · waits <code className="text-sky-200">{status.minimumAge}</code> before targets are called</> : null}.
                 </div>
             </form>
 
             {(message || error) && (
-                <div className={`rounded-lg px-4 py-3 text-sm ${error ? 'bg-red-500/10 text-red-200 border border-red-400/20' : 'bg-emerald-500/10 text-emerald-100 border border-emerald-400/20'}`}>
+                <div className={`rounded-xl px-4 py-3 text-sm border ${error ? 'bg-red-500/10 text-red-200 border-red-400/20' : 'bg-emerald-500/10 text-emerald-100 border-emerald-400/20'}`}>
                     {error || message}
                 </div>
             )}
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {[
-                    { label: 'Queued', value: status?.remaining ?? '—' },
-                    { label: 'Processed', value: status?.processed ?? '—' },
-                    { label: 'Targets', value: status?.targetCount ?? '—' },
-                    { label: 'Min age', value: status?.minimumAge ?? '—' },
-                ].map((card) => (
-                    <div key={card.label} className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
-                        <div className="text-[10px] uppercase tracking-wider text-muted font-bold">{card.label}</div>
-                        <div className="text-xl font-semibold text-white mt-1">{card.value}</div>
-                    </div>
-                ))}
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
+                <StatCard
+                    label="Queued"
+                    value={status?.remaining ?? '—'}
+                    hint="Waiting for min age"
+                    icon={<ListTodo className="w-4 h-4 text-amber-200" />}
+                    tone="border-amber-400/30 bg-amber-500/10 text-amber-50"
+                />
+                <StatCard
+                    label="Processed"
+                    value={status?.processed ?? '—'}
+                    hint="Successful refreshes"
+                    icon={<Layers className="w-4 h-4 text-emerald-200" />}
+                    tone="border-emerald-400/30 bg-emerald-500/10 text-emerald-50"
+                />
+                <StatCard
+                    label="Targets"
+                    value={status?.targetCount ?? '—'}
+                    hint="Plex / JF / Emby"
+                    icon={<Target className="w-4 h-4 text-violet-200" />}
+                    tone="border-violet-400/30 bg-violet-500/10 text-violet-50"
+                />
+                <StatCard
+                    label="Min age"
+                    value={status?.minimumAge ?? '—'}
+                    hint="Delay before scan"
+                    icon={<Clock3 className="w-4 h-4 text-sky-200" />}
+                    tone="border-sky-400/30 bg-sky-500/10 text-sky-50"
+                />
             </div>
 
-            <section className="space-y-3">
-                <h2 className="text-lg font-semibold text-white">ARR webhooks</h2>
-                <p className="text-sm text-muted">
-                    In Sonarr / Radarr / Lidarr: Settings → Connect → Webhook → On Import + On Upgrade.
-                    Use Basic Auth with the username/password from Settings → Scanner.
-                </p>
-                <div className="space-y-2">
-                    {[
-                        ...(status?.webhookPaths?.sonarr || ['/triggers/sonarr']).map((p) => ({ label: 'Sonarr', path: p })),
-                        ...(status?.webhookPaths?.radarr || ['/triggers/radarr']).map((p) => ({ label: 'Radarr', path: p })),
-                        ...(status?.webhookPaths?.lidarr || ['/triggers/lidarr']).map((p) => ({ label: 'Lidarr', path: p })),
-                        { label: 'Manual', path: status?.webhookPaths?.manual || '/triggers/manual' },
-                    ].map((row) => {
+            <section className="glass-card p-4 md:p-5 shadow-xl space-y-4">
+                <div>
+                    <h2 className="text-lg font-bold text-text tracking-tight">ARR webhooks</h2>
+                    <p className="text-sm text-muted mt-1 leading-relaxed">
+                        In Sonarr / Radarr / Lidarr: Settings → Connect → Webhook → On Import + On Upgrade
+                        (and delete/rename if you want those too). Use Basic Auth from Settings → Scanner.
+                    </p>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
+                    {webhookRows.map((row) => {
                         const full = webhookUrl(row.path);
                         return (
-                            <div key={`${row.label}-${row.path}`} className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2">
-                                <span className="text-xs font-bold uppercase text-muted w-16 shrink-0">{row.label}</span>
-                                <code className="flex-1 text-xs text-white/90 truncate">{full}</code>
-                                <button type="button" onClick={() => void copyText(full)} className="p-1.5 rounded hover:bg-white/10 text-muted hover:text-white" title="Copy">
+                            <div
+                                key={`${row.label}-${row.path}`}
+                                className="group flex items-center gap-3 rounded-xl border border-white/10 bg-black/25 hover:bg-black/35 px-3.5 py-3 transition-colors"
+                            >
+                                <span className={`text-[11px] font-black uppercase tracking-wider w-[4.25rem] shrink-0 ${row.tone}`}>
+                                    {row.label}
+                                </span>
+                                <code className="flex-1 text-xs text-text/85 truncate font-mono">{full}</code>
+                                <button
+                                    type="button"
+                                    onClick={() => void copyText(full)}
+                                    className="p-2 rounded-lg border border-transparent text-muted hover:text-text hover:bg-white/10 hover:border-white/10 transition-colors"
+                                    title="Copy"
+                                >
                                     <Copy className="w-4 h-4" />
                                 </button>
                             </div>
@@ -186,45 +298,126 @@ export const ScannerDashboard: React.FC = () => {
                 </div>
             </section>
 
-            <section className="space-y-3">
-                <h2 className="text-lg font-semibold text-white">Queue</h2>
-                {queue.length === 0 ? (
-                    <p className="text-sm text-muted">Queue is empty.</p>
-                ) : (
-                    <ul className="space-y-2">
-                        {queue.map((item) => (
-                            <li key={`${item.folder}-${item.time}`} className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm">
-                                <div className="text-white font-medium break-all">{item.folder}</div>
-                                <div className="text-xs text-muted mt-1">
-                                    priority {item.priority ?? 0} · {item.source || '—'} · {item.time || '—'}
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </section>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-5">
+                <section className="glass-card p-4 md:p-5 shadow-xl space-y-4 min-h-[16rem]">
+                    <div className="flex items-center justify-between gap-3">
+                        <div>
+                            <h2 className="text-lg font-bold text-text tracking-tight">Queue</h2>
+                            <p className="text-xs text-muted mt-0.5">Paths waiting for the minimum age.</p>
+                        </div>
+                        <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border border-amber-400/25 bg-amber-500/10 text-amber-200">
+                            {queue.length} pending
+                        </span>
+                    </div>
+                    {queue.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-white/10 bg-black/20 px-4 py-10 text-center">
+                            <p className="text-sm text-muted">Queue is empty — waiting for the next webhook or manual path.</p>
+                        </div>
+                    ) : (
+                        <ul className="space-y-2.5">
+                            {queue.map((item) => {
+                                const style = scannerActionStyles(item.action || item.reason, item.isUpgrade);
+                                return (
+                                    <li
+                                        key={`${item.folder}-${item.time}`}
+                                        className="rounded-xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-transparent px-3.5 py-3"
+                                    >
+                                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                                            <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${style.className}`}>
+                                                <ActionIcon action={item.action} className="w-3 h-3" />
+                                                {item.reason || style.label}
+                                            </span>
+                                            {sourceAppLabel(item.source) ? (
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-muted">
+                                                    {sourceAppLabel(item.source)}
+                                                </span>
+                                            ) : null}
+                                            <span className="text-[10px] text-muted ml-auto">P{item.priority ?? 0}</span>
+                                        </div>
+                                        {item.title ? <p className="text-sm font-semibold text-text mb-1">{item.title}</p> : null}
+                                        <p className="text-xs text-text/80 break-all font-mono leading-relaxed" title={item.folder}>
+                                            {item.folder}
+                                        </p>
+                                        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px] text-muted">
+                                            <span>{formatScannerWhen(item.time)}</span>
+                                            {item.quality ? <span>{item.quality}</span> : null}
+                                            {item.eventType ? <span className="opacity-70">{item.eventType}</span> : null}
+                                        </div>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+                </section>
 
-            <section className="space-y-3">
-                <h2 className="text-lg font-semibold text-white">Recent activity</h2>
-                {log.length === 0 ? (
-                    <p className="text-sm text-muted">No scans processed yet.</p>
-                ) : (
-                    <ul className="space-y-2">
-                        {log.map((entry, i) => (
-                            <li key={`${entry.at}-${i}`} className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm">
-                                <div className="flex items-center gap-2">
-                                    <span className={`text-[10px] font-bold uppercase ${entry.ok ? 'text-emerald-300' : 'text-red-300'}`}>
-                                        {entry.ok ? 'ok' : 'error'}
-                                    </span>
-                                    <span className="text-xs text-muted">{entry.at}</span>
-                                </div>
-                                <div className="text-white break-all mt-1">{entry.folder}</div>
-                                {entry.error && <div className="text-xs text-red-200 mt-1">{entry.error}</div>}
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </section>
+                <section className="glass-card p-4 md:p-5 shadow-xl space-y-4 min-h-[16rem]">
+                    <div className="flex items-center justify-between gap-3">
+                        <div>
+                            <h2 className="text-lg font-bold text-text tracking-tight">Recent activity</h2>
+                            <p className="text-xs text-muted mt-0.5">Why each refresh ran, and how it finished.</p>
+                        </div>
+                        <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border border-emerald-400/25 bg-emerald-500/10 text-emerald-200">
+                            {log.length} events
+                        </span>
+                    </div>
+                    {log.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-white/10 bg-black/20 px-4 py-10 text-center">
+                            <p className="text-sm text-muted">No scans processed yet.</p>
+                        </div>
+                    ) : (
+                        <ul className="space-y-2.5">
+                            {log.map((entry, i) => {
+                                const style = scannerActionStyles(entry.action || entry.reason, entry.isUpgrade);
+                                const targets = Array.isArray(entry.results) ? entry.results : [];
+                                return (
+                                    <li
+                                        key={`${entry.at}-${i}`}
+                                        className="rounded-xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-transparent px-3.5 py-3"
+                                    >
+                                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                                            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                                                entry.ok
+                                                    ? 'bg-emerald-500/15 text-emerald-300 border-emerald-400/30'
+                                                    : 'bg-red-500/15 text-red-300 border-red-400/30'
+                                            }`}>
+                                                {entry.ok ? 'OK' : 'Error'}
+                                            </span>
+                                            <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${style.className}`}>
+                                                <ActionIcon action={entry.action} className="w-3 h-3" />
+                                                {entry.reason || style.label}
+                                            </span>
+                                            {sourceAppLabel(entry.source) ? (
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-muted">
+                                                    {sourceAppLabel(entry.source)}
+                                                </span>
+                                            ) : null}
+                                            <span className="text-[10px] text-muted ml-auto">{formatScannerWhen(entry.at)}</span>
+                                        </div>
+                                        {entry.title ? <p className="text-sm font-semibold text-text mb-1">{entry.title}</p> : null}
+                                        <p className="text-xs text-text/85 break-all font-mono leading-relaxed" title={entry.folder}>
+                                            {entry.folder}
+                                        </p>
+                                        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px] text-muted">
+                                            {entry.quality ? <span>{entry.quality}</span> : null}
+                                            {entry.eventType ? <span>{entry.eventType}</span> : null}
+                                            {targets.length > 0 ? (
+                                                <span>
+                                                    {targets.map((r: any) => (
+                                                        r?.skipped
+                                                            ? `${r.type}: skipped`
+                                                            : `${r.type}: refreshed`
+                                                    )).join(' · ')}
+                                                </span>
+                                            ) : null}
+                                        </div>
+                                        {entry.error ? <p className="text-xs text-red-200 mt-2">{entry.error}</p> : null}
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+                </section>
+            </div>
         </div>
     );
 };

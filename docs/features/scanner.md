@@ -40,6 +40,7 @@ For each *arr app:
 - Plex scans use the **token and server URL from Settings → Plex** (no separate Scanner token).
 - Leave **Verify path exists** off unless the portal container can see your media paths.
 - Queue and activity logs live under `config/scanner/`.
+- Recent activity shows **why** a refresh ran (import, upgrade, file delete, rename, manual) when the ARR webhook includes that event type.
 
 ## Related
 
