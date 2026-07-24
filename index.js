@@ -17838,7 +17838,7 @@ app.get('/api/scanner/status', requireAdmin, requireScanner, async (req, res) =>
     }
 });
 
-app.get('/api/scanner/queue', requireAdmin, requireScanner, async (req, res) => {
+app.get('/api/scanner/queue', requireAdmin, async (req, res) => {
     try {
         const stats = await getQueueStats();
         res.json(stats);
@@ -17847,10 +17847,15 @@ app.get('/api/scanner/queue', requireAdmin, requireScanner, async (req, res) => 
     }
 });
 
-app.get('/api/scanner/log', requireAdmin, requireScanner, async (req, res) => {
+app.get('/api/scanner/log', requireAdmin, async (req, res) => {
     try {
         const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 50));
-        res.json(await listLog(limit));
+        const config = await loadFile(CONFIG_PATH, {});
+        const payload = await listLog(limit);
+        res.json({
+            ...payload,
+            scannerEnabled: !!config.scannerEnabled,
+        });
     } catch (e) {
         res.status(500).json({ error: e?.message || 'Failed to load log' });
     }

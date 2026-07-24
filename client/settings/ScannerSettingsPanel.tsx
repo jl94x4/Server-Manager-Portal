@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { FileUp, Loader2, Plus, Trash2, Upload } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { FileUp, Loader2, Plus, RefreshCw, Trash2, Upload } from 'lucide-react';
 import { SettingsToggleRow } from '../shared/ui';
 import { SettingHint } from './SettingHint';
 import { apiFetch } from '../shared/api';
@@ -483,7 +483,163 @@ export const ScannerSettingsPanel: React.FC<Props> = ({
                 <p className="text-[11px] text-muted">
                     After changing these options, click <strong className="text-text">Save Settings</strong> at the bottom of the page.
                 </p>
+
+                <ScannerLiveLogs enabled={enabled} />
             </section>
         </div>
+    );
+};
+
+type LogEntry = {
+    at?: string;
+    ok?: boolean;
+    folder?: string;
+    source?: string;
+    error?: string;
+    results?: any[];
+};
+
+const formatLogTime = (iso?: string) => {
+    if (!iso) return '—';
+    try {
+        return new Date(iso).toLocaleString();
+    } catch {
+        return iso;
+    }
+};
+
+const ScannerLiveLogs: React.FC<{ enabled: boolean }> = ({ enabled }) => {
+    const [entries, setEntries] = useState<LogEntry[]>([]);
+    const [queueCount, setQueueCount] = useState(0);
+    const [processed, setProcessed] = useState(0);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [paused, setPaused] = useState(false);
+    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+    const listRef = useRef<HTMLDivElement>(null);
+    const stickToTopRef = useRef(true);
+
+    const refresh = useCallback(async () => {
+        try {
+            const [logRes, queueRes] = await Promise.all([
+                apiFetch('/api/scanner/log?limit=60'),
+                apiFetch('/api/scanner/queue'),
+            ]);
+            setEntries(Array.isArray(logRes?.entries) ? logRes.entries : []);
+            setProcessed(Number(logRes?.processed) || 0);
+            setQueueCount(Number(queueRes?.remaining ?? queueRes?.scans?.length) || 0);
+            setError(null);
+            setLastUpdated(new Date());
+        } catch (e: any) {
+            setError(e?.message || 'Failed to load scanner logs');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        void refresh();
+    }, [refresh]);
+
+    useEffect(() => {
+        if (paused) return undefined;
+        const id = window.setInterval(() => { void refresh(); }, 3000);
+        return () => window.clearInterval(id);
+    }, [paused, refresh]);
+
+    useEffect(() => {
+        if (!stickToTopRef.current || !listRef.current) return;
+        listRef.current.scrollTop = 0;
+    }, [entries]);
+
+    return (
+        <SectionCard
+            title="Live Activity"
+            description="Webhook queue and recent scan results. Updates every few seconds while this page is open."
+        >
+            <div className="flex flex-wrap items-center gap-2 justify-between">
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border shadow-[0_0_10px_rgba(59,130,246,0.15)] ${paused ? 'bg-yellow-500/10 text-yellow-300 border-yellow-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20 animate-pulse'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${paused ? 'bg-yellow-300' : 'bg-blue-400'}`} />
+                        {paused ? 'PAUSED' : 'LIVE'}
+                    </span>
+                    {!enabled ? (
+                        <span className="text-xs text-yellow-300 font-semibold">Scanner is OFF — enable and save to process new webhooks</span>
+                    ) : null}
+                    <span className="text-xs text-muted">
+                        Queue {queueCount} · Processed {processed}
+                        {lastUpdated ? ` · Updated ${lastUpdated.toLocaleTimeString()}` : ''}
+                    </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    <button
+                        type="button"
+                        className="btn-secondary px-3 py-1.5 text-xs"
+                        onClick={() => setPaused((p) => !p)}
+                    >
+                        {paused ? 'Resume' : 'Pause'}
+                    </button>
+                    <button
+                        type="button"
+                        className="btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
+                        onClick={() => void refresh()}
+                    >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        Refresh
+                    </button>
+                </div>
+            </div>
+
+            {error ? (
+                <div className="rounded-lg border border-red-400/20 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                    {error}
+                </div>
+            ) : null}
+
+            <div
+                ref={listRef}
+                onScroll={(e) => {
+                    stickToTopRef.current = e.currentTarget.scrollTop < 24;
+                }}
+                className="max-h-80 overflow-y-auto rounded-xl border border-border/60 bg-black/35 font-mono text-xs"
+            >
+                {loading ? (
+                    <div className="flex items-center gap-2 px-4 py-8 text-muted justify-center">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Loading activity…
+                    </div>
+                ) : entries.length === 0 ? (
+                    <div className="px-4 py-8 text-center text-muted">
+                        No scanner activity yet. Trigger a Sonarr/Radarr/Lidarr webhook or submit a path on the Scanner page.
+                    </div>
+                ) : (
+                    <ul className="divide-y divide-white/5">
+                        {entries.map((entry, i) => (
+                            <li key={`${entry.at}-${i}`} className="px-3 py-2.5 hover:bg-white/[0.03]">
+                                <div className="flex flex-wrap items-center gap-2 mb-1">
+                                    <span className={`font-bold uppercase tracking-wide ${entry.ok ? 'text-emerald-300' : 'text-red-300'}`}>
+                                        {entry.ok ? 'ok' : 'error'}
+                                    </span>
+                                    <span className="text-muted">{formatLogTime(entry.at)}</span>
+                                    {entry.source ? <span className="text-blue-300/90">{entry.source}</span> : null}
+                                </div>
+                                <div className="text-text/90 break-all leading-relaxed">{entry.folder || '—'}</div>
+                                {entry.error ? <div className="text-red-200/90 mt-1">{entry.error}</div> : null}
+                                {Array.isArray(entry.results) && entry.results.length > 0 ? (
+                                    <div className="text-muted mt-1">
+                                        {entry.results.map((r: any, idx: number) => (
+                                            <span key={idx} className="mr-3">
+                                                {r.type || 'target'}
+                                                {r.skipped ? ` skipped (${r.reason || 'no library'})` : ' scanned'}
+                                            </span>
+                                        ))}
+                                    </div>
+                                ) : null}
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+        </SectionCard>
     );
 };
