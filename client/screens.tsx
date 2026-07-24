@@ -49,7 +49,7 @@ import {
     type StatusPeriod,
 } from './shared/statusHealth';
 import { StatusSpeedTest } from './shared/StatusSpeedTest';
-import { ANALYTICS_PERIOD_OPTIONS } from './shared/analyticsPeriodOptions';
+import { ANALYTICS_PERIOD_OPTIONS, persistAnalyticsDays, readPersistedAnalyticsDays } from './shared/analyticsPeriodOptions';
 import { UserDashboardLayout } from './home/UserDashboardLayout';
 import { createBazarrToolsSectionRenderer, createMainGridWidgetRenderer, createPendingRequestsSectionRenderer, createRecentlyAddedWidgetRenderer } from './home/userDashboardWidgetRenderers';
 import {
@@ -6149,7 +6149,11 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
     const topWatchedPageSize = (dashboardLayoutDraft.topWatchedRows || DEFAULT_DASHBOARD_LAYOUT.topWatchedRows || 2) * 6;
     const [recentHistoryPage, setRecentHistoryPage] = useState(0);
     const recentHistoryPageSize = (dashboardLayoutDraft.recentHistoryRows || DEFAULT_DASHBOARD_LAYOUT.recentHistoryRows || 6);
-    const [analyticsDays, setAnalyticsDays] = useState<number | 'all'>(30);
+    const [analyticsDays, setAnalyticsDaysState] = useState<number | 'all'>(() => readPersistedAnalyticsDays());
+    const setAnalyticsDays = (value: number | 'all') => {
+        persistAnalyticsDays(value);
+        setAnalyticsDaysState(value);
+    };
     const [analyticsDaysOpen, setAnalyticsDaysOpen] = useState(false);
     const [wrapUpDaysOpen, setWrapUpDaysOpen] = useState(false);
     const [analyticsError, setAnalyticsError] = useState<string | null>(null);
@@ -6801,6 +6805,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                             onClose={() => setWrapUpDaysOpen(false)}
                                             onChange={(value) => setAnalyticsDays(value as number | 'all')}
                                             options={wrapUpDaysOptions}
+                                            fallbackLabel="Last 7 Days"
                                             buttonClassName="flex items-center gap-2 bg-background border border-border/50 rounded-lg px-3 py-1.5 text-sm font-medium text-text focus:outline-none hover:border-plex/50 transition-colors cursor-pointer shadow-sm"
                                         />
                                     </div>
@@ -6930,6 +6935,7 @@ export const UserDashboard: React.FC<{ sessionInfo: any; publicConfig?: any; onL
                                         onClose={() => setAnalyticsDaysOpen(false)}
                                         onChange={(value) => setAnalyticsDays(value as number | 'all')}
                                         options={ANALYTICS_PERIOD_OPTIONS}
+                                        fallbackLabel="Last 7 Days"
                                         buttonClassName="flex items-center gap-2 bg-background border border-border/50 rounded-lg px-3 py-1.5 text-sm font-medium text-text focus:outline-none hover:border-plex/50 transition-colors cursor-pointer shadow-sm"
                                     />
                                 </div>

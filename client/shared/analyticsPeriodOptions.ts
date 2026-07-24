@@ -7,3 +7,33 @@ export const ANALYTICS_PERIOD_OPTIONS = [
     { value: 365, label: 'Last 365 Days' },
     { value: 'all' as const, label: 'All Time' },
 ];
+
+export type AnalyticsPeriodDays = number | 'all';
+
+const HOME_ANALYTICS_DAYS_KEY = 'portal-home-analytics-days';
+const VALID_ANALYTICS_DAYS = new Set(
+    ANALYTICS_PERIOD_OPTIONS.map((opt) => opt.value).filter((value): value is number => typeof value === 'number'),
+);
+
+/** Default / restore home wrap-up + most-watched period (persisted per browser). */
+export const readPersistedAnalyticsDays = (): AnalyticsPeriodDays => {
+    try {
+        const raw = localStorage.getItem(HOME_ANALYTICS_DAYS_KEY);
+        if (raw === 'all') return 'all';
+        const days = Number(raw);
+        if (VALID_ANALYTICS_DAYS.has(days)) return days;
+    } catch {
+        /* private mode / blocked storage */
+    }
+    return 7;
+};
+
+export const persistAnalyticsDays = (value: AnalyticsPeriodDays) => {
+    try {
+        if (value === 'all' || VALID_ANALYTICS_DAYS.has(Number(value))) {
+            localStorage.setItem(HOME_ANALYTICS_DAYS_KEY, String(value));
+        }
+    } catch {
+        /* ignore */
+    }
+};
