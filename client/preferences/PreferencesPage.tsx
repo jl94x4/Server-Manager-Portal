@@ -45,7 +45,7 @@ const PrefToggle: React.FC<{
 export const PreferencesPage: React.FC<Props> = ({ sessionInfo, refreshSession, publicConfig }) => {
     const { t } = useDiscoverI18n();
     const user = sessionInfo?.account;
-    const isAdmin = !!(sessionInfo?.session?.isAdmin || user?.isAdmin);
+    const isAdmin = !!sessionInfo?.session?.isAdmin;
     const [toasts, setToasts] = useState<ToastMessage[]>([]);
     const [busy, setBusy] = useState(false);
     const [dirty, setDirty] = useState(false);

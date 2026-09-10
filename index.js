@@ -1720,6 +1720,7 @@ import {
     applyStatusHealthNotifyState,
     normalizeStatusNotifyDownAfterMinutes,
 } from './lib/notifications/opsNotify.js';
+import { redactSensitiveText } from './lib/notifications/sensitiveText.js';
 import { notifySupportAdmins } from './lib/notifications/supportNotify.js';
 import { mapLibraryIdsToPlexTvSectionIds, parsePlexTvServerSections } from './lib/plex/plexTvSections.js';
 import { enrichInAppNotificationItems } from './lib/notifications/mediaMeta.js';
@@ -2759,6 +2760,12 @@ const stampPortalAdminFlag = (user) => {
 const ensurePortalUserForNotifications = async (sessionUser, { config: configArg = null } = {}) => {
     const users = await loadFile(USERS_PATH, []);
     let localUser = findLocalUserForSession(users, sessionUser);
+    // Impersonation must never stamp the target as admin. resolveCurrentAdmin(actor)
+    // is the real admin, and writing that onto the member made them receive ops
+    // alerts (Tautulli URLs/API keys, scanner, settings deep-links).
+    if (isImpersonatingSession(sessionUser)) {
+        return { users, localUser, created: false };
+    }
     if (localUser?.id) {
         const config = configArg || await loadFile(CONFIG_PATH, {});
         const actor = getSessionActor(sessionUser);
@@ -4926,8 +4933,9 @@ app.get('/api/notifications', requireAuth, requireMember, async (req, res) => {
         const limit = Math.max(1, Math.min(100, Number(req.query?.limit) || 30));
         const unreadOnly = ['1', 'true', 'yes'].includes(String(req.query?.unreadOnly || req.query?.unread || '').toLowerCase());
         const type = String(req.query?.type || '').trim();
-        const items = await listInAppNotificationsForUser(localUser.id, { limit, unreadOnly, type });
-        const { unread, total } = await summarizeInAppNotificationsForUser(localUser.id);
+        const includeAdminTypes = !!req.user?.isAdmin;
+        const items = await listInAppNotificationsForUser(localUser.id, { limit, unreadOnly, type, includeAdminTypes });
+        const { unread, total } = await summarizeInAppNotificationsForUser(localUser.id, { includeAdminTypes });
         let enriched = items;
         try {
             const store = createRequestStore({ dataDir: REQUESTS_DIR });
@@ -17315,15 +17323,14 @@ const tautulliHistoryRowsFromPayload = (payload) => {
     return null;
 };
 
-const notifyTautulliApiFailure = (error) => {
+const notifyTautulliApiFailure = () => {
     void (async () => {
         try {
             const config = await loadFile(CONFIG_PATH, {});
             if (!config?.tautulliUrl || !config?.tautulliApiKey) return;
             if (config.notifyTautulliApiFailed === false) return;
-            const detail = String(error?.message || error || 'Tautulli API request failed').trim();
             await notifyOps('tautulli_api_failed', {
-                title: detail || 'Tautulli API request failed',
+                title: 'Tautulli API request failed',
                 body: 'Check Media Stack → Tautulli URL and API key, then Test connection.',
                 href: '/settings#tautulli',
                 dedupeKey: 'tautulli:api-failed',
@@ -17350,9 +17357,10 @@ const fetchTautulliApi = async (tUrl, params, { timeoutMs = 20000, throwOnError 
         }
         return payload;
     } catch (error) {
-        notifyTautulliApiFailure(error);
+        const safeError = new Error(redactSensitiveText(String(error?.message || error || 'Tautulli API request failed')));
+        notifyTautulliApiFailure();
         if (!throwOnError) return null;
-        throw error;
+        throw safeError;
     }
 };
 
