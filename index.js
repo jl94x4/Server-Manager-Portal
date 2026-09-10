@@ -223,6 +223,14 @@ import {
 } from './lib/spotify-to-plex-scheduler.js';
 import { createSupportTicketFromMediaIssue, attachTicketIdsToIssues, resolveSupportTicketFromMediaIssue } from './lib/support-tickets/fromIssue.js';
 import { mapTautulliHistoryRowToPlexItem } from './lib/achievements/tautulliHistory.js';
+import {
+    ANALYTICS_HISTORY_CACHE_VERSION,
+    mergeAnalyticsHistoryItems,
+    newestAnalyticsHistoryViewedAt,
+    shouldFullRefreshAnalyticsHistory,
+    analyticsHistoryItemKey,
+} from './lib/analytics/historyCache.js';
+import { withTautulliExclusive } from './lib/tautulli/exclusiveLock.js';
 import { isTautulliWatchHistorySource, buildAchievementsHomeRankContext, summarizeAchievementsBackfill, levelProgress } from './lib/achievements/index.js';
 import { loadAchievementsState, setLeaderboardOptOut } from './lib/achievements/store.js';
 import { resolveAchievementsAccountId } from './lib/profile/assemble.js';
@@ -1459,6 +1467,7 @@ import {
     HEALTH_PATH,
     TRENDING_CACHE_PATH,
     ANALYTICS_CACHE_PATH,
+    ANALYTICS_HISTORY_CACHE_PATH,
     KILL_RULES_PATH,
     MAINTENANCE_RULES_PATH,
     MAINTENANCE_MEDIA_INDEX_PATH,
@@ -17641,7 +17650,7 @@ const fetchTautulliUserHistoryItems = async (config, {
     return items;
 };
 
-const fetchTautulliServerHistoryItems = async (config, { maxItems = 75000 } = {}) => {
+const fetchTautulliServerHistoryItems = async (config, { maxItems = 75000, afterUnixSec = 0 } = {}) => {
     if (!config?.tautulliUrl || !config?.tautulliApiKey) return [];
     const tUrl = resolveIntegrationUrlForFetch(config.tautulliUrl);
     if (!tUrl) return [];
@@ -17652,6 +17661,7 @@ const fetchTautulliServerHistoryItems = async (config, { maxItems = 75000 } = {}
     // so one slow query deep into pagination can't kill a 75k-row export.
     let pageSize = 1000;
     let orderColumn = 'date';
+    let done = false;
 
     const pullPage = async (start, length, column) => fetchTautulliHistoryPage(
         tUrl,
@@ -17660,7 +17670,7 @@ const fetchTautulliServerHistoryItems = async (config, { maxItems = 75000 } = {}
         { timeoutMs: 60000 },
     );
 
-    while (items.length < maxItems) {
+    while (!done && items.length < maxItems) {
         const length = Math.min(pageSize, maxItems - items.length);
         let rows = null;
         try {
@@ -17693,14 +17703,85 @@ const fetchTautulliServerHistoryItems = async (config, { maxItems = 75000 } = {}
         if (!Array.isArray(rows) || rows.length === 0) break;
 
         for (const row of rows) {
-            items.push(mapTautulliHistoryRowToPlexItem(row));
-            if (items.length >= maxItems) return items;
+            const item = mapTautulliHistoryRowToPlexItem(row);
+            const viewedAt = Number(item?.viewedAt) || 0;
+            if (afterUnixSec > 0 && viewedAt > 0 && viewedAt < afterUnixSec) {
+                done = true;
+                break;
+            }
+            items.push(item);
+            if (items.length >= maxItems) {
+                done = true;
+                break;
+            }
         }
 
+        if (done) break;
         offset += rows.length;
     }
 
     return items;
+};
+
+const loadAnalyticsHistoryCache = async () => {
+    try {
+        const raw = await fs.readFile(ANALYTICS_HISTORY_CACHE_PATH, 'utf8');
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.items)) return null;
+        return parsed;
+    } catch {
+        return null;
+    }
+};
+
+const saveAnalyticsHistoryCache = async (payload) => {
+    await fs.mkdir(path.dirname(ANALYTICS_HISTORY_CACHE_PATH), { recursive: true });
+    const temporary = `${ANALYTICS_HISTORY_CACHE_PATH}.${process.pid}.tmp`;
+    await fs.writeFile(temporary, `${JSON.stringify(payload)}\n`, 'utf8');
+    try {
+        await fs.rename(temporary, ANALYTICS_HISTORY_CACHE_PATH);
+    } finally {
+        await fs.rm(temporary, { force: true }).catch(() => {});
+    }
+};
+
+const loadTautulliHistoryForAnalytics = async (config, { force = false, maxItems = 75000 } = {}) => {
+    const existing = await loadAnalyticsHistoryCache();
+    const fullRefresh = shouldFullRefreshAnalyticsHistory(existing, { force, source: 'tautulli' });
+    if (fullRefresh) {
+        const items = await fetchTautulliServerHistoryItems(config, { maxItems });
+        return {
+            items,
+            mode: 'full',
+            added: items.length,
+            fullFetchedAt: Date.now(),
+        };
+    }
+
+    const afterUnixSec = newestAnalyticsHistoryViewedAt(existing.items);
+    if (!(afterUnixSec > 0)) {
+        const items = await fetchTautulliServerHistoryItems(config, { maxItems });
+        return {
+            items,
+            mode: 'full',
+            added: items.length,
+            fullFetchedAt: Date.now(),
+        };
+    }
+
+    const incoming = await fetchTautulliServerHistoryItems(config, {
+        maxItems,
+        afterUnixSec,
+    });
+    const existingKeys = new Set(existing.items.map((item) => analyticsHistoryItemKey(item)));
+    const added = incoming.filter((item) => !existingKeys.has(analyticsHistoryItemKey(item))).length;
+    const items = mergeAnalyticsHistoryItems(existing.items, incoming, { maxItems });
+    return {
+        items,
+        mode: added ? 'incremental' : 'cached',
+        added,
+        fullFetchedAt: Number(existing.fullFetchedAt) || Date.now(),
+    };
 };
 
 /** Map Tautulli user_id accountIDs on history rows onto Plex account ids (or synthetic tautulli:* keys). */
@@ -19806,9 +19887,12 @@ const runAchievementsBackfillJob = async (reason = 'scheduled') => {
             markTaskEnd(job, null);
             return { skipped: true, reason: 'disabled' };
         }
-        const result = await achievementsHttp?.runLeaderboardBackfill?.({
+        const runBackfill = () => achievementsHttp?.runLeaderboardBackfill?.({
             force: reason === 'manual',
         });
+        const result = isTautulliWatchHistorySource(config)
+            ? await withTautulliExclusive(runBackfill)
+            : await runBackfill();
         job.lastDetail = summarizeAchievementsBackfill(result);
         markTaskEnd(job, null);
         log(`[AchievementsBackfill] ${reason}: ${job.lastDetail || result?.reason || 'ok'}`);
@@ -23886,10 +23970,31 @@ async function calculateAnalyticsStats({ force = false } = {}) {
         // attempt is recorded in the cache (the user explicitly asked us to try again).
         if (preferTautulli) {
             try {
-                historyItems = await fetchTautulliServerHistoryItems(config, { maxItems: maxHistoryItems });
+                const tautulliHistory = await withTautulliExclusive(() => loadTautulliHistoryForAnalytics(config, {
+                    force,
+                    maxItems: maxHistoryItems,
+                }));
+                historyItems = tautulliHistory.items || [];
                 if (historyItems.length) {
                     sourceMeta = { source: 'tautulli', fallback: null, degraded: false };
-                    log(`Analytics cache using Tautulli history (${historyItems.length} items).`);
+                    const modeLabel = tautulliHistory.mode === 'full'
+                        ? 'full'
+                        : tautulliHistory.mode === 'incremental'
+                            ? `incremental +${tautulliHistory.added}`
+                            : 'cached';
+                    log(`Analytics cache using Tautulli history (${historyItems.length} items, ${modeLabel}).`);
+                    if (tautulliHistory.mode !== 'cached') {
+                        await saveAnalyticsHistoryCache({
+                            version: ANALYTICS_HISTORY_CACHE_VERSION,
+                            source: 'tautulli',
+                            fetchedAt: Date.now(),
+                            fullFetchedAt: tautulliHistory.fullFetchedAt || Date.now(),
+                            newestViewedAt: newestAnalyticsHistoryViewedAt(historyItems),
+                            items: historyItems,
+                        }).catch((error) => {
+                            log(`Analytics history cache save failed: ${error.message}`);
+                        });
+                    }
                 } else {
                     log('Tautulli history empty for analytics cache; falling back to Plex.');
                     sourceMeta = { source: 'plex', fallback: 'tautulli_history_empty', degraded: true };
