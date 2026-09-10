@@ -727,6 +727,11 @@ export const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'succ
                                 <div className="p-2">
                                     <p className="text-xs text-text line-clamp-2">{item.title}</p>
                                     <p className="text-[11px] text-muted mt-1">{item.libraryTitle || item.mediaType}</p>
+                                    {item.mediaType === 'show' && Number.isFinite(Number(item.daysSinceLastEpisodeAired)) ? (
+                                        <p className="text-[10px] text-muted mt-1">
+                                            {t('maintenance.calendar.lastEpisodeAired')} {Number(item.daysSinceLastEpisodeAired)}{t('maintenance.calendar.ago')}
+                                        </p>
+                                    ) : null}
                                     <div className="flex flex-wrap gap-1 mt-1">
                                         {item.excluded ? null : item.eligible === false ? (
                                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300">{t('maintenance.labels.grace')}</span>

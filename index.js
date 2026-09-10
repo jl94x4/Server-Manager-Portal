@@ -126,6 +126,7 @@ import {
     normalizeOnboardingDocument,
     validateOnboardingCompletion,
 } from './lib/onboarding.js';
+import { applyShowEpisodeActivity, summarizeShowEpisodeActivity } from './lib/maintenance/episodeActivity.js';
 import {
     migrateLegacyBrandingAssets,
     parseBrandingPublicPath,
@@ -24661,10 +24662,15 @@ const enrichShowItemsWithEpisodeStats = async (uri, config, items = []) => {
             show.nonHevcEpisodeCount = nonHevc;
             show.nonHevcEpisodeSizeGB = Math.round((totalSize / (1024 ** 3)) * 100) / 100;
             if (leaves.length > 0) show.isHevc = nonHevc === 0;
+            applyShowEpisodeActivity(show, summarizeShowEpisodeActivity(leaves.map((leaf) => ({
+                originallyAvailableAt: leaf?.originallyAvailableAt,
+                addedAt: leaf?.addedAt,
+            }))));
         } catch {
             show.totalEpisodeCount = Number(show.totalEpisodeCount || 0);
             show.nonHevcEpisodeCount = Number(show.nonHevcEpisodeCount || 0);
             show.nonHevcEpisodeSizeGB = Number(show.nonHevcEpisodeSizeGB || 0);
+            applyShowEpisodeActivity(show);
         }
     }
     return items;
@@ -24679,7 +24685,7 @@ const enrichJellyfinShowItemsWithEpisodeStats = async (config, items = []) => {
                 ParentId: show.ratingKey,
                 IncludeItemTypes: 'Episode',
                 Recursive: 'true',
-                Fields: 'MediaSources,MediaStreams,Size',
+                Fields: 'MediaSources,MediaStreams,Size,PremiereDate,DateCreated',
             });
             const response = await fetchWithTimeout(`${baseUrl}/Items?${params.toString()}`, {
                 headers: jellyfinHeaders(config.jellyfinApiKey),
@@ -24699,10 +24705,15 @@ const enrichJellyfinShowItemsWithEpisodeStats = async (config, items = []) => {
             show.nonHevcEpisodeCount = nonHevc;
             show.nonHevcEpisodeSizeGB = Math.round((totalSize / (1024 ** 3)) * 100) / 100;
             if (episodes.length > 0) show.isHevc = nonHevc === 0;
+            applyShowEpisodeActivity(show, summarizeShowEpisodeActivity(episodes.map((ep) => ({
+                originallyAvailableAt: ep?.PremiereDate,
+                addedAt: ep?.DateCreated,
+            }))));
         } catch {
             show.totalEpisodeCount = Number(show.totalEpisodeCount || 0);
             show.nonHevcEpisodeCount = Number(show.nonHevcEpisodeCount || 0);
             show.nonHevcEpisodeSizeGB = Number(show.nonHevcEpisodeSizeGB || 0);
+            applyShowEpisodeActivity(show);
         }
     }
     return items;
@@ -26358,6 +26369,8 @@ const MAINTENANCE_FILTER_CATALOG = [
     { field: 'watchedEver', label: 'Watched Ever', type: 'boolean', operators: ['equals'] },
     { field: 'daysSinceLastWatch', label: 'Days Since Last Watch', type: 'number', operators: ['greater_than', 'less_than', 'between'] },
     { field: 'daysSinceAdded', label: 'Days Since Added', type: 'number', operators: ['greater_than', 'less_than', 'between'] },
+    { field: 'daysSinceLastEpisodeAired', label: 'Days Since Last Episode Aired', type: 'number', operators: ['greater_than', 'less_than', 'between'] },
+    { field: 'daysSinceLastEpisodeAdded', label: 'Days Since Last Episode Added', type: 'number', operators: ['greater_than', 'less_than', 'between'] },
     { field: 'durationMinutes', label: 'Duration (minutes)', type: 'number', operators: ['greater_than', 'less_than', 'between'] },
     { field: 'sizeGB', label: 'File Size (GB)', type: 'number', operators: ['greater_than', 'less_than', 'between'] },
     { field: 'videoResolution', label: 'Resolution', type: 'select', options: ['4k', '2160', '1440', '1080', '720', '576', '480', 'sd'], operators: ['equals', 'not_equals', 'in', 'not_in', 'contains'] },
@@ -26657,6 +26670,8 @@ const maintenanceValueMap = (item, field) => {
         case 'watchedEver': return !!item.watchedEver;
         case 'daysSinceLastWatch': return item.daysSinceLastWatch ?? null;
         case 'daysSinceAdded': return item.daysSinceAdded ?? null;
+        case 'daysSinceLastEpisodeAired': return item.daysSinceLastEpisodeAired ?? null;
+        case 'daysSinceLastEpisodeAdded': return item.daysSinceLastEpisodeAdded ?? null;
         case 'durationMinutes': return item.durationMinutes ?? null;
         case 'sizeGB': return item.sizeGB ?? null;
         case 'videoResolution': return item.videoResolution || '';
@@ -27071,9 +27086,7 @@ const buildMaintenanceMediaIndex = async ({ actor = null, force = false } = {}) 
             const merged = attachRequestsToMediaIndex(rawMedia, requestIndex);
             const arrEnriched = await enrichMediaItemsWithArrResolution(config, merged);
             enriched = enrichJellyfinItemsWithQuality(config, arrEnriched);
-            if (isUpgraderEnabled(config)) {
-                enriched = await enrichJellyfinShowItemsWithEpisodeStats(config, enriched);
-            }
+            enriched = await enrichJellyfinShowItemsWithEpisodeStats(config, enriched);
         } else {
             if (!isPlexConfigured(config)) {
                 throw new Error('Plex integration is not configured.');
@@ -27084,9 +27097,7 @@ const buildMaintenanceMediaIndex = async ({ actor = null, force = false } = {}) 
             const merged = attachRequestsToMediaIndex(rawMedia, requestIndex);
             const arrEnriched = await enrichMediaItemsWithArrResolution(config, merged);
             enriched = await enrichMaintenanceItemsWithQuality(uri, config, arrEnriched);
-            if (isUpgraderEnabled(config)) {
-                enriched = await enrichShowItemsWithEpisodeStats(uri, config, enriched);
-            }
+            enriched = await enrichShowItemsWithEpisodeStats(uri, config, enriched);
         }
 
         const payload = {
