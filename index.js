@@ -1464,6 +1464,7 @@ import {
     MAINTENANCE_RUNS_PATH,
     MAINTENANCE_REQUEST_INDEX_PATH,
     MAINTENANCE_PREFS_PATH,
+    MAINTENANCE_PENDING_PATH,
     UPGRADER_AUDIT_PATH,
     UPGRADER_PREFS_PATH,
     UPGRADER_INDEX_PATH,
@@ -14655,6 +14656,7 @@ const BACKUP_TARGETS = [
     { key: 'maintenanceRuns', path: MAINTENANCE_RUNS_PATH },
     { key: 'maintenanceRequestIndex', path: MAINTENANCE_REQUEST_INDEX_PATH },
     { key: 'maintenancePreferences', path: MAINTENANCE_PREFS_PATH },
+    { key: 'maintenancePending', path: MAINTENANCE_PENDING_PATH },
     { key: 'mediaAutomationLibraries', path: MEDIA_AUTOMATION_LIBRARIES_PATH },
     { key: 'mediaAutomationPipelines', path: MEDIA_AUTOMATION_PIPELINES_PATH }
 ];
@@ -22118,8 +22120,10 @@ const startBackgroundService = async () => {
             await runManagedTask('maintenanceRuleRun', async () => {
                 const rules = await loadFile(MAINTENANCE_RULES_PATH, []);
                 const hasEnabledRules = Array.isArray(rules) && rules.some(r => r.enabled !== false);
-                if (!hasEnabledRules) return;
-                await executeMaintenanceRunBatch({ actor: { username: 'System', email: 'system@local' }, dryRun: true });
+                if (hasEnabledRules) {
+                    await executeMaintenanceRunBatch({ actor: { username: 'System', email: 'system@local' }, dryRun: true });
+                }
+                await processDueMaintenancePendingDeletions({ actor: { username: 'System', email: 'system@local' } });
             }, 'maintenance rules');
         }
 
@@ -26401,17 +26405,61 @@ const loadMaintenancePreferences = async () => {
     };
 };
 
-const applyMaintenanceExclusions = (items = [], preferences = MAINTENANCE_PREFS_DEFAULTS) => {
-    const excludedKeys = new Set((preferences?.exclusions?.ratingKeys || []).map(v => String(v)));
-    const excludedTitles = new Set((preferences?.exclusions?.titles || []).map(v => normalized(v)));
-    const excludedLibraries = new Set((preferences?.exclusions?.libraries || []).map(v => normalized(v)));
-    return (items || []).filter((item) => {
-        if (!item) return false;
-        if (excludedKeys.has(String(item.ratingKey || ''))) return false;
-        if (excludedTitles.has(normalized(item.title))) return false;
-        if (excludedLibraries.has(normalized(item.libraryTitle))) return false;
-        return true;
-    });
+const saveMaintenancePreferences = async (prefs) => {
+    const next = {
+        global: {
+            ...MAINTENANCE_PREFS_DEFAULTS.global,
+            ...(prefs?.global || {}),
+        },
+        exclusions: {
+            ratingKeys: Array.isArray(prefs?.exclusions?.ratingKeys) ? prefs.exclusions.ratingKeys.map((v) => String(v)) : [],
+            titles: Array.isArray(prefs?.exclusions?.titles) ? prefs.exclusions.titles.map((v) => String(v)) : [],
+            libraries: Array.isArray(prefs?.exclusions?.libraries) ? prefs.exclusions.libraries.map((v) => String(v)) : [],
+        },
+    };
+    await saveFile(MAINTENANCE_PREFS_PATH, next);
+    return next;
+};
+
+const isMaintenanceItemExcluded = (item, preferences = MAINTENANCE_PREFS_DEFAULTS) => {
+    if (!item) return true;
+    const excludedKeys = new Set((preferences?.exclusions?.ratingKeys || []).map((v) => String(v)));
+    const excludedTitles = new Set((preferences?.exclusions?.titles || []).map((v) => normalized(v)));
+    const excludedLibraries = new Set((preferences?.exclusions?.libraries || []).map((v) => normalized(v)));
+    return excludedKeys.has(String(item.ratingKey || ''))
+        || excludedTitles.has(normalized(item.title))
+        || excludedLibraries.has(normalized(item.libraryTitle));
+};
+
+const applyMaintenanceExclusions = (items = [], preferences = MAINTENANCE_PREFS_DEFAULTS) => (
+    (items || []).filter((item) => item && !isMaintenanceItemExcluded(item, preferences))
+);
+
+const loadMaintenancePending = async () => {
+    const raw = await loadFile(MAINTENANCE_PENDING_PATH, { items: [] });
+    const items = Array.isArray(raw?.items) ? raw.items : [];
+    return {
+        items: items.map((entry) => ({
+            ratingKey: String(entry?.ratingKey || '').trim(),
+            ruleId: String(entry?.ruleId || '').trim(),
+            ruleName: String(entry?.ruleName || ''),
+            title: String(entry?.title || ''),
+            libraryTitle: String(entry?.libraryTitle || ''),
+            mediaType: String(entry?.mediaType || ''),
+            thumb: String(entry?.thumb || ''),
+            queuedAt: entry?.queuedAt || new Date().toISOString(),
+            eligibleAt: entry?.eligibleAt || new Date().toISOString(),
+        })).filter((entry) => entry.ratingKey && entry.ruleId),
+    };
+};
+
+const saveMaintenancePending = async (pending) => {
+    const next = {
+        items: Array.isArray(pending?.items) ? pending.items : [],
+        updatedAt: new Date().toISOString(),
+    };
+    await saveFile(MAINTENANCE_PENDING_PATH, next);
+    return next;
 };
 
 const parsePlexGuidIds = (guids = []) => {
@@ -26527,7 +26575,12 @@ const validateMaintenanceDestructivePreflight = async (config, rule, catalog) =>
 
 const buildMaintenancePreviewForRule = (rule, allItems, preferences, catalog = null, config = {}, options = {}) => {
     const { limit = 300, includeAll = false } = options;
-    const matches = applyMaintenanceExclusions(allItems.filter(item => evaluateMaintenanceRule(item, rule)), preferences);
+    const rawMatches = (allItems || []).filter((item) => evaluateMaintenanceRule(item, rule));
+    const annotated = rawMatches.map((item) => ({
+        ...item,
+        excluded: isMaintenanceItemExcluded(item, preferences),
+    }));
+    const remaining = annotated.filter((item) => !item.excluded);
     const graceRemainingDays = computeRuleGraceRemainingDays(rule);
     const maxActions = resolveMaintenanceMaxActions(rule, preferences);
     let actionableCount = 0;
@@ -26535,8 +26588,8 @@ const buildMaintenancePreviewForRule = (rule, allItems, preferences, catalog = n
     let ambiguousCount = 0;
     const instanceBreakdown = {};
 
-    if (catalog && graceRemainingDays <= 0) {
-        for (const item of matches) {
+    if (catalog) {
+        for (const item of remaining) {
             const resolved = resolveArrEntity(item, catalog, config);
             if (resolved.entity) {
                 actionableCount += 1;
@@ -26550,13 +26603,13 @@ const buildMaintenancePreviewForRule = (rule, allItems, preferences, catalog = n
         }
     }
 
-    const sampleSource = includeAll ? matches : matches.slice(0, Math.max(1, Number(limit)));
+    const sampleSource = includeAll ? annotated : annotated.slice(0, Math.max(1, Number(limit)));
     const sample = sampleSource.map((item) => {
         const resolved = catalog ? resolveArrEntity(item, catalog, config) : { type: 'none', entity: null, instanceId: null, instanceName: null, ambiguous: false, warning: null };
         return {
             ...item,
             graceRemainingDays,
-            eligible: graceRemainingDays <= 0,
+            eligible: !item.excluded && graceRemainingDays <= 0,
             arrResolvable: !!resolved.entity,
             arrType: resolved.type,
             arrInstanceId: resolved.instanceId || null,
@@ -26566,13 +26619,15 @@ const buildMaintenancePreviewForRule = (rule, allItems, preferences, catalog = n
         };
     });
 
-    const eligibleCount = graceRemainingDays <= 0 ? matches.length : 0;
+    const eligibleCount = graceRemainingDays <= 0 ? remaining.length : 0;
     return {
         ruleId: rule.id,
         ruleName: rule.name,
-        totalMatches: matches.length,
+        totalMatches: annotated.length,
+        remainingCount: remaining.length,
+        excludedCount: annotated.length - remaining.length,
         graceRemainingDays,
-        inGraceCount: graceRemainingDays > 0 ? matches.length : 0,
+        inGraceCount: graceRemainingDays > 0 ? remaining.length : 0,
         eligibleCount,
         actionableCount,
         unactionableCount,
@@ -27237,6 +27292,10 @@ const runMaintenanceRule = async ({ rule, dryRun, actor, confirmToken, runOption
         : (settings.dryRunByDefault ?? preferences.global?.dryRunByDefault ?? MAINTENANCE_DEFAULTS.dryRunByDefault);
     const destructive = !effectiveDryRun && (rule?.actions?.deleteFromArr !== false || !!rule?.actions?.unmonitor || Number(rule?.actions?.qualityProfileId || 0) > 0);
     const confirmRequired = settings.requireConfirmForDestructive ?? preferences.global?.requireConfirmForDestructive ?? MAINTENANCE_DEFAULTS.requireConfirmForDestructive;
+    const createAndPinCollection = !!runOptions.createAndPinCollection;
+    const bypassGrace = !!runOptions.bypassGrace;
+    const queueDelayedDelete = !!runOptions.queueDelayedDelete;
+    const delayDays = Math.max(1, Math.min(365, Number(runOptions.delayDays || rule?.graceDays || 7) || 7));
     if (destructive && confirmRequired && String(confirmToken || '') !== 'CONFIRM_MAINTENANCE_DELETE') {
         throw new Error('Destructive run requires confirm token.');
     }
@@ -27247,10 +27306,10 @@ const runMaintenanceRule = async ({ rule, dryRun, actor, confirmToken, runOption
 
     const maxActions = resolveMaintenanceMaxActions(rule, preferences);
     const candidates = matched.slice(0, maxActions);
-    const catalog = (!effectiveDryRun && destructive) ? await getArrCatalog(config) : { radarr: [], sonarr: [] };
+    const catalog = (!effectiveDryRun && destructive && !queueDelayedDelete) ? await getArrCatalog(config) : { radarr: [], sonarr: [] };
     const dryRunCatalog = effectiveDryRun ? await getArrCatalog(config) : catalog;
 
-    if (destructive) {
+    if (destructive && !queueDelayedDelete) {
         const preflight = await validateMaintenanceDestructivePreflight(config, rule, catalog);
         run.preflight = { warnings: preflight.warnings };
         if (!preflight.ok) {
@@ -27258,19 +27317,52 @@ const runMaintenanceRule = async ({ rule, dryRun, actor, confirmToken, runOption
         }
     }
 
-    const createAndPinCollection = !!runOptions.createAndPinCollection;
-    const shouldCollectionSync = !effectiveDryRun && (rule?.collection?.enabled || createAndPinCollection);
+    const shouldCollectionSync = !effectiveDryRun && (rule?.collection?.enabled || createAndPinCollection || queueDelayedDelete);
     const uri = shouldCollectionSync ? await getPlexConnectionUri(config) : null;
 
     if (!effectiveDryRun && uri && shouldCollectionSync) {
-        const ruleWithCollection = createAndPinCollection
+        const ruleWithCollection = (createAndPinCollection || queueDelayedDelete)
             ? { ...rule, collection: { ...(rule?.collection || {}), enabled: true } }
             : rule;
-        const collectionResult = await syncRulePlexCollection(config, uri, ruleWithCollection, candidates, { pinToHomeForAllUsers: createAndPinCollection });
+        const collectionResult = await syncRulePlexCollection(config, uri, ruleWithCollection, candidates, { pinToHomeForAllUsers: createAndPinCollection || queueDelayedDelete });
         run.outcomes.push({ type: 'collection_sync', success: !!collectionResult.success, details: collectionResult });
     }
 
-    const graceRemainingDays = computeRuleGraceRemainingDays(rule);
+    if (queueDelayedDelete && !effectiveDryRun) {
+        const pending = await loadMaintenancePending();
+        const eligibleAt = new Date(Date.now() + (delayDays * 24 * 60 * 60 * 1000)).toISOString();
+        const queuedAt = new Date().toISOString();
+        const byKey = new Map(pending.items.map((entry) => [`${entry.ruleId}:${entry.ratingKey}`, entry]));
+        for (const item of candidates) {
+            const key = `${rule.id}:${String(item.ratingKey || '')}`;
+            byKey.set(key, {
+                ratingKey: String(item.ratingKey || ''),
+                ruleId: rule.id,
+                ruleName: rule.name || 'Unnamed Rule',
+                title: item.title || '',
+                libraryTitle: item.libraryTitle || '',
+                mediaType: item.mediaType || '',
+                thumb: item.thumb || '',
+                queuedAt,
+                eligibleAt,
+            });
+            run.totals.processed += 1;
+            run.outcomes.push({
+                ratingKey: item.ratingKey,
+                title: item.title,
+                status: 'queued',
+                eligibleAt,
+                delayDays,
+            });
+        }
+        await saveMaintenancePending({ items: [...byKey.values()] });
+        run.completedAt = new Date().toISOString();
+        run.status = 'completed';
+        run.queue = { delayDays, eligibleAt, queued: candidates.length };
+        return run;
+    }
+
+    const graceRemainingDays = bypassGrace ? 0 : computeRuleGraceRemainingDays(rule);
 
     for (const item of candidates) {
         if (graceRemainingDays > 0) {
@@ -27342,6 +27434,62 @@ const runMaintenanceRule = async ({ rule, dryRun, actor, confirmToken, runOption
     run.completedAt = new Date().toISOString();
     run.status = run.totals.failed > 0 ? 'completed_with_errors' : 'completed';
     return run;
+};
+
+const processDueMaintenancePendingDeletions = async ({ actor } = {}) => {
+    const config = await loadFile(CONFIG_PATH, {});
+    if (!isMaintenanceExperimentalEnabled(config)) return { processed: 0, deleted: 0, skipped: 0, failed: 0 };
+    const pending = await loadMaintenancePending();
+    if (!pending.items.length) return { processed: 0, deleted: 0, skipped: 0, failed: 0 };
+    const now = Date.now();
+    const due = pending.items.filter((entry) => Date.parse(entry.eligibleAt) <= now);
+    if (!due.length) return { processed: 0, deleted: 0, skipped: 0, failed: 0, pending: pending.items.length };
+
+    const preferences = await loadMaintenancePreferences();
+    const indexPayload = await loadFile(MAINTENANCE_MEDIA_INDEX_PATH, { items: [] });
+    const itemsByKey = new Map((Array.isArray(indexPayload.items) ? indexPayload.items : []).map((item) => [String(item?.ratingKey || ''), item]));
+    const rules = await loadFile(MAINTENANCE_RULES_PATH, []);
+    const rulesById = new Map((Array.isArray(rules) ? rules : []).map((rule) => [String(rule?.id || ''), rule]));
+    const catalog = await getArrCatalog(config);
+    const remaining = pending.items.filter((entry) => Date.parse(entry.eligibleAt) > now);
+    const totals = { processed: 0, deleted: 0, skipped: 0, failed: 0 };
+
+    for (const entry of due) {
+        totals.processed += 1;
+        const item = itemsByKey.get(String(entry.ratingKey || ''));
+        if (!item) {
+            totals.skipped += 1;
+            remaining.push(entry);
+            continue;
+        }
+        if (isMaintenanceItemExcluded(item, preferences)) {
+            totals.skipped += 1;
+            continue;
+        }
+        const rule = rulesById.get(String(entry.ruleId || '')) || { actions: { deleteFromArr: true, deleteFiles: true } };
+        const resolved = resolveArrEntity(item, catalog, config);
+        if (!resolved.entity) {
+            totals.skipped += 1;
+            remaining.push(entry);
+            continue;
+        }
+        const actionResult = await applyArrActions(config, resolved, rule.actions || { deleteFromArr: true, deleteFiles: true });
+        if (actionResult.success) {
+            totals.deleted += 1;
+            await appendAuditLog('maintenance_pending_deleted', actor, null, {
+                ruleId: entry.ruleId,
+                ratingKey: entry.ratingKey,
+                title: entry.title,
+            });
+        } else {
+            totals.failed += 1;
+            remaining.push(entry);
+        }
+    }
+
+    await saveMaintenancePending({ items: remaining });
+    log(`[Cleaner] Pending deletions: processed ${totals.processed}, deleted ${totals.deleted}, skipped ${totals.skipped}, failed ${totals.failed}.`);
+    return totals;
 };
 
 const requireMaintenanceExperimental = async (req, res, next) => {
@@ -31376,6 +31524,8 @@ app.post('/api/maintenance/preflight', requireAdmin, async (req, res) => {
             ...preflight,
             preview: {
                 totalMatches: preview.totalMatches,
+                remainingCount: preview.remainingCount,
+                excludedCount: preview.excludedCount,
                 eligibleCount: preview.eligibleCount,
                 inGraceCount: preview.inGraceCount,
                 graceRemainingDays: preview.graceRemainingDays,
@@ -31466,6 +31616,31 @@ app.get('/api/maintenance/exclusions/summary', requireAdmin, async (req, res) =>
         });
     } catch (e) {
         res.status(500).json({ error: `Failed to load exclusions summary: ${e.message}` });
+    }
+});
+
+app.post('/api/maintenance/exclusions/rating-key', requireAdmin, async (req, res) => {
+    try {
+        const ratingKey = String(req.body?.ratingKey || '').trim();
+        if (!ratingKey) return res.status(400).json({ error: 'ratingKey is required.' });
+        const exclude = req.body?.exclude !== false;
+        const prefs = await loadMaintenancePreferences();
+        const current = new Set((prefs.exclusions?.ratingKeys || []).map((v) => String(v)));
+        if (exclude) current.add(ratingKey);
+        else current.delete(ratingKey);
+        const next = await saveMaintenancePreferences({
+            ...prefs,
+            exclusions: { ...(prefs.exclusions || {}), ratingKeys: [...current] },
+        });
+        await appendAuditLog(exclude ? 'maintenance_exclusion_added' : 'maintenance_exclusion_removed', req.user, null, { ratingKey });
+        res.json({
+            success: true,
+            ratingKey,
+            excluded: exclude,
+            preferences: next,
+        });
+    } catch (e) {
+        res.status(500).json({ error: `Failed to update exclusion: ${e.message}` });
     }
 });
 

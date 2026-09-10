@@ -114,6 +114,7 @@ export const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'succ
     const [resettingRuleId, setResettingRuleId] = useState<string | null>(null);
     const [togglingRuleId, setTogglingRuleId] = useState<string | null>(null);
     const [pinCollectionOnDestructiveRun, setPinCollectionOnDestructiveRun] = useState(false);
+    const [excludingKey, setExcludingKey] = useState<string | null>(null);
 
     const selectedRule = useMemo(() => rules.find((rule: any) => rule.id === selectedRuleId) || null, [rules, selectedRuleId]);
     const selectedPreview = useMemo(() => previewData.find((preview: any) => preview.ruleId === selectedRuleId) || null, [previewData, selectedRuleId]);
@@ -295,11 +296,21 @@ export const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'succ
             const actionable = current?.actionableCount ?? '—';
             const inGrace = current?.inGraceCount ?? 0;
             const graceDays = current?.graceRemainingDays ?? 0;
+            const remaining = current?.remainingCount ?? ((current?.totalMatches ?? 0) - (current?.excludedCount ?? 0));
+            const excluded = current?.excludedCount ?? 0;
             addToast(
                 graceDays > 0
                     ? t('maintenance.summaries.previewAllInGrace', { matches: current?.totalMatches ?? 0, days: graceDays })
-                    : t('maintenance.summaries.previewSummary', { matches: current?.totalMatches ?? 0, eligible, mapped: actionable, inGrace: inGrace ? t('maintenance.summaries.inGraceSuffix', { count: inGrace }) : '' })
+                    : t('maintenance.summaries.previewSummary', {
+                        matches: current?.totalMatches ?? 0,
+                        eligible,
+                        mapped: actionable,
+                        inGrace: inGrace ? t('maintenance.summaries.inGraceSuffix', { count: inGrace }) : '',
+                    })
             );
+            if (excluded > 0) {
+                addToast(t('maintenance.summaries.previewRemaining', { remaining, excluded }));
+            }
         } catch (e: any) {
             addToast(e.message || t('maintenance.errors.preview'), 'error');
         } finally {
@@ -307,14 +318,17 @@ export const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'succ
         }
     };
 
-    const runRule = async (ruleId: string, dryRun: boolean, event?: React.MouseEvent) => {
+    const runRule = async (ruleId: string, dryRun: boolean, event?: React.MouseEvent, extraOptions: Record<string, unknown> = {}) => {
         event?.preventDefault();
         event?.stopPropagation();
         if (isRuleDirty(ruleId)) {
             addToast(t('maintenance.errors.unsavedBeforeRun'), 'error');
             return;
         }
-        const useCollectionPin = !dryRun && pinCollectionOnDestructiveRun;
+        const useCollectionPin = !dryRun && (pinCollectionOnDestructiveRun || extraOptions.createAndPinCollection === true);
+        const bypassGrace = !dryRun && extraOptions.bypassGrace === true;
+        const queueDelayedDelete = !dryRun && extraOptions.queueDelayedDelete === true;
+        const delayDays = Number(extraOptions.delayDays || 7);
 
         const executeRun = async () => {
             setRunningRuleId(ruleId);
@@ -325,16 +339,23 @@ export const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'succ
                         ruleId,
                         dryRun,
                         confirmToken: dryRun ? null : 'CONFIRM_MAINTENANCE_DELETE',
-                        runOptions: dryRun ? {} : { createAndPinCollection: useCollectionPin }
+                        runOptions: dryRun ? {} : {
+                            createAndPinCollection: useCollectionPin,
+                            bypassGrace,
+                            queueDelayedDelete,
+                            delayDays,
+                        }
                     })
                 });
                 const latestRun = Array.isArray(response?.runs) ? response.runs[0] : null;
                 const summary = latestRun ? formatMaintenanceRunSummary(latestRun, t) : '';
                 addToast(dryRun
                     ? (summary ? `${t('maintenance.status.dryRunCompleted')} (${summary}).` : `${t('maintenance.status.dryRunCompleted')}.`)
-                    : (summary
-                        ? (useCollectionPin ? `${t('maintenance.status.destructiveWithCollection')} (${summary}).` : `${t('maintenance.status.destructiveCompleted')} (${summary}).`)
-                        : (useCollectionPin ? `${t('maintenance.status.executionWithCollection')}.` : `${t('maintenance.status.executionCompleted')}.`)));
+                    : queueDelayedDelete
+                        ? (summary ? `${t('maintenance.status.queuedDelayed', { days: delayDays })} (${summary}).` : `${t('maintenance.status.queuedDelayed', { days: delayDays })}.`)
+                        : (summary
+                            ? (useCollectionPin ? `${t('maintenance.status.destructiveWithCollection')} (${summary}).` : `${t('maintenance.status.destructiveCompleted')} (${summary}).`)
+                            : (useCollectionPin ? `${t('maintenance.status.executionWithCollection')}.` : `${t('maintenance.status.executionCompleted')}.`)));
                 await Promise.all([refreshRuns(), runPreview(ruleId)]);
                 onRulesUpdated?.();
             } catch (e: any) {
@@ -354,16 +375,24 @@ export const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'succ
                     addToast((preflight.errors || [t('maintenance.errors.preflight')]).join(' '), 'error');
                     return;
                 }
-                let confirmMessage = useCollectionPin
-                    ? t('maintenance.confirmations.destructiveWithCollection')
-                    : t('maintenance.confirmations.destructive');
+                let confirmMessage = queueDelayedDelete
+                    ? t('maintenance.confirmations.queueDelayed', { days: delayDays })
+                    : bypassGrace
+                        ? t('maintenance.confirmations.purgeRemaining')
+                        : (useCollectionPin
+                            ? t('maintenance.confirmations.destructiveWithCollection')
+                            : t('maintenance.confirmations.destructive'));
                 if (Array.isArray(preflight.warnings) && preflight.warnings.length) {
                     confirmMessage += `\n\n${t('maintenance.summaries.warnings')}\n- ${preflight.warnings.join('\n- ')}`;
                 }
                 const preview = preflight.preview;
                 if (preview) {
-                    confirmMessage += `\n\n${t('maintenance.summaries.wouldProcess', { count: preview.wouldProcessCount, mapped: preview.actionableCount, unmapped: preview.unactionableCount })}`;
-                    if (preview.graceRemainingDays > 0) {
+                    const remaining = Number(preview.remainingCount ?? preview.wouldProcessCount ?? 0);
+                    const processCount = (queueDelayedDelete || bypassGrace)
+                        ? Math.min(Number(preview.maxActionsPerRun || remaining), remaining)
+                        : preview.wouldProcessCount;
+                    confirmMessage += `\n\n${t('maintenance.summaries.wouldProcess', { count: processCount, mapped: preview.actionableCount, unmapped: preview.unactionableCount })}`;
+                    if (!queueDelayedDelete && !bypassGrace && preview.graceRemainingDays > 0) {
                         confirmMessage += ` ${t('maintenance.summaries.stillInGrace', { count: preview.inGraceCount, days: preview.graceRemainingDays })}`;
                     }
                 }
@@ -415,6 +444,35 @@ export const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'succ
             addToast(e.message || t('maintenance.errors.toggleFilter'), 'error');
         } finally {
             setTogglingRuleId(null);
+        }
+    };
+
+    const togglePreviewExclusion = async (item: any) => {
+        const key = String(item?.ratingKey || '').trim();
+        if (!key || excludingKey) return;
+        const nextExcluded = !item.excluded;
+        setExcludingKey(key);
+        try {
+            await apiFetch('/api/maintenance/exclusions/rating-key', {
+                method: 'POST',
+                body: JSON.stringify({ ratingKey: key, exclude: nextExcluded }),
+            });
+            setPreviewData((prev) => prev.map((preview: any) => {
+                if (preview.ruleId !== selectedRuleId) return preview;
+                const sample = (preview.sample || []).map((row: any) => (
+                    String(row.ratingKey) === key ? { ...row, excluded: nextExcluded, eligible: nextExcluded ? false : row.eligible } : row
+                ));
+                const excludedCount = Math.max(0, Number(preview.excludedCount || 0) + (nextExcluded ? 1 : -1));
+                const remainingCount = Math.max(0, Number(preview.remainingCount ?? ((preview.totalMatches || 0) - (preview.excludedCount || 0))) + (nextExcluded ? -1 : 1));
+                return { ...preview, sample, excludedCount, remainingCount };
+            }));
+            addToast(nextExcluded
+                ? t('maintenance.exclusions.excludedTitle', { title: item.title })
+                : t('maintenance.exclusions.removed', { title: item.title }));
+        } catch (e: any) {
+            addToast(e.message || t('maintenance.errors.toggleExclude'), 'error');
+        } finally {
+            setExcludingKey(null);
         }
     };
 
@@ -599,26 +657,57 @@ export const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'succ
             )}
 
             <div className="glass-card-sm p-4">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+                    <div>
                     <h4 className="font-bold text-text">{t('maintenance.labels.matchedTitles')}</h4>
+                        <p className="text-[11px] text-muted mt-1 max-w-2xl">{t('maintenance.rules.previewHint')}</p>
+                    </div>
                     <div className="text-right">
                         <span className="text-xs px-2 py-1 rounded bg-plex/20 text-plex font-semibold">{t('maintenance.summaries.matched', { count: selectedPreview?.totalMatches || 0 })}</span>
-                                        {selectedPreview && (
+                        {selectedPreview && (
                             <p className="text-[11px] text-muted mt-1">
+                                {t('maintenance.summaries.remainingExcluded', {
+                                    remaining: selectedPreview.remainingCount ?? Math.max(0, (selectedPreview.totalMatches || 0) - (selectedPreview.excludedCount || 0)),
+                                    excluded: selectedPreview.excludedCount || 0,
+                                })}
                                 {(selectedPreview.graceRemainingDays ?? 0) > 0
-                                    ? t('maintenance.summaries.allInGrace', { count: selectedPreview.graceRemainingDays })
-                                    : `${selectedPreview.eligibleCount ?? 0} ${t('maintenance.labels.eligible').toLowerCase()} · ${selectedPreview.actionableCount ?? 0} ${t('maintenance.labels.mapped').toLowerCase()} in Sonarr/Radarr · ${t('maintenance.summaries.upToPerRun', { count: selectedPreview.wouldProcessCount ?? 0 })}${(selectedPreview.ambiguousCount ?? 0) > 0 ? ` · ${selectedPreview.ambiguousCount} ${t('maintenance.labels.ambiguous').toLowerCase()}` : ''}`}
+                                    ? ` · ${t('maintenance.summaries.allInGrace', { count: selectedPreview.graceRemainingDays })}`
+                                    : ` · ${selectedPreview.eligibleCount ?? 0} ${t('maintenance.labels.eligible').toLowerCase()} · ${selectedPreview.actionableCount ?? 0} ${t('maintenance.labels.mapped').toLowerCase()}`}
                             </p>
                         )}
                     </div>
                 </div>
+                {selectedRule && selectedPreview ? (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                        <button
+                            type="button"
+                            className="px-2 py-1 text-[11px] bg-red-500/20 text-red-300 rounded-md font-semibold border border-red-500/30 disabled:opacity-50"
+                            disabled={runningRuleId === selectedRule.id || !(selectedPreview.remainingCount ?? selectedPreview.totalMatches)}
+                            onClick={(e) => runRule(selectedRule.id, false, e, { bypassGrace: true })}
+                        >
+                            {t('maintenance.actions.purgeRemaining')}
+                        </button>
+                        <button
+                            type="button"
+                            className="px-2 py-1 text-[11px] bg-plex/20 text-plex rounded-md font-semibold border border-plex/30 disabled:opacity-50"
+                            disabled={runningRuleId === selectedRule.id || !(selectedPreview.remainingCount ?? selectedPreview.totalMatches)}
+                            onClick={(e) => runRule(selectedRule.id, false, e, {
+                                queueDelayedDelete: true,
+                                createAndPinCollection: true,
+                                delayDays: Math.max(1, Number(selectedRule.graceDays || 7)),
+                            })}
+                        >
+                            {t('maintenance.actions.queueDelayed', { days: Math.max(1, Number(selectedRule.graceDays || 7)) })}
+                        </button>
+                    </div>
+                ) : null}
                 {!selectedRuleId ? (
                     <p className="text-sm text-muted">{t('maintenance.rules.selectFilter')}</p>
                 ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-8 gap-3 max-h-[640px] overflow-y-auto custom-scrollbar pr-1">
                         {(selectedPreview?.sample || []).map((item: any) => (
-                            <div key={`${selectedRuleId}-${item.ratingKey}`} className="bg-background/30 border border-white/5 rounded-lg overflow-hidden">
-                                <div className="aspect-[2/3] bg-black/40">
+                            <div key={`${selectedRuleId}-${item.ratingKey}`} className={`bg-background/30 border rounded-lg overflow-hidden ${item.excluded ? 'border-red-500/50 opacity-70' : 'border-white/5'}`}>
+                                <div className="aspect-[2/3] bg-black/40 relative">
                                     {item.thumb ? (
                                         <img
                                             src={`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=240&height=360`}
@@ -629,30 +718,46 @@ export const LibraryMaintenancePanel: React.FC<{ addToast: (m: string, t?: 'succ
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-xs text-muted">{t('maintenance.labels.noPoster')}</div>
                                     )}
+                                    {item.excluded ? (
+                                        <span className="absolute top-2 right-2 text-[10px] px-1.5 py-0.5 rounded bg-red-600/95 text-white font-bold">
+                                            {t('maintenance.exclusions.excluded')}
+                                        </span>
+                                    ) : null}
                                 </div>
                                 <div className="p-2">
                                     <p className="text-xs text-text line-clamp-2">{item.title}</p>
                                     <p className="text-[11px] text-muted mt-1">{item.libraryTitle || item.mediaType}</p>
                                     <div className="flex flex-wrap gap-1 mt-1">
-                                        {item.eligible === false && (
+                                        {item.excluded ? null : item.eligible === false ? (
                                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300">{t('maintenance.labels.grace')}</span>
-                                        )}
+                                        ) : null}
                                         {item.arrResolvable ? (
                                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/15 text-green-300">
                                                 {item.arrInstanceName || item.arrType || 'ARR'}
                                             </span>
-                                        ) : item.eligible !== false ? (
+                                        ) : item.excluded || item.eligible === false ? null : (
                                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-300">{t('maintenance.labels.unmapped')}</span>
-                                        ) : null}
+                                        )}
                                         {item.arrAmbiguous && (
                                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300" title={item.arrWarning || t('maintenance.labels.instanceMappingHint')}>
                                                 {t('maintenance.labels.ambiguous')}
                                             </span>
                                         )}
                                     </div>
+                                    <button
+                                        type="button"
+                                        className={`mt-2 text-[10px] font-semibold ${item.excluded ? 'text-muted hover:text-text' : 'text-plex hover:text-plex-hover'} disabled:opacity-50`}
+                                        disabled={excludingKey === String(item.ratingKey)}
+                                        onClick={() => togglePreviewExclusion(item)}
+                                    >
+                                        {item.excluded ? t('maintenance.exclusions.unexclude') : t('maintenance.exclusions.exclude')}
+                                    </button>
                                 </div>
                             </div>
                         ))}
+                        {!(selectedPreview?.sample || []).length && (
+                            <p className="text-sm text-muted col-span-full">{t('maintenance.candidates.noResults')}</p>
+                        )}
                     </div>
                 )}
             </div>

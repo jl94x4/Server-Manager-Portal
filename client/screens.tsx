@@ -10946,6 +10946,7 @@ export const MaintenanceDashboard: React.FC = () => {
                 const sample = Array.isArray(preview?.sample) ? preview.sample : [];
                 let ruleReclaim = 0;
                 sample.forEach((item: any) => {
+                    if (item?.excluded) return;
                     const ratingKey = String(item?.ratingKey || '');
                     if (ratingKey && !uniqueItems.has(ratingKey)) uniqueItems.set(ratingKey, item);
                     const size = Number(item?.sizeGB || 0);
@@ -10958,7 +10959,7 @@ export const MaintenanceDashboard: React.FC = () => {
                 return {
                     ruleId: String(preview?.ruleId || ''),
                     ruleName: preview?.ruleName || t('maintenance.labels.unnamedRule'),
-                    totalMatches: Number(preview?.totalMatches || sample.length || 0),
+                    totalMatches: Number(preview?.remainingCount ?? preview?.totalMatches ?? sample.length ?? 0),
                     reclaimGB: ruleReclaim
                 };
             });
@@ -11194,6 +11195,7 @@ export const MaintenanceDashboard: React.FC = () => {
         const nowItems: any[] = [];
         const byDay = new Map<string, any[]>();
         filteredCandidates.forEach((item: any) => {
+            if (item?.excluded) return;
             if (daysUntilEligible <= 0) {
                 nowItems.push({ ...item, daysUntilEligible: 0, eligibleDate: null });
                 return;
@@ -11461,13 +11463,18 @@ export const MaintenanceDashboard: React.FC = () => {
                                         {isLoadingCandidates ? <p className="text-sm text-muted">{t('maintenance.candidates.loading')}</p> : (
                                             <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-2 md:gap-3 max-h-[620px] overflow-y-auto custom-scrollbar pr-1">
                                                 {filteredCandidates.map((item: any) => (
-                                                    <div key={`candidate-${item._ruleId || candidateRuleId}-${item.ratingKey}`} className="bg-background/30 border border-white/5 rounded-lg overflow-hidden">
-                                                        <div className="aspect-[2/3] bg-black/40">
+                                                    <div key={`candidate-${item._ruleId || candidateRuleId}-${item.ratingKey}`} className={`bg-background/30 border rounded-lg overflow-hidden ${item.excluded ? 'border-red-500/50 opacity-70' : 'border-white/5'}`}>
+                                                        <div className="aspect-[2/3] bg-black/40 relative">
                                                             {item.thumb ? (
                                                                 <img src={portalUrl(`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=220&height=330`)} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
                                                             ) : (
                                                                 <div className="w-full h-full flex items-center justify-center text-xs text-muted">{t('maintenance.labels.noPoster')}</div>
                                                             )}
+                                                            {item.excluded ? (
+                                                                <span className="absolute top-2 right-2 text-[10px] px-1.5 py-0.5 rounded bg-red-600/95 text-white font-bold">
+                                                                    {t('maintenance.exclusions.excluded')}
+                                                                </span>
+                                                            ) : null}
                                                         </div>
                                                         <div className="p-2">
                                                             <p className="text-xs text-text line-clamp-2">{item.title}</p>
@@ -11477,7 +11484,7 @@ export const MaintenanceDashboard: React.FC = () => {
                                                                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/15 text-green-300">
                                                                         {item.arrInstanceName || item.arrType || 'ARR'}
                                                                     </span>
-                                                                ) : (
+                                                                ) : item.excluded ? null : (
                                                                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-300">{t('maintenance.labels.unmapped')}</span>
                                                                 )}
                                                                 {item.arrAmbiguous && (
