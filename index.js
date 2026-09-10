@@ -21767,7 +21767,9 @@ const runSeerrAvailableNotify = async (reason = 'scheduled') => {
         }
         const summary = await syncSeerrRequestAvailableNotifications({
             config,
-            listRequests: (cfg, opts) => requestAppService.listRequests(cfg, opts),
+            listRequests: (cfg, opts) => requestAppService.listRequests(cfg, { ...opts, enrich: false }),
+            getRequestCounts: (cfg) => requestAppService.getRequestCounts(cfg, { includeFailed: false }),
+            getRequest: (cfg, id) => requestAppService.getRequest(cfg, id),
             loadUsers: () => loadFile(USERS_PATH, []),
             sendEmail,
             hasEmailBeenSent,
@@ -21803,7 +21805,9 @@ const runSeerrPendingNotify = async (reason = 'scheduled') => {
         }
         const summary = await syncSeerrPendingRequestNotifications({
             config,
-            listRequests: (cfg, opts) => requestAppService.listRequests(cfg, opts),
+            listRequests: (cfg, opts) => requestAppService.listRequests(cfg, { ...opts, enrich: false }),
+            getRequestCounts: (cfg) => requestAppService.getRequestCounts(cfg, { includeFailed: false }),
+            getRequest: (cfg, id) => requestAppService.getRequest(cfg, id),
             loadUsers: () => loadFile(USERS_PATH, []),
             sendGotifyAlert,
             alertRuleEnabled,
