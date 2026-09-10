@@ -291,12 +291,9 @@ export const TopWatchedGridSkeleton: React.FC = () => (
             <SkeletonBlock className="h-6 w-40 rounded mb-2" />
             <SkeletonBlock className="h-4 w-56 rounded" />
         </div>
-        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 md:gap-3.5 flex-1 content-start" aria-hidden="true">
-            {Array.from({ length: 18 }, (_, i) => (
-                <div key={i} className="flex flex-col gap-1.5">
-                    <SkeletonBlock className="aspect-[2/3] w-full rounded-lg" />
-                    <SkeletonBlock className="h-2.5 w-full rounded" />
-                </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1 content-start" aria-hidden="true">
+            {Array.from({ length: 4 }, (_, i) => (
+                <SkeletonBlock key={i} className="min-h-[8.5rem] w-full rounded-2xl" />
             ))}
         </div>
     </div>

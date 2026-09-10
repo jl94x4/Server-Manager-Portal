@@ -30,6 +30,7 @@ import {
     trophyRarityClass,
 } from './helpers';
 import { DossierArena } from './DossierArena';
+import { formatWatchHistoryWhen, WatchHistoryMediaCard } from '../shared/WatchHistoryMediaCard';
 
 const TASTE_GLOW: Record<string, string> = {
     sky: 'bg-[radial-gradient(circle_at_100%_0%,rgb(56_189_248_/_0.28),transparent_72%)]',
@@ -115,19 +116,6 @@ const TasteGenreRow: React.FC<{
     );
 };
 
-const formatHistoryWhen = (
-    viewedAt: unknown,
-    t: (key: string, vars?: Record<string, string | number>) => string,
-): string => {
-    const ts = Number(viewedAt);
-    if (!Number.isFinite(ts) || ts <= 0) return '';
-    const date = new Date(ts * 1000);
-    if (Number.isNaN(date.getTime())) return '';
-    const relative = relativeFromDays(daysSinceDate(date.toISOString()), t);
-    if (relative) return relative;
-    return formatUkDate(date.toISOString()) || '';
-};
-
 const ProfileAboutTile: React.FC<{
     icon: React.ReactNode;
     label: string;
@@ -200,69 +188,17 @@ const ProfileLastWatchedCard: React.FC<{
     index: number;
     onNavigate: (route: string, options?: { path?: string }) => void;
     t: (key: string, vars?: Record<string, string | number>) => string;
-}> = ({ item, index, onNavigate, t }) => {
+}> = ({ item, onNavigate, t }) => {
     const discoveryPath = titleDiscoveryPath(item);
-    const poster = item.thumbUrl ? resolvePortalAssetUrl(item.thumbUrl) : '';
-    const when = formatHistoryWhen(item.viewedAt, t);
     const isMusic = String(item.type || '').toLowerCase() === 'track';
-    const actionLabel = isMusic ? t('profilePage.listenedLabel') : t('profilePage.watchedLabel');
-    const body = (
-        <>
-            {poster ? (
-                <img
-                    src={poster}
-                    alt=""
-                    className="absolute inset-0 h-full w-full object-cover opacity-45 transition-transform duration-500 group-hover:scale-105"
-                />
-            ) : (
-                <div className="absolute inset-0 bg-gradient-to-br from-plex/20 via-black/50 to-black/80" />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/25" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_100%_0%,rgb(var(--color-plex)_/_0.16),transparent_55%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-            <div className="relative flex min-h-[8.5rem] items-end gap-3 p-3">
-                <div className={`relative shrink-0 overflow-hidden rounded-xl border border-white/15 bg-black/40 shadow-[0_12px_30px_rgba(0,0,0,0.45)] ${isMusic ? 'h-14 w-14' : 'aspect-[2/3] w-[4.5rem]'}`}>
-                    {poster ? (
-                        <img src={poster} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                        <span className="flex h-full w-full items-center justify-center text-plex">
-                            {isMusic ? <Music className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-                        </span>
-                    )}
-                </div>
-                <div className="min-w-0 flex-1 pb-0.5">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-plex/90">{actionLabel}</p>
-                    <p className="mt-1 truncate text-base font-black text-white">{item.title}</p>
-                    {item.episodeTitle ? (
-                        <p className="mt-0.5 truncate text-xs font-medium text-white/70">{item.episodeTitle}</p>
-                    ) : null}
-                    {when ? (
-                        <p className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-white/55">
-                            <Clock className="h-3 w-3 text-plex/80" />
-                            {when}
-                        </p>
-                    ) : null}
-                </div>
-            </div>
-        </>
-    );
-    const className = 'group relative isolate w-full overflow-hidden rounded-2xl border border-white/10 bg-black/35 text-left shadow-lg transition-all hover:-translate-y-0.5 hover:border-plex/35 hover:shadow-[0_18px_40px_rgba(0,0,0,0.42)]';
-    if (discoveryPath) {
-        return (
-            <button
-                key={`${item.title}-${item.viewedAt || index}`}
-                type="button"
-                title={item.title}
-                onClick={() => onNavigate('discovery', { path: discoveryPath })}
-                className={className}
-            >
-                {body}
-            </button>
-        );
-    }
     return (
-        <div key={`${item.title}-${item.viewedAt || index}`} className={className} title={item.title}>
-            {body}
-        </div>
+        <WatchHistoryMediaCard
+            item={item}
+            actionLabel={isMusic ? t('profilePage.listenedLabel') : t('profilePage.watchedLabel')}
+            subtitle={item.episodeTitle || null}
+            when={formatWatchHistoryWhen(item.viewedAt, t)}
+            onOpen={discoveryPath ? () => onNavigate('discovery', { path: discoveryPath }) : undefined}
+        />
     );
 };
 

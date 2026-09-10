@@ -16,6 +16,8 @@ import { LoginBrandMark } from './shared/LoginBrandMark';
 import { formatDate, getDaysUntilExpiry, getAccessProgressPct, addMonths, addYears, formatTime, formatEventName, formatDateTime, hexToRgb, formatSizeCeil, formatStreamingHour, formatPortalDateTime, formatPortalDateTimeCompact } from './shared/format';
 import { CustomSelect, ConfirmModal, StyledCheckbox, ScrollReveal } from './shared/ui';
 import { PeriodDropdown } from './shared/PeriodDropdown';
+import { formatWatchHistoryWhen, WatchHistoryMediaCard } from './shared/WatchHistoryMediaCard';
+import { titleDiscoveryPath } from './profile/helpers';
 import { ActivityHeatmap } from './shared/ActivityHeatmap';
 import { Loader, Toast, ToastContainer, pushToast } from './shared/toast';
 import { usePoll } from './shared/usePoll';
@@ -7772,10 +7774,7 @@ export const UserDashboard: React.FC<{
     const [layoutEditorOpen, setLayoutEditorOpen] = useState(false);
     const [layoutSaving, setLayoutSaving] = useState(false);
     const [inlineWidgetEditing, setInlineWidgetEditing] = useState(false);
-    const [isDesktopMostWatched, setIsDesktopMostWatched] = useState(
-        () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
-    );
-    const topWatchedPageSize = (dashboardLayoutDraft.topWatchedRows || DEFAULT_DASHBOARD_LAYOUT.topWatchedRows || 2) * 6;
+    const topWatchedPageSize = (dashboardLayoutDraft.topWatchedRows || DEFAULT_DASHBOARD_LAYOUT.topWatchedRows || 2) * 2;
     const [recentHistoryPage, setRecentHistoryPage] = useState(0);
     const recentHistoryPageSize = (dashboardLayoutDraft.recentHistoryRows || DEFAULT_DASHBOARD_LAYOUT.recentHistoryRows || 6);
     const [analyticsDays, setAnalyticsDaysState] = useState<number | 'all'>(() => readPersistedAnalyticsDays());
@@ -8205,13 +8204,6 @@ export const UserDashboard: React.FC<{
             document.removeEventListener('visibilitychange', onVisibility);
         };
     }, [fetchAnalytics]);
-
-    useEffect(() => {
-        const mq = window.matchMedia('(min-width: 1024px)');
-        const onChange = (e: MediaQueryListEvent) => setIsDesktopMostWatched(e.matches);
-        mq.addEventListener('change', onChange);
-        return () => mq.removeEventListener('change', onChange);
-    }, []);
 
     useEffect(() => {
         if (!analytics?.topWatched?.length) return;
@@ -8982,44 +8974,23 @@ export const UserDashboard: React.FC<{
                                     />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 md:gap-3.5 flex-1 min-h-0 content-start">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1 min-h-0 content-start">
                                 {analytics.topWatched.slice(topContentPage * topWatchedPageSize, (topContentPage + 1) * topWatchedPageSize).map((item: any) => {
-                                    const CardTag: any = item.plexUrl ? 'a' : 'div';
-                                    const cardProps = item.plexUrl
-                                        ? { href: item.plexUrl, target: '_blank', rel: 'noreferrer' }
-                                        : {};
+                                    const isMusic = String(item.type || '').toLowerCase() === 'track';
+                                    const discoveryPath = titleDiscoveryPath(item);
+                                    const openDiscovery = discoveryPath && onNavigate
+                                        ? () => onNavigate('discovery', { path: discoveryPath })
+                                        : undefined;
                                     return (
-                                    <CardTag key={item.key || item.title} {...cardProps} className="group flex flex-col gap-1.5">
-                                        <div className="relative rounded-lg overflow-hidden aspect-[2/3] bg-background border border-white/5 transition-[box-shadow,border-color] duration-300 group-hover:shadow-xl group-hover:border-plex/50">
-                                            {item.thumbUrl ? (
-                                                <>
-                                                    <img
-                                                        src={sizedPlexImageUrl(item.thumbUrl)}
-                                                        alt={item.title}
-                                                        width={400}
-                                                        height={600}
-                                                        decoding="async"
-                                                        className="w-full h-full object-cover transition-[transform,opacity] duration-300 group-hover:scale-105 group-hover:opacity-80"
-                                                        onError={(e) => {
-                                                            e.currentTarget.style.display = 'none';
-                                                            e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                                                        }}
-                                                    />
-                                                    <div className="hidden absolute inset-0 w-full h-full flex items-center justify-center p-4 text-center bg-white/5">
-                                                        <span className="text-xs font-bold text-muted line-clamp-3">{item.title}</span>
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center p-4 text-center bg-white/5">
-                                                    <span className="text-xs font-bold text-muted line-clamp-3">{item.title}</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="flex flex-col px-0.5">
-                                            <p className="text-xs sm:text-sm font-bold text-text truncate group-hover:text-plex transition-colors">{item.title}</p>
-                                            <p className="text-[10px] sm:text-xs text-plex font-black mt-0.5 uppercase tracking-wider">{item.plays} plays</p>
-                                        </div>
-                                    </CardTag>
+                                        <WatchHistoryMediaCard
+                                            key={item.key || item.title}
+                                            item={item}
+                                            actionLabel={isMusic ? t('profilePage.listenedLabel') : t('profilePage.watchedLabel')}
+                                            subtitle={item.plays > 0 ? t('profilePage.plays', { count: item.plays }) : (item.episodeTitle || null)}
+                                            when={formatWatchHistoryWhen(item.lastViewedAt || item.viewedAt, t)}
+                                            onOpen={openDiscovery}
+                                            href={!openDiscovery ? (item.plexUrl || null) : null}
+                                        />
                                     );
                                 })}
                             </div>
