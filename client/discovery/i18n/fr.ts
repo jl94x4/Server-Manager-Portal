@@ -2387,6 +2387,8 @@ Object.assign(fr, { profilePage: {
     firstBloods_plural: '{count} premiers déblocages',
     lastWatched: 'Derniers visionnages',
     lastWatchedHint: 'Titres les plus récents de l’historique.',
+    plays: '{count} lecture',
+    plays_plural: '{count} lectures',
     watchingNow: 'Regarde {title}',
     viewAsUser: 'Voir en tant qu’utilisateur',
     hours: 'Heures',

@@ -538,6 +538,8 @@ Object.assign(nl, { profilePage: {
     firstBloods_plural: '{count} eerste ontgrendelingen',
     lastWatched: 'Laatst bekeken',
     lastWatchedHint: 'Meest recente titels uit de kijkgeschiedenis.',
+    plays: '{count} weergave',
+    plays_plural: '{count} weergaven',
     watchingNow: 'Kijkt naar {title}',
     viewAsUser: 'Bekijken als gebruiker',
     hours: 'Uren',

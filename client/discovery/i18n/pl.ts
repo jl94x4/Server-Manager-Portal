@@ -538,6 +538,8 @@ Object.assign(pl, { profilePage: {
     firstBloods_plural: '{count} pierwszych odblokowań',
     lastWatched: 'Ostatnio oglądane',
     lastWatchedHint: 'Najnowsze tytuły z historii oglądania.',
+    plays: '{count} odtworzenie',
+    plays_plural: '{count} odtworzeń',
     watchingNow: 'Ogląda {title}',
     viewAsUser: 'Zobacz jako użytkownik',
     hours: 'Godziny',

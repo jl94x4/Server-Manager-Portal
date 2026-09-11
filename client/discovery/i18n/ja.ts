@@ -538,6 +538,8 @@ Object.assign(ja, { profilePage: {
     firstBloods_plural: '最初の解除 {count} 件',
     lastWatched: '最近視聴',
     lastWatchedHint: '視聴履歴の最新タイトル。',
+    plays: '{count} 回再生',
+    plays_plural: '{count} 回再生',
     watchingNow: '{title} を視聴中',
     viewAsUser: 'このユーザーとして表示',
     hours: '時間',

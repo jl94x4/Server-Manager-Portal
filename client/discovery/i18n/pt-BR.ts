@@ -539,6 +539,8 @@ Object.assign(ptBR, { profilePage: {
     firstBloods_plural: '{count} primeiros desbloqueios',
     lastWatched: 'Assistidos recentemente',
     lastWatchedHint: 'Títulos mais recentes do histórico.',
+    plays: '{count} reprodução',
+    plays_plural: '{count} reproduções',
     watchingNow: 'Assistindo {title}',
     viewAsUser: 'Ver como usuário',
     hours: 'Horas',

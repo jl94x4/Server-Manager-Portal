@@ -200,6 +200,8 @@ export const en = {
         lastWatchedHint: 'Most recent titles from watch history.',
         watchedLabel: 'Watched',
         listenedLabel: 'Listened',
+        plays: '{count} play',
+        plays_plural: '{count} plays',
         libraryAccess: 'Library access',
         watchingNow: 'Watching {title}',
         viewAsUser: 'View as user',
