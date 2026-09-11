@@ -381,6 +381,21 @@ _AUDIO_RE = [(name, key, weight, _compile(rx)) for name, key, weight, rx in AUDI
 _VIDEO_RE = [(name, key, weight, _compile(rx)) for name, key, weight, rx in VIDEO_FORMAT_VARIANTS]
 
 
+def known_overlay_stamp_label_names() -> set[str]:
+    """Plex Labels the Overlays section can stamp (Layer families + Overlay marker)."""
+    names = {str(name).strip() for name, *_ in RESOLUTION_VARIANTS if str(name).strip()}
+    names.update(str(name).strip() for name, *_ in EDITION_VARIANTS if str(name).strip())
+    names.update(str(name).strip() for name, *_ in AUDIO_CODEC_VARIANTS if str(name).strip())
+    names.update(str(name).strip() for name, *_ in VIDEO_FORMAT_VARIANTS if str(name).strip())
+    names.update(str(name).strip() for name, *_ in STATUS_VARIANTS if str(name).strip())
+    names.update(str(name).strip() for name, *_ in STREAMING_VARIANTS if str(name).strip())
+    names.update(str(name).strip() for name, *_ in ASPECT_VARIANTS if str(name).strip())
+    names.update(str(name).strip() for name, *_ in RIBBON_VARIANTS if str(name).strip())
+    names.add("Overlay")
+    names.add("overlay")
+    return names
+
+
 def _edition_regexes(key: str, search: str) -> list[re.Pattern]:
     out: list[re.Pattern] = []
     special = EDITION_SPECIAL_REGEX.get(key)

@@ -128,6 +128,25 @@ def _legacy_candidate_bases(paths: dict, rating_key: str) -> list[Path]:
     ]
 
 
+def _item_overlay_tags_present(show) -> bool:
+    """Unknown item → treat tags as present so we never overwrite a trusted base."""
+    if show is None:
+        return True
+    try:
+        from core import _item_has_overlay_tracking_labels
+
+        return _item_has_overlay_tracking_labels(show)
+    except Exception:
+        return True
+
+
+def _save_base_poster(dest: Path, image: Image.Image, progress: ProgressFn | None, message: str) -> Path:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    image.convert("RGBA").save(dest)
+    _progress(progress, message)
+    return dest
+
+
 def ensure_base_poster(
     paths: dict,
     rating_key: str,
@@ -137,10 +156,54 @@ def ensure_base_poster(
     current_poster: Image.Image | None = None,
     progress: ProgressFn | None = None,
 ) -> Path:
-    """Ensure backups/base/{ratingKey}/show.png exists (never overwrite)."""
+    """Ensure backups/base/{ratingKey}/show.png exists.
+
+    Keep an existing base while Overlay / Layer stamp tags are still on the item.
+    If those tags were removed, ignore leftover backups and adopt current Plex art.
+    """
     dest = base_poster_path(paths, rating_key)
-    if dest.exists():
+    tags_present = _item_overlay_tags_present(show)
+
+    def _from_current() -> Path | None:
+        if current_poster is not None:
+            return _save_base_poster(
+                dest,
+                current_poster,
+                progress,
+                f"Saved clean base poster: {rating_key}",
+            )
+        if plex is not None and show is not None:
+            from core import _download_poster
+
+            poster = _download_poster(plex, getattr(show, "thumb", None) or "")
+            if poster is None:
+                return None
+            return _save_base_poster(
+                dest,
+                poster,
+                progress,
+                f"Saved clean base poster: {getattr(show, 'title', rating_key)}",
+            )
+        return None
+
+    if dest.exists() and tags_present:
         return dest
+
+    if not tags_present:
+        had_backup = dest.exists()
+        saved = _from_current()
+        if saved is not None:
+            if had_backup:
+                _progress(
+                    progress,
+                    f"Overlay labels gone — using current Plex poster (ignoring backup): {rating_key}",
+                )
+            return saved
+        if dest.exists():
+            return dest
+        raise RuntimeError(
+            f"Missing current Plex poster for {rating_key} after overlay labels were removed."
+        )
 
     for candidate in _legacy_candidate_bases(paths, rating_key):
         if candidate.name == "poster.png":
@@ -160,21 +223,11 @@ def ensure_base_poster(
 
     # Prefer a download only when no banner layers claim the poster is already stamped.
     if not has_layers:
-        if current_poster is not None:
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            current_poster.convert("RGBA").save(dest)
-            _progress(progress, f"Saved clean base poster: {rating_key}")
-            return dest
-
+        saved = _from_current()
+        if saved is not None:
+            return saved
         if plex is not None and show is not None:
-            from core import _download_poster
-            poster = _download_poster(plex, getattr(show, "thumb", None) or "")
-            if poster is None:
-                raise RuntimeError(f"Failed to download poster for base backup ({rating_key})")
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            poster.convert("RGBA").save(dest)
-            _progress(progress, f"Saved clean base poster: {getattr(show, 'title', rating_key)}")
-            return dest
+            raise RuntimeError(f"Failed to download poster for base backup ({rating_key})")
 
     raise RuntimeError(
         f"Missing clean base poster for {rating_key}"
@@ -611,6 +664,16 @@ def remove_banner_layer(
 
     layers = active_layers(load_registry(paths, key))
     base = base_poster_path(paths, key)
+
+    from core import _item_has_overlay_tracking_labels, _sync_banner_overlay_label, _upload_poster_resilient
+
+    if not _item_has_overlay_tracking_labels(show):
+        _progress(
+            progress,
+            f"Overlay labels gone — leaving current Plex poster (not restoring backup): {getattr(show, 'title', key)}",
+        )
+        return True
+
     if layers:
         if not base.exists():
             ensure_base_poster(paths, key, show=show, progress=progress)
@@ -624,8 +687,6 @@ def remove_banner_layer(
             config=config,
         )
         return True
-
-    from core import _sync_banner_overlay_label, _upload_poster_resilient
 
     if base.exists():
         try:

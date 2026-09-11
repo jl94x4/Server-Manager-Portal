@@ -5,7 +5,7 @@ export type PosterSetsConfig = {
     tv_library: string[];
     movie_library: string[];
     mediux_filters: string[];
-    /** Clear Plex Overlay label after upload (default true). */
+    /** Clear Overlays stamps (4K, HDR, banners, Overlay label, tracking) after upload (default true). */
     reset_overlay?: boolean;
     /** Prefer this provider when MediUX and ThePosterDB both return the same set/title. */
     dupePreference?: 'posterdb' | 'mediux';

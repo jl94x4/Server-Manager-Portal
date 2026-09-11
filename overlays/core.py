@@ -293,6 +293,50 @@ def _has_kometa_overlay_label(item) -> bool:
     return False
 
 
+def _item_plex_label_tags(item) -> set[str]:
+    """Lowercased Plex Label tags currently on the item."""
+    tags: set[str] = set()
+    if item is None:
+        return tags
+    try:
+        for label in getattr(item, "labels", None) or []:
+            tag = str(getattr(label, "tag", None) or label).strip()
+            if tag:
+                tags.add(tag.casefold())
+    except Exception:
+        pass
+    return tags
+
+
+def _item_has_overlay_tracking_labels(item, extra_names=None) -> bool:
+    """True when Plex still has Overlay or a Layer stamp tag (4K-HDR, Atmos, …).
+
+    Overlay-run backups are only trusted while these tags remain. If Poster Sets
+    or a user stripped them, current Plex art is the original — do not restore
+    an old backup over it.
+    """
+    tags = _item_plex_label_tags(item)
+    if "overlay" in tags:
+        return True
+    for name in extra_names or []:
+        folded = str(name or "").strip().casefold()
+        if folded and folded in tags:
+            return True
+    try:
+        from kometa_detect import known_overlay_stamp_label_names
+
+        known = {
+            str(name).strip().casefold()
+            for name in known_overlay_stamp_label_names()
+            if str(name).strip()
+        }
+        if tags & known:
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def _add_plex_overlay_label(item) -> bool:
     """Add Kometa-compatible Plex Label \"Overlay\" (idempotent)."""
     try:

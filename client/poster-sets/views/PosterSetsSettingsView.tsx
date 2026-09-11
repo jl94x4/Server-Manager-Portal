@@ -1656,8 +1656,8 @@ export const PosterSetsSettingsView: React.FC = () => {
                     </div>
                     <div className="rounded-xl border border-white/10 bg-black/20 px-4">
                         <SettingsToggleRow
-                            title="Clear Plex Overlay label after upload"
-                            description="Default on. Removes the Plex Overlay label so the next Layer run can reapply overlays on the new artwork."
+                            title="Clear overlays after upload"
+                            description="Default on. Removes every Overlays stamp the Overlays page can apply — 4K/HDR, Atmos, editions, banners, and the Overlay label — so the new set art stays clean. The next Overlays run can restamp onto this artwork."
                             checked={configDraft.reset_overlay !== false}
                             onChange={(next) => setConfigDraft((prev) => ({ ...prev, reset_overlay: next }))}
                             border={false}

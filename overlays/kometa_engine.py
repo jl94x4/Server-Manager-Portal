@@ -1355,6 +1355,80 @@ def _download_original(plex, item) -> Image.Image | None:
     return _download_poster(plex, getattr(item, "thumb", None) or "")
 
 
+def _should_ignore_overlay_backup(item, extra_labels=None) -> bool:
+    """True when Overlay / Layer stamp tags were removed — current Plex art wins."""
+    from core import _item_has_overlay_tracking_labels
+
+    return not _item_has_overlay_tracking_labels(item, extra_labels)
+
+
+def _write_clean_original(paths: dict, key: str, original: Image.Image) -> Path:
+    """Replace the Layer backup (and leftover banner base) with current clean art."""
+    backup = _backup_file(paths, key)
+    backup.parent.mkdir(parents=True, exist_ok=True)
+    original.save(backup)
+    try:
+        from layer_stack import base_poster_path
+
+        dest = base_poster_path(paths, key)
+        if dest.exists():
+            original.save(dest)
+    except Exception:
+        pass
+    return backup
+
+
+def _load_stamp_original(
+    plex,
+    item,
+    paths: dict,
+    key: str,
+    *,
+    existing: dict | None = None,
+    progress: ProgressFn | None = None,
+    preview_mode: bool = False,
+) -> tuple[Image.Image, Path]:
+    """Clean original for composing. Ignore backups when overlay tags were removed."""
+    backup = _backup_file(paths, key)
+    extra = existing.get("overlayLabels") if isinstance(existing, dict) else None
+    ignore_backup = _should_ignore_overlay_backup(item, extra)
+    title = getattr(item, "title", key)
+
+    if backup.exists() and not ignore_backup:
+        return Image.open(backup).convert("RGBA"), backup
+
+    poster = _download_original(plex, item)
+    if poster is None:
+        raise RuntimeError("failed to download poster")
+    original = poster.convert("RGBA")
+
+    if ignore_backup and backup.exists():
+        _progress(
+            progress,
+            f"Overlay labels gone — using current Plex poster (ignoring backup): {title}",
+        )
+
+    if not backup.exists() and has_overlay_marker(poster) and existing is None and not ignore_backup:
+        ns_backup = Path(paths["backups"]) / str(key) / "show.png"
+        if ns_backup.is_file():
+            original = Image.open(ns_backup).convert("RGBA")
+            _progress(progress, f"Using New Season backup as kometa base: {title}")
+        else:
+            _progress(
+                progress,
+                f"No clean backup for {title} (overlay marker present) — composing onto current poster",
+            )
+
+    if not preview_mode and (not backup.exists() or ignore_backup):
+        _write_clean_original(paths, key, original)
+        if ignore_backup:
+            _progress(progress, f"Replaced overlay backup with current Plex poster: {title}")
+        else:
+            _progress(progress, f"Backed up original: {title}")
+
+    return original, backup
+
+
 def _item_poster_thumb(item) -> str:
     """Plex thumb URL token — changes whenever poster art is replaced."""
     return str(getattr(item, "thumb", None) or "").strip()
@@ -1440,13 +1514,9 @@ def _labels_from_families(families: object) -> list[str]:
 
 def _known_layer_stamp_label_names() -> set[str]:
     """Display names we stamp as Plex Labels (resolution / audio / format + Overlay)."""
-    from kometa_detect import RESOLUTION_VARIANTS, _AUDIO_RE, _VIDEO_RE
+    from kometa_detect import known_overlay_stamp_label_names
 
-    names = {str(name).strip() for name, *_ in RESOLUTION_VARIANTS if str(name).strip()}
-    names.update(str(name).strip() for name, *_ in _AUDIO_RE if str(name).strip())
-    names.update(str(name).strip() for name, *_ in _VIDEO_RE if str(name).strip())
-    names.add("Overlay")
-    return names
+    return known_overlay_stamp_label_names()
 
 
 def _entry_labels_to_clear(entry: dict | None) -> list[str]:
@@ -1648,17 +1718,9 @@ def _restamp_item_winners(
         item = plex.fetchItem(f"/library/metadata/{key}")
     except Exception:
         return None
-    backup = _backup_file(paths, key)
-    if backup.exists():
-        original = Image.open(backup).convert("RGBA")
-    else:
-        poster = _download_original(plex, item)
-        if poster is None:
-            raise RuntimeError("failed to download poster")
-        original = poster.convert("RGBA")
-        backup.parent.mkdir(parents=True, exist_ok=True)
-        if not backup.exists():
-            original.save(backup)
+    original, backup = _load_stamp_original(
+        plex, item, paths, key, existing=entry, progress=progress,
+    )
     result = compose_poster(original, winners, config=config, paths=paths)
     safe = _sanitize(f"{(entry or {}).get('title') or key}_kometa")
     temp = Path(paths["preview"]) / f"temp_{safe}.png"
@@ -1703,7 +1765,7 @@ def _restore_item(plex, paths: dict, key: str, entry: dict, progress: ProgressFn
     """Kometa restore priority: disk backup, else fresh provider poster."""
     import shutil
 
-    from core import _reset_poster, _upload_poster_resilient
+    from core import _item_has_overlay_tracking_labels, _reset_poster, _upload_poster_resilient
 
     try:
         item = plex.fetchItem(f"/library/metadata/{key}")
@@ -1711,6 +1773,24 @@ def _restore_item(plex, paths: dict, key: str, entry: dict, progress: ProgressFn
         # Item gone from Plex — still drop the orphan backup so the UI can clear.
         _clear_backup(paths, key)
         return False
+
+    extra = entry.get("overlayLabels") if isinstance(entry, dict) else None
+    if not _item_has_overlay_tracking_labels(item, extra):
+        title = (entry or {}).get("title") or key
+        _progress(
+            progress,
+            f"Overlay labels gone — leaving current Plex poster (not restoring backup): {title}",
+        )
+        labels = _entry_labels_to_clear(entry)
+        orphan = not bool((entry or {}).get("overlayLabels")) and not bool((entry or {}).get("families"))
+        _clear_plex_labels(
+            item,
+            labels,
+            progress=progress,
+            also_match_known_layer=orphan,
+        )
+        _clear_backup(paths, key)
+        return True
     backup = _backup_file(paths, key)
     ok = False
     if backup.exists():
@@ -2317,6 +2397,10 @@ def run_kometa_parity(plex, config: dict, paths: dict, preview_mode: bool, progr
             poster_replaced = bool(tracked_thumb) and tracked_thumb != current_thumb
             if only_collection_keys:
                 poster_replaced = False
+            extra_labels = (
+                existing.get("overlayLabels") if isinstance(existing, dict) else None
+            )
+            labels_removed = _should_ignore_overlay_backup(item, extra_labels)
             if (
                 existing
                 and not preview_mode
@@ -2324,6 +2408,7 @@ def run_kometa_parity(plex, config: dict, paths: dict, preview_mode: bool, progr
                 and not bool(existing.get("needsRestamp"))
                 and existing.get("signature") == sig
                 and not poster_replaced
+                and not labels_removed
             ):
                 prev_labels = existing.get("overlayLabels") if isinstance(existing.get("overlayLabels"), list) else None
                 updated = dict(existing)
@@ -2355,42 +2440,30 @@ def run_kometa_parity(plex, config: dict, paths: dict, preview_mode: bool, progr
                     progress,
                     f"Restamping {getattr(item, 'title', key)} (poster changed since last stamp)",
                 )
+            elif (
+                existing
+                and not preview_mode
+                and not bool(existing.get("preview_only"))
+                and labels_removed
+            ):
+                _progress(
+                    progress,
+                    f"Restamping {getattr(item, 'title', key)} (overlay labels removed — using current Plex poster)",
+                )
 
             # Preview rows must always be restamped on a live Run (never left as Preview).
             if existing and bool(existing.get("preview_only")) and not preview_mode:
                 _progress(progress, f"Promoting preview → live: {getattr(item, 'title', key)}")
 
-            backup = _backup_file(paths, key)
-            if backup.exists():
-                original = Image.open(backup).convert("RGBA")
-            else:
-                poster = _download_original(plex, item)
-                if poster is None:
-                    raise RuntimeError("failed to download poster")
-                original = poster.convert("RGBA")
-                # Prefer New Season / core show backup when live art already has our
-                # Kometa EXIF marker (or another portal stamp) and we have no kometa backup yet.
-                if has_overlay_marker(poster) and existing is None:
-                    ns_backup = Path(paths["backups"]) / str(key) / "show.png"
-                    if ns_backup.is_file():
-                        original = Image.open(ns_backup).convert("RGBA")
-                        _progress(
-                            progress,
-                            f"Using New Season backup as kometa base: {getattr(item, 'title', key)}",
-                        )
-                    else:
-                        # Never silently drop collection badges — compose onto current art.
-                        _progress(
-                            progress,
-                            f"No clean backup for {getattr(item, 'title', key)} "
-                            f"(overlay marker present) — composing onto current poster",
-                        )
-                        original = poster.convert("RGBA")
-                if not preview_mode:
-                    backup.parent.mkdir(parents=True, exist_ok=True)
-                    if not backup.exists():
-                        original.save(backup)
-                        _progress(progress, f"Backed up original: {getattr(item, 'title', key)}")
+            original, backup = _load_stamp_original(
+                plex,
+                item,
+                paths,
+                key,
+                existing=existing if isinstance(existing, dict) else None,
+                progress=progress,
+                preview_mode=preview_mode,
+            )
 
             result = compose_poster(original, winners, config=config, paths=paths)
             safe = _sanitize(f"{getattr(item, 'title', key)}_kometa")

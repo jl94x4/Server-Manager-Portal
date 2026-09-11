@@ -21,6 +21,19 @@ def _solid(color, size=(100, 150)) -> Image.Image:
     return Image.new("RGBA", size, color)
 
 
+class _FakeLabel:
+    def __init__(self, tag):
+        self.tag = tag
+
+
+class _FakeShow:
+    def __init__(self, labels=None, title="Show"):
+        self.labels = [_FakeLabel(tag) for tag in (labels or [])]
+        self.title = title
+        self.ratingKey = "42"
+        self.thumb = "/library/metadata/42/thumb/1"
+
+
 class LayerStackTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -104,6 +117,44 @@ class LayerStackTests(unittest.TestCase):
         self.assertTrue(path.exists())
         img = Image.open(path)
         self.assertEqual(img.getpixel((0, 0))[:3], (1, 2, 3))
+
+    def test_unlabeled_show_replaces_base_with_current_poster(self):
+        ls.ensure_base_poster(self.paths, self.key, current_poster=_solid((1, 2, 3, 255)))
+        show = _FakeShow(labels=[])
+        path = ls.ensure_base_poster(
+            self.paths,
+            self.key,
+            show=show,
+            current_poster=_solid((9, 9, 9, 255)),
+        )
+        img = Image.open(path)
+        self.assertEqual(img.getpixel((0, 0))[:3], (9, 9, 9))
+
+    def test_overlay_label_keeps_existing_base(self):
+        ls.ensure_base_poster(self.paths, self.key, current_poster=_solid((1, 2, 3, 255)))
+        show = _FakeShow(labels=["Overlay"])
+        path = ls.ensure_base_poster(
+            self.paths,
+            self.key,
+            show=show,
+            current_poster=_solid((9, 9, 9, 255)),
+        )
+        img = Image.open(path)
+        self.assertEqual(img.getpixel((0, 0))[:3], (1, 2, 3))
+
+    def test_unlabeled_show_ignores_legacy_backup(self):
+        legacy = self.paths["backups"] / self.key
+        legacy.mkdir(parents=True)
+        _solid((1, 2, 3, 255)).save(legacy / "show.png")
+        show = _FakeShow(labels=[])
+        path = ls.ensure_base_poster(
+            self.paths,
+            self.key,
+            show=show,
+            current_poster=_solid((9, 9, 9, 255)),
+        )
+        img = Image.open(path)
+        self.assertEqual(img.getpixel((0, 0))[:3], (9, 9, 9))
 
     def test_drop_conflicting_logs(self):
         log_path = self.paths["recentlyAddedLog"]

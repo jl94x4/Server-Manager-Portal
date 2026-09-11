@@ -45,7 +45,7 @@ IMAGE_HEADERS = {
     "Referer": "https://mediux.pro/",
 }
 
-# Kometa marks items with Overlay so it can re-apply overlay art on the next run.
+# Kometa / portal Overlays mark items with Overlay plus stamp labels (4K-HDR, Atmos, …).
 KOMETA_OVERLAY_LABELS = ("Overlay", "overlay")
 
 
@@ -63,11 +63,20 @@ def should_reset_overlay(config: Optional[dict] = None) -> bool:
 
 def clear_kometa_overlay(upload_target, config: Optional[dict] = None, progress: ProgressFn = None) -> None:
     """
-    Remove Kometa's Overlay label so the next Kometa run reapplies overlays on the new art.
+    Strip every Overlays-section stamp after Poster Sets replaces the poster.
+
+    Clears Overlay + Layer labels (4K, HDR, Atmos, editions, …), overlay logs,
+    and overlay backups so a later revert cannot restore old art over the new set.
     Enabled by default; disable via config.reset_overlay = false.
     """
     if not should_reset_overlay(config):
         return
+    try:
+        from clear_overlays import clear_overlays_after_poster_apply
+        clear_overlays_after_poster_apply(upload_target, config=config, progress=progress)
+        return
+    except Exception:
+        pass
     for label in KOMETA_OVERLAY_LABELS:
         try:
             upload_target.removeLabel(label)
@@ -1841,7 +1850,8 @@ def upload_tv_poster(poster, tv, progress: ProgressFn = None) -> dict:
                 continue
 
             apply_poster_or_art(upload_target, poster, art=(poster["season"] == "Backdrop"), progress=progress)
-            clear_kometa_overlay(upload_target, config=poster.get("_config"), progress=progress)
+            if poster["season"] != "Backdrop":
+                clear_kometa_overlay(upload_target, config=poster.get("_config"), progress=progress)
             result["ok"] = True
             result["message"] = msg
             emit(progress, msg)

@@ -11,6 +11,7 @@ from kometa_detect import (
     _VIDEO_RE,
     RESOLUTION_VARIANTS,
     Winner,
+    known_overlay_stamp_label_names,
 )
 
 # Resolution alt regexes on typical release names
@@ -39,6 +40,11 @@ assert _RESOLUTION_RES_RE["720p"].search("hd")
 assert _RESOLUTION_RES_RE["720p"].search("720")
 assert not _RESOLUTION_RES_RE["720p"].search("uhd")
 assert not _RESOLUTION_RES_RE["720p"].search("UHD")
+
+_stamp_labels = {name.casefold() for name in known_overlay_stamp_label_names()}
+assert "4k-hdr" in _stamp_labels
+assert "overlay" in _stamp_labels
+assert "dolby-atmos" in _stamp_labels
 
 # Audio codec ladder: TrueHD Atmos beats plain Atmos, matched on filepath
 path = r"D:\Movies\Movie (2020)\Movie.2020.TrueHD.Atmos.7.1.mkv"
