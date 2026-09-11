@@ -60,6 +60,7 @@ export {
     normalizeRecentSetKind,
     partitionSetsByCategory,
     parseSetRef,
+    parseTpdbUserHandle,
     SEARCH_SET_CATEGORY_ORDER,
     readRecentSets,
     upsertRecentSet,

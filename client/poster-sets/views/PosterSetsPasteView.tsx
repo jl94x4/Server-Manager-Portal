@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ClipboardPaste,
+    ChevronLeft,
+    ChevronRight,
     ExternalLink,
     Image as ImageIcon,
     Loader2,
@@ -15,9 +17,12 @@ import {
     PreviewAssetGallery,
     RelatedSetsRail,
     StatusPill,
+    SEARCH_SETS_PAGE_SIZE,
+    bulkEntryFromSet,
     buttonClass,
     fieldClass,
     isTitleCardSet,
+    parseTpdbUserHandle,
     primaryButtonClass,
     sectionBodyClass,
     sectionTitleClass,
@@ -53,7 +58,15 @@ export const PosterSetsPasteView: React.FC = () => {
         setSearchSets,
         setSearchContext,
         setSearchSetsPage,
+        setSearchMode,
         searchSets,
+        searchMode,
+        searchContext,
+        searchLoadingMore,
+        searchSetsPage,
+        searchSetsPageCount,
+        pagedSearchSets,
+        rankedSearchSets,
         selectedSearchSet,
         inspectorOpen,
         preview,
@@ -61,6 +74,7 @@ export const PosterSetsPasteView: React.FC = () => {
         readyToApply,
         matchedAssetCount,
         selectedAssetIds,
+        selectedBulkSets,
         titleCardsOnly,
         showInspectorAssets,
         applyMatched,
@@ -77,6 +91,10 @@ export const PosterSetsPasteView: React.FC = () => {
         relatedSetsLoading,
         expandSetInline,
         openCreatorCatalog,
+        toggleBulkSet,
+        selectBrowseSets,
+        clearBulkSelection,
+        selectedBulkCount,
         previewPanelRef,
     } = usePosterSetsDashboard();
 
@@ -156,10 +174,17 @@ export const PosterSetsPasteView: React.FC = () => {
             return;
         }
 
+        const creatorHandle = parseTpdbUserHandle(target);
+        if (creatorHandle) {
+            openCreatorCatalog(creatorHandle, { locationTab: 'paste' });
+            return;
+        }
+
         if (isTpdbPostersUrl(target)) {
             setTitlePageLoading(true);
             setShowInspectorAssets(false);
             setSelectedSearchSet(null);
+            setSearchMode('title');
             stayOnPaste(target);
             try {
                 const response = await posterSetsApi.search({
@@ -202,6 +227,8 @@ export const PosterSetsPasteView: React.FC = () => {
         setSearchSets,
         setSearchSetsPage,
         setSearchContext,
+        setSearchMode,
+        openCreatorCatalog,
         runPreview,
     ]);
 
@@ -222,8 +249,9 @@ export const PosterSetsPasteView: React.FC = () => {
                         </div>
                         <h2 className={`mt-1 ${sectionTitleClass}`}>Load a set by URL or ID</h2>
                         <p className={sectionBodyClass}>
-                            Most reliable for ThePosterDB — paste a <code className="text-text">/set/…</code> or{' '}
-                            <code className="text-text">/posters/…</code> URL from the site when library matching misses.
+                            Paste a <code className="text-text">/set/…</code> or{' '}
+                            <code className="text-text">/posters/…</code> URL, or a creator{' '}
+                            <code className="text-text">/user/…</code> page / username to browse and select their sets.
                         </p>
                     </div>
                     <a
@@ -269,7 +297,7 @@ export const PosterSetsPasteView: React.FC = () => {
                                     void loadSetId();
                                 }
                             }}
-                            placeholder={findProvider === 'mediux' ? 'Set ID e.g. 24522' : 'Set/poster ID e.g. 362735 or username'}
+                            placeholder={findProvider === 'mediux' ? 'Set ID e.g. 24522' : 'Set/poster ID or username e.g. fwlolx'}
                         />
                         <button type="button" className={buttonClass} disabled={busy !== null} onClick={() => void loadSetId()}>
                             {busy === 'preview' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
@@ -282,7 +310,7 @@ export const PosterSetsPasteView: React.FC = () => {
                     <p className="text-xs font-bold uppercase tracking-wide text-muted">Full URL</p>
                     <input
                         className={fieldClass}
-                        placeholder="https://mediux.pro/sets/… · https://theposterdb.com/set/… · /poster/… · /posters/…"
+                        placeholder="https://mediux.pro/sets/… · https://theposterdb.com/set/… · /user/… · /posters/…"
                         value={url}
                         onChange={(event) => setUrl(event.target.value)}
                         onKeyDown={(event) => {
@@ -305,7 +333,110 @@ export const PosterSetsPasteView: React.FC = () => {
                     </button>
                 </div>
 
-                {searchSets.length > 0 && !inspectorOpen ? (
+                {searchMode === 'creator' && (searchSets.length > 0 || searchLoadingMore || busy === 'search') && !inspectorOpen ? (
+                    <div className="space-y-3 border-t border-white/10 pt-4">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0">
+                                <h3 className="text-sm font-bold text-text">
+                                    Sets from {searchContext || 'this creator'}
+                                </h3>
+                                <p className="mt-0.5 text-[11px] text-muted">
+                                    {searchSets.length
+                                        ? `${searchSets.length} set${searchSets.length === 1 ? '' : 's'} loaded`
+                                        : 'Loading sets…'}
+                                    {searchSets.length > SEARCH_SETS_PAGE_SIZE
+                                        ? ` · page ${Math.min(searchSetsPage, searchSetsPageCount)} / ${searchSetsPageCount}`
+                                        : ''}
+                                    {searchLoadingMore ? ' · loading more…' : ''}
+                                    {selectedBulkCount ? ` · ${selectedBulkCount} selected` : ''}
+                                </p>
+                            </div>
+                            {searchSetsPageCount > 1 ? (
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        className={buttonClass}
+                                        disabled={(busy !== null && busy !== 'preview' && busy !== 'search') || searchSetsPage <= 1}
+                                        onClick={() => setSearchSetsPage((page: number) => Math.max(1, page - 1))}
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                        Prev
+                                    </button>
+                                    <span className="text-xs text-muted">
+                                        {Math.min(searchSetsPage, searchSetsPageCount)} / {searchSetsPageCount}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        className={buttonClass}
+                                        disabled={(busy !== null && busy !== 'preview' && busy !== 'search') || searchSetsPage >= searchSetsPageCount}
+                                        onClick={() => setSearchSetsPage((page: number) => Math.min(searchSetsPageCount, page + 1))}
+                                    >
+                                        Next
+                                        <ChevronRight className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            ) : null}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                className={buttonClass}
+                                disabled={!pagedSearchSets.length}
+                                onClick={() => selectBrowseSets(pagedSearchSets)}
+                            >
+                                Select this page
+                            </button>
+                            <button
+                                type="button"
+                                className={buttonClass}
+                                disabled={!rankedSearchSets.length}
+                                onClick={() => selectBrowseSets(rankedSearchSets)}
+                            >
+                                Select all loaded
+                            </button>
+                            <button
+                                type="button"
+                                className={buttonClass}
+                                disabled={!selectedBulkCount}
+                                onClick={clearBulkSelection}
+                            >
+                                Clear selection
+                            </button>
+                        </div>
+                        <p className="text-xs text-muted">
+                            Each card is a full set, not just the cover you see. Tick the ones you want, then Queue & watch at the bottom to apply every poster in those sets.
+                        </p>
+                        {busy === 'search' && !searchSets.length ? (
+                            <div className="flex items-center gap-2 text-sm text-muted">
+                                <Loader2 className="h-4 w-4 animate-spin text-plex" />
+                                Loading first pages…
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                                {pagedSearchSets.map((set) => (
+                                    <BrowseSetCard
+                                        key={`${set.provider}-${set.setId}-${set.url}`}
+                                        set={set}
+                                        disabled={busy !== null && busy !== 'preview' && busy !== 'search'}
+                                        bulkSelected={Boolean(selectedBulkSets[set.url])}
+                                        onToggleBulk={() => toggleBulkSet(bulkEntryFromSet(set))}
+                                        onOpen={(item) => {
+                                            const target = String(item.url || '').trim();
+                                            if (!target) return;
+                                            setSelectedSearchSet(item);
+                                            setUrl(target);
+                                            stayOnPaste(target);
+                                            void runPreview(target, { titleCardsOnly: false, keepSearch: true });
+                                        }}
+                                        onOpenCreator={(user) => openCreatorCatalog(user, { locationTab: 'paste' })}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ) : null}
+
+                {searchMode !== 'creator' && searchSets.length > 0 && !inspectorOpen ? (
                     <div className="space-y-3 border-t border-white/10 pt-4">
                         <div className="flex flex-wrap items-baseline justify-between gap-2">
                             <h3 className="text-sm font-bold text-text">Sets from title page</h3>
@@ -317,6 +448,8 @@ export const PosterSetsPasteView: React.FC = () => {
                                     key={`${set.provider}-${set.setId}-${set.url}`}
                                     set={set}
                                     disabled={busy !== null}
+                                    bulkSelected={Boolean(selectedBulkSets[set.url])}
+                                    onToggleBulk={() => toggleBulkSet(bulkEntryFromSet(set))}
                                     onOpen={(item) => {
                                         const target = String(item.url || '').trim();
                                         if (!target) return;
@@ -325,7 +458,7 @@ export const PosterSetsPasteView: React.FC = () => {
                                         stayOnPaste(target);
                                         void runPreview(target, { titleCardsOnly: false, keepSearch: true });
                                     }}
-                                    onOpenCreator={openCreatorCatalog}
+                                    onOpenCreator={(user) => openCreatorCatalog(user, { locationTab: 'paste' })}
                                 />
                             ))}
                         </div>
@@ -357,6 +490,7 @@ export const PosterSetsPasteView: React.FC = () => {
                             onSelectAll={() => selectPreviewAssets('all')}
                             onClearSelection={() => selectPreviewAssets('none')}
                             onClose={() => collapseSetInspector({ scrollToSets: false })}
+                            closeLabel={searchMode === 'creator' ? 'Back to sets' : 'Close'}
                             thumbStrip={(
                                 <SetInspectorThumbStrip
                                     thumbs={matchedThumbStrip}
@@ -379,7 +513,7 @@ export const PosterSetsPasteView: React.FC = () => {
                                     mediaLabel={inferPreviewMediaType(preview) === 'show' ? 'show' : 'movie'}
                                     disabled={busy !== null}
                                     onOpen={(item) => void expandSetInline(item, { stayOnTab: true, toggle: false })}
-                                    onOpenCreator={openCreatorCatalog}
+                                    onOpenCreator={(user) => openCreatorCatalog(user, { locationTab: 'paste' })}
                                 />
                             )}
                         />

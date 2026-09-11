@@ -89,6 +89,7 @@ import {
     normalizeLibraryDetailLayout,
     normalizeRecentSetKind,
     parseSetRef,
+    parseTpdbUserHandle,
     readRecentSets,
     textToList,
     upsertRecentSet,
@@ -225,7 +226,7 @@ export function usePosterSetsDashboardState() {
     const syncedSetUrlRef = useRef<string | null>(initialLocation.setUrl);
     const titleCardsOnlyRef = useRef(Boolean(initialLocation.titleCardsOnly));
     const deepLinkHandledRef = useRef(false);
-    const openCreatorCatalogRef = useRef<(username: string, options?: { skipUrl?: boolean }) => void>(() => {});
+    const openCreatorCatalogRef = useRef<(username: string, options?: { skipUrl?: boolean; locationTab?: 'paste' | 'apply' }) => void>(() => {});
 
     const loadHistory = useCallback(async () => {
         try {
@@ -425,15 +426,28 @@ export function usePosterSetsDashboardState() {
         setShowInspectorAssets(false);
         setTitleCardsOnly(false);
         titleCardsOnlyRef.current = false;
-        syncedSetUrlRef.current = null;
         const creator = searchMode === 'creator' ? String(searchQuery || '').trim().replace(/^@+/, '') || null : null;
-        writePosterSetsUrl(normalizePosterLocation({
-            tab: tab === 'browse' ? 'browse' : tab === 'collections' ? 'collections' : 'apply',
-            rail: tab === 'browse' ? browseSeeAllId : null,
-            setUrl: null,
-            creator: tab === 'apply' ? creator : null,
-            titleCardsOnly: false,
-        }), 'replace');
+        if (tab === 'paste') {
+            const userUrl = creator ? `https://theposterdb.com/user/${encodeURIComponent(creator)}` : null;
+            syncedSetUrlRef.current = userUrl;
+            if (userUrl) setUrl(userUrl);
+            writePosterSetsUrl(normalizePosterLocation({
+                tab: 'paste',
+                rail: null,
+                setUrl: userUrl,
+                creator: null,
+                titleCardsOnly: false,
+            }), 'replace');
+        } else {
+            syncedSetUrlRef.current = null;
+            writePosterSetsUrl(normalizePosterLocation({
+                tab: tab === 'browse' ? 'browse' : tab === 'collections' ? 'collections' : 'apply',
+                rail: tab === 'browse' ? browseSeeAllId : null,
+                setUrl: null,
+                creator: tab === 'apply' ? creator : null,
+                titleCardsOnly: false,
+            }), 'replace');
+        }
         if (options?.scrollToSets !== false) {
             requestAnimationFrame(() => {
                 searchSetsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1190,6 +1204,14 @@ export function usePosterSetsDashboardState() {
     useEffect(() => {
         if (deepLinkHandledRef.current) return;
         deepLinkHandledRef.current = true;
+        const handleFromUrl = parseTpdbUserHandle(initialUrlState.setUrl || '');
+        if (handleFromUrl && (initialLocation.tab === 'apply' || initialLocation.tab === 'paste')) {
+            void openCreatorCatalogRef.current(handleFromUrl, {
+                skipUrl: true,
+                locationTab: initialLocation.tab === 'paste' ? 'paste' : 'apply',
+            });
+            return;
+        }
         if (initialLocation.tab !== 'apply') return;
         const target = initialUrlState.setUrl;
         if (target) {
@@ -1215,6 +1237,14 @@ export function usePosterSetsDashboardState() {
             const nextTitleCards = Boolean(parsed.titleCardsOnly);
 
             if (internalTab === 'apply' && parsed.setUrl) {
+                const handleFromUrl = parseTpdbUserHandle(parsed.setUrl);
+                if (handleFromUrl) {
+                    syncedSetUrlRef.current = null;
+                    titleCardsOnlyRef.current = false;
+                    setTitleCardsOnly(false);
+                    void openCreatorCatalogRef.current(handleFromUrl, { skipUrl: true });
+                    return;
+                }
                 const changed = syncedSetUrlRef.current !== parsed.setUrl
                     || titleCardsOnlyRef.current !== nextTitleCards;
                 syncedSetUrlRef.current = parsed.setUrl;
@@ -1229,6 +1259,18 @@ export function usePosterSetsDashboardState() {
                     }, { skipUrl: true });
                 }
                 return;
+            }
+
+            if (internalTab === 'paste' && parsed.setUrl) {
+                const handleFromUrl = parseTpdbUserHandle(parsed.setUrl);
+                if (handleFromUrl) {
+                    syncedSetUrlRef.current = parsed.setUrl;
+                    titleCardsOnlyRef.current = false;
+                    setTitleCardsOnly(false);
+                    setUrl(parsed.setUrl);
+                    void openCreatorCatalogRef.current(handleFromUrl, { skipUrl: true, locationTab: 'paste' });
+                    return;
+                }
             }
 
             if (internalTab === 'apply' && parsed.creator) {
@@ -1631,6 +1673,13 @@ export function usePosterSetsDashboardState() {
                 : 'Enter a ThePosterDB set ID, poster ID, or username.', 'error');
             return;
         }
+        const creatorHandle = findProvider === 'posterdb'
+            ? (parseTpdbUserHandle(rawId) || parseTpdbUserHandle(built))
+            : null;
+        if (creatorHandle) {
+            openCreatorCatalogRef.current(creatorHandle, { locationTab });
+            return;
+        }
         setSelectedSearchSet({
             setId: rawId,
             title: `Set ${rawId}`,
@@ -1802,43 +1851,64 @@ export function usePosterSetsDashboardState() {
         }
     };
 
-    const openCreatorCatalog = (username: string, options?: { skipUrl?: boolean }) => {
+    const openCreatorCatalog = (username: string, options?: { skipUrl?: boolean; locationTab?: 'paste' | 'apply' }) => {
         const handle = String(username || '').trim().replace(/^@+/, '');
         if (!handle) return;
-        setTab('apply');
+        const locationTab = options?.locationTab === 'paste' ? 'paste' : 'apply';
+        const userUrl = `https://theposterdb.com/user/${encodeURIComponent(handle)}`;
+        setTab(locationTab);
         setBrowseSeeAllId(null);
         setSearchMode('creator');
         setSearchQuery(handle);
-        setSearchProvider('both');
+        setSearchProvider(locationTab === 'paste' ? 'posterdb' : 'both');
         setTitleCardsOnly(false);
         titleCardsOnlyRef.current = false;
-        syncedSetUrlRef.current = null;
         setPreview(null);
         setSelectedSearchSet(null);
         setSelectedSearchTitle(null);
+        setShowInspectorAssets(false);
         setSelectedAssetIds([]);
-        setUrl('');
-        if (!options?.skipUrl) {
-            pushPosterLocation({
-                tab: 'apply',
-                rail: null,
-                setUrl: null,
-                creator: handle,
-                titleCardsOnly: false,
-            }, 'push');
+        if (locationTab === 'paste') {
+            syncedSetUrlRef.current = userUrl;
+            setUrl(userUrl);
+            if (!options?.skipUrl) {
+                pushPosterLocation({
+                    tab: 'paste',
+                    rail: null,
+                    setUrl: userUrl,
+                    creator: null,
+                    titleCardsOnly: false,
+                }, 'push');
+            }
         } else {
-            writePosterSetsUrl(normalizePosterLocation({
-                tab: 'apply',
-                rail: null,
-                setUrl: null,
-                creator: handle,
-                titleCardsOnly: false,
-            }), 'replace');
+            syncedSetUrlRef.current = null;
+            setUrl('');
+            if (!options?.skipUrl) {
+                pushPosterLocation({
+                    tab: 'apply',
+                    rail: null,
+                    setUrl: null,
+                    creator: handle,
+                    titleCardsOnly: false,
+                }, 'push');
+            } else {
+                writePosterSetsUrl(normalizePosterLocation({
+                    tab: 'apply',
+                    rail: null,
+                    setUrl: null,
+                    creator: handle,
+                    titleCardsOnly: false,
+                }), 'replace');
+            }
         }
         requestAnimationFrame(() => {
             searchSetsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
-        void runCatalogSearch({ mode: 'creator', query: handle, provider: 'both' });
+        void runCatalogSearch({
+            mode: 'creator',
+            query: handle,
+            provider: locationTab === 'paste' ? 'posterdb' : 'both',
+        });
     };
     openCreatorCatalogRef.current = openCreatorCatalog;
 
@@ -2519,6 +2589,7 @@ export function usePosterSetsDashboardState() {
         previewSections,
         searchSetsPageCount,
         pagedSearchSets,
+        rankedSearchSets,
         searchResultsLoading,
         searchHasResults,
         searchEmptyLabel,
