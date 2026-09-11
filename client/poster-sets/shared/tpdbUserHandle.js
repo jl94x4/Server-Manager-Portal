@@ -21,5 +21,6 @@ export const parseTpdbUserHandle = (value) => {
 };
 
 export const isTpdbRecentUrl = (value) => /theposterdb\.com\/recent(?:[/?#]|$)/i.test(String(value || '').trim());
+export const isTpdbFeedUrl = (value) => /theposterdb\.com\/feed(?:[/?#]|$)/i.test(String(value || '').trim());
 
 export default parseTpdbUserHandle;

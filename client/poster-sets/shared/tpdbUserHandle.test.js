@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseTpdbUserHandle, isTpdbRecentUrl } from './tpdbUserHandle.js';
+import { parseTpdbUserHandle, isTpdbRecentUrl, isTpdbFeedUrl } from './tpdbUserHandle.js';
 
 test('parseTpdbUserHandle reads TPDB user URLs', () => {
     assert.equal(
@@ -30,6 +30,17 @@ test('isTpdbRecentUrl matches TPDB recently-added pages', () => {
     assert.equal(isTpdbRecentUrl('https://www.theposterdb.com/recent'), true);
     assert.equal(isTpdbRecentUrl('https://theposterdb.com/user/fwlolx'), false);
     assert.equal(isTpdbRecentUrl('https://theposterdb.com/set/1'), false);
+    assert.equal(isTpdbRecentUrl('https://theposterdb.com/feed'), false);
     assert.equal(isTpdbRecentUrl('recent'), false);
     assert.equal(isTpdbRecentUrl(''), false);
+});
+
+test('isTpdbFeedUrl matches TPDB following-feed pages', () => {
+    assert.equal(isTpdbFeedUrl('https://theposterdb.com/feed'), true);
+    assert.equal(isTpdbFeedUrl('https://theposterdb.com/feed?page=2'), true);
+    assert.equal(isTpdbFeedUrl('https://www.theposterdb.com/feed'), true);
+    assert.equal(isTpdbFeedUrl('https://theposterdb.com/recent'), false);
+    assert.equal(isTpdbFeedUrl('https://theposterdb.com/user/fwlolx'), false);
+    assert.equal(isTpdbFeedUrl('https://theposterdb.com/feedback'), false);
+    assert.equal(isTpdbFeedUrl(''), false);
 });

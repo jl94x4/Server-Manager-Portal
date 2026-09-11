@@ -5084,12 +5084,13 @@ def list_mediux_user_sets(
     }
 
 
-def _posterdb_recent_max_page(soup) -> int:
+def _posterdb_list_max_page(soup, path: str = "recent") -> int:
+    needle = str(path or "recent").strip("/").lower() or "recent"
     max_page = 1
     for anchor in soup.find_all("a", href=True):
         href = str(anchor.get("href") or "")
-        if "/recent" not in href.lower() and "recent" not in href.lower():
-            # still accept bare ?page= on recent pages
+        href_l = href.lower()
+        if f"/{needle}" not in href_l and needle not in href_l:
             if "page=" not in href:
                 continue
         match = re.search(r"[?&]page=(\d+)", href)
@@ -5101,15 +5102,71 @@ def _posterdb_recent_max_page(soup) -> int:
     return max_page
 
 
+def _posterdb_soup_looks_like_login(soup) -> bool:
+    if soup.select_one("input[type='password'], input[name='password']") and soup.select_one("form"):
+        return True
+    if soup.select("a.set_poster_count[href*='/set/']"):
+        return False
+    text = soup.get_text(" ", strip=True).lower()
+    return "sign in" in text and "password" in text
+
+
+def _posterdb_catalog_meta(kind: str) -> dict:
+    key = str(kind or "recent").strip().lower()
+    if key in {"feed", "following", "following_feed", "follows"}:
+        return {
+            "kind": "feed",
+            "path": "feed",
+            "mode": "feed",
+            "query": "feed",
+            "title": "ThePosterDB · Following",
+            "titleUrl": "https://theposterdb.com/feed",
+            "progress": "Loading ThePosterDB following feed…",
+            "page_progress": "Following feed page",
+            "empty": (
+                "No sets in your ThePosterDB following feed. Log in under Poster Sets → Settings, "
+                "and follow creators on ThePosterDB."
+            ),
+            "login": (
+                "ThePosterDB following feed needs a logged-in session. "
+                "Add TPDB credentials in Poster Sets → Settings."
+            ),
+            "require_login": True,
+        }
+    return {
+        "kind": "recent",
+        "path": "recent",
+        "mode": "recent",
+        "query": "recent",
+        "title": "ThePosterDB · Recently added",
+        "titleUrl": "https://theposterdb.com/recent",
+        "progress": "Loading ThePosterDB recently added…",
+        "page_progress": "Recently added page",
+        "empty": "No recently added sets found on ThePosterDB.",
+        "login": "",
+        "require_login": False,
+    }
+
+
+def _posterdb_recent_max_page(soup) -> int:
+    return _posterdb_list_max_page(soup, "recent")
+
+
 def list_posterdb_recent_sets(
     progress: ProgressFn = None,
     limit: int = 0,
     max_pages: int = 0,
     *,
+    kind: str = "recent",
     on_batch: BatchFn = None,
     batch_pages: int = 3,
+    config: dict | None = None,
 ) -> dict:
-    """Stream ThePosterDB /recent pages in one scrape (same pattern as creator catalogs)."""
+    """Stream ThePosterDB /recent or /feed pages in one scrape (same pattern as creator catalogs)."""
+    meta = _posterdb_catalog_meta(kind)
+    config = config if isinstance(config, dict) else {}
+    if meta["require_login"] and not _posterdb_should_use_login(config):
+        raise ValueError(meta["login"])
     hard_cap = max(1, int(max_pages or 80))
     take = max(0, int(limit or 0)) or 10_000
     step = max(1, int(batch_pages or 3))
@@ -5118,6 +5175,8 @@ def list_posterdb_recent_sets(
     pages_in_batch = 0
     last_page = 1
     page_count = 1
+    path = meta["path"]
+    first_url = f"https://theposterdb.com/{path}?page=1"
 
     def visible_sets() -> list:
         return list(sets.values())[:take]
@@ -5138,10 +5197,10 @@ def list_posterdb_recent_sets(
         on_batch({
             "provider": "posterdb",
             "phase": "sets",
-            "mode": "recent",
-            "query": "recent",
-            "title": "ThePosterDB · Recently added",
-            "titleUrl": "https://theposterdb.com/recent",
+            "mode": meta["mode"],
+            "query": meta["query"],
+            "title": meta["title"],
+            "titleUrl": meta["titleUrl"],
             "sets": chunk,
             "allSets": visible,
             "pagesFetched": last_page,
@@ -5150,9 +5209,11 @@ def list_posterdb_recent_sets(
             "loading": not done,
         })
 
-    emit(progress, "Loading ThePosterDB recently added…")
-    soup = cook_soup("https://theposterdb.com/recent?page=1")
-    page_count = min(max(1, _posterdb_recent_max_page(soup)), hard_cap)
+    emit(progress, meta["progress"])
+    soup = cook_soup(first_url, config=config)
+    if meta["require_login"] and _posterdb_soup_looks_like_login(soup):
+        raise ValueError(meta["login"])
+    page_count = min(max(1, _posterdb_list_max_page(soup, path)), hard_cap)
     _collect_posterdb_set_cards(soup, sets=sets, limit=take)
     pages_in_batch = 1
     flush_batch()
@@ -5161,32 +5222,34 @@ def list_posterdb_recent_sets(
         before = len(sets)
         if before >= take:
             break
-        emit(progress, f"Recently added page {page}/{page_count}…")
-        soup = cook_soup(f"https://theposterdb.com/recent?page={page}")
+        emit(progress, f"{meta['page_progress']} {page}/{page_count}…")
+        soup = cook_soup(f"https://theposterdb.com/{path}?page={page}", config=config)
+        if meta["require_login"] and _posterdb_soup_looks_like_login(soup):
+            break
         _collect_posterdb_set_cards(soup, sets=sets, limit=take)
         last_page = page
         pages_in_batch += 1
-        page_count = min(max(page_count, _posterdb_recent_max_page(soup)), hard_cap)
+        page_count = min(max(page_count, _posterdb_list_max_page(soup, path)), hard_cap)
         flush_batch()
         if len(sets) == before:
             stagnant += 1
             if stagnant >= 3:
-                emit(progress, f"Stopping recent scrape after {page} pages — no new sets.")
+                emit(progress, f"Stopping {path} scrape after {page} pages — no new sets.")
                 break
         else:
             stagnant = 0
     flush_batch(done=True, force=True)
     results = visible_sets()
     if not results:
-        raise ValueError("No recently added sets found on ThePosterDB.")
+        raise ValueError(meta["empty"])
     return {
         "ok": True,
         "provider": "posterdb",
         "phase": "sets",
-        "mode": "recent",
-        "query": "recent",
-        "title": "ThePosterDB · Recently added",
-        "titleUrl": "https://theposterdb.com/recent",
+        "mode": meta["mode"],
+        "query": meta["query"],
+        "title": meta["title"],
+        "titleUrl": meta["titleUrl"],
         "titles": [],
         "sets": results,
         "pagesFetched": last_page,
@@ -5306,18 +5369,28 @@ def search_catalog(
         raise ValueError("provider must be mediux or posterdb")
 
     search_mode = str(mode or "title").strip().lower()
-    if search_mode in {"recent", "browse", "recently_added", "recently-added"}:
-        streaming_recent = on_batch is not None and source == "posterdb"
-        if streaming_recent:
+    if search_mode in {"recent", "browse", "recently_added", "recently-added", "feed", "following", "following_feed", "follows"}:
+        catalog_kind = "feed" if search_mode in {"feed", "following", "following_feed", "follows"} else "recent"
+        streaming_catalog = on_batch is not None and source == "posterdb"
+        if streaming_catalog:
             extra = {}
             if max_set_pages is not None:
                 extra["max_pages"] = int(max_set_pages)
             return list_posterdb_recent_sets(
                 progress=progress,
                 limit=max(0, int(limit or 0)),
+                kind=catalog_kind,
                 on_batch=on_batch,
                 batch_pages=batch_pages,
+                config=config,
                 **extra,
+            )
+        if catalog_kind == "feed":
+            return list_posterdb_recent_sets(
+                progress=progress,
+                limit=max(0, int(limit or 0)) or 24,
+                kind="feed",
+                config=config,
             )
         return list_recent_sets(
             source,

@@ -28,6 +28,7 @@ import {
     normalizeSearchSetsPageSize,
     parseTpdbUserHandle,
     isTpdbRecentUrl,
+    isTpdbFeedUrl,
     primaryButtonClass,
     sectionBodyClass,
     sectionTitleClass,
@@ -202,6 +203,10 @@ export const PosterSetsPasteView: React.FC = () => {
         }
 
         const creatorHandle = parseTpdbUserHandle(target);
+        if (isTpdbFeedUrl(target)) {
+            openTpdbRecentCatalog({ locationTab: 'paste', kind: 'feed' });
+            return;
+        }
         if (isTpdbRecentUrl(target)) {
             openTpdbRecentCatalog({ locationTab: 'paste' });
             return;
@@ -283,8 +288,9 @@ export const PosterSetsPasteView: React.FC = () => {
                         <p className={sectionBodyClass}>
                             Paste a <code className="text-text">/set/…</code> or{' '}
                             <code className="text-text">/posters/…</code> URL, a creator{' '}
-                            <code className="text-text">/user/…</code> page, or{' '}
-                            <code className="text-text">/recent</code> to browse newly added ThePosterDB sets.
+                            <code className="text-text">/user/…</code> page,{' '}
+                            <code className="text-text">/recent</code>, or{' '}
+                            <code className="text-text">/feed</code> to browse newly added ThePosterDB sets.
                         </p>
                     </div>
                     <a
@@ -343,7 +349,7 @@ export const PosterSetsPasteView: React.FC = () => {
                     <p className="text-xs font-bold uppercase tracking-wide text-muted">Full URL</p>
                     <input
                         className={fieldClass}
-                        placeholder="https://mediux.pro/sets/… · https://theposterdb.com/set/… · /user/… · /recent · /posters/…"
+                        placeholder="https://mediux.pro/sets/… · https://theposterdb.com/set/… · /user/… · /recent · /feed · /posters/…"
                         value={url}
                         onChange={(event) => setUrl(event.target.value)}
                         onKeyDown={(event) => {
@@ -366,12 +372,14 @@ export const PosterSetsPasteView: React.FC = () => {
                     </button>
                 </div>
 
-                {(searchMode === 'creator' || searchMode === 'recent') && (searchSets.length > 0 || searchLoadingMore || busy === 'search') && !inspectorOpen ? (
+                {(searchMode === 'creator' || searchMode === 'recent' || searchMode === 'feed') && (searchSets.length > 0 || searchLoadingMore || busy === 'search') && !inspectorOpen ? (
                     <div className="space-y-3 border-t border-white/10 pt-4">
                         <div className="flex flex-wrap items-start justify-between gap-2">
                             <div className="min-w-0">
                                 <h3 className="text-sm font-bold text-text">
-                                    Sets from {searchContext || (searchMode === 'recent' ? 'ThePosterDB recently added' : 'this creator')}
+                                    Sets from {searchContext || (searchMode === 'feed'
+                                        ? 'ThePosterDB following feed'
+                                        : searchMode === 'recent' ? 'ThePosterDB recently added' : 'this creator')}
                                 </h3>
                                 <p className="mt-0.5 text-[11px] text-muted">
                                     {searchSets.length
@@ -479,7 +487,7 @@ export const PosterSetsPasteView: React.FC = () => {
                     </div>
                 ) : null}
 
-                {searchMode !== 'creator' && searchMode !== 'recent' && searchSets.length > 0 && !inspectorOpen ? (
+                {searchMode !== 'creator' && searchMode !== 'recent' && searchMode !== 'feed' && searchSets.length > 0 && !inspectorOpen ? (
                     <div className="space-y-3 border-t border-white/10 pt-4">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="min-w-0">
@@ -570,7 +578,7 @@ export const PosterSetsPasteView: React.FC = () => {
                             onSelectAll={() => selectPreviewAssets('all')}
                             onClearSelection={() => selectPreviewAssets('none')}
                             onClose={() => collapseSetInspector({ scrollToSets: false })}
-                            closeLabel={searchMode === 'creator' || searchMode === 'recent' ? 'Back to sets' : 'Close'}
+                            closeLabel={searchMode === 'creator' || searchMode === 'recent' || searchMode === 'feed' ? 'Back to sets' : 'Close'}
                             thumbStrip={(
                                 <SetInspectorThumbStrip
                                     thumbs={matchedThumbStrip}

@@ -35,6 +35,7 @@ export const PosterSetsTpdbRecentView: React.FC = () => {
         setSelectedSearchSet,
         setSearchSetsPage,
         searchSets,
+        searchMode,
         searchContext,
         searchLoadingMore,
         searchSetsPage,
@@ -97,11 +98,31 @@ export const PosterSetsTpdbRecentView: React.FC = () => {
                         <span className="text-xs font-bold uppercase tracking-wide">ThePosterDB</span>
                     </div>
                     <h2 className={`mt-1 ${sectionTitleClass}`}>
-                        {searchContext || 'Recently added'}
+                        {searchContext || (searchMode === 'feed' ? 'Following' : 'Recently added')}
                     </h2>
                     <p className={sectionBodyClass}>
-                        Newest sets from theposterdb.com/recent, loaded like a creator catalog. Tick full sets, then Queue & watch.
+                        {searchMode === 'feed'
+                            ? 'Sets from creators you follow on ThePosterDB (theposterdb.com/feed). Needs TPDB login in Settings.'
+                            : 'Newest sets from theposterdb.com/recent, loaded like a creator catalog. Tick full sets, then Queue & watch.'}
                     </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            className={`${buttonClass} ${searchMode !== 'feed' ? 'border-plex/40 bg-plex/15 text-plex' : ''}`}
+                            disabled={busy !== null && busy !== 'search'}
+                            onClick={() => openTpdbRecentCatalog({ kind: 'recent', refresh: searchMode === 'feed' })}
+                        >
+                            Everyone
+                        </button>
+                        <button
+                            type="button"
+                            className={`${buttonClass} ${searchMode === 'feed' ? 'border-plex/40 bg-plex/15 text-plex' : ''}`}
+                            disabled={busy !== null && busy !== 'search'}
+                            onClick={() => openTpdbRecentCatalog({ kind: 'feed', refresh: searchMode !== 'feed' })}
+                        >
+                            Following
+                        </button>
+                    </div>
                     <p className="mt-1 text-[11px] text-muted">
                         {searchSets.length
                             ? `${searchSets.length} set${searchSets.length === 1 ? '' : 's'} loaded`
@@ -160,13 +181,16 @@ export const PosterSetsTpdbRecentView: React.FC = () => {
                         type="button"
                         className={buttonClass}
                         disabled={busy !== null && busy !== 'search'}
-                        onClick={() => openTpdbRecentCatalog({ refresh: true })}
+                        onClick={() => openTpdbRecentCatalog({
+                            refresh: true,
+                            kind: searchMode === 'feed' ? 'feed' : 'recent',
+                        })}
                     >
                         {busy === 'search' ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                         Refresh
                     </button>
                     <a
-                        href="https://theposterdb.com/recent"
+                        href={searchMode === 'feed' ? 'https://theposterdb.com/feed' : 'https://theposterdb.com/recent'}
                         target="_blank"
                         rel="noreferrer"
                         className={`${buttonClass} no-underline`}

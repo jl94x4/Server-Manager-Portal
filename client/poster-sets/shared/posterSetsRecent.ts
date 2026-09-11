@@ -171,7 +171,7 @@ export const buildSetUrl = (provider: SetProvider, rawId: string, kind: 'set' | 
     return `https://theposterdb.com/set/${id}`;
 };
 
-export { parseTpdbUserHandle, isTpdbRecentUrl } from './tpdbUserHandle.js';
+export { parseTpdbUserHandle, isTpdbRecentUrl, isTpdbFeedUrl } from './tpdbUserHandle.js';
 
 const normalizeRecentChip = (raw: any): RecentSetChip | null => {
     if (!raw?.url) return null;

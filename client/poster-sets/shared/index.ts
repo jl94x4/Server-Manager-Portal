@@ -65,6 +65,7 @@ export {
     parseSetRef,
     parseTpdbUserHandle,
     isTpdbRecentUrl,
+    isTpdbFeedUrl,
     SEARCH_SET_CATEGORY_ORDER,
     readRecentSets,
     upsertRecentSet,

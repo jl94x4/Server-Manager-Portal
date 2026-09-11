@@ -113,6 +113,7 @@ def main() -> int:
                 unbounded = str(mode).strip().lower() in {
                     "creator", "user", "author", "uploader",
                     "recent", "browse", "recently_added", "recently-added",
+                    "feed", "following", "following_feed", "follows",
                 }
                 limit = 0 if unbounded else 24
             else:

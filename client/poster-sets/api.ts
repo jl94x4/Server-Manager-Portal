@@ -104,7 +104,7 @@ export type PosterSetsSearchPayload = {
     titleHint?: string;
     yearHint?: number | null;
     mediaType?: string;
-    mode?: 'title' | 'creator' | 'recent';
+    mode?: 'title' | 'creator' | 'recent' | 'feed';
     titleSources?: Array<{
         provider: string;
         id?: string;
