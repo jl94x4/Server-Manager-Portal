@@ -70,7 +70,9 @@ import {
     POSTER_SETS_GRID_STORAGE_KEY,
     POSTER_SETS_LIBRARY_DETAIL_LAYOUT_KEY,
     SEARCH_SETS_PAGE_SIZE,
+    SEARCH_SETS_PAGE_SIZE_STORAGE_KEY,
     TITLE_CARD_ONLY_FILTERS,
+    normalizeSearchSetsPageSize,
     browseRailsCache,
     buildSetUrl,
     bulkEntryFromSet,
@@ -150,6 +152,10 @@ export function usePosterSetsDashboardState() {
     const [searchTitles, setSearchTitles] = useState<PosterSetsSearchTitle[]>([]);
     const [searchSets, setSearchSets] = useState<PosterSetsSearchSet[]>([]);
     const [searchSetsPage, setSearchSetsPage] = useState(1);
+    const [searchSetsPageSize, setSearchSetsPageSize] = useState(() => {
+        if (typeof window === 'undefined') return SEARCH_SETS_PAGE_SIZE;
+        return normalizeSearchSetsPageSize(window.localStorage.getItem(SEARCH_SETS_PAGE_SIZE_STORAGE_KEY));
+    });
     const [searchLoadingMore, setSearchLoadingMore] = useState(false);
     const [searchContext, setSearchContext] = useState('');
     const creatorSearchAbortRef = useRef<AbortController | null>(null);
@@ -1718,6 +1724,11 @@ export function usePosterSetsDashboardState() {
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
+        window.localStorage.setItem(SEARCH_SETS_PAGE_SIZE_STORAGE_KEY, String(searchSetsPageSize));
+    }, [searchSetsPageSize]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
         window.localStorage.setItem(POSTER_SETS_LIBRARY_DETAIL_LAYOUT_KEY, libraryDetailLayout);
     }, [libraryDetailLayout]);
 
@@ -2123,7 +2134,10 @@ export function usePosterSetsDashboardState() {
         [preview],
     );
 
-    const searchSetsPageCount = Math.max(1, Math.ceil(searchSets.length / SEARCH_SETS_PAGE_SIZE));
+    const searchSetsPageCount = Math.max(1, Math.ceil(searchSets.length / Math.max(1, searchSetsPageSize)));
+    useEffect(() => {
+        setSearchSetsPage((page) => Math.min(Math.max(1, page), searchSetsPageCount));
+    }, [searchSetsPageCount]);
     const rankedSearchSets = useMemo(
         () => excludeBlockedCreators(
             prioritizeSetsByFollowedCreators(searchSets, configDraft.creatorWhitelist),
@@ -2133,9 +2147,9 @@ export function usePosterSetsDashboardState() {
     );
     const pagedSearchSets = useMemo(() => {
         const page = Math.min(Math.max(1, searchSetsPage), searchSetsPageCount);
-        const start = (page - 1) * SEARCH_SETS_PAGE_SIZE;
-        return rankedSearchSets.slice(start, start + SEARCH_SETS_PAGE_SIZE);
-    }, [rankedSearchSets, searchSetsPage, searchSetsPageCount]);
+        const start = (page - 1) * searchSetsPageSize;
+        return rankedSearchSets.slice(start, start + searchSetsPageSize);
+    }, [rankedSearchSets, searchSetsPage, searchSetsPageCount, searchSetsPageSize]);
 
     const searchResultsLoading = busy === 'search';
     const searchHasResults = searchTitles.length > 0 || searchSets.length > 0 || !!preview || !!selectedSearchSet;
@@ -2471,6 +2485,7 @@ export function usePosterSetsDashboardState() {
         searchTitles, setSearchTitles,
         searchSets, setSearchSets,
         searchSetsPage, setSearchSetsPage,
+        searchSetsPageSize, setSearchSetsPageSize,
         searchLoadingMore, setSearchLoadingMore,
         searchContext, setSearchContext,
         creatorSearchAbortRef,

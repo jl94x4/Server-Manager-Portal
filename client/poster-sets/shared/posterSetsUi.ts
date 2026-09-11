@@ -18,7 +18,20 @@ export const LIBRARY_DETAIL_LAYOUT_OPTIONS = [
 export const normalizeLibraryDetailLayout = (value?: string | null): LibraryDetailLayout => (
     value === 'modal' ? 'modal' : 'drawer'
 );
-export const SEARCH_SETS_PAGE_SIZE = 24;
+export const SEARCH_SETS_PAGE_SIZE = 50;
+export const SEARCH_SETS_PAGE_SIZE_STORAGE_KEY = 'posterSetsSearchPageSize.v1';
+export const SEARCH_SETS_PAGE_SIZE_OPTIONS = [
+    { value: '24', label: '24 per page' },
+    { value: '50', label: '50 per page' },
+    { value: '100', label: '100 per page' },
+    { value: '200', label: '200 per page' },
+    { value: '250', label: '250 per page' },
+] as const;
+export const SEARCH_SETS_PAGE_SIZE_VALUES = SEARCH_SETS_PAGE_SIZE_OPTIONS.map((option) => Number(option.value));
+export const normalizeSearchSetsPageSize = (value: unknown): number => {
+    const next = Number(value);
+    return SEARCH_SETS_PAGE_SIZE_VALUES.includes(next) ? next : SEARCH_SETS_PAGE_SIZE;
+};
 export const WATCHES_PAGE_SIZE_OPTIONS = [
     { value: '12', label: '12 per page' },
     { value: '24', label: '24 per page' },

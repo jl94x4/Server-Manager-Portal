@@ -9,19 +9,23 @@ import {
     Save,
     Sparkles,
 } from 'lucide-react';
+import { CustomSelect } from '../../shared/ui';
+import { normalizeUpgraderGridSize } from '../../shared/portalLayout';
 import { posterSetsApi } from '../api';
 import { SetInspector, SetInspectorThumbStrip } from '../SetInspector';
 import { inferPreviewMediaType } from '../posterSetsDashboardUtils';
 import {
     BrowseSetCard,
+    POSTER_SETS_GRID_OPTIONS,
     PreviewAssetGallery,
     RelatedSetsRail,
     StatusPill,
-    SEARCH_SETS_PAGE_SIZE,
+    SEARCH_SETS_PAGE_SIZE_OPTIONS,
     bulkEntryFromSet,
     buttonClass,
     fieldClass,
     isTitleCardSet,
+    normalizeSearchSetsPageSize,
     parseTpdbUserHandle,
     primaryButtonClass,
     sectionBodyClass,
@@ -65,6 +69,8 @@ export const PosterSetsPasteView: React.FC = () => {
         searchLoadingMore,
         searchSetsPage,
         searchSetsPageCount,
+        searchSetsPageSize,
+        setSearchSetsPageSize,
         pagedSearchSets,
         rankedSearchSets,
         selectedSearchSet,
@@ -96,7 +102,26 @@ export const PosterSetsPasteView: React.FC = () => {
         clearBulkSelection,
         selectedBulkCount,
         previewPanelRef,
+        gridSize,
+        setGridSize,
+        posterGridClass,
+        posterGridStyle,
+        titleCardGridStyle,
+        searchSetsUseTitleCardGrid,
     } = usePosterSetsDashboard();
+    const pasteSetsGridStyle = searchSetsUseTitleCardGrid ? titleCardGridStyle : posterGridStyle;
+    const pageSizeSelect = (
+        <CustomSelect
+            value={String(searchSetsPageSize)}
+            onChange={(value) => {
+                setSearchSetsPageSize(normalizeSearchSetsPageSize(value));
+                setSearchSetsPage(1);
+            }}
+            options={[...SEARCH_SETS_PAGE_SIZE_OPTIONS]}
+            className="w-full min-w-[140px] sm:w-auto"
+            compact
+        />
+    );
 
     const [titlePageLoading, setTitlePageLoading] = useState(false);
     const bulkLogRef = useRef<HTMLDivElement | null>(null);
@@ -344,38 +369,48 @@ export const PosterSetsPasteView: React.FC = () => {
                                     {searchSets.length
                                         ? `${searchSets.length} set${searchSets.length === 1 ? '' : 's'} loaded`
                                         : 'Loading sets…'}
-                                    {searchSets.length > SEARCH_SETS_PAGE_SIZE
+                                    {searchSets.length > searchSetsPageSize
                                         ? ` · page ${Math.min(searchSetsPage, searchSetsPageCount)} / ${searchSetsPageCount}`
                                         : ''}
                                     {searchLoadingMore ? ' · loading more…' : ''}
                                     {selectedBulkCount ? ` · ${selectedBulkCount} selected` : ''}
                                 </p>
                             </div>
-                            {searchSetsPageCount > 1 ? (
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        type="button"
-                                        className={buttonClass}
-                                        disabled={(busy !== null && busy !== 'preview' && busy !== 'search') || searchSetsPage <= 1}
-                                        onClick={() => setSearchSetsPage((page: number) => Math.max(1, page - 1))}
-                                    >
-                                        <ChevronLeft className="h-4 w-4" />
-                                        Prev
-                                    </button>
-                                    <span className="text-xs text-muted">
-                                        {Math.min(searchSetsPage, searchSetsPageCount)} / {searchSetsPageCount}
-                                    </span>
-                                    <button
-                                        type="button"
-                                        className={buttonClass}
-                                        disabled={(busy !== null && busy !== 'preview' && busy !== 'search') || searchSetsPage >= searchSetsPageCount}
-                                        onClick={() => setSearchSetsPage((page: number) => Math.min(searchSetsPageCount, page + 1))}
-                                    >
-                                        Next
-                                        <ChevronRight className="h-4 w-4" />
-                                    </button>
-                                </div>
-                            ) : null}
+                            <div className="flex shrink-0 flex-wrap items-center gap-2">
+                                <CustomSelect
+                                    value={gridSize === 'list' ? 'medium' : gridSize}
+                                    onChange={(value) => setGridSize(normalizeUpgraderGridSize(value))}
+                                    options={POSTER_SETS_GRID_OPTIONS}
+                                    className="w-full min-w-[140px] sm:w-auto"
+                                    compact
+                                />
+                                {pageSizeSelect}
+                                {searchSetsPageCount > 1 ? (
+                                    <>
+                                        <button
+                                            type="button"
+                                            className={buttonClass}
+                                            disabled={(busy !== null && busy !== 'preview' && busy !== 'search') || searchSetsPage <= 1}
+                                            onClick={() => setSearchSetsPage((page: number) => Math.max(1, page - 1))}
+                                        >
+                                            <ChevronLeft className="h-4 w-4" />
+                                            Prev
+                                        </button>
+                                        <span className="text-xs text-muted">
+                                            {Math.min(searchSetsPage, searchSetsPageCount)} / {searchSetsPageCount}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            className={buttonClass}
+                                            disabled={(busy !== null && busy !== 'preview' && busy !== 'search') || searchSetsPage >= searchSetsPageCount}
+                                            onClick={() => setSearchSetsPage((page: number) => Math.min(searchSetsPageCount, page + 1))}
+                                        >
+                                            Next
+                                            <ChevronRight className="h-4 w-4" />
+                                        </button>
+                                    </>
+                                ) : null}
+                            </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
                             <button
@@ -412,7 +447,7 @@ export const PosterSetsPasteView: React.FC = () => {
                                 Loading first pages…
                             </div>
                         ) : (
-                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                            <div className={posterGridClass} style={pasteSetsGridStyle}>
                                 {pagedSearchSets.map((set) => (
                                     <BrowseSetCard
                                         key={`${set.provider}-${set.setId}-${set.url}`}
@@ -438,12 +473,49 @@ export const PosterSetsPasteView: React.FC = () => {
 
                 {searchMode !== 'creator' && searchSets.length > 0 && !inspectorOpen ? (
                     <div className="space-y-3 border-t border-white/10 pt-4">
-                        <div className="flex flex-wrap items-baseline justify-between gap-2">
-                            <h3 className="text-sm font-bold text-text">Sets from title page</h3>
-                            <span className="text-[11px] text-muted">{searchSets.length} found</span>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="min-w-0">
+                                <h3 className="text-sm font-bold text-text">Sets from title page</h3>
+                                <span className="text-[11px] text-muted">{searchSets.length} found</span>
+                            </div>
+                            <div className="flex shrink-0 flex-wrap items-center gap-2">
+                                <CustomSelect
+                                    value={gridSize === 'list' ? 'medium' : gridSize}
+                                    onChange={(value) => setGridSize(normalizeUpgraderGridSize(value))}
+                                    options={POSTER_SETS_GRID_OPTIONS}
+                                    className="w-full min-w-[140px] sm:w-auto"
+                                    compact
+                                />
+                                {pageSizeSelect}
+                            </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-                            {searchSets.map((set) => (
+                        {searchSetsPageCount > 1 ? (
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    className={buttonClass}
+                                    disabled={busy !== null || searchSetsPage <= 1}
+                                    onClick={() => setSearchSetsPage((page: number) => Math.max(1, page - 1))}
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                    Prev
+                                </button>
+                                <span className="text-xs text-muted">
+                                    {Math.min(searchSetsPage, searchSetsPageCount)} / {searchSetsPageCount}
+                                </span>
+                                <button
+                                    type="button"
+                                    className={buttonClass}
+                                    disabled={busy !== null || searchSetsPage >= searchSetsPageCount}
+                                    onClick={() => setSearchSetsPage((page: number) => Math.min(searchSetsPageCount, page + 1))}
+                                >
+                                    Next
+                                    <ChevronRight className="h-4 w-4" />
+                                </button>
+                            </div>
+                        ) : null}
+                        <div className={posterGridClass} style={pasteSetsGridStyle}>
+                            {pagedSearchSets.map((set) => (
                                 <BrowseSetCard
                                     key={`${set.provider}-${set.setId}-${set.url}`}
                                     set={set}

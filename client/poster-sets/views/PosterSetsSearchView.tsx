@@ -43,7 +43,7 @@ import {
     ProviderPill,
     RECENT_CATEGORY_ORDER,
     RelatedSetsRail,
-    SEARCH_SETS_PAGE_SIZE,
+    SEARCH_SETS_PAGE_SIZE_OPTIONS,
     SetKindPill,
     StatusPill,
     WATCHES_PAGE_SIZE_OPTIONS,
@@ -58,6 +58,7 @@ import {
     jobCardTone,
     jobSetMeta,
     jobTitle,
+    normalizeSearchSetsPageSize,
     posterMediaRadiusClass,
     primaryButtonClass,
     providerLabel,
@@ -107,6 +108,8 @@ export const PosterSetsSearchView: React.FC = () => {
         setSearchSets,
         searchSetsPage,
         setSearchSetsPage,
+        searchSetsPageSize,
+        setSearchSetsPageSize,
         searchLoadingMore,
         setSearchLoadingMore,
         searchContext,
@@ -520,7 +523,7 @@ export const PosterSetsSearchView: React.FC = () => {
                                         <div className="flex min-w-0 flex-wrap items-center gap-2">
                                             <p className="text-xs font-bold uppercase tracking-wide text-muted">
                                                 Poster sets{searchContext ? ` · ${searchContext}` : ''}
-                                                {searchSets.length > SEARCH_SETS_PAGE_SIZE
+                                                {searchSets.length > searchSetsPageSize
                                                     ? ` · ${searchSets.length} sets`
                                                     : ''}
                                                 {searchLoadingMore ? ' · loading more…' : ''}
@@ -558,31 +561,43 @@ export const PosterSetsSearchView: React.FC = () => {
                                                 );
                                             })() : null}
                                         </div>
-                                        {searchSetsPageCount > 1 ? (
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    type="button"
-                                                    className={buttonClass}
-                                                    disabled={(busy !== null && busy !== 'preview') || searchSetsPage <= 1}
-                                                    onClick={() => setSearchSetsPage((page) => Math.max(1, page - 1))}
-                                                >
-                                                    <ChevronLeft className="h-4 w-4" />
-                                                    Prev
-                                                </button>
-                                                <span className="text-xs text-muted">
-                                                    Page {Math.min(searchSetsPage, searchSetsPageCount)} / {searchSetsPageCount}
-                                                </span>
-                                                <button
-                                                    type="button"
-                                                    className={buttonClass}
-                                                    disabled={(busy !== null && busy !== 'preview') || searchSetsPage >= searchSetsPageCount}
-                                                    onClick={() => setSearchSetsPage((page) => Math.min(searchSetsPageCount, page + 1))}
-                                                >
-                                                    Next
-                                                    <ChevronRight className="h-4 w-4" />
-                                                </button>
-                                            </div>
-                                        ) : null}
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <CustomSelect
+                                                value={String(searchSetsPageSize)}
+                                                onChange={(value) => {
+                                                    setSearchSetsPageSize(normalizeSearchSetsPageSize(value));
+                                                    setSearchSetsPage(1);
+                                                }}
+                                                options={[...SEARCH_SETS_PAGE_SIZE_OPTIONS]}
+                                                className="w-full min-w-[140px] sm:w-auto"
+                                                compact
+                                            />
+                                            {searchSetsPageCount > 1 ? (
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        className={buttonClass}
+                                                        disabled={(busy !== null && busy !== 'preview') || searchSetsPage <= 1}
+                                                        onClick={() => setSearchSetsPage((page) => Math.max(1, page - 1))}
+                                                    >
+                                                        <ChevronLeft className="h-4 w-4" />
+                                                        Prev
+                                                    </button>
+                                                    <span className="text-xs text-muted">
+                                                        Page {Math.min(searchSetsPage, searchSetsPageCount)} / {searchSetsPageCount}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        className={buttonClass}
+                                                        disabled={(busy !== null && busy !== 'preview') || searchSetsPage >= searchSetsPageCount}
+                                                        onClick={() => setSearchSetsPage((page) => Math.min(searchSetsPageCount, page + 1))}
+                                                    >
+                                                        Next
+                                                        <ChevronRight className="h-4 w-4" />
+                                                    </button>
+                                                </>
+                                            ) : null}
+                                        </div>
                                     </div>
                                     <div className={posterGridClass} style={searchSetsUseTitleCardGrid ? titleCardGridStyle : posterGridStyle}>
                                         {pagedSearchSets.map((set) => {
