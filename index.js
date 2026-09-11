@@ -269,6 +269,16 @@ import {
     pageSwrStats,
 } from './lib/page-swr-cache.js';
 import { asArray, extractPlexItemBytes, nextPlexContainerStart } from './lib/plex-stats-bytes.js';
+import {
+    PLEX_OWNER_LOCAL_ACCOUNT_ID,
+    isPlexCloudOwnerIdentity,
+    isPlexServerOwnerUser,
+    isTautulliAdminUser,
+    resolveLocalPlexAccountIdFromParts,
+    shortcutPortalPlexAccountId,
+    shouldSkipTautulliAdminUser,
+    usableStoredPlexAccountId,
+} from './lib/plex/localAccountId.js';
 
 const resolveAppVersion = () => {
     const pkgVersion = resolvePackageVersion();
@@ -2716,16 +2726,11 @@ const getAdminId = async (config) => {
  */
 const isServerOwnerUser = (user = {}, config = {}) => {
     if (!user) return false;
-    if (user.isAdmin === true || user.jellyfinIsAdmin === true) return true;
     const mediaServerType = String(config?.mediaServerType || 'plex').toLowerCase();
     if (mediaServerType === 'jellyfin' || mediaServerType === 'emby') {
-        return false;
+        return user.jellyfinIsAdmin === true || user.isAdmin === true;
     }
-    const adminId = String(config?.adminPlexId || '').trim();
-    if (!adminId) return false;
-    return [user.id, user.plexId]
-        .filter(Boolean)
-        .some((id) => String(id) === adminId);
+    return isPlexServerOwnerUser(user, config);
 };
 
 const findLocalUserForSession = (users, sessionUser) => {
@@ -8302,77 +8307,42 @@ const fetchPlexServerAccounts = async (uri, config) => {
             thumb: acc.thumb || null,
         };
     });
-    cachedPlexAccounts = { list: accounts, map };
-    cachedPlexAccountsAt = Date.now();
-    return cachedPlexAccounts;
+    const result = { list: accounts, map };
+    // Empty /accounts is usually a timeout — do not cache it or members can
+    // miss identity mapping for the next 5 minutes.
+    if (accounts.length) {
+        cachedPlexAccounts = result;
+        cachedPlexAccountsAt = Date.now();
+    }
+    return result;
 };
 
 const resolveLocalPlexAccountId = async (config, uri, sessionUser) => {
-    const norm = (v) => String(v || '').trim().toLowerCase();
     const users = await loadFile(USERS_PATH, []);
     const portalUser = findLocalUserForSession(users, sessionUser);
     const adminCloudId = String(config?.adminPlexId || '').trim();
-    const sessionPlexId = String(sessionUser?.plexId || '').trim();
-    const portalIds = [portalUser?.plexId, portalUser?.id, sessionUser?.id]
-        .filter(Boolean)
-        .map((id) => String(id).trim());
     // Impersonation must never resolve to the PMS owner account ("1"), even if
     // a caller re-elevates isAdmin from the JWT actor / cloud plex.tv id.
     const impersonating = isImpersonatingSession(sessionUser);
-    const isOwner = !impersonating && (
-        !!sessionUser?.isAdmin
-        || isServerOwnerUser(sessionUser, config)
-        || isServerOwnerUser(portalUser, config)
-        || !!(adminCloudId && sessionPlexId && sessionPlexId === adminCloudId)
-        || !!(adminCloudId && portalIds.includes(adminCloudId))
-    );
+    const isOwner = isPlexCloudOwnerIdentity({
+        sessionUser,
+        portalUser,
+        adminCloudId,
+        impersonating,
+    });
 
-    if (!isOwner && portalUser?.plexAccountId) {
-        const stored = String(portalUser.plexAccountId);
-        if (!(adminCloudId && stored === adminCloudId)) return stored;
-    }
+    const storedAccountId = portalUser?.plexAccountId;
+    const stored = usableStoredPlexAccountId(storedAccountId, { isOwner, adminCloudId });
+    if (!isOwner && stored) return stored;
 
     const { list: accounts } = await fetchPlexServerAccounts(uri, config);
-
-    // PMS owner sessions use local account "1". Never treat the plex.tv cloud id as accountID.
-    if (isOwner) {
-        const home = accounts.find((a) => String(a.id) === '1')
-            || accounts.find((a) => norm(a.name) === norm(sessionUser?.username))
-            || accounts[0];
-        if (home) {
-            const homeId = String(home.id);
-            // Guard: never return a plex.tv cloud id as the local PMS accountID.
-            if (!(adminCloudId && homeId === adminCloudId)) return homeId;
-        }
-        return '1';
-    }
-
-    if (portalUser?.plexAccountId) {
-        const stored = String(portalUser.plexAccountId);
-        // Guard: cloud plex.tv ids are not valid local /accounts ids.
-        if (!(adminCloudId && stored === adminCloudId)) return stored;
-    }
-
-    if (!accounts.length) {
-        return sessionUser?.plexId ? String(sessionUser.plexId) : null;
-    }
-
-    const byName = accounts.find((a) => norm(a.name) === norm(sessionUser?.username));
-    if (byName) return String(byName.id);
-
-    if (sessionUser?.email) {
-        const byEmail = accounts.find((a) =>
-            norm(a.name) === norm(sessionUser.email) || norm(a.email) === norm(sessionUser.email),
-        );
-        if (byEmail) return String(byEmail.id);
-    }
-
-    if (sessionUser?.plexId) {
-        const byPlexId = accounts.find((a) => String(a.id) === String(sessionUser.plexId));
-        if (byPlexId) return String(byPlexId.id);
-    }
-
-    return null;
+    return resolveLocalPlexAccountIdFromParts({
+        isOwner,
+        storedAccountId,
+        adminCloudId,
+        accounts,
+        sessionUser,
+    });
 };
 
 /** Build identity keys for matching /status/sessions rows to the signed-in portal user. */
@@ -8386,13 +8356,11 @@ const buildPlexNowPlayingIdentity = async (config, uri, reqUser, localUser = nul
     let isAdmin = false;
     let adminCloudId = null;
     if (!impersonating) {
+        // Only the plex.tv owner identity — leftover users.json isAdmin must not
+        // attach a member to PMS account "1" (owner now playing / wrap-up).
         const resolvedAdmin = await resolveCurrentAdmin(reqUser, config).catch(() => false);
-        const ownerByLocal = isServerOwnerUser(reqUser, config) || isServerOwnerUser(localUser, config);
         const matchesConfigured = !!(configuredAdminId && idHits.includes(configuredAdminId));
-        isAdmin = !!resolvedAdmin
-            || !!reqUser?.isAdmin
-            || ownerByLocal
-            || matchesConfigured;
+        isAdmin = !!resolvedAdmin || matchesConfigured;
         if (!isAdmin && idHits.length) {
             // Fallback: token owner id when adminPlexId is unset / JWT shape missed resolveCurrentAdmin.
             const tokenOwnerId = await getAdminId(config).catch(() => null);
@@ -8409,7 +8377,7 @@ const buildPlexNowPlayingIdentity = async (config, uri, reqUser, localUser = nul
     let accountId = await resolveLocalPlexAccountId(config, uri, {
         ...reqUser,
         isAdmin,
-        plexId: reqUser?.plexId || localUser?.plexId || adminCloudId,
+        plexId: reqUser?.plexId || localUser?.plexId || (isAdmin ? adminCloudId : null),
     }).catch(() => null);
 
     const username = reqUser?.username || localUser?.username || '';
@@ -8463,13 +8431,17 @@ const buildPlexNowPlayingIdentity = async (config, uri, reqUser, localUser = nul
         }
     }
 
+    const storedNowPlayingAccountId = usableStoredPlexAccountId(localUser?.plexAccountId, {
+        isOwner: isAdmin,
+        adminCloudId: configuredAdminId,
+    });
     const accountIds = [
         accountId,
-        isAdmin ? '1' : null,
-        localUser?.plexAccountId,
+        isAdmin ? PLEX_OWNER_LOCAL_ACCOUNT_ID : null,
+        storedNowPlayingAccountId,
         plexId,
-        adminCloudId,
-        ownerCloudId,
+        isAdmin ? adminCloudId : null,
+        isAdmin ? ownerCloudId : null,
         reqUser?.id,
         localUser?.id,
         reqUser?.plexId,
@@ -14193,11 +14165,23 @@ app.get('/api/users', requireAdmin, async (req, res) => {
     const { users: withLastLogin, changed: loginChanged } = await backfillLastLoginFromAudit(users);
     let changed = loginChanged;
     const healed = withLastLogin.map((user) => {
-        if (!isServerOwnerUser(user, config)) return user;
-        const next = { ...user, isAdmin: true };
-        if (user.isAdmin !== true) changed = true;
-        if (next.plexAccessStatus === 'revoked' || next.plexAccessStatus === 'unknown' || !next.plexAccessStatus) {
-            next.plexAccessStatus = 'active';
+        if (isServerOwnerUser(user, config)) {
+            const next = { ...user, isAdmin: true };
+            if (user.isAdmin !== true) changed = true;
+            if (next.plexAccessStatus === 'revoked' || next.plexAccessStatus === 'unknown' || !next.plexAccessStatus) {
+                next.plexAccessStatus = 'active';
+                changed = true;
+            }
+            return next;
+        }
+        let next = user;
+        if (user.isAdmin === true) {
+            next = { ...next, isAdmin: false };
+            changed = true;
+        }
+        if (String(next.plexAccountId || '').trim() === PLEX_OWNER_LOCAL_ACCOUNT_ID) {
+            next = { ...next };
+            delete next.plexAccountId;
             changed = true;
         }
         return next;
@@ -17481,7 +17465,7 @@ const fetchTautulliUsers = async (config) => {
     return users;
 };
 
-const resolveTautulliUserId = (users, { username, email, plexAccountName }) => {
+const resolveTautulliUserId = (users, { username, email, plexAccountName, skipAdmin = false } = {}) => {
     const norm = (v) => String(v || '').trim().toLowerCase();
     const compact = (v) => norm(v).replace(/[\s._-]+/g, '');
     if (!Array.isArray(users) || users.length === 0) return null;
@@ -17497,13 +17481,14 @@ const resolveTautulliUserId = (users, { username, email, plexAccountName }) => {
     const uniqueCandidates = [...new Set(candidates.filter(Boolean))];
 
     for (const candidate of uniqueCandidates) {
-        const match = users.find((u) =>
-            norm(u.username) === candidate
-            || norm(u.friendly_name) === candidate
-            || norm(u.email) === candidate
-            || compact(u.username) === compact(candidate)
-            || compact(u.friendly_name) === compact(candidate),
-        );
+        const match = users.find((u) => {
+            if (skipAdmin && isTautulliAdminUser(u)) return false;
+            return norm(u.username) === candidate
+                || norm(u.friendly_name) === candidate
+                || norm(u.email) === candidate
+                || compact(u.username) === compact(candidate)
+                || compact(u.friendly_name) === compact(candidate);
+        });
         if (match?.user_id != null && match.user_id !== '') return String(match.user_id);
     }
     return null;
@@ -17606,6 +17591,8 @@ const fetchTautulliUserHistoryItems = async (config, {
     username,
     email,
     plexAccountName,
+    accountID,
+    skipAdmin,
     afterUnixSec = 0,
     maxItems = 100000,
 } = {}) => {
@@ -17614,7 +17601,12 @@ const fetchTautulliUserHistoryItems = async (config, {
     if (!tUrl) return [];
 
     const users = await fetchTautulliUsers(config);
-    const tautulliUserId = resolveTautulliUserId(users, { username, email, plexAccountName });
+    const tautulliUserId = resolveTautulliUserId(users, {
+        username,
+        email,
+        plexAccountName,
+        skipAdmin: skipAdmin ?? (accountID != null && shouldSkipTautulliAdminUser(accountID)),
+    });
     if (!tautulliUserId) return [];
 
     const items = [];
@@ -19028,6 +19020,7 @@ const loadPersonalWrapUpHistory = async ({
             username: req.user?.username || portalUserForHistory?.username,
             email: req.user?.email || portalUserForHistory?.email,
             plexAccountName: plexAccountNameForHistory,
+            accountID,
             afterUnixSec,
             maxItems,
         });
@@ -19787,6 +19780,7 @@ app.get('/api/plex/analytics/me', requireAuth, requireMember, async (req, res) =
                     username: req.user?.username || portalUserForHistory?.username,
                     email: req.user?.email || portalUserForHistory?.email,
                     plexAccountName: plexAccountNameForHistory,
+                    accountID,
                     maxItems: 80,
                 });
                 if (!historyItems.length) {
@@ -20080,19 +20074,17 @@ achievementsHttp = registerAchievementsRoutes(app, {
         if (mediaServerType === 'plex') {
             const users = await loadFile(USERS_PATH, []);
             const portalUser = findLocalUserForSession(users, req.user);
-            const stored = String(portalUser?.plexAccountId || '').trim();
             const adminCloudId = String(config?.adminPlexId || '').trim();
+            const impersonating = !!(req.user?.actor && req.user?.impersonatingUserId);
             // Snapshot /me should not wait on /identity + /accounts when we already
             // know the local PMS account id (or the owner convention of "1").
-            if (stored && stored !== adminCloudId) return stored;
-            const impersonating = !!(req.user?.actor && req.user?.impersonatingUserId);
-            const ownerByPlexId = !impersonating && !!adminCloudId && [
-                req.user?.id,
-                req.user?.plexId,
-                portalUser?.id,
-                portalUser?.plexId,
-            ].filter(Boolean).some((id) => String(id) === adminCloudId);
-            if (ownerByPlexId) return '1';
+            const shortcut = shortcutPortalPlexAccountId({
+                sessionUser: req.user,
+                portalUser,
+                adminCloudId,
+                impersonating,
+            });
+            if (shortcut) return shortcut;
             const uri = await getPlexConnectionUri(config);
             if (!uri) return null;
             return resolveLocalPlexAccountId(config, uri, req.user);
@@ -20113,18 +20105,15 @@ registerProfileRoutes(app, {
         if (mediaServerType === 'plex') {
             const users = await loadFile(USERS_PATH, []);
             const portalUser = findLocalUserForSession(users, req.user);
-            const stored = String(portalUser?.plexAccountId || '').trim();
             const adminCloudId = String(config?.adminPlexId || '').trim();
-            if (stored && stored !== adminCloudId) return stored;
             const impersonating = !!(req.user?.actor && req.user?.impersonatingUserId);
-            const ownerByPlexId = !impersonating && !!adminCloudId && [
-                req.user?.id,
-                req.user?.plexId,
-                portalUser?.id,
-                portalUser?.plexId,
-            ].filter(Boolean).some((id) => String(id) === adminCloudId);
-            if (ownerByPlexId) return '1';
-            if (stored) return stored;
+            const shortcut = shortcutPortalPlexAccountId({
+                sessionUser: req.user,
+                portalUser,
+                adminCloudId,
+                impersonating,
+            });
+            if (shortcut) return shortcut;
             return req.user?.id || req.user?.plexId || null;
         }
         return req.user?.jellyfinId || req.user?.id || null;
@@ -20318,7 +20307,12 @@ app.get('/api/plex/analytics/user/:id/history', requireAdmin, async (req, res) =
             
             const targetUser = users.find(u => String(u.plexAccountId) === String(accountID));
             const tUsers = await fetchTautulliUsers(config);
-            const tautulliUserId = resolveTautulliUserId(tUsers, { username: targetUser?.username, email: targetUser?.email, plexAccountName });
+            const tautulliUserId = resolveTautulliUserId(tUsers, {
+                username: targetUser?.username,
+                email: targetUser?.email,
+                plexAccountName,
+                skipAdmin: shouldSkipTautulliAdminUser(accountID),
+            });
 
             if (tautulliUserId) {
                 const tRes = await fetchTautulliApi(tUrl, {
@@ -21397,7 +21391,7 @@ const collectInactiveCleanupCandidates = async (config, thresholdDaysOverride) =
     };
 
     for (const user of users) {
-        if (isServerOwnerUser(user, config) || user.isAdmin || user.exemptFromCleanup) {
+        if (isServerOwnerUser(user, config) || user.exemptFromCleanup) {
             skipped.exempt += 1;
             continue;
         }
