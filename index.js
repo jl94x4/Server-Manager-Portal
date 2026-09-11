@@ -1683,6 +1683,7 @@ import {
     buildAutomatedEmailPreview,
     renderEmailEventTemplates,
     sanitizeEmailServerName,
+    emailHeaderLogoHtml,
 } from './lib/email/templates/index.js';
 import { normalizeNtfyEvents, isNtfyConfigured, notifyNtfyEvent } from './lib/notifications/ntfy.js';
 import {
@@ -7600,7 +7601,7 @@ app.post('/api/config/test-email', requireAdminOrInitialSetup, async (req, res) 
             <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; padding: 30px; color: #333333; line-height: 1.6;">
                 <div style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-top: 6px solid #e5a00d;">
                     <div style="background-color: #282A2D; padding: 25px; text-align: center;">
-                        ${hasLogo ? '<img src="cid:logo" alt="Logo" style="max-height: 100px; display: block; margin: 0 auto 10px auto;" />' : ''}
+                        ${hasLogo ? emailHeaderLogoHtml() : ''}
                         <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;">PLEX SERVER</h1>
                     </div>
                     <div style="padding: 30px 40px;">
