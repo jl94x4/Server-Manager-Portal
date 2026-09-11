@@ -1682,6 +1682,7 @@ import {
     buildWelcomeEmail,
     buildAutomatedEmailPreview,
     renderEmailEventTemplates,
+    sanitizeEmailServerName,
 } from './lib/email/templates/index.js';
 import { normalizeNtfyEvents, isNtfyConfigured, notifyNtfyEvent } from './lib/notifications/ntfy.js';
 import {
@@ -2281,8 +2282,7 @@ const sendEmail = async (config, to, subject, html, customTransporter = null) =>
 const sendWelcomeEmailToUser = async (config, user = {}) => {
     if (!user?.email) return false;
     try {
-        const adminProfile = await getAdminProfile(config).catch(() => null);
-        const serverName = adminProfile?.serverName || 'Our Plex Server';
+        const serverName = await resolveEmailServerName(config, 'Our Plex Server');
         const portalUrl = resolvePublicBaseUrlFromConfig(config) || config.publicDomain || '';
         const mail = buildWelcomeEmail({
             config,
@@ -2364,6 +2364,14 @@ const sendGotifyAlert = async (config, title, message, priority = undefined) => 
     }
 };
 
+const resolveEmailServerName = async (config, fallback = 'Media Server') => {
+    const profile = await getAdminProfile(config).catch(() => null);
+    return sanitizeEmailServerName(profile?.serverName || config?.serverName || '', {
+        serverIdentifier: config?.serverIdentifier,
+        fallback,
+    });
+};
+
 const checkAndSendNotifications = async (config) => {
     const hasSmtp = !!(config.smtpHost && config.smtpUser && config.smtpPass);
     const hasGotify = !!(config.gotifyEnabled && config.gotifyUrl && config.gotifyToken);
@@ -2384,6 +2392,8 @@ const checkAndSendNotifications = async (config) => {
         hasLogo = true;
     } catch (e) { }
 
+    const emailServerName = await resolveEmailServerName(config);
+
     for (const user of users) {
         if (!user.expiryDate || user.plexAccessStatus === 'revoked') {
             continue;
@@ -2402,7 +2412,7 @@ const checkAndSendNotifications = async (config) => {
                 expiryDate: expiryDateLabel,
                 days,
                 hasLogo,
-                serverName: config.serverName || config.serverIdentifier || 'Plex Server',
+                serverName: emailServerName,
             });
 
             try {
@@ -3752,7 +3762,7 @@ const sendExpiryEmail = async (config, user, hasLogo) => {
         username: user.username,
         expiryDate: expiryDateLabel,
         hasLogo,
-        serverName: config.serverName || config.serverIdentifier || 'Plex Server',
+        serverName: await resolveEmailServerName(config),
     });
 
     try {
@@ -3781,7 +3791,7 @@ const sendAdjustmentEmail = async (config, user, hasLogo) => {
         expiryDateLabel,
         days,
         hasLogo,
-        serverName: config.serverName || config.serverIdentifier || 'Plex Server',
+        serverName: await resolveEmailServerName(config),
     });
 
     try {
@@ -9959,8 +9969,7 @@ app.post('/api/invites/email', requireAdmin, async (req, res) => {
             });
         }
         const inviteUrl = `${publicDomain}/invite/${code}`;
-        const adminProfile = await getAdminProfile(config);
-        const serverName = adminProfile ? adminProfile.serverName : 'Our Plex Server';
+        const serverName = await resolveEmailServerName(config, 'Our Plex Server');
 
         const logoPath = path.join(process.cwd(), 'static', 'logo.png');
         let hasLogo = false;
@@ -17275,12 +17284,13 @@ app.post('/api/announcements/push', requireAdmin, async (req, res) => {
                 // Background task
                 (async () => {
                     log(`Starting staggered announcement email push to ${activeUsers.length} users over 30 minutes.`);
+                    const announcementServerName = await resolveEmailServerName(config, 'Media Server');
                     let sentCount = 0;
                     for (let i = 0; i < activeUsers.length; i++) {
                         const user = activeUsers[i];
                         const mail = buildAnnouncementEmail({
                             config,
-                            serverName: config.serverIdentifier || config.serverName || 'Plex',
+                            serverName: announcementServerName,
                             announcementText: text,
                         });
                         try {
