@@ -108,6 +108,7 @@ export const PreferencesPage: React.FC<Props> = ({ sessionInfo, refreshSession, 
     const [notifyWebPush, setNotifyWebPush] = useState(user?.notifyWebPush !== false);
     const [notifySummaryDigest, setNotifySummaryDigest] = useState(user?.notifySummaryDigest !== false);
     const [showDiscoverNowPlaying, setShowDiscoverNowPlaying] = useState(user?.showDiscoverNowPlaying !== false);
+    const [showHomeBecauseYouWatched, setShowHomeBecauseYouWatched] = useState(user?.showHomeBecauseYouWatched !== false);
     const [browserPushReady, setBrowserPushReady] = useState(false);
     const browserPushSupportedFlag = webPushSupported();
     const iosPushBlock = typeof window !== 'undefined' ? getIosWebPushBlockReason() : null;
@@ -161,6 +162,7 @@ export const PreferencesPage: React.FC<Props> = ({ sessionInfo, refreshSession, 
         setNotifyWebPush(user?.notifyWebPush !== false);
         setNotifySummaryDigest(user?.notifySummaryDigest !== false);
         setShowDiscoverNowPlaying(user?.showDiscoverNowPlaying !== false);
+        setShowHomeBecauseYouWatched(user?.showHomeBecauseYouWatched !== false);
         setOptOutNewsletter(!!user?.optOutNewsletter);
         setPrivacyShowName(user?.privacyShowName !== false);
         setPrivacyShowPlayer(user?.privacyShowPlayer !== false);
@@ -206,6 +208,7 @@ export const PreferencesPage: React.FC<Props> = ({ sessionInfo, refreshSession, 
         user?.notifyWebPush,
         user?.notifySummaryDigest,
         user?.showDiscoverNowPlaying,
+        user?.showHomeBecauseYouWatched,
         user?.optOutNewsletter,
         user?.privacyShowName,
         user?.privacyShowPlayer,
@@ -316,6 +319,7 @@ export const PreferencesPage: React.FC<Props> = ({ sessionInfo, refreshSession, 
                     notifyWebPush,
                     notifySummaryDigest,
                     showDiscoverNowPlaying,
+                    showHomeBecauseYouWatched,
                 }),
             });
             await Promise.resolve(refreshSession());
@@ -359,14 +363,24 @@ export const PreferencesPage: React.FC<Props> = ({ sessionInfo, refreshSession, 
                         <DiscoverLocaleSelect />
                     </DashboardPanel>
                     <DashboardPanel title={t('preferencesPage.homeTitle')} subtitle={t('preferencesPage.homeSubtitle')}>
-                        <PrefToggle
-                            title={t('preferencesPage.showNowPlaying')}
-                            hint={t('preferencesPage.showNowPlayingHint')}
-                            on={showDiscoverNowPlaying}
-                            onToggle={flip(setShowDiscoverNowPlaying)}
-                            ariaLabel={t('preferencesPage.showNowPlaying')}
-                            disabled={busy}
-                        />
+                        <div className="flex flex-col gap-5">
+                            <PrefToggle
+                                title={t('preferencesPage.showNowPlaying')}
+                                hint={t('preferencesPage.showNowPlayingHint')}
+                                on={showDiscoverNowPlaying}
+                                onToggle={flip(setShowDiscoverNowPlaying)}
+                                ariaLabel={t('preferencesPage.showNowPlaying')}
+                                disabled={busy}
+                            />
+                            <PrefToggle
+                                title={t('preferencesPage.showHomeBecauseYouWatched')}
+                                hint={t('preferencesPage.showHomeBecauseYouWatchedHint')}
+                                on={showHomeBecauseYouWatched}
+                                onToggle={flip(setShowHomeBecauseYouWatched)}
+                                ariaLabel={t('preferencesPage.showHomeBecauseYouWatched')}
+                                disabled={busy}
+                            />
+                        </div>
                     </DashboardPanel>
                     <DashboardPanel title={t('preferencesPage.installTitle')} subtitle={t('preferencesPage.installSubtitle')}>
                         <div className="flex flex-col sm:flex-row sm:items-center gap-3">

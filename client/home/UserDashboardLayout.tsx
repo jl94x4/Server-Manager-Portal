@@ -45,6 +45,7 @@ type Props = {
     renderBazarrTools?: () => React.ReactNode;
     renderWatchRowLeft?: () => React.ReactNode;
     renderWatchRowRight?: () => React.ReactNode;
+    renderBecauseYouWatched?: () => React.ReactNode;
     renderRecentlyAddedWidget: (id: RecentlyAddedWidgetId) => React.ReactNode;
     renderRecentlyAddedSkeleton: () => React.ReactNode;
     recentlyAddedLoading: boolean;
@@ -65,6 +66,7 @@ export const UserDashboardLayout: React.FC<Props> = ({
     renderBazarrTools,
     renderWatchRowLeft,
     renderWatchRowRight,
+    renderBecauseYouWatched,
     renderRecentlyAddedWidget,
     renderRecentlyAddedSkeleton,
     recentlyAddedLoading,
@@ -122,10 +124,13 @@ export const UserDashboardLayout: React.FC<Props> = ({
         </>
     );
 
+    const renderBecauseYouWatchedRow = () => renderBecauseYouWatched?.() || null;
+
     const renderMergedMainAndWatchGrid = (opts?: { includeRecentlyAdded?: boolean }) => {
         const recentlyWatched = renderWatchRowLeft?.();
         const mostWatched = renderWatchRowRight?.();
         const showRecentlyAdded = !!opts?.includeRecentlyAdded && hasDashboardData && recentlyAdded.length > 0;
+        const becauseYouWatched = renderBecauseYouWatchedRow();
         return (
             <>
                 <div className="hidden lg:grid lg:grid-cols-3 gap-3 md:gap-4 items-start w-full">
@@ -142,16 +147,21 @@ export const UserDashboardLayout: React.FC<Props> = ({
                         {mostWatched}
                     </div>
                 </div>
-                {showRecentlyAdded ? (
-                    <div className="hidden lg:flex flex-col gap-3 md:gap-4 w-full">
-                        {renderRecentlyAddedRows()}
-                    </div>
-                ) : null}
                 <div className="lg:hidden flex flex-col gap-3 md:gap-4 w-full">
                     {renderMainGridColumns()}
                     {renderWatchRowColumns()}
-                    {showRecentlyAdded ? renderRecentlyAddedRows() : null}
                 </div>
+                {becauseYouWatched}
+                {showRecentlyAdded ? (
+                    <>
+                        <div className="hidden lg:flex flex-col gap-3 md:gap-4 w-full">
+                            {renderRecentlyAddedRows()}
+                        </div>
+                        <div className="lg:hidden flex flex-col gap-3 md:gap-4 w-full">
+                            {renderRecentlyAddedRows()}
+                        </div>
+                    </>
+                ) : null}
             </>
         );
     };
@@ -159,6 +169,19 @@ export const UserDashboardLayout: React.FC<Props> = ({
     const sectionNodes: React.ReactNode[] = [];
     const mergedWatchRowIndices = new Set<number>();
     const mergedRecentlyAddedIndices = new Set<number>();
+    let becauseYouWatchedPlaced = false;
+    const pushBecauseYouWatched = () => {
+        if (becauseYouWatchedPlaced) return;
+        const content = renderBecauseYouWatchedRow();
+        if (!content) return;
+        becauseYouWatchedPlaced = true;
+        sectionNodes.push(
+            <div key="becauseYouWatched" className="relative w-full min-w-0">
+                {content}
+            </div>
+        );
+    };
+
     for (let index = 0; index < sections.length; index += 1) {
         const sectionId = sections[index];
         switch (sectionId) {
@@ -181,6 +204,7 @@ export const UserDashboardLayout: React.FC<Props> = ({
                 if (canMergeWatchRow || canMergeRecentlyAdded) {
                     if (watchRowIndex >= 0) mergedWatchRowIndices.add(watchRowIndex);
                     if (recentlyAddedIndex >= 0) mergedRecentlyAddedIndices.add(recentlyAddedIndex);
+                    becauseYouWatchedPlaced = true;
                     sectionNodes.push(
                         <div key="mainGrid-dashboard" className="relative w-full min-w-0 flex flex-col gap-3 md:gap-4">
                             {renderMergedMainAndWatchGrid({ includeRecentlyAdded: canMergeRecentlyAdded && !(recentlyAddedLoading && !hasDashboardData) })}
@@ -194,6 +218,7 @@ export const UserDashboardLayout: React.FC<Props> = ({
                         {renderMainGridColumns()}
                     </div>
                 );
+                if (watchRowIndex < 0) pushBecauseYouWatched();
                 break;
             }
             case 'pendingRequests': {
@@ -209,12 +234,16 @@ export const UserDashboardLayout: React.FC<Props> = ({
             case 'watchRow': {
                 if (mergedWatchRowIndices.has(index)) break;
                 const content = renderWatchRowColumns();
-                if (!content) break;
+                if (!content) {
+                    pushBecauseYouWatched();
+                    break;
+                }
                 sectionNodes.push(
                     <div key="watchRow" className="relative z-[1] w-full min-w-0">
                         {content}
                     </div>
                 );
+                pushBecauseYouWatched();
                 break;
             }
             case 'scanner': {
@@ -292,6 +321,7 @@ export const UserDashboardLayout: React.FC<Props> = ({
             }
         }
     }
+    pushBecauseYouWatched();
 
     return (
         <div className="grid grid-cols-1 gap-3 md:gap-4 w-full">

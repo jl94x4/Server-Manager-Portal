@@ -15,13 +15,15 @@ export type MainGridWidgetId =
     | 'accessStatus'
     | 'tempAccessSetup'
     | 'quickActions'
+    | 'expiringMembers'
     | 'announcement'
     | 'referral'
     | 'support'
     | 'libraryStats'
     | 'collexions'
     | 'analytics'
-    | 'achievements';
+    | 'achievements'
+    | 'homeNotifications';
 
 export type RecentlyAddedWidgetId = 'recentMovies' | 'recentShows' | 'recentMusic';
 
@@ -56,6 +58,7 @@ export const DASHBOARD_SECTION_LABELS: Record<DashboardSectionId, string> = {
 export const MAIN_GRID_WIDGET_META: Record<MainGridWidgetId, { label: string; column: 'left' | 'right'; adminOnly?: boolean; userOnly?: boolean }> = {
     adminBadge: { label: 'Server Admin badge', column: 'left', adminOnly: true },
     quickActions: { label: 'Quick Actions', column: 'left', adminOnly: true },
+    expiringMembers: { label: 'Expiring members this week', column: 'left', adminOnly: true },
     accessStatus: { label: 'Access status & expiry', column: 'left', userOnly: true },
     tempAccessSetup: { label: 'Temp access setup spinner', column: 'left', userOnly: true },
     announcement: { label: 'Announcement banner', column: 'left' },
@@ -65,6 +68,7 @@ export const MAIN_GRID_WIDGET_META: Record<MainGridWidgetId, { label: string; co
     collexions: { label: 'ColleXions', column: 'right', adminOnly: true },
     analytics: { label: 'Your Analytics', column: 'right' },
     achievements: { label: 'Achievements XP', column: 'left' },
+    homeNotifications: { label: 'Notifications', column: 'left' },
 };
 
 export const RECENTLY_ADDED_WIDGET_META: Record<RecentlyAddedWidgetId, string> = {
@@ -79,7 +83,9 @@ export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayoutConfig = {
     mainGridOrder: [
         'adminBadge',
         'quickActions',
+        'expiringMembers',
         'achievements',
+        'homeNotifications',
         'accessStatus',
         'announcement',
         'referral',

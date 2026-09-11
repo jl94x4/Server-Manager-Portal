@@ -4818,6 +4818,7 @@ app.post('/api/users/preferences', requireAuth, requireMember, async (req, res) 
             notifyWebPush,
             notifySummaryDigest,
             showDiscoverNowPlaying,
+            showHomeBecauseYouWatched,
             uiLocale,
             privacyShowName,
             privacyShowPlayer,
@@ -4893,6 +4894,7 @@ app.post('/api/users/preferences', requireAuth, requireMember, async (req, res) 
                 notifyWebPush,
                 notifySummaryDigest,
                 showDiscoverNowPlaying,
+                showHomeBecauseYouWatched,
                 privacyShowName,
                 privacyShowPlayer,
                 privacyShowAchievements,
@@ -5642,7 +5644,8 @@ const DEFAULT_DASHBOARD_LAYOUT = {
     version: 1,
     sections: ['wrapUp', 'mainGrid', 'pendingRequests', 'watchRow', 'scanner', 'mediaAutomation', 'recentlyAdded', 'bazarrTools'],
     mainGridOrder: [
-        'adminBadge', 'quickActions', 'achievements', 'accessStatus', 'announcement', 'referral',
+        'adminBadge', 'quickActions', 'expiringMembers', 'achievements', 'homeNotifications',
+        'accessStatus', 'announcement', 'referral',
         'support', 'libraryStats', 'collexions', 'analytics'
     ],
     recentlyAddedOrder: ['recentMovies', 'recentShows', 'recentMusic'],
@@ -5656,7 +5659,8 @@ const DEFAULT_DASHBOARD_LAYOUT = {
 
 const DASHBOARD_SECTIONS = ['wrapUp', 'mainGrid', 'pendingRequests', 'watchRow', 'scanner', 'mediaAutomation', 'recentlyAdded', 'bazarrTools'];
 const DASHBOARD_MAIN_GRID_WIDGETS = [
-    'adminBadge', 'accessStatus', 'tempAccessSetup', 'quickActions', 'achievements', 'announcement',
+    'adminBadge', 'accessStatus', 'tempAccessSetup', 'quickActions', 'expiringMembers', 'achievements',
+    'homeNotifications', 'announcement',
     'referral', 'support', 'libraryStats', 'collexions', 'analytics'
 ];
 const DASHBOARD_RECENTLY_ADDED_WIDGETS = ['recentMovies', 'recentShows', 'recentMusic'];

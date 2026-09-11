@@ -1,10 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Activity,
     AlertTriangle,
     Calendar,
-    ChevronLeft,
-    ChevronRight,
     Clapperboard,
     ExternalLink,
     FileText,
@@ -37,6 +35,9 @@ import { tAchievements } from '../achievements/i18n';
 import { apiFetch, apiFetchShared } from '../shared/api';
 import { ToastContainer, pushToast, type ToastMessage } from '../shared/toast';
 import type { DiscoverTranslate } from '../discovery/i18n/types';
+import { HomePosterScrollRow } from './HomePosterScrollRow';
+import { ExpiringMembersHomeWidget } from './ExpiringMembersHomeWidget';
+import { HomeNotificationsWidget } from './HomeNotificationsWidget';
 
 const AchievementsHomeWidgetConnected: React.FC = () => {
     const [summary, setSummary] = useState<any>(null);
@@ -118,7 +119,7 @@ const AchievementsHomeWidgetConnected: React.FC = () => {
 };
 
 type PosterCardProps = {
-    item: { title: string; thumb?: string; plexUrl: string; tags?: string[]; year?: number | string; parentTitle?: string };
+    item: { title: string; thumb?: string; thumbUrl?: string; plexUrl: string; tags?: string[]; year?: number | string; parentTitle?: string };
     aspect?: '2/3' | 'square';
     variant?: 'discover' | 'home';
     className?: string;
@@ -126,6 +127,7 @@ type PosterCardProps = {
     showQualityBadges?: boolean;
     loading?: 'lazy' | 'eager';
     fetchPriority?: 'high' | 'low' | 'auto';
+    onPosterClick?: () => void;
 };
 
 export type UserDashboardWidgetDeps = {
@@ -150,6 +152,7 @@ export type UserDashboardWidgetDeps = {
     bazarrWidgets: any;
     handleRelink: () => void;
     onViewAdmin: () => void;
+    onNavigate?: (route: string, options?: { path?: string; hash?: string; reviewId?: number }) => void;
     onViewSettings?: () => void;
     onViewLogs?: () => void;
     onViewCollexions?: () => void;
@@ -437,6 +440,7 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
         setAnalyticsDaysOpen,
         handleRelink,
         onViewAdmin,
+        onNavigate,
         onViewSettings,
         onViewLogs,
         onViewCollexions,
@@ -727,6 +731,11 @@ export const createMainGridWidgetRenderer = (deps: UserDashboardWidgetDeps) => {
             case 'achievements':
                 if (!sessionInfo?.navFeatures?.achievements) return null;
                 return <AchievementsHomeWidgetConnected />;
+            case 'expiringMembers':
+                if (!sessionInfo?.session?.isAdmin) return null;
+                return <ExpiringMembersHomeWidget t={t} onViewAdmin={onViewAdmin} />;
+            case 'homeNotifications':
+                return <HomeNotificationsWidget t={t} onNavigate={onNavigate} />;
             default:
                 return null;
         }
@@ -766,77 +775,6 @@ export const createPendingRequestsSectionRenderer = (deps: UserDashboardWidgetDe
             />
         );
     };
-};
-
-const RecentlyAddedScrollRow: React.FC<{ title: string; children: React.ReactNode; t: DiscoverTranslate; emptyMessage?: string }> = ({ title, children, t, emptyMessage }) => {
-    const scrollRef = useRef<HTMLDivElement>(null);
-    const [canScrollLeft, setCanScrollLeft] = useState(false);
-    const [canScrollRight, setCanScrollRight] = useState(false);
-    const childItems = React.Children.toArray(children);
-    const isEmpty = childItems.length === 0;
-
-    const updateScrollState = useCallback(() => {
-        const el = scrollRef.current;
-        if (!el) return;
-        const maxScroll = el.scrollWidth - el.clientWidth;
-        setCanScrollLeft(el.scrollLeft > 4);
-        setCanScrollRight(el.scrollLeft < maxScroll - 4);
-    }, []);
-
-    useEffect(() => {
-        updateScrollState();
-        const el = scrollRef.current;
-        if (!el) return;
-        el.addEventListener('scroll', updateScrollState, { passive: true });
-        const ro = new ResizeObserver(updateScrollState);
-        ro.observe(el);
-        return () => {
-            el.removeEventListener('scroll', updateScrollState);
-            ro.disconnect();
-        };
-    }, [updateScrollState, children]);
-
-    const scroll = (direction: -1 | 1) => {
-        const el = scrollRef.current;
-        if (!el) return;
-        el.scrollBy({ left: direction * el.clientWidth * 0.85, behavior: 'smooth' });
-    };
-
-    return (
-        <div className="glass-card p-4 md:p-5 shadow-xl overflow-hidden w-full">
-            <h3 className="text-lg md:text-xl font-bold text-text mb-3">{title}</h3>
-            {isEmpty ? (
-                <p className="text-sm text-muted py-4">{emptyMessage || t('homeDashboard.emptyRecentMovies')}</p>
-            ) : (
-            <div className="relative">
-                <button
-                    type="button"
-                    onClick={() => scroll(-1)}
-                    disabled={!canScrollLeft}
-                    aria-label={t('homeDashboard.scrollRowLeft', { title })}
-                    className="hidden lg:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full bg-black/70 border border-white/10 text-text hover:bg-black/90 hover:border-plex/50 disabled:opacity-0 disabled:pointer-events-none transition-all shadow-lg -ml-1"
-                >
-                    <ChevronLeft className="w-5 h-5" />
-                </button>
-                <div
-                    ref={scrollRef}
-                    className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar scroll-smooth touch-pan-x overscroll-x-contain lg:px-1"
-                >
-                    {children}
-                </div>
-                <button
-                    type="button"
-                    onClick={() => scroll(1)}
-                    disabled={!canScrollRight}
-                    aria-label={t('homeDashboard.scrollRowRight', { title })}
-                    className="hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full bg-black/70 border border-white/10 text-text hover:bg-black/90 hover:border-plex/50 disabled:opacity-0 disabled:pointer-events-none transition-all shadow-lg -mr-1"
-                >
-                    <ChevronRight className="w-5 h-5" />
-                </button>
-            </div>
-            )}
-        </div>
-    );
 };
 
 export const createScannerSectionRenderer = (deps: UserDashboardWidgetDeps) => {
@@ -959,7 +897,7 @@ export const createRecentlyAddedWidgetRenderer = (deps: UserDashboardWidgetDeps)
                 if (!dashboardData.recentMovies?.length) return null;
                 return (
                     <ScrollReveal enabled={!!publicConfig?.useScrollRevealAnimations}>
-                        <RecentlyAddedScrollRow title={t('homeDashboard.recentMovies')} t={t}>
+                        <HomePosterScrollRow title={t('homeDashboard.recentMovies')} t={t}>
                         {dashboardData.recentMovies.map((item: any, idx: number) => (
                             <DiscoverPosterCard
                                 key={idx}
@@ -977,14 +915,14 @@ export const createRecentlyAddedWidgetRenderer = (deps: UserDashboardWidgetDeps)
                                 )}
                             />
                         ))}
-                    </RecentlyAddedScrollRow>
+                    </HomePosterScrollRow>
                     </ScrollReveal>
                 );
             case 'recentShows':
                 if (!dashboardData.recentShows?.length) return null;
                 return (
                     <ScrollReveal enabled={!!publicConfig?.useScrollRevealAnimations}>
-                        <RecentlyAddedScrollRow title={t('homeDashboard.recentShows')} t={t}>
+                        <HomePosterScrollRow title={t('homeDashboard.recentShows')} t={t}>
                         {dashboardData.recentShows.map((item: any, idx: number) => (
                             <DiscoverPosterCard
                                 key={idx}
@@ -1002,14 +940,14 @@ export const createRecentlyAddedWidgetRenderer = (deps: UserDashboardWidgetDeps)
                                 )}
                             />
                         ))}
-                    </RecentlyAddedScrollRow>
+                    </HomePosterScrollRow>
                     </ScrollReveal>
                 );
             case 'recentMusic':
                 if (!dashboardData.recentMusic?.length) return null;
                 return (
                     <ScrollReveal enabled={!!publicConfig?.useScrollRevealAnimations}>
-                        <RecentlyAddedScrollRow title={t('homeDashboard.recentMusic')} t={t}>
+                        <HomePosterScrollRow title={t('homeDashboard.recentMusic')} t={t}>
                         {dashboardData.recentMusic.map((item: any, idx: number) => (
                             <DiscoverPosterCard
                                 key={idx}
@@ -1028,7 +966,7 @@ export const createRecentlyAddedWidgetRenderer = (deps: UserDashboardWidgetDeps)
                                 )}
                             />
                         ))}
-                    </RecentlyAddedScrollRow>
+                    </HomePosterScrollRow>
                     </ScrollReveal>
                 );
             default:

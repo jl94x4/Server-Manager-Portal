@@ -683,6 +683,8 @@ export const en = {
         homeSubtitle: 'What appears on your portal Home.',
         showNowPlaying: 'Now Playing on Home',
         showNowPlayingHint: 'Show what you are watching on the Home dashboard hero. Turn off to hide the Now Playing strip.',
+        showHomeBecauseYouWatched: 'Because you watched',
+        showHomeBecauseYouWatchedHint: 'One Discover-style row on Home with titles to play next, seeded from what you last watched. Wrap-Up is what you binge; this is what to start next.',
     },
     pwa: {
         install: {
@@ -875,6 +877,17 @@ export const en = {
         recentMusic: 'Recently Added Music',
         scrollRowLeft: 'Scroll {title} left',
         scrollRowRight: 'Scroll {title} right',
+        expiringMembers: {
+            title: 'Expiring this week',
+            subtitle: '{count} member',
+            subtitle_plural: '{count} members',
+            daysLeft: '{count} day left',
+            daysLeft_plural: '{count} days left',
+            more: '+{count} more',
+        },
+        homeNotifications: {
+            title: 'Notifications',
+        },
         admin: {
             serverAdmin: 'Server Admin',
             vipUnlimited: 'VIP UNLIMITED',

@@ -91,6 +91,8 @@ import { ANALYTICS_PERIOD_OPTIONS, persistAnalyticsDays, readPersistedAnalyticsD
 import { UserDashboardLayout } from './home/UserDashboardLayout';
 import { HomeCustomModuleSection } from './home/HomeCustomModuleSection';
 import { HomeHeroMovieBackdrop } from './home/HomeHeroMovieBackdrop';
+import { BecauseYouWatchedHomeRail } from './home/BecauseYouWatchedHomeRail';
+import { userAllowsHomeBecauseYouWatched } from './home/becauseYouWatchedPref.js';
 import { createBazarrToolsSectionRenderer, createMainGridWidgetRenderer, createMediaAutomationSectionRenderer, createPendingRequestsSectionRenderer, createRecentlyAddedWidgetRenderer, createScannerSectionRenderer, createSpotifySyncSectionRenderer } from './home/userDashboardWidgetRenderers';
 import {
     DEFAULT_DASHBOARD_LAYOUT,
@@ -8442,6 +8444,7 @@ export const UserDashboard: React.FC<{
         bazarrWidgets,
         handleRelink,
         onViewAdmin,
+        onNavigate,
         onViewSettings,
         onViewLogs,
         onViewCollexions,
@@ -8456,7 +8459,7 @@ export const UserDashboard: React.FC<{
     }), [
         t, sessionInfo, publicConfig, user, isRevoked, isExpiringSoon, daysLeft, progressPct,
         serverStats, serverDataLoading, analytics, analyticsLoading, analyticsDays, analyticsDaysOpen,
-        showQualityBadges, dashboardData, bazarrWidgets, onViewAdmin, onViewSettings, onViewLogs, onViewCollexions, onViewScanner, onViewSpotifySync, onViewMediaAutomation, onViewRequests, onPendingRequestsChange,
+        showQualityBadges, dashboardData, bazarrWidgets, onViewAdmin, onNavigate, onViewSettings, onViewLogs, onViewCollexions, onViewScanner, onViewSpotifySync, onViewMediaAutomation, onViewRequests, onPendingRequestsChange,
     ]);
 
     const renderMainGridWidget = useMemo(() => createMainGridWidgetRenderer(widgetDeps), [widgetDeps]);
@@ -8827,6 +8830,14 @@ export const UserDashboard: React.FC<{
                             </div>
                         )}
                     </>
+                )}
+                renderBecauseYouWatched={() => (
+                    <BecauseYouWatchedHomeRail
+                        t={t}
+                        DiscoverPosterCard={DiscoverPosterCard}
+                        onNavigate={onNavigate}
+                        enabled={userAllowsHomeBecauseYouWatched(user)}
+                    />
                 )}
                 renderWatchRowLeft={() => {
                     if (!(sessionInfo.session.isAdmin || user)) return null;

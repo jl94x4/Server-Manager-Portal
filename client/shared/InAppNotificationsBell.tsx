@@ -25,7 +25,7 @@ import {
     X,
 } from 'lucide-react';
 import { apiFetch } from './api';
-import { IN_APP_NOTIFICATIONS_CHANGED_EVENT, notifyInAppNotificationsChanged } from './inAppNotificationsRefresh';
+import { IN_APP_NOTIFICATIONS_CHANGED_EVENT, OPEN_IN_APP_NOTIFICATIONS_EVENT, notifyInAppNotificationsChanged } from './inAppNotificationsRefresh';
 import { resolveNotificationDestination } from './notificationDestination';
 import { navigateToSummaryDigest } from './SummaryDigestCard';
 import { stackInAppNotifications } from './notificationStacks';
@@ -624,7 +624,13 @@ export const InAppNotificationsBell: React.FC<Props> = ({
             if (document.visibilityState === 'visible') refresh({ silent: true });
         };
 
+        const onOpen = () => {
+            setOpen(true);
+            refresh({ silent: true });
+        };
+
         window.addEventListener(IN_APP_NOTIFICATIONS_CHANGED_EVENT, onChanged);
+        window.addEventListener(OPEN_IN_APP_NOTIFICATIONS_EVENT, onOpen);
         window.addEventListener('focus', onFocus);
         document.addEventListener('visibilitychange', onVisibility);
 
@@ -635,6 +641,7 @@ export const InAppNotificationsBell: React.FC<Props> = ({
         return () => {
             window.clearInterval(id);
             window.removeEventListener(IN_APP_NOTIFICATIONS_CHANGED_EVENT, onChanged);
+            window.removeEventListener(OPEN_IN_APP_NOTIFICATIONS_EVENT, onOpen);
             window.removeEventListener('focus', onFocus);
             document.removeEventListener('visibilitychange', onVisibility);
         };
