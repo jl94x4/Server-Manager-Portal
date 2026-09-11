@@ -20,4 +20,6 @@ export const parseTpdbUserHandle = (value) => {
     return handle;
 };
 
+export const isTpdbRecentUrl = (value) => /theposterdb\.com\/recent(?:[/?#]|$)/i.test(String(value || '').trim());
+
 export default parseTpdbUserHandle;

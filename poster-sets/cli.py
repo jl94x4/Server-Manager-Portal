@@ -110,7 +110,11 @@ def main() -> int:
             mode = str(request.get("mode") or "title")
             raw_limit = request.get("limit")
             if raw_limit is None or raw_limit == "":
-                limit = 0 if str(mode).strip().lower() in {"creator", "user", "author", "uploader"} else 24
+                unbounded = str(mode).strip().lower() in {
+                    "creator", "user", "author", "uploader",
+                    "recent", "browse", "recently_added", "recently-added",
+                }
+                limit = 0 if unbounded else 24
             else:
                 limit = int(raw_limit)
             batch_pages = int(request.get("batchPages") or request.get("batch_pages") or 3)

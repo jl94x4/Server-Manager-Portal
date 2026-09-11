@@ -36,6 +36,7 @@ import { PosterSetsCollectionsView } from './PosterSetsCollectionsView';
 import { PosterSetsQueueView } from './PosterSetsQueueView';
 import { PosterSetsWatchingView } from './PosterSetsWatchingView';
 import { PosterSetsRecentView } from './PosterSetsRecentView';
+import { PosterSetsTpdbRecentView } from './PosterSetsTpdbRecentView';
 import { PosterSetsSearchView } from './PosterSetsSearchView';
 import { PosterSetsPasteView } from './PosterSetsPasteView';
 import { PosterSetsHistoryView } from './PosterSetsHistoryView';
@@ -311,6 +312,7 @@ export const PosterSetsShell: React.FC = () => {
             <PosterSetsQueueView />
             <PosterSetsWatchingView />
             <PosterSetsRecentView />
+            <PosterSetsTpdbRecentView />
             <PosterSetsSearchView />
             <PosterSetsPasteView />
             <PosterSetsHistoryView />

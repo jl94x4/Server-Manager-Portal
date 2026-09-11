@@ -5,13 +5,14 @@ import { withPreservedPortalScroll } from './shared/posterSetsScroll';
 export const POSTER_SETS_PRIMARY_TABS = ['library', 'collections', 'discover', 'queue', 'watches', 'logs', 'paste', 'settings'] as const;
 export type PosterSetsPrimaryTab = (typeof POSTER_SETS_PRIMARY_TABS)[number];
 
-export const DISCOVER_VIEWS = ['search', 'browse', 'recent'] as const;
+export const DISCOVER_VIEWS = ['search', 'browse', 'tpdb', 'recent'] as const;
 export type DiscoverView = (typeof DISCOVER_VIEWS)[number];
 
 /** Internal tabs used by the dashboard render tree (legacy names preserved). */
 export const POSTER_SETS_INTERNAL_TABS = [
     'apply',
     'browse',
+    'tpdb',
     'library',
     'collections',
     'queue',
@@ -81,6 +82,8 @@ const legacyTabToState = (legacy: PosterSetsInternalTab): Pick<PosterSetsUrlStat
             return { tab: 'settings', discoverView: 'search' };
         case 'browse':
             return { tab: 'discover', discoverView: 'browse' };
+        case 'tpdb':
+            return { tab: 'discover', discoverView: 'tpdb' };
         case 'recent':
             return { tab: 'discover', discoverView: 'recent' };
         case 'paste':
@@ -100,6 +103,7 @@ export function internalTabFromUrl(state: PosterSetsUrlState): PosterSetsInterna
     if (state.tab === 'settings') return 'settings';
     if (state.tab === 'paste') return 'paste';
     if (state.discoverView === 'browse') return 'browse';
+    if (state.discoverView === 'tpdb') return 'tpdb';
     if (state.discoverView === 'recent') return 'recent';
     return 'apply';
 }

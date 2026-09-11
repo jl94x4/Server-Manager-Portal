@@ -104,7 +104,7 @@ export type PosterSetsSearchPayload = {
     titleHint?: string;
     yearHint?: number | null;
     mediaType?: string;
-    mode?: 'title' | 'creator';
+    mode?: 'title' | 'creator' | 'recent';
     titleSources?: Array<{
         provider: string;
         id?: string;
@@ -220,10 +220,10 @@ export const posterSetsApi = {
         apiFetch(`${ROOT}/collections`, json({ refresh: Boolean(options?.refresh) })) as Promise<PosterSetsCollectionsResponse>
     ),
     /**
-     * Creator search streams NDJSON batches (first ~3 source pages, then more).
+     * Creator / recent catalogs stream NDJSON batches (first ~3 source pages, then more).
      * `onBatch` is called with the full merged set list so far.
      */
-    searchCreatorStream: async (
+    searchCatalogStream: async (
         payload: PosterSetsSearchPayload,
         {
             onBatch,
@@ -243,7 +243,7 @@ export const posterSetsApi = {
             }),
             body: JSON.stringify({
                 ...payload,
-                mode: 'creator',
+                mode: payload.mode || 'creator',
                 batchPages: payload.batchPages ?? 3,
             }),
         });
@@ -272,6 +272,13 @@ export const posterSetsApi = {
         }, signal);
         return finalEvent;
     },
+    searchCreatorStream: (
+        payload: PosterSetsSearchPayload,
+        options: {
+            onBatch: (event: PosterSetsSearchResult & { type?: string }) => void;
+            signal?: AbortSignal;
+        },
+    ) => posterSetsApi.searchCatalogStream({ ...payload, mode: 'creator' }, options),
     apply: (
         url: string,
         selectedIds?: string[],

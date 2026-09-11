@@ -5101,6 +5101,100 @@ def _posterdb_recent_max_page(soup) -> int:
     return max_page
 
 
+def list_posterdb_recent_sets(
+    progress: ProgressFn = None,
+    limit: int = 0,
+    max_pages: int = 0,
+    *,
+    on_batch: BatchFn = None,
+    batch_pages: int = 3,
+) -> dict:
+    """Stream ThePosterDB /recent pages in one scrape (same pattern as creator catalogs)."""
+    hard_cap = max(1, int(max_pages or 80))
+    take = max(0, int(limit or 0)) or 10_000
+    step = max(1, int(batch_pages or 3))
+    sets: dict = {}
+    last_emitted = 0
+    pages_in_batch = 0
+    last_page = 1
+    page_count = 1
+
+    def visible_sets() -> list:
+        return list(sets.values())[:take]
+
+    def flush_batch(*, done: bool = False, force: bool = False) -> None:
+        nonlocal last_emitted, pages_in_batch
+        if not on_batch:
+            return
+        if not force and not done and pages_in_batch < step:
+            return
+        visible = visible_sets()
+        chunk = visible[last_emitted:]
+        if not chunk and not done:
+            pages_in_batch = 0
+            return
+        last_emitted = len(visible)
+        pages_in_batch = 0
+        on_batch({
+            "provider": "posterdb",
+            "phase": "sets",
+            "mode": "recent",
+            "query": "recent",
+            "title": "ThePosterDB · Recently added",
+            "titleUrl": "https://theposterdb.com/recent",
+            "sets": chunk,
+            "allSets": visible,
+            "pagesFetched": last_page,
+            "pagesAvailable": page_count,
+            "done": done,
+            "loading": not done,
+        })
+
+    emit(progress, "Loading ThePosterDB recently added…")
+    soup = cook_soup("https://theposterdb.com/recent?page=1")
+    page_count = min(max(1, _posterdb_recent_max_page(soup)), hard_cap)
+    _collect_posterdb_set_cards(soup, sets=sets, limit=take)
+    pages_in_batch = 1
+    flush_batch()
+    stagnant = 0
+    for page in range(2, page_count + 1):
+        before = len(sets)
+        if before >= take:
+            break
+        emit(progress, f"Recently added page {page}/{page_count}…")
+        soup = cook_soup(f"https://theposterdb.com/recent?page={page}")
+        _collect_posterdb_set_cards(soup, sets=sets, limit=take)
+        last_page = page
+        pages_in_batch += 1
+        page_count = min(max(page_count, _posterdb_recent_max_page(soup)), hard_cap)
+        flush_batch()
+        if len(sets) == before:
+            stagnant += 1
+            if stagnant >= 3:
+                emit(progress, f"Stopping recent scrape after {page} pages — no new sets.")
+                break
+        else:
+            stagnant = 0
+    flush_batch(done=True, force=True)
+    results = visible_sets()
+    if not results:
+        raise ValueError("No recently added sets found on ThePosterDB.")
+    return {
+        "ok": True,
+        "provider": "posterdb",
+        "phase": "sets",
+        "mode": "recent",
+        "query": "recent",
+        "title": "ThePosterDB · Recently added",
+        "titleUrl": "https://theposterdb.com/recent",
+        "titles": [],
+        "sets": results,
+        "pagesFetched": last_page,
+        "pagesAvailable": page_count,
+        "kind": "posters",
+    }
+
+
 def list_recent_sets(
     provider: str,
     *,
@@ -5213,6 +5307,18 @@ def search_catalog(
 
     search_mode = str(mode or "title").strip().lower()
     if search_mode in {"recent", "browse", "recently_added", "recently-added"}:
+        streaming_recent = on_batch is not None and source == "posterdb"
+        if streaming_recent:
+            extra = {}
+            if max_set_pages is not None:
+                extra["max_pages"] = int(max_set_pages)
+            return list_posterdb_recent_sets(
+                progress=progress,
+                limit=max(0, int(limit or 0)),
+                on_batch=on_batch,
+                batch_pages=batch_pages,
+                **extra,
+            )
         return list_recent_sets(
             source,
             kind=kind or query or "posters",

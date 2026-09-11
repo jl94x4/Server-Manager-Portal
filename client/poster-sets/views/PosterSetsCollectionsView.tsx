@@ -134,6 +134,7 @@ export const PosterSetsCollectionsView: React.FC = () => {
             </div>
 
             <PosterSetsCreatorsPanel
+                collapsible
                 creators={textToList(whitelistText).map((item) => item.replace(/^@+/, ''))}
                 busy={busy}
                 onChange={(next) => {

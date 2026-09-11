@@ -64,6 +64,7 @@ export {
     partitionSetsByCategory,
     parseSetRef,
     parseTpdbUserHandle,
+    isTpdbRecentUrl,
     SEARCH_SET_CATEGORY_ORDER,
     readRecentSets,
     upsertRecentSet,

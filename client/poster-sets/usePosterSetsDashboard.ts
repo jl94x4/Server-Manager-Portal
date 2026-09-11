@@ -92,6 +92,7 @@ import {
     normalizeRecentSetKind,
     parseSetRef,
     parseTpdbUserHandle,
+    isTpdbRecentUrl,
     readRecentSets,
     textToList,
     upsertRecentSet,
@@ -147,7 +148,9 @@ export function usePosterSetsDashboardState() {
     const [findProvider, setFindProvider] = useState<SetProvider>('mediux');
     const [findId, setFindId] = useState('');
     const [searchProvider, setSearchProvider] = useState<SearchProvider>('both');
-    const [searchMode, setSearchMode] = useState<'title' | 'creator'>(initialLocation.creator ? 'creator' : 'title');
+    const [searchMode, setSearchMode] = useState<'title' | 'creator' | 'recent'>(
+        initialLocation.tab === 'tpdb' ? 'recent' : (initialLocation.creator ? 'creator' : 'title'),
+    );
     const [searchQuery, setSearchQuery] = useState(initialLocation.creator || '');
     const [searchTitles, setSearchTitles] = useState<PosterSetsSearchTitle[]>([]);
     const [searchSets, setSearchSets] = useState<PosterSetsSearchSet[]>([]);
@@ -233,6 +236,7 @@ export function usePosterSetsDashboardState() {
     const titleCardsOnlyRef = useRef(Boolean(initialLocation.titleCardsOnly));
     const deepLinkHandledRef = useRef(false);
     const openCreatorCatalogRef = useRef<(username: string, options?: { skipUrl?: boolean; locationTab?: 'paste' | 'apply' }) => void>(() => {});
+    const openTpdbRecentCatalogRef = useRef<(options?: { skipUrl?: boolean; locationTab?: 'paste' | 'tpdb'; refresh?: boolean }) => void>(() => {});
 
     const loadHistory = useCallback(async () => {
         try {
@@ -434,7 +438,9 @@ export function usePosterSetsDashboardState() {
         titleCardsOnlyRef.current = false;
         const creator = searchMode === 'creator' ? String(searchQuery || '').trim().replace(/^@+/, '') || null : null;
         if (tab === 'paste') {
-            const userUrl = creator ? `https://theposterdb.com/user/${encodeURIComponent(creator)}` : null;
+            const userUrl = creator
+                ? `https://theposterdb.com/user/${encodeURIComponent(creator)}`
+                : (searchMode === 'recent' ? 'https://theposterdb.com/recent' : null);
             syncedSetUrlRef.current = userUrl;
             if (userUrl) setUrl(userUrl);
             writePosterSetsUrl(normalizePosterLocation({
@@ -447,7 +453,7 @@ export function usePosterSetsDashboardState() {
         } else {
             syncedSetUrlRef.current = null;
             writePosterSetsUrl(normalizePosterLocation({
-                tab: tab === 'browse' ? 'browse' : tab === 'collections' ? 'collections' : 'apply',
+                tab: tab === 'browse' ? 'browse' : tab === 'collections' ? 'collections' : tab === 'tpdb' ? 'tpdb' : 'apply',
                 rail: tab === 'browse' ? browseSeeAllId : null,
                 setUrl: null,
                 creator: tab === 'apply' ? creator : null,
@@ -505,6 +511,9 @@ export function usePosterSetsDashboardState() {
         if (id === 'browse') void loadBrowse({ silent: browseRailsRef.current.length > 0 });
         if (id === 'library') void loadLibraryRecent({ silent: libraryShows.length > 0 || libraryMovies.length > 0 });
         if (id === 'collections') void loadCollections({ silent: collectionSetsRef.current.length > 0 });
+        if (id === 'tpdb') {
+            queueMicrotask(() => openTpdbRecentCatalogRef.current({ skipUrl: true }));
+        }
     }, [historyFilter, loadAudit, loadBrowse, loadCollections, loadHistory, loadLibraryRecent, loadQueue, loadWatches, libraryMovies.length, libraryShows.length, pushPosterLocation, setHistoryFilter]);
 
     const goToPrimaryTab = useCallback((id: PrimaryTabId, options?: { mode?: 'push' | 'replace' }) => {
@@ -524,7 +533,9 @@ export function usePosterSetsDashboardState() {
             ? 'browse'
             : view === 'recent'
                 ? 'recent'
-                : 'apply';
+                : view === 'tpdb'
+                    ? 'tpdb'
+                    : 'apply';
         goToTab(internal, options);
     }, [goToTab]);
 
@@ -1210,6 +1221,14 @@ export function usePosterSetsDashboardState() {
     useEffect(() => {
         if (deepLinkHandledRef.current) return;
         deepLinkHandledRef.current = true;
+        if (initialLocation.tab === 'tpdb') {
+            void openTpdbRecentCatalogRef.current({ skipUrl: true });
+            return;
+        }
+        if (isTpdbRecentUrl(initialUrlState.setUrl || '') && initialLocation.tab === 'paste') {
+            void openTpdbRecentCatalogRef.current({ skipUrl: true, locationTab: 'paste' });
+            return;
+        }
         const handleFromUrl = parseTpdbUserHandle(initialUrlState.setUrl || '');
         if (handleFromUrl && (initialLocation.tab === 'apply' || initialLocation.tab === 'paste')) {
             void openCreatorCatalogRef.current(handleFromUrl, {
@@ -1267,7 +1286,22 @@ export function usePosterSetsDashboardState() {
                 return;
             }
 
+            if (internalTab === 'tpdb') {
+                titleCardsOnlyRef.current = false;
+                setTitleCardsOnly(false);
+                void openTpdbRecentCatalogRef.current({ skipUrl: true });
+                return;
+            }
+
             if (internalTab === 'paste' && parsed.setUrl) {
+                if (isTpdbRecentUrl(parsed.setUrl)) {
+                    syncedSetUrlRef.current = parsed.setUrl;
+                    titleCardsOnlyRef.current = false;
+                    setTitleCardsOnly(false);
+                    setUrl(parsed.setUrl);
+                    void openTpdbRecentCatalogRef.current({ skipUrl: true, locationTab: 'paste' });
+                    return;
+                }
                 const handleFromUrl = parseTpdbUserHandle(parsed.setUrl);
                 if (handleFromUrl) {
                     syncedSetUrlRef.current = parsed.setUrl;
@@ -1750,14 +1784,14 @@ export function usePosterSetsDashboardState() {
     );
 
     const runCatalogSearch = async (options?: {
-        mode?: 'title' | 'creator';
+        mode?: 'title' | 'creator' | 'recent';
         query?: string;
         provider?: SearchProvider;
     }) => {
         const mode = options?.mode || searchMode;
         const q = String(options?.query ?? searchQuery).trim().replace(/^@+/, '');
         const provider = options?.provider || searchProvider;
-        if (!q) {
+        if (mode !== 'recent' && !q) {
             toast(mode === 'creator' ? 'Enter a creator username.' : 'Enter a title to search.', 'error');
             return;
         }
@@ -1775,14 +1809,14 @@ export function usePosterSetsDashboardState() {
         setSelectedSearchSet(null);
         setPreview(null);
         try {
-            if (mode === 'creator') {
+            if (mode === 'creator' || mode === 'recent') {
                 toast("Loading first pages… more will fill in as they're found.");
                 setSearchLoadingMore(true);
                 let sawFirstBatch = false;
-                const finalEvent = await posterSetsApi.searchCreatorStream({
-                    provider,
-                    query: q,
-                    mode: 'creator',
+                const finalEvent = await posterSetsApi.searchCatalogStream({
+                    provider: mode === 'recent' ? 'posterdb' : provider,
+                    query: mode === 'recent' ? 'recent' : q,
+                    mode,
                     dupePreference: configDraft.dupePreference === 'mediux' ? 'mediux' : 'posterdb',
                     limit: 0,
                     batchPages: 3,
@@ -1792,7 +1826,7 @@ export function usePosterSetsDashboardState() {
                         if (abort.signal.aborted) return;
                         const sets = event.sets || [];
                         setSearchSets(sets);
-                        setSearchContext(event.title || `@${q}`);
+                        setSearchContext(event.title || (mode === 'recent' ? 'ThePosterDB · Recently added' : `@${q}`));
                         if (!sawFirstBatch && sets.length) {
                             sawFirstBatch = true;
                             setBusy(null);
@@ -1922,6 +1956,66 @@ export function usePosterSetsDashboardState() {
         });
     };
     openCreatorCatalogRef.current = openCreatorCatalog;
+
+    const openTpdbRecentCatalog = (options?: { skipUrl?: boolean; locationTab?: 'paste' | 'tpdb'; refresh?: boolean }) => {
+        const locationTab = options?.locationTab === 'paste' ? 'paste' : 'tpdb';
+        const recentUrl = 'https://theposterdb.com/recent';
+        if (
+            !options?.refresh
+            && searchMode === 'recent'
+            && tab === locationTab
+            && (searchSets.length > 0 || searchLoadingMore || busy === 'search')
+        ) {
+            setTab(locationTab);
+            return;
+        }
+        setTab(locationTab);
+        setBrowseSeeAllId(null);
+        setSearchMode('recent');
+        setSearchQuery('');
+        setSearchProvider('posterdb');
+        setTitleCardsOnly(false);
+        titleCardsOnlyRef.current = false;
+        setPreview(null);
+        setSelectedSearchSet(null);
+        setSelectedSearchTitle(null);
+        setShowInspectorAssets(false);
+        setSelectedAssetIds([]);
+        if (locationTab === 'paste') {
+            syncedSetUrlRef.current = recentUrl;
+            setUrl(recentUrl);
+            if (!options?.skipUrl) {
+                pushPosterLocation({
+                    tab: 'paste',
+                    rail: null,
+                    setUrl: recentUrl,
+                    creator: null,
+                    titleCardsOnly: false,
+                }, 'push');
+            }
+        } else {
+            syncedSetUrlRef.current = null;
+            setUrl('');
+            if (!options?.skipUrl) {
+                pushPosterLocation({
+                    tab: 'tpdb',
+                    rail: null,
+                    setUrl: null,
+                    creator: null,
+                    titleCardsOnly: false,
+                }, 'push');
+            }
+        }
+        requestAnimationFrame(() => {
+            searchSetsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        void runCatalogSearch({
+            mode: 'recent',
+            query: 'recent',
+            provider: 'posterdb',
+        });
+    };
+    openTpdbRecentCatalogRef.current = openTpdbRecentCatalog;
 
     const openLibraryItem = (item: LibraryRecentItem) => {
         setLibraryDetailItem(item);
@@ -2594,6 +2688,7 @@ export function usePosterSetsDashboardState() {
         searchSetsUseTitleCardGrid,
         runCatalogSearch,
         openCreatorCatalog,
+        openTpdbRecentCatalog,
         openLibraryItem,
         openSearchTitle,
         runLibraryItemSearch,

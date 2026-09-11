@@ -1,0 +1,292 @@
+import React from 'react';
+import {
+    ChevronLeft,
+    ChevronRight,
+    ExternalLink,
+    Loader2,
+    RefreshCw,
+    Sparkles,
+} from 'lucide-react';
+import { CustomSelect } from '../../shared/ui';
+import { normalizeUpgraderGridSize } from '../../shared/portalLayout';
+import { SetInspector, SetInspectorThumbStrip } from '../SetInspector';
+import { inferPreviewMediaType } from '../posterSetsDashboardUtils';
+import {
+    BrowseSetCard,
+    POSTER_SETS_GRID_OPTIONS,
+    PreviewAssetGallery,
+    RelatedSetsRail,
+    SEARCH_SETS_PAGE_SIZE_OPTIONS,
+    bulkEntryFromSet,
+    buttonClass,
+    isTitleCardSet,
+    normalizeSearchSetsPageSize,
+    sectionBodyClass,
+    sectionTitleClass,
+} from '../shared';
+import { usePosterSetsDashboard } from '../PosterSetsDashboardContext';
+
+export const PosterSetsTpdbRecentView: React.FC = () => {
+    const {
+        tab,
+        busy,
+        setUrl,
+        runPreview,
+        setSelectedSearchSet,
+        setSearchSetsPage,
+        searchSets,
+        searchContext,
+        searchLoadingMore,
+        searchSetsPage,
+        searchSetsPageCount,
+        searchSetsPageSize,
+        setSearchSetsPageSize,
+        pagedSearchSets,
+        rankedSearchSets,
+        selectedSearchSet,
+        inspectorOpen,
+        preview,
+        previewHeaderLabel,
+        readyToApply,
+        matchedAssetCount,
+        selectedAssetIds,
+        selectedBulkSets,
+        titleCardsOnly,
+        showInspectorAssets,
+        setShowInspectorAssets,
+        applyMatched,
+        runApply,
+        queueEntireWithConfirm,
+        applyUnmatched,
+        applyNewSinceWatch,
+        selectPreviewAssets,
+        collapseSetInspector,
+        matchedThumbStrip,
+        previewSections,
+        toggleAsset,
+        relatedSets,
+        relatedSetsLoading,
+        expandSetInline,
+        openCreatorCatalog,
+        openTpdbRecentCatalog,
+        toggleBulkSet,
+        selectBrowseSets,
+        clearBulkSelection,
+        selectedBulkCount,
+        previewPanelRef,
+        searchSetsSectionRef,
+        gridSize,
+        setGridSize,
+        posterGridClass,
+        posterGridStyle,
+        titleCardGridStyle,
+        searchSetsUseTitleCardGrid,
+    } = usePosterSetsDashboard();
+
+    if (tab !== 'tpdb') return null;
+
+    const catalogGridStyle = searchSetsUseTitleCardGrid ? titleCardGridStyle : posterGridStyle;
+    const catalogBusy = busy !== null && busy !== 'preview' && busy !== 'search';
+
+    return (
+        <section ref={searchSetsSectionRef} className="min-w-0 space-y-5 overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-xl">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 max-w-3xl">
+                    <div className="flex items-center gap-2 text-plex">
+                        <Sparkles className="h-4 w-4" />
+                        <span className="text-xs font-bold uppercase tracking-wide">ThePosterDB</span>
+                    </div>
+                    <h2 className={`mt-1 ${sectionTitleClass}`}>
+                        {searchContext || 'Recently added'}
+                    </h2>
+                    <p className={sectionBodyClass}>
+                        Newest sets from theposterdb.com/recent, loaded like a creator catalog. Tick full sets, then Queue & watch.
+                    </p>
+                    <p className="mt-1 text-[11px] text-muted">
+                        {searchSets.length
+                            ? `${searchSets.length} set${searchSets.length === 1 ? '' : 's'} loaded`
+                            : 'Loading sets…'}
+                        {searchSets.length > searchSetsPageSize
+                            ? ` · page ${Math.min(searchSetsPage, searchSetsPageCount)} / ${searchSetsPageCount}`
+                            : ''}
+                        {searchLoadingMore ? ' · loading more…' : ''}
+                        {selectedBulkCount ? ` · ${selectedBulkCount} selected` : ''}
+                    </p>
+                </div>
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    <CustomSelect
+                        value={gridSize === 'list' ? 'medium' : gridSize}
+                        onChange={(value) => setGridSize(normalizeUpgraderGridSize(value))}
+                        options={POSTER_SETS_GRID_OPTIONS}
+                        className="w-full min-w-[140px] sm:w-auto"
+                        compact
+                    />
+                    <CustomSelect
+                        value={String(searchSetsPageSize)}
+                        onChange={(value) => {
+                            setSearchSetsPageSize(normalizeSearchSetsPageSize(value));
+                            setSearchSetsPage(1);
+                        }}
+                        options={[...SEARCH_SETS_PAGE_SIZE_OPTIONS]}
+                        className="w-full min-w-[140px] sm:w-auto"
+                        compact
+                    />
+                    {searchSetsPageCount > 1 ? (
+                        <>
+                            <button
+                                type="button"
+                                className={buttonClass}
+                                disabled={catalogBusy || searchSetsPage <= 1}
+                                onClick={() => setSearchSetsPage((page: number) => Math.max(1, page - 1))}
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                                Prev
+                            </button>
+                            <span className="text-xs text-muted">
+                                {Math.min(searchSetsPage, searchSetsPageCount)} / {searchSetsPageCount}
+                            </span>
+                            <button
+                                type="button"
+                                className={buttonClass}
+                                disabled={catalogBusy || searchSetsPage >= searchSetsPageCount}
+                                onClick={() => setSearchSetsPage((page: number) => Math.min(searchSetsPageCount, page + 1))}
+                            >
+                                Next
+                                <ChevronRight className="h-4 w-4" />
+                            </button>
+                        </>
+                    ) : null}
+                    <button
+                        type="button"
+                        className={buttonClass}
+                        disabled={busy !== null && busy !== 'search'}
+                        onClick={() => openTpdbRecentCatalog({ refresh: true })}
+                    >
+                        {busy === 'search' ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                        Refresh
+                    </button>
+                    <a
+                        href="https://theposterdb.com/recent"
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`${buttonClass} no-underline`}
+                    >
+                        <ExternalLink className="h-4 w-4" />
+                        Open site
+                    </a>
+                </div>
+            </div>
+
+            {inspectorOpen ? (
+                <SetInspector
+                    panelRef={previewPanelRef}
+                    set={selectedSearchSet}
+                    headerLabel={previewHeaderLabel}
+                    loading={busy === 'preview'}
+                    ready={readyToApply}
+                    matchedCount={matchedAssetCount}
+                    unmatchedCount={preview?.unmatched ?? 0}
+                    totalCount={preview?.total || 0}
+                    selectedCount={selectedAssetIds.length}
+                    titleCardsOnly={titleCardsOnly}
+                    showAssets={showInspectorAssets}
+                    busy={busy}
+                    onToggleShowAssets={() => setShowInspectorAssets((value: boolean) => !value)}
+                    onQueueMatched={() => void applyMatched()}
+                    onQueueSelected={() => void runApply(true)}
+                    onQueueEntire={() => void queueEntireWithConfirm()}
+                    onQueueUnmatched={() => void applyUnmatched()}
+                    onQueueNewSinceWatch={() => void applyNewSinceWatch()}
+                    onSelectMatched={() => selectPreviewAssets('matched')}
+                    onSelectAll={() => selectPreviewAssets('all')}
+                    onClearSelection={() => selectPreviewAssets('none')}
+                    onClose={() => collapseSetInspector({ scrollToSets: false })}
+                    closeLabel="Back to sets"
+                    thumbStrip={(
+                        <SetInspectorThumbStrip
+                            thumbs={matchedThumbStrip}
+                            layout={titleCardsOnly || isTitleCardSet(selectedSearchSet) ? 'landscape' : 'poster'}
+                            setUrl={selectedSearchSet?.url}
+                            provider={selectedSearchSet?.provider}
+                        />
+                    )}
+                    gallery={(
+                        <PreviewAssetGallery
+                            sections={previewSections}
+                            selectedAssetIds={selectedAssetIds}
+                            onToggle={toggleAsset}
+                        />
+                    )}
+                    relatedRail={(
+                        <RelatedSetsRail
+                            sets={relatedSets}
+                            loading={relatedSetsLoading}
+                            mediaLabel={inferPreviewMediaType(preview) === 'show' ? 'show' : 'movie'}
+                            disabled={busy !== null}
+                            onOpen={(item) => void expandSetInline(item, { stayOnTab: true, toggle: false })}
+                            onOpenCreator={(user) => openCreatorCatalog(user, { locationTab: 'apply' })}
+                        />
+                    )}
+                />
+            ) : (
+                <div className="space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            className={buttonClass}
+                            disabled={!pagedSearchSets.length}
+                            onClick={() => selectBrowseSets(pagedSearchSets)}
+                        >
+                            Select this page
+                        </button>
+                        <button
+                            type="button"
+                            className={buttonClass}
+                            disabled={!rankedSearchSets.length}
+                            onClick={() => selectBrowseSets(rankedSearchSets)}
+                        >
+                            Select all loaded
+                        </button>
+                        <button
+                            type="button"
+                            className={buttonClass}
+                            disabled={!selectedBulkCount}
+                            onClick={clearBulkSelection}
+                        >
+                            Clear selection
+                        </button>
+                    </div>
+                    <p className="text-xs text-muted">
+                        Each card is a full set, not just the cover. Queue & watch applies every poster in the selected sets.
+                    </p>
+                    {busy === 'search' && !searchSets.length ? (
+                        <div className="flex items-center gap-2 text-sm text-muted">
+                            <Loader2 className="h-4 w-4 animate-spin text-plex" />
+                            Loading first pages…
+                        </div>
+                    ) : (
+                        <div className={posterGridClass} style={catalogGridStyle}>
+                            {pagedSearchSets.map((set) => (
+                                <BrowseSetCard
+                                    key={`${set.provider}-${set.setId}-${set.url}`}
+                                    set={set}
+                                    disabled={catalogBusy}
+                                    bulkSelected={Boolean(selectedBulkSets[set.url])}
+                                    onToggleBulk={() => toggleBulkSet(bulkEntryFromSet(set))}
+                                    onOpen={(item) => {
+                                        const target = String(item.url || '').trim();
+                                        if (!target) return;
+                                        setSelectedSearchSet(item);
+                                        setUrl(target);
+                                        void runPreview(target, { titleCardsOnly: false, keepSearch: true });
+                                    }}
+                                    onOpenCreator={(user) => openCreatorCatalog(user, { locationTab: 'apply' })}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+        </section>
+    );
+};
