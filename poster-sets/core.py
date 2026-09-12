@@ -5113,11 +5113,13 @@ def list_mediux_user_sets(
 def _posterdb_list_max_page(soup, path: str = "recent") -> int:
     needle = str(path or "recent").strip("/").lower() or "recent"
     max_page = 1
+    if soup is None:
+        return max_page
     for anchor in soup.find_all("a", href=True):
         href = str(anchor.get("href") or "")
         href_l = href.lower()
         if f"/{needle}" not in href_l and needle not in href_l:
-            if "page=" not in href:
+            if "page=" not in href_l:
                 continue
         match = re.search(r"[?&]page=(\d+)", href)
         if match:
@@ -5126,6 +5128,31 @@ def _posterdb_list_max_page(soup, path: str = "recent") -> int:
         if text.isdigit():
             max_page = max(max_page, int(text))
     return max_page
+
+
+def _posterdb_has_next_page(soup, path: str = "recent", current: int = 1) -> bool:
+    """TPDB /recent and /feed only render Previous/Next — no last-page number."""
+    if soup is None:
+        return False
+    if soup.select_one("a[rel='next'][href]"):
+        return True
+    return _posterdb_list_max_page(soup, path) > max(1, int(current or 1))
+
+
+def _posterdb_catalog_page_target(
+    soup,
+    path: str,
+    *,
+    current: int,
+    added: int,
+    hard_cap: int,
+) -> int:
+    page = max(1, int(current or 1))
+    target = max(page, _posterdb_list_max_page(soup, path))
+    # A full grid (TPDB shows 24) means another page even if the pager was stripped.
+    if _posterdb_has_next_page(soup, path, page) or int(added or 0) >= 20:
+        target = max(target, page + 1)
+    return min(max(1, target), max(1, int(hard_cap or 1)))
 
 
 def _posterdb_soup_looks_like_login(soup) -> bool:
@@ -5287,25 +5314,39 @@ def list_posterdb_recent_sets(
         blocked = _posterdb_following_blocked_error(config, soup, first_url)
         if blocked:
             raise ValueError(blocked)
-    page_count = min(max(1, _posterdb_list_max_page(soup, path)), hard_cap)
+    before = 0
     _collect_posterdb_set_cards(soup, sets=sets, limit=take)
+    added = len(sets) - before
+    last_page = 1
+    page = 1
+    page_count = _posterdb_catalog_page_target(
+        soup, path, current=1, added=added, hard_cap=hard_cap,
+    )
     pages_in_batch = 1
     flush_batch()
     stagnant = 0
-    for page in range(2, page_count + 1):
-        before = len(sets)
-        if before >= take:
-            break
+    while page < page_count and len(sets) < take:
+        page += 1
         emit(progress, f"{meta['page_progress']} {page}/{page_count}…")
         soup = cook_soup(f"https://theposterdb.com/{path}?page={page}", config=config)
         if meta["require_login"] and _posterdb_following_blocked_error(config, soup, f"https://theposterdb.com/{path}?page={page}"):
             break
+        before = len(sets)
         _collect_posterdb_set_cards(soup, sets=sets, limit=take)
+        added = len(sets) - before
         last_page = page
         pages_in_batch += 1
-        page_count = min(max(page_count, _posterdb_list_max_page(soup, path)), hard_cap)
+        page_count = min(
+            hard_cap,
+            max(
+                page_count,
+                _posterdb_catalog_page_target(
+                    soup, path, current=page, added=added, hard_cap=hard_cap,
+                ),
+            ),
+        )
         flush_batch()
-        if len(sets) == before:
+        if added <= 0:
             stagnant += 1
             if stagnant >= 3:
                 emit(progress, f"Stopping {path} scrape after {page} pages — no new sets.")
