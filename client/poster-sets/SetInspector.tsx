@@ -11,6 +11,7 @@ import {
 import type { PosterSetsPreviewAsset, PosterSetsSearchSet } from './types';
 import { PosterImageLightbox } from './shared/posterSetsCards';
 import { ProviderPill } from './shared/posterSetsPills';
+import { PreviewAssetStrip } from './shared/posterSetsPreview';
 import {
     assetIdsForQueueKinds,
     previewAssetsKey,
@@ -342,14 +343,6 @@ export function SetInspectorThumbStrip({
     if (!thumbs.length) return null;
 
     const landscape = layout === 'landscape';
-    const single = thumbs.length === 1;
-    const gridClass = landscape
-        ? (single
-            ? 'grid grid-cols-1 max-w-md'
-            : 'grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4')
-        : (single
-            ? 'grid max-w-[11rem] grid-cols-1'
-            : 'grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6');
 
     return (
         <div className="space-y-2">
@@ -361,56 +354,61 @@ export function SetInspectorThumbStrip({
                 provider={provider}
                 onClose={() => setLightbox(null)}
             />
-            <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-muted">
-                    Preview
-                    <span className="ml-1.5 font-semibold normal-case tracking-normal text-muted/80">{thumbs.length}</span>
-                </p>
-                <p className="inline-flex items-center gap-1 text-[10px] text-muted">
-                    <Expand className="h-3 w-3" />
-                    Click to enlarge
-                </p>
-            </div>
-            <div className={gridClass}>
-                {thumbs.map((thumb) => {
-                    const canPreview = Boolean(String(thumb.thumbUrl || '').trim());
-                    return (
-                        <button
-                            key={thumb.id}
-                            type="button"
-                            disabled={!canPreview}
-                            className={`group relative w-full overflow-hidden rounded-lg border border-white/10 bg-black/40 text-left shadow-sm transition ${
-                                landscape ? 'aspect-[16/9]' : 'aspect-[2/3]'
-                            } ${
-                                canPreview
-                                    ? 'cursor-zoom-in hover:border-plex/50 hover:ring-1 hover:ring-plex/30'
-                                    : 'cursor-default opacity-60'
-                            }`}
-                            title={canPreview ? `Enlarge ${thumb.title}` : thumb.title}
-                            aria-label={canPreview ? `Enlarge ${thumb.title}` : thumb.title}
-                            onClick={() => {
-                                if (!canPreview) return;
-                                setLightbox(thumb);
-                            }}
-                        >
-                            {thumb.thumbUrl ? (
-                                <img
-                                    src={thumb.thumbUrl}
-                                    alt={thumb.title}
-                                    className="h-full w-full object-contain object-center transition duration-300 group-hover:scale-[1.02]"
-                                    loading="lazy"
-                                />
-                            ) : (
-                                <div className="h-full w-full bg-white/5" />
-                            )}
-                            {canPreview ? (
-                                <span className="pointer-events-none absolute bottom-1.5 right-1.5 inline-flex h-7 w-7 items-center justify-center rounded-md border border-white/15 bg-black/65 text-text opacity-0 transition group-hover:opacity-100">
-                                    <Expand className="h-3.5 w-3.5" />
-                                </span>
-                            ) : null}
-                        </button>
-                    );
-                })}
+            <div className="rounded-xl border border-white/10 bg-black/20 p-2.5 sm:p-3">
+                <PreviewAssetStrip
+                    count={thumbs.length}
+                    title={(
+                        <span className="inline-flex items-center gap-2">
+                            Preview
+                            <span className="inline-flex items-center gap-1 font-semibold normal-case tracking-normal text-muted/70">
+                                <Expand className="h-3 w-3" />
+                                Click to enlarge
+                            </span>
+                        </span>
+                    )}
+                >
+                    {thumbs.map((thumb) => {
+                        const canPreview = Boolean(String(thumb.thumbUrl || '').trim());
+                        return (
+                            <button
+                                key={thumb.id}
+                                type="button"
+                                disabled={!canPreview}
+                                className={`group relative shrink-0 overflow-hidden rounded-lg border border-white/10 bg-black/40 text-left shadow-sm transition ${
+                                    landscape
+                                        ? 'aspect-[16/9] w-[7.5rem] sm:w-[8.75rem]'
+                                        : 'aspect-[2/3] w-[4.35rem] sm:w-[4.85rem]'
+                                } ${
+                                    canPreview
+                                        ? 'cursor-zoom-in hover:border-plex/50 hover:ring-1 hover:ring-plex/30'
+                                        : 'cursor-default opacity-60'
+                                }`}
+                                title={canPreview ? `Enlarge ${thumb.title}` : thumb.title}
+                                aria-label={canPreview ? `Enlarge ${thumb.title}` : thumb.title}
+                                onClick={() => {
+                                    if (!canPreview) return;
+                                    setLightbox(thumb);
+                                }}
+                            >
+                                {thumb.thumbUrl ? (
+                                    <img
+                                        src={thumb.thumbUrl}
+                                        alt={thumb.title}
+                                        className="h-full w-full object-cover object-center transition duration-300 group-hover:scale-[1.02]"
+                                        loading="lazy"
+                                    />
+                                ) : (
+                                    <div className="h-full w-full bg-white/5" />
+                                )}
+                                {canPreview ? (
+                                    <span className="pointer-events-none absolute bottom-1 right-1 inline-flex h-6 w-6 items-center justify-center rounded-md border border-white/15 bg-black/65 text-text opacity-0 transition group-hover:opacity-100">
+                                        <Expand className="h-3 w-3" />
+                                    </span>
+                                ) : null}
+                            </button>
+                        );
+                    })}
+                </PreviewAssetStrip>
             </div>
         </div>
     );
