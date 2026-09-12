@@ -57,6 +57,7 @@ import {
     formatTime,
     isTitleCardRail,
     isTitleCardSet,
+    isTpdbEnabled,
     jobCardTone,
     jobSetMeta,
     jobTitle,
@@ -304,7 +305,7 @@ export const PosterSetsLibraryView: React.FC = () => {
             : [...libraryMovies, ...libraryShows];
         return rows.filter((item) => coverageKeyForItem(item));
     }, [libraryViewMode, librarySearchQuery, librarySearchResults, libraryMovies, libraryShows]);
-    const { levelFor } = useTpdbCoverageMap(coverageItems, tab === 'library');
+    const { levelFor } = useTpdbCoverageMap(coverageItems, tab === 'library' && isTpdbEnabled(configDraft));
 
     if (tab !== 'library') return null;
     return (
@@ -430,6 +431,7 @@ export const PosterSetsLibraryView: React.FC = () => {
                             gridSize={gridSize}
                             onGridSizeChange={setGridSize}
                             onOpenItem={openLibraryItem}
+                            showTpdbCoverage={isTpdbEnabled(configDraft)}
                         />
                     ) : null}
         

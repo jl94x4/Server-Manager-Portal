@@ -59,8 +59,10 @@ import {
     fieldClass,
     formatSetLabel,
     formatTime,
+    isMediuxEnabled,
     isTitleCardRail,
     isTitleCardSet,
+    isTpdbEnabled,
     jobCardTone,
     jobSetMeta,
     jobTitle,
@@ -415,7 +417,7 @@ export const PosterSetsSettingsView: React.FC = () => {
     ]);
 
     useEffect(() => {
-        if (tab !== 'settings') return undefined;
+        if (tab !== 'settings' || !isTpdbEnabled(configDraft)) return undefined;
         let cancelled = false;
         let inFlight = false;
         const refresh = () => {
@@ -445,7 +447,7 @@ export const PosterSetsSettingsView: React.FC = () => {
             cancelled = true;
             window.clearInterval(timer);
         };
-    }, [tab]);
+    }, [tab, configDraft.tpdbEnabled]);
 
     if (tab !== 'settings') return null;
 
@@ -470,6 +472,74 @@ export const PosterSetsSettingsView: React.FC = () => {
         return kind === activityFilter;
     });
 
+    const persistConfig = async (partial: PosterSetsConfig | Record<string, unknown>) => {
+        const response = await posterSetsApi.saveConfig({
+            ...configDraft,
+            tv_library: textToList(tvText),
+            movie_library: textToList(movieText),
+            creatorWhitelist: textToList(whitelistText).map((item) => item.replace(/^@+/, '')),
+            creatorBlocklist: textToList(blocklistText).map((item) => item.replace(/^@+/, '')),
+            token: configDraft.token === '********' ? undefined : configDraft.token,
+            tpdb_password: configDraft.tpdb_password === '********' ? undefined : configDraft.tpdb_password,
+            ...partial,
+        });
+        setConfigDraft({
+            ...response.config,
+            token: response.config.hasToken ? '********' : '',
+            tpdb_password: response.config.hasTpdbPassword ? '********' : '',
+        });
+        return response.config;
+    };
+
+    const applySourceEnabled = async (source: 'tpdb' | 'mediux', enabled: boolean) => {
+        const key = source === 'tpdb' ? 'tpdbEnabled' : 'mediuxEnabled';
+        const label = source === 'tpdb' ? 'ThePosterDB' : 'MediUX';
+        if (enabled) {
+            setBusy('save');
+            try {
+                await persistConfig({ [key]: true });
+                toast(`${label} turned on`);
+            } catch (error) {
+                toast(error instanceof Error ? error.message : `Failed to enable ${label}`, 'error');
+            } finally {
+                setBusy(null);
+            }
+            return;
+        }
+        const ok = await askConfirm(
+            `Turn off ${label}? Search, Browse, and other ${label} labels will be hidden until you turn it back on.`,
+            { title: `Disable ${label}?`, confirmLabel: 'Turn off' },
+        );
+        if (!ok) return;
+        const purge = await askConfirm(
+            source === 'tpdb'
+                ? 'Also delete cached ThePosterDB titles, sets, and images from disk? Keep them if you might turn ThePosterDB back on.\n\nThis cannot be undone.'
+                : 'Also delete cached MediUX Browse rails and collection sets from disk? Keep them if you might turn MediUX back on.\n\nThis cannot be undone.',
+            {
+                title: `Delete ${label} cache?`,
+                confirmLabel: 'Delete cache',
+                cancelLabel: 'Keep cache',
+                danger: true,
+            },
+        );
+        setBusy('save');
+        try {
+            if (source === 'tpdb') {
+                await posterSetsApi.stopTpdbCache().catch(() => null);
+            }
+            if (purge) {
+                if (source === 'tpdb') await posterSetsApi.clearTpdbCache();
+                else await posterSetsApi.clearMediuxCache();
+            }
+            await persistConfig({ [key]: false });
+            toast(purge ? `${label} turned off and cache deleted` : `${label} turned off`);
+        } catch (error) {
+            toast(error instanceof Error ? error.message : `Failed to disable ${label}`, 'error');
+        } finally {
+            setBusy(null);
+        }
+    };
+
     return (
 
 
@@ -492,6 +562,26 @@ export const PosterSetsSettingsView: React.FC = () => {
                             Import from Media Player
                         </button>
                     </div>
+                    <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 space-y-1">
+                        <p className="text-sm font-semibold text-text">Artwork sources</p>
+                        <p className="text-xs text-muted">
+                            Both are on by default. Turn one off to hide it everywhere in Poster Sets.
+                        </p>
+                        <SettingsToggleRow
+                            title="ThePosterDB"
+                            description="Search, Browse, TPDB New, local cache, and ThePosterDB labels."
+                            checked={isTpdbEnabled(configDraft)}
+                            onChange={(next) => void applySourceEnabled('tpdb', next)}
+                            border={false}
+                        />
+                        <SettingsToggleRow
+                            title="MediUX"
+                            description="Search, Browse rails, title cards, and MediUX labels."
+                            checked={isMediuxEnabled(configDraft)}
+                            onChange={(next) => void applySourceEnabled('mediux', next)}
+                            border={false}
+                        />
+                    </div>
                     <div className="grid gap-4 sm:grid-cols-2">
                         <label className="block sm:col-span-2">
                             <span className="text-xs font-bold uppercase tracking-wide text-muted">base_url</span>
@@ -513,6 +603,8 @@ export const PosterSetsSettingsView: React.FC = () => {
                                 onChange={(event) => setConfigDraft((prev) => ({ ...prev, token: event.target.value }))}
                             />
                         </label>
+                        {isTpdbEnabled(configDraft) ? (
+                        <>
                         <label className="block">
                             <span className="text-xs font-bold uppercase tracking-wide text-muted">TPDB username</span>
                             <input
@@ -1498,6 +1590,8 @@ export const PosterSetsSettingsView: React.FC = () => {
                                 </div>
                             </div>
                         </div>
+                        </>
+                        ) : null}
                         <label className="block">
                             <textarea
                                 className={`${fieldClass} mt-2 min-h-24`}
@@ -1536,8 +1630,16 @@ export const PosterSetsSettingsView: React.FC = () => {
                                 onChange={(event) => setWhitelistText(event.target.value)}
                             />
                             <span className="mt-1 block text-[11px] text-muted">
-                                One MediUX / ThePosterDB username per line (no @ needed). Browse adds a &quot;Creators you follow&quot; row with only their sets.
-                                With local cache Prefetch + Prioritize Creators you follow, their sets hydrate first during cache builds.
+                                One{(isMediuxEnabled(configDraft) && isTpdbEnabled(configDraft))
+                                    ? ' MediUX / ThePosterDB'
+                                    : isMediuxEnabled(configDraft)
+                                        ? ' MediUX'
+                                        : isTpdbEnabled(configDraft)
+                                            ? ' ThePosterDB'
+                                            : ''} username per line (no @ needed). Browse adds a &quot;Creators you follow&quot; row with only their sets.
+                                {isTpdbEnabled(configDraft)
+                                    ? ' With local cache Prefetch + Prioritize Creators you follow, their sets hydrate first during cache builds.'
+                                    : ''}
                                 Click any @username to open their full catalog.
                             </span>
                         </label>
@@ -1550,10 +1652,12 @@ export const PosterSetsSettingsView: React.FC = () => {
                                 onChange={(event) => setBlocklistText(event.target.value)}
                             />
                             <span className="mt-1 block text-[11px] text-muted">
-                                One username per line. Their sets are hidden on titles/Browse and skipped during TPDB image cache. Save settings to apply.
+                                One username per line. Their sets are hidden on titles/Browse
+                                {isTpdbEnabled(configDraft) ? ' and skipped during TPDB image cache' : ''}. Save settings to apply.
                             </span>
                         </label>
                     </div>
+                    {isMediuxEnabled(configDraft) ? (
                     <div>
                         <p className="text-xs font-bold uppercase tracking-wide text-muted">mediux_filters</p>
                         <div className="mt-3 flex flex-wrap gap-2">
@@ -1572,6 +1676,7 @@ export const PosterSetsSettingsView: React.FC = () => {
                             })}
                         </div>
                     </div>
+                    ) : null}
                     <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
                         <p className="text-sm font-semibold text-text">Library title panel</p>
                         <p className="mt-1 text-xs text-muted">
@@ -1587,6 +1692,7 @@ export const PosterSetsSettingsView: React.FC = () => {
                             />
                         </div>
                     </div>
+                    {isTpdbEnabled(configDraft) && isMediuxEnabled(configDraft) ? (
                     <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
                         <p className="text-sm font-semibold text-text">Fallback for duplicates</p>
                         <p className="mt-1 text-xs text-muted">
@@ -1607,6 +1713,7 @@ export const PosterSetsSettingsView: React.FC = () => {
                             />
                         </div>
                     </div>
+                    ) : null}
                     <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
                         <p className="text-sm font-semibold text-text">Apply destination</p>
                         <p className="mt-1 text-xs text-muted">

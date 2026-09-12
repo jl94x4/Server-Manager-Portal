@@ -26,9 +26,12 @@ import { usePosterSetsDashboard } from '../PosterSetsDashboardContext';
 import { LibraryTitleDetailPanel } from '../LibraryTitleDetailPanel';
 import {
     buttonClass,
+    discoverSubNavForConfig,
     isDiscoverInternalTab,
+    isTpdbEnabled,
+    isMediuxEnabled,
+    posterSetsHeroTitle,
     primaryButtonClass,
-    DISCOVER_SUB_NAV,
 } from '../shared';
 import { PosterSetsBrowseView } from './PosterSetsBrowseView';
 import { PosterSetsLibraryView } from './PosterSetsLibraryView';
@@ -136,7 +139,7 @@ export const PosterSetsShell: React.FC = () => {
                             <BetaBadge title={betaNotice} />
                         </span>
                     }
-                    title="Artwork from MediUX & ThePosterDB"
+                    title={posterSetsHeroTitle(configDraft)}
                     description="Start from your library, pick a title, preview poster sets, and apply. Search creators and browse rails in Discover — queue, watching, logs, and settings stay one click away."
                     icon={<ImageIcon className="h-3.5 w-3.5" />}
                     secondaryBlob
@@ -288,7 +291,7 @@ export const PosterSetsShell: React.FC = () => {
             
                 {isDiscoverInternalTab(tab) ? (
                     <div className="flex min-w-0 flex-wrap justify-center gap-1 sm:gap-1.5 md:justify-start">
-                        {DISCOVER_SUB_NAV.map(({ id, label, internalTab }) => (
+                        {discoverSubNavForConfig(configDraft).map(({ id, label, internalTab }) => (
                             <button
                                 key={id}
                                 type="button"
@@ -321,7 +324,13 @@ export const PosterSetsShell: React.FC = () => {
             <LibraryTitleDetailPanel
                     item={libraryDetailItem}
                     onClose={() => setLibraryDetailItem(null)}
-                    dupePreference={configDraft.dupePreference === 'mediux' ? 'mediux' : 'posterdb'}
+                    dupePreference={
+                        !isTpdbEnabled(configDraft)
+                            ? 'mediux'
+                            : !isMediuxEnabled(configDraft)
+                                ? 'posterdb'
+                                : (configDraft.dupePreference === 'mediux' ? 'mediux' : 'posterdb')
+                    }
                     preferredCreators={configDraft.creatorWhitelist || []}
                     blockedCreators={configDraft.creatorBlocklist || []}
                     onBlockCreator={blockCreator}
@@ -332,6 +341,8 @@ export const PosterSetsShell: React.FC = () => {
                     onLayoutModeChange={setLibraryDetailLayout}
                     toast={toast}
                     tpdbConfigured={Boolean(configDraft.hasTpdbPassword && String(configDraft.tpdb_username || '').trim())}
+                    tpdbEnabled={isTpdbEnabled(configDraft)}
+                    mediuxEnabled={isMediuxEnabled(configDraft)}
                     onOpenTpdbSettings={() => goToPrimaryTab('settings')}
                     onApplied={() => {
                         void loadQueue();

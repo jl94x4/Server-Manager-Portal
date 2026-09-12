@@ -523,6 +523,10 @@ export const posterSetsApi = {
         ok: boolean;
         cleared?: { titles?: number; sets?: number; images?: number };
     }>,
+    clearMediuxCache: () => apiFetch(`${ROOT}/mediux-cache/clear`, json({})) as Promise<{
+        ok: boolean;
+        cleared?: { browse?: number; collections?: number };
+    }>,
     pauseTpdbCache: () => apiFetch(`${ROOT}/tpdb-cache/pause`, json({})) as Promise<{ ok: boolean; paused?: boolean }>,
     resumeTpdbCache: () => apiFetch(`${ROOT}/tpdb-cache/resume`, json({})) as Promise<{ ok: boolean; paused?: boolean }>,
     stopTpdbCache: () => apiFetch(`${ROOT}/tpdb-cache/stop`, json({})) as Promise<{

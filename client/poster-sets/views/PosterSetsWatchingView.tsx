@@ -62,6 +62,8 @@ import {
     formatTime,
     isTitleCardRail,
     isTitleCardSet,
+    isMediuxEnabled,
+    isTpdbEnabled,
     jobCardTone,
     jobSetMeta,
     jobTitle,
@@ -703,7 +705,7 @@ export const PosterSetsWatchingView: React.FC = () => {
                             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-plex">Pinned artwork</p>
                             <h2 className="mt-1 text-xl font-bold tracking-tight text-text sm:text-2xl">Watching</h2>
                             <p className={sectionBodyClass}>
-                                Keep MediUX and ThePosterDB sets in view, grouped by posters and title cards. New art queues automatically.
+                                Keep {[isMediuxEnabled(configDraft) && 'MediUX', isTpdbEnabled(configDraft) && 'ThePosterDB'].filter(Boolean).join(' and ') || 'pinned'} sets in view, grouped by posters and title cards. New art queues automatically.
                                 Use Reapply if a Plex rematch wiped artwork you already set.
                             </p>
                             <div className="mt-3 flex flex-wrap gap-2">

@@ -1,4 +1,5 @@
 import { type DiscoverView } from '../urlState';
+import type { PosterSetsConfig } from '../types';
 
 export type TabId = 'apply' | 'browse' | 'tpdb' | 'library' | 'collections' | 'queue' | 'watches' | 'recent' | 'paste' | 'history' | 'settings';
 export type PrimaryTabId = 'library' | 'collections' | 'discover' | 'queue' | 'watches' | 'logs' | 'paste' | 'settings';
@@ -16,3 +17,32 @@ export const isDiscoverInternalTab = (id: TabId) => (
 );
 export type SetProvider = 'mediux' | 'posterdb';
 export type SearchProvider = 'both' | SetProvider;
+
+export const isTpdbEnabled = (config?: Partial<PosterSetsConfig> | null) => config?.tpdbEnabled !== false;
+export const isMediuxEnabled = (config?: Partial<PosterSetsConfig> | null) => config?.mediuxEnabled !== false;
+
+export const enabledSearchProviders = (config?: Partial<PosterSetsConfig> | null): SetProvider[] => {
+    const out: SetProvider[] = [];
+    if (isMediuxEnabled(config)) out.push('mediux');
+    if (isTpdbEnabled(config)) out.push('posterdb');
+    return out;
+};
+
+export const defaultSearchProvider = (config?: Partial<PosterSetsConfig> | null): SearchProvider => {
+    const enabled = enabledSearchProviders(config);
+    if (enabled.length === 2) return 'both';
+    return enabled[0] || 'both';
+};
+
+export const discoverSubNavForConfig = (config?: Partial<PosterSetsConfig> | null) => (
+    DISCOVER_SUB_NAV.filter((item) => item.id !== 'tpdb' || isTpdbEnabled(config))
+);
+
+export const posterSetsHeroTitle = (config?: Partial<PosterSetsConfig> | null) => {
+    const tpdb = isTpdbEnabled(config);
+    const mediux = isMediuxEnabled(config);
+    if (tpdb && mediux) return 'Artwork from MediUX & ThePosterDB';
+    if (tpdb) return 'Artwork from ThePosterDB';
+    if (mediux) return 'Artwork from MediUX';
+    return 'Artwork from your library';
+};

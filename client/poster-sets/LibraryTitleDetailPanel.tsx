@@ -160,6 +160,8 @@ export type LibraryTitleDetailPanelProps = {
     onArtReset?: () => void;
     /** When false, skip long TPDB waits and show login hint instead of empty-set toast. */
     tpdbConfigured?: boolean;
+    tpdbEnabled?: boolean;
+    mediuxEnabled?: boolean;
     onOpenTpdbSettings?: () => void;
 };
 
@@ -180,6 +182,8 @@ export function LibraryTitleDetailPanel({
     layoutMode = 'drawer',
     onLayoutModeChange,
     tpdbConfigured = false,
+    tpdbEnabled = true,
+    mediuxEnabled = true,
     onOpenTpdbSettings,
 }: LibraryTitleDetailPanelProps) {
     const [busy, setBusy] = useState<string | null>(null);
@@ -273,9 +277,9 @@ export function LibraryTitleDetailPanel({
         setSelectedSet(null);
         setPreview(null);
         const hasLinkedTmdb = String(title.provider || '').toLowerCase() === 'mediux' && Boolean(title.id);
-        const waitForTpdb = hasLinkedTmdb && tpdbConfigured;
-        setMediuxSettled(false);
-        setTpdbSettled(false);
+        const waitForTpdb = hasLinkedTmdb && tpdbConfigured && tpdbEnabled;
+        setMediuxSettled(!mediuxEnabled);
+        setTpdbSettled(!tpdbEnabled);
         setTpdbFromCache(false);
         if (hasLinkedTmdb) setLoadingMoreSets(true);
         try {
@@ -286,6 +290,8 @@ export function LibraryTitleDetailPanel({
                 preferredCreators,
                 blockedCreators,
                 tpdbConfigured,
+                tpdbEnabled,
+                mediuxEnabled,
                 onPartial: (partial) => {
                     if (!stillCurrent()) return;
                     if ((partial.sets?.length || 0) > 0) {
@@ -1101,14 +1107,14 @@ export function LibraryTitleDetailPanel({
                     {loading ? (
                         <div className="flex flex-col items-center justify-center gap-3 py-16 text-sm text-muted">
                             <Loader2 className="h-6 w-6 animate-spin text-plex" />
-                            Finding title on MediUX…
+                            Finding title{mediuxEnabled ? ' on MediUX' : ''}…
                         </div>
                     ) : null}
 
                     {loadingMoreSets && searchSets.length === 0 && !mediuxSettled && !tpdbSettled ? (
                         <div className="flex flex-col items-center justify-center gap-3 py-16 text-sm text-muted">
                             <Loader2 className="h-6 w-6 animate-spin text-plex" />
-                            Loading ThePosterDB &amp; MediUX poster sets…
+                            Loading {[tpdbEnabled && 'ThePosterDB', mediuxEnabled && 'MediUX'].filter(Boolean).join(' & ') || 'poster'} sets…
                         </div>
                     ) : null}
 

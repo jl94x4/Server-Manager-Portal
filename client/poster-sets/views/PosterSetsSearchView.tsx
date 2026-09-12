@@ -67,6 +67,8 @@ import {
     sectionTitleClass,
     textToList,
     upsertRecentSet,
+    isMediuxEnabled,
+    isTpdbEnabled,
 } from '../shared';
 import { usePosterSetsDashboard } from '../PosterSetsDashboardContext';
 
@@ -301,10 +303,12 @@ export const PosterSetsSearchView: React.FC = () => {
                             </p>
                             <div className="mt-3 flex flex-wrap gap-2">
                                 {([
-                                    ['both', 'Both'],
-                                    ['mediux', 'MediUX'],
-                                    ['posterdb', 'ThePosterDB'],
-                                ] as const).map(([id, label]) => (
+                                    ...(isMediuxEnabled(configDraft) && isTpdbEnabled(configDraft)
+                                        ? [['both', 'Both'] as const]
+                                        : []),
+                                    ...(isMediuxEnabled(configDraft) ? [['mediux', 'MediUX'] as const] : []),
+                                    ...(isTpdbEnabled(configDraft) ? [['posterdb', 'ThePosterDB'] as const] : []),
+                                ]).map(([id, label]) => (
                                     <button
                                         key={id}
                                         type="button"

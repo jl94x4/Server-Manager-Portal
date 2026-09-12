@@ -29,6 +29,8 @@ import {
     parseTpdbUserHandle,
     isTpdbRecentUrl,
     isTpdbFeedUrl,
+    isMediuxEnabled,
+    isTpdbEnabled,
     primaryButtonClass,
     sectionBodyClass,
     sectionTitleClass,
@@ -309,9 +311,9 @@ export const PosterSetsPasteView: React.FC = () => {
                     <p className="text-xs font-bold uppercase tracking-wide text-muted">Provider</p>
                     <div className="flex flex-wrap gap-2">
                         {([
-                            ['mediux', 'MediUX'],
-                            ['posterdb', 'ThePosterDB'],
-                        ] as const).map(([id, label]) => (
+                            ...(isMediuxEnabled(configDraft) ? [['mediux', 'MediUX'] as const] : []),
+                            ...(isTpdbEnabled(configDraft) ? [['posterdb', 'ThePosterDB'] as const] : []),
+                        ]).map(([id, label]) => (
                             <button
                                 key={id}
                                 type="button"

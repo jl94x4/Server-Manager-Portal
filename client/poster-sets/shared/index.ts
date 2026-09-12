@@ -27,7 +27,13 @@ export {
 
 export {
     DISCOVER_SUB_NAV,
+    defaultSearchProvider,
+    discoverSubNavForConfig,
+    enabledSearchProviders,
     isDiscoverInternalTab,
+    isMediuxEnabled,
+    isTpdbEnabled,
+    posterSetsHeroTitle,
     type HistoryFilter,
     type PrimaryTabId,
     type SearchProvider,

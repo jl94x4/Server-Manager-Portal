@@ -43,6 +43,7 @@ export type PosterSetsLibraryBrowseProps = {
     gridSize: UpgraderGridSize;
     onGridSizeChange: (size: UpgraderGridSize) => void;
     onOpenItem: (item: LibraryRecentItem) => void;
+    showTpdbCoverage?: boolean;
 };
 
 export function PosterSetsLibraryBrowse({
@@ -50,6 +51,7 @@ export function PosterSetsLibraryBrowse({
     gridSize,
     onGridSizeChange,
     onOpenItem,
+    showTpdbCoverage = true,
 }: PosterSetsLibraryBrowseProps) {
     const [sections, setSections] = useState<LibrarySection[]>([]);
     const [sectionKey, setSectionKey] = useState('');
@@ -66,7 +68,7 @@ export function PosterSetsLibraryBrowse({
 
     const posterGridClass = upgraderPosterGridClass(gridSize);
     const posterGridStyle = upgraderPosterGridStyle(gridSize);
-    const { levelFor } = useTpdbCoverageMap(items, items.length > 0);
+    const { levelFor } = useTpdbCoverageMap(items, items.length > 0 && showTpdbCoverage);
 
     useEffect(() => {
         let cancelled = false;

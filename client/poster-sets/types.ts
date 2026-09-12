@@ -39,6 +39,10 @@ export type PosterSetsConfig = {
     tpdbCacheFollowedCreatorsOnly?: boolean;
     /** Attempt TPDB login for advanced id search. Off = public title search only. */
     tpdbUseLogin?: boolean;
+    /** Include ThePosterDB in search, Browse, cache, and UI copy (default on). */
+    tpdbEnabled?: boolean;
+    /** Include MediUX in search, Browse, and UI copy (default on). */
+    mediuxEnabled?: boolean;
     /** Soft disk budget for tpdb-image-cache (bytes). */
     tpdbCacheMaxBytes?: number;
     /** Local hour (0–23) when the daily “new sets” refresh first runs. */
@@ -471,6 +475,8 @@ export const DEFAULT_POSTER_SETS_CONFIG: PosterSetsConfig = {
     tpdbPrioritizeFollowedCreators: true,
     tpdbCacheFollowedCreatorsOnly: false,
     tpdbUseLogin: true,
+    tpdbEnabled: true,
+    mediuxEnabled: true,
     tpdbCacheMaxBytes: 2 * 1024 * 1024 * 1024,
     tpdbCacheRefreshHour: 3,
     tpdbCacheRefreshIntervalHours: 0,

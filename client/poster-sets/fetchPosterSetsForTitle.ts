@@ -18,6 +18,8 @@ export type FetchPosterSetsOptions = {
     blockedCreators?: string[] | null;
     /** When false, skip long TPDB waits — public search cannot match many TV titles. */
     tpdbConfigured?: boolean;
+    tpdbEnabled?: boolean;
+    mediuxEnabled?: boolean;
     /** Called with merged sets as either provider lands (TPDB preferred in order). */
     onPartial?: (result: PosterSetsSearchResult) => void;
     /** Fired once MediUX settles (sets or soft failure) so the UI can leave the blank spinner. */
@@ -193,6 +195,8 @@ async function fetchBothSetsProgressive(
         yearHint: number | null;
         posterdbSource?: TitleSource;
         tpdbConfigured?: boolean;
+        tpdbEnabled?: boolean;
+        mediuxEnabled?: boolean;
         onPartial?: (result: PosterSetsSearchResult) => void;
         onMediuxSettled?: (result: PosterSetsSearchResult) => void;
         onTpdbSettled?: (result: PosterSetsSearchResult) => void;
@@ -204,6 +208,8 @@ async function fetchBothSetsProgressive(
         url: '',
         mediaType: options.fallbackMedia,
     };
+    const tpdbOn = options.tpdbEnabled !== false;
+    const mediuxOn = options.mediuxEnabled !== false;
     const tpdbHardMs = options.tpdbConfigured ? TPDB_HARD_MS : TPDB_PUBLIC_MS;
     const tpdbSoftWaitMs = options.tpdbConfigured ? TPDB_SOFT_WAIT_MS : Math.min(TPDB_PUBLIC_MS, 20_000);
 
@@ -243,7 +249,7 @@ async function fetchBothSetsProgressive(
 
     // Parallel scrapes — paint whichever returns first; don't await MediUX before TPDB
     // (sequential MediUX-first left the drawer on “Loading MediUX…” for a long time).
-    const mediuxTask = (async () => {
+    const mediuxTask = mediuxOn ? (async () => {
         const mediuxRaw = await withTimeout(
             fetchMediuxSets(linkedTmdbId, options.fallbackMedia),
             MEDIUX_HARD_MS,
@@ -266,9 +272,11 @@ async function fetchBothSetsProgressive(
         }
         paintMerged();
         options.onMediuxSettled?.(mediuxResult);
-    })();
+    })() : Promise.resolve().then(() => {
+        options.onMediuxSettled?.(mediuxResult);
+    });
 
-    const tpdbTask = (async () => {
+    const tpdbTask = tpdbOn ? (async () => {
         const fetchPromise = fetchPosterdbSets(posterdbSource, {
             tmdbId: linkedTmdbId,
             titleHint: options.titleHint,
@@ -389,7 +397,9 @@ async function fetchBothSetsProgressive(
                 // Keep the cache paint — scheduled refresh will try again later.
             }
         }
-    })();
+    })() : Promise.resolve().then(() => {
+        options.onTpdbSettled?.(posterdbResult);
+    });
 
     await Promise.all([mediuxTask, tpdbTask]);
 
@@ -727,6 +737,8 @@ export async function fetchPosterSetsForTitle(
                 mediaType: fallbackMedia,
             },
             tpdbConfigured: options.tpdbConfigured,
+            tpdbEnabled: options.tpdbEnabled,
+            mediuxEnabled: options.mediuxEnabled,
             onPartial: options.onPartial,
             onMediuxSettled: options.onMediuxSettled,
             onTpdbSettled: options.onTpdbSettled,

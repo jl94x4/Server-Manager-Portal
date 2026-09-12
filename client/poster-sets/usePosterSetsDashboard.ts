@@ -53,6 +53,11 @@ import { classifyPreviewAsset, groupPreviewAssets } from './previewGroups';
 import { pickAutoMatchedTitle, rankSearchTitlesForLibraryItem } from './autoMatchTitle';
 import { fetchPosterSetsForTitle } from './fetchPosterSetsForTitle';
 import {
+    defaultSearchProvider,
+    isMediuxEnabled,
+    isTpdbEnabled,
+} from './shared/posterSetsNav';
+import {
     clearLibraryRecentCache,
     readLibraryRecentCache,
     readLibrarySearchCache,
@@ -626,6 +631,18 @@ export function usePosterSetsDashboardState() {
             toast(error instanceof Error ? error.message : 'Failed to load Poster Sets', 'error');
         }
     }, [loadHistory, toast]);
+
+    useEffect(() => {
+        const tpdb = isTpdbEnabled(configDraft);
+        const mediux = isMediuxEnabled(configDraft);
+        const nextSearch = defaultSearchProvider(configDraft);
+        if (searchProvider === 'both' && (!tpdb || !mediux)) setSearchProvider(nextSearch);
+        else if (searchProvider === 'posterdb' && !tpdb) setSearchProvider(nextSearch);
+        else if (searchProvider === 'mediux' && !mediux) setSearchProvider(nextSearch);
+        if (findProvider === 'posterdb' && !tpdb && mediux) setFindProvider('mediux');
+        if (findProvider === 'mediux' && !mediux && tpdb) setFindProvider('posterdb');
+        if (tab === 'tpdb' && !tpdb) setTab('apply');
+    }, [configDraft.tpdbEnabled, configDraft.mediuxEnabled, findProvider, searchProvider, tab]);
 
     useEffect(() => { void load(); }, [load]);
     useEffect(() => { void loadQueue(); }, [loadQueue]);
@@ -2109,6 +2126,8 @@ export function usePosterSetsDashboardState() {
                 preferredCreators: configDraft.creatorWhitelist,
                 blockedCreators: configDraft.creatorBlocklist,
                 tpdbConfigured,
+                tpdbEnabled: isTpdbEnabled(configDraft),
+                mediuxEnabled: isMediuxEnabled(configDraft),
                 onPartial: (partial) => {
                     if ((partial.sets?.length || 0) > 0) {
                         setSearchSets(partial.sets || []);
