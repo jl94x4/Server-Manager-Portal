@@ -204,6 +204,8 @@ export const posterSetsApi = {
         cookieCount?: number;
         hasCfClearance?: boolean;
         via?: string;
+        htmlOnly?: boolean;
+        warning?: string;
         logs?: string[];
     }>,
     preview: (url: string, options?: { mediuxFilters?: string[] }) => apiFetch(`${ROOT}/preview`, json({

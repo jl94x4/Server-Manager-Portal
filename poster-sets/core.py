@@ -558,6 +558,14 @@ def _posterdb_has_login_cookie(names: set[str] | Sequence[str]) -> bool:
     return False
 
 
+def _posterdb_session_has_login_cookies(session: requests.Session) -> bool:
+    try:
+        names = {str(cookie.name or "") for cookie in session.cookies}
+    except Exception:
+        return False
+    return _posterdb_has_login_cookie(names)
+
+
 def _posterdb_html_looks_logged_in(html: str, url: str = "") -> bool:
     if "theposterdb.com/login" in str(url or "").lower():
         return False
@@ -594,6 +602,11 @@ def _posterdb_session_path(config: dict | None = None) -> str:
     if cache_dir:
         return os.path.join(os.path.dirname(cache_dir), "tpdb-session.json")
     return ""
+
+
+def _posterdb_session_file_exists(config: dict | None = None) -> bool:
+    path = _posterdb_session_path(config)
+    return bool(path and os.path.isfile(path))
 
 
 def _posterdb_invalidate_sessions(user: str = "") -> None:
@@ -722,9 +735,14 @@ def _posterdb_load_session_file(config: dict | None, cache_key: str) -> Optional
     ua = str(payload.get("userAgent") or _POSTERDB_UA).strip() or _POSTERDB_UA
     session.headers.update({"User-Agent": ua})
     _posterdb_apply_cookie_rows(session, payload.get("cookies") if isinstance(payload.get("cookies"), list) else [])
-    if not _posterdb_session_looks_logged_in(session, config=config, quiet=True):
-        return None
-    return session
+    # Login cookies are enough for HTML pages like /feed. Skip the advanced-search
+    # probe here — that endpoint is what Cloudflare usually blocks on Docker/VPS.
+    if _posterdb_session_has_login_cookies(session):
+        return session
+    inspect = _posterdb_inspect_session(session, config=config, quiet=True)
+    if inspect.get("ok"):
+        return session
+    return None
 
 
 def _posterdb_page_looks_like_challenge(html: str, url: str = "") -> bool:
@@ -947,38 +965,21 @@ def import_posterdb_browser_cookies(config: dict | None = None, cookies: str | l
     _posterdb_apply_cookie_rows(session, tpdb_rows)
 
     inspect = _posterdb_inspect_session(session, config=config)
-    if not inspect.get("ok"):
+    advanced_ok = bool(inspect.get("ok"))
+    # Advanced-search probes often hit Cloudflare on Docker/VPS even when the
+    # imported cookies are still good for HTML pages like /feed and /recent.
+    if not advanced_ok and not inspect.get("cloudflare") and not inspect.get("loggedIn"):
         ua_hint = (
             " Paste the exact browser User-Agent (chrome://version) — cf_clearance is tied to it."
             if "cf_clearance" in names and user_agent == _POSTERDB_UA
             else ""
         )
-        if inspect.get("cloudflare"):
-            return {
-                "ok": False,
-                "cloudflare": True,
-                "error": (
-                    _posterdb_cloudflare_help()
-                    + " cf_clearance is also bound to that browser’s IP; Docker/VPS hosts often still get blocked."
-                    + ua_hint
-                ),
-                "cookieCount": len(tpdb_rows),
-            }
-        if inspect.get("loggedIn") and inspect.get("loginRedirect"):
-            return {
-                "ok": False,
-                "error": (
-                    "Cookies signed you in, but TPDB advanced search still redirected to login. "
-                    "Advanced TMDB search needs TPDB Pro — confirm it works in the same browser, then re-export."
-                ),
-                "cookieCount": len(tpdb_rows),
-            }
         found = ", ".join(sorted(n for n in names if n)[:12])
         return {
             "ok": False,
             "cloudflare": False,
             "error": (
-                "Imported cookies did not unlock TPDB advanced search. "
+                "Imported cookies did not look like a TPDB login session. "
                 "Log in again in your browser, export fresh cookies (include cf_clearance "
                 "and the_poster_database_session / remember_web), and paste the same browser User-Agent."
                 + ua_hint
@@ -990,13 +991,34 @@ def import_posterdb_browser_cookies(config: dict | None = None, cookies: str | l
     _POSTERDB_SESSIONS[cache_key] = session
     _POSTERDB_LOGIN_FAILED_UNTIL.pop(cache_key, None)
     _posterdb_save_session_file(config, cache_key, session, user_agent=user_agent)
-    emit(None, f"ThePosterDB: imported {len(rows)} browser cookie(s) — session verified")
+    if advanced_ok:
+        emit(None, f"ThePosterDB: imported {len(rows)} browser cookie(s) — session verified")
+        return {
+            "ok": True,
+            "username": user,
+            "cookieCount": len(rows),
+            "hasCfClearance": "cf_clearance" in names,
+            "via": "browser-cookies",
+        }
+    warning = (
+        "Cookies saved for Following / recently added. Advanced TMDB search is still blocked from this host"
+        " — Cloudflare may also block /feed if cf_clearance is tied to your home IP."
+    )
+    if inspect.get("loggedIn") and inspect.get("loginRedirect"):
+        warning = (
+            "Cookies signed you in and were saved for Following / recently added. "
+            "Advanced TMDB search still redirected to login (TPDB Pro is required for that)."
+        )
+    emit(None, f"ThePosterDB: imported {len(rows)} browser cookie(s) — HTML session saved")
     return {
         "ok": True,
+        "htmlOnly": True,
         "username": user,
         "cookieCount": len(rows),
         "hasCfClearance": "cf_clearance" in names,
         "via": "browser-cookies",
+        "warning": warning,
+        "cloudflare": bool(inspect.get("cloudflare")),
     }
 
 
@@ -1148,28 +1170,32 @@ def _posterdb_session_looks_logged_in(
 
 
 def _posterdb_http_client(config: dict | None = None) -> requests.Session | type(requests):
-    """Return an authenticated TPDB session when credentials exist and login is enabled."""
+    """Return an authenticated TPDB session when a saved cookie session or password login is available."""
     config = config if isinstance(config, dict) else {}
-    if not _posterdb_should_use_login(config):
-        return requests
     user = str(config.get("tpdb_username") or config.get("tpdb_login") or "").strip()
     password = str(config.get("tpdb_password") or "").strip()
-    if not user or not password or password == "********":
+    has_creds = bool(user and password and password != "********")
+    cache_key = _posterdb_session_cache_key(user, password) if has_creds else ""
+
+    # Prefer a saved browser-cookie session even after password login is in
+    # Cloudflare cooldown, and even if “Use TPDB login” is off — that is the
+    # documented Docker/VPS workaround for HTML pages like /feed.
+    if cache_key:
+        cached = _POSTERDB_SESSIONS.get(cache_key)
+        if cached is not None:
+            return cached
+        restored = _posterdb_load_session_file(config, cache_key)
+        if restored is not None:
+            _POSTERDB_SESSIONS[cache_key] = restored
+            emit(None, "ThePosterDB: restored saved login session")
+            return restored
+
+    if not _posterdb_should_use_login(config) or not has_creds:
         return requests
-    cache_key = _posterdb_session_cache_key(user, password)
-    cached = _POSTERDB_SESSIONS.get(cache_key)
-    if cached is not None:
-        return cached
+
     failed_until = float(_POSTERDB_LOGIN_FAILED_UNTIL.get(cache_key) or 0)
     if failed_until > time.time():
         return requests
-
-    restored = _posterdb_load_session_file(config, cache_key)
-    if restored is not None:
-        _POSTERDB_SESSIONS[cache_key] = restored
-        _POSTERDB_LOGIN_FAILED_UNTIL.pop(cache_key, None)
-        emit(None, "ThePosterDB: restored saved login session")
-        return restored
 
     session = requests.Session()
     session.headers.update({"User-Agent": _POSTERDB_UA})
@@ -5111,6 +5137,51 @@ def _posterdb_soup_looks_like_login(soup) -> bool:
     return "sign in" in text and "password" in text
 
 
+def _posterdb_can_attempt_following(config: dict | None = None) -> bool:
+    if _posterdb_should_use_login(config):
+        return True
+    if _posterdb_session_file_exists(config):
+        return True
+    config = config if isinstance(config, dict) else {}
+    user = str(config.get("tpdb_username") or config.get("tpdb_login") or "").strip()
+    password = str(config.get("tpdb_password") or "").strip()
+    if not user or not password or password == "********":
+        return False
+    return _POSTERDB_SESSIONS.get(_posterdb_session_cache_key(user, password)) is not None
+
+
+def _posterdb_following_blocked_error(config: dict | None, soup, url: str = "") -> Optional[str]:
+    html = ""
+    try:
+        html = str(soup) if soup is not None else ""
+    except Exception:
+        html = ""
+    last = str(_POSTERDB_LOGIN_LAST_ERROR or "").strip()
+    if _posterdb_page_looks_like_challenge(html, url):
+        return last or _posterdb_cloudflare_help()
+    if soup is None:
+        return last or None
+    if _posterdb_soup_looks_like_login(soup):
+        if last:
+            return last
+        if _posterdb_should_use_login(config) or _posterdb_session_file_exists(config):
+            return _posterdb_cloudflare_help()
+        return (
+            "ThePosterDB following feed needs a logged-in session. "
+            "Add TPDB credentials in Poster Sets → Settings, or paste browser cookies "
+            "under Settings → Import TPDB browser cookies."
+        )
+    if soup.select("a.set_poster_count[href*='/set/']"):
+        return None
+    if _posterdb_html_looks_logged_in(html, url):
+        return None
+    if last:
+        return last
+    if _posterdb_should_use_login(config) or _posterdb_session_file_exists(config):
+        return _posterdb_cloudflare_help()
+    return None
+
+
 def _posterdb_catalog_meta(kind: str) -> dict:
     key = str(kind or "recent").strip().lower()
     if key in {"feed", "following", "following_feed", "follows"}:
@@ -5129,7 +5200,8 @@ def _posterdb_catalog_meta(kind: str) -> dict:
             ),
             "login": (
                 "ThePosterDB following feed needs a logged-in session. "
-                "Add TPDB credentials in Poster Sets → Settings."
+                "Add TPDB credentials in Poster Sets → Settings, or paste browser cookies "
+                "under Settings → Import TPDB browser cookies. Portal login is not enough."
             ),
             "require_login": True,
         }
@@ -5165,7 +5237,7 @@ def list_posterdb_recent_sets(
     """Stream ThePosterDB /recent or /feed pages in one scrape (same pattern as creator catalogs)."""
     meta = _posterdb_catalog_meta(kind)
     config = config if isinstance(config, dict) else {}
-    if meta["require_login"] and not _posterdb_should_use_login(config):
+    if meta["require_login"] and not _posterdb_can_attempt_following(config):
         raise ValueError(meta["login"])
     hard_cap = max(1, int(max_pages or 80))
     take = max(0, int(limit or 0)) or 10_000
@@ -5211,8 +5283,10 @@ def list_posterdb_recent_sets(
 
     emit(progress, meta["progress"])
     soup = cook_soup(first_url, config=config)
-    if meta["require_login"] and _posterdb_soup_looks_like_login(soup):
-        raise ValueError(meta["login"])
+    if meta["require_login"]:
+        blocked = _posterdb_following_blocked_error(config, soup, first_url)
+        if blocked:
+            raise ValueError(blocked)
     page_count = min(max(1, _posterdb_list_max_page(soup, path)), hard_cap)
     _collect_posterdb_set_cards(soup, sets=sets, limit=take)
     pages_in_batch = 1
@@ -5224,7 +5298,7 @@ def list_posterdb_recent_sets(
             break
         emit(progress, f"{meta['page_progress']} {page}/{page_count}…")
         soup = cook_soup(f"https://theposterdb.com/{path}?page={page}", config=config)
-        if meta["require_login"] and _posterdb_soup_looks_like_login(soup):
+        if meta["require_login"] and _posterdb_following_blocked_error(config, soup, f"https://theposterdb.com/{path}?page={page}"):
             break
         _collect_posterdb_set_cards(soup, sets=sets, limit=take)
         last_page = page
@@ -5241,6 +5315,10 @@ def list_posterdb_recent_sets(
     flush_batch(done=True, force=True)
     results = visible_sets()
     if not results:
+        if meta["require_login"]:
+            blocked = _posterdb_following_blocked_error(config, soup, first_url)
+            if blocked:
+                raise ValueError(blocked)
         raise ValueError(meta["empty"])
     return {
         "ok": True,

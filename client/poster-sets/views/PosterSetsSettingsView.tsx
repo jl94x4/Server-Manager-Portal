@@ -624,9 +624,10 @@ export const PosterSetsSettingsView: React.FC = () => {
                                         });
                                         toast(
                                             result.ok
-                                                ? `TPDB cookies imported (${result.cookieCount || 0})${result.hasCfClearance ? ' · cf_clearance OK' : ''}.`
+                                                ? (result.warning
+                                                    || `TPDB cookies imported (${result.cookieCount || 0})${result.hasCfClearance ? ' · cf_clearance OK' : ''}.`)
                                                 : (result.error || 'Cookie import failed'),
-                                            result.ok ? 'success' : 'error',
+                                            result.ok ? (result.warning ? undefined : 'success') : 'error',
                                         );
                                         if (result.ok) setTpdbCookiePaste('');
                                     } catch (error) {

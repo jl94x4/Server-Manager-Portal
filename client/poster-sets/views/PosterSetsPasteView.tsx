@@ -68,6 +68,7 @@ export const PosterSetsPasteView: React.FC = () => {
         searchSets,
         searchMode,
         searchContext,
+        catalogError,
         searchLoadingMore,
         searchSetsPage,
         searchSetsPageCount,
@@ -372,7 +373,7 @@ export const PosterSetsPasteView: React.FC = () => {
                     </button>
                 </div>
 
-                {(searchMode === 'creator' || searchMode === 'recent' || searchMode === 'feed') && (searchSets.length > 0 || searchLoadingMore || busy === 'search') && !inspectorOpen ? (
+                {(searchMode === 'creator' || searchMode === 'recent' || searchMode === 'feed') && (searchSets.length > 0 || searchLoadingMore || busy === 'search' || Boolean(catalogError)) && !inspectorOpen ? (
                     <div className="space-y-3 border-t border-white/10 pt-4">
                         <div className="flex flex-wrap items-start justify-between gap-2">
                             <div className="min-w-0">
@@ -384,7 +385,11 @@ export const PosterSetsPasteView: React.FC = () => {
                                 <p className="mt-0.5 text-[11px] text-muted">
                                     {searchSets.length
                                         ? `${searchSets.length} set${searchSets.length === 1 ? '' : 's'} loaded`
-                                        : 'Loading sets…'}
+                                        : catalogError
+                                            ? 'Couldn’t load this feed'
+                                            : (busy === 'search' || searchLoadingMore)
+                                                ? 'Loading sets…'
+                                                : 'No sets yet'}
                                     {searchSets.length > searchSetsPageSize
                                         ? ` · page ${Math.min(searchSetsPage, searchSetsPageCount)} / ${searchSetsPageCount}`
                                         : ''}
@@ -461,6 +466,10 @@ export const PosterSetsPasteView: React.FC = () => {
                             <div className="flex items-center gap-2 text-sm text-muted">
                                 <Loader2 className="h-4 w-4 animate-spin text-plex" />
                                 Loading first pages…
+                            </div>
+                        ) : catalogError && !searchSets.length ? (
+                            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm leading-relaxed text-amber-100">
+                                {catalogError}
                             </div>
                         ) : (
                             <div className={posterGridClass} style={pasteSetsGridStyle}>

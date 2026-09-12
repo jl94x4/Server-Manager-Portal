@@ -162,6 +162,7 @@ export function usePosterSetsDashboardState() {
     });
     const [searchLoadingMore, setSearchLoadingMore] = useState(false);
     const [searchContext, setSearchContext] = useState('');
+    const [catalogError, setCatalogError] = useState('');
     const creatorSearchAbortRef = useRef<AbortController | null>(null);
     const [selectedSearchTitle, setSelectedSearchTitle] = useState<PosterSetsSearchTitle | null>(null);
     const [selectedSearchSet, setSelectedSearchSet] = useState<PosterSetsSearchSet | null>(null);
@@ -1820,6 +1821,7 @@ export function usePosterSetsDashboardState() {
         setSearchSetsPage(1);
         setSearchLoadingMore(false);
         setSearchContext('');
+        setCatalogError('');
         setSelectedSearchTitle(null);
         setSelectedSearchSet(null);
         setPreview(null);
@@ -1863,8 +1865,13 @@ export function usePosterSetsDashboardState() {
                 const dupeNote = dupes > 0 ? ` · ${dupes} duplicate${dupes === 1 ? '' : 's'} collapsed` : '';
                 setSearchLoadingMore(false);
                 if (!setCount && !sawFirstBatch) {
-                    toast('No matches found.', 'error');
+                    const emptyMessage = mode === 'feed'
+                        ? 'No sets in your ThePosterDB following feed.'
+                        : 'No matches found.';
+                    setCatalogError(emptyMessage);
+                    toast(emptyMessage, 'error');
                 } else {
+                    setCatalogError('');
                     toast(`Found ${setCount} set${setCount === 1 ? '' : 's'} from ${finalEvent?.title || q}${dupeNote}.`);
                 }
                 if (finalEvent?.partialErrors?.length) {
@@ -1902,7 +1909,9 @@ export function usePosterSetsDashboardState() {
             }
         } catch (error) {
             if (error instanceof DOMException && error.name === 'AbortError') return;
-            toast(error instanceof Error ? error.message : 'Search failed', 'error');
+            const message = error instanceof Error ? error.message : 'Search failed';
+            setCatalogError(message);
+            toast(message, 'error');
             setSearchLoadingMore(false);
         } finally {
             if (creatorSearchAbortRef.current === abort) {
@@ -2235,6 +2244,7 @@ export function usePosterSetsDashboardState() {
         setUrl('');
         setTitleCardsOnly(false);
         titleCardsOnlyRef.current = false;
+        setCatalogError('');
         pushPosterLocation({ tab: 'apply', rail: null, setUrl: null, creator: null, titleCardsOnly: false }, 'push');
     };
 
@@ -2706,6 +2716,7 @@ export function usePosterSetsDashboardState() {
         posterGridStyle,
         titleCardGridStyle,
         searchSetsUseTitleCardGrid,
+        catalogError,
         runCatalogSearch,
         openCreatorCatalog,
         openTpdbRecentCatalog,

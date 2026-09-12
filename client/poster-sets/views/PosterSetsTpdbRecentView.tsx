@@ -37,6 +37,7 @@ export const PosterSetsTpdbRecentView: React.FC = () => {
         searchSets,
         searchMode,
         searchContext,
+        catalogError,
         searchLoadingMore,
         searchSetsPage,
         searchSetsPageCount,
@@ -126,7 +127,11 @@ export const PosterSetsTpdbRecentView: React.FC = () => {
                     <p className="mt-1 text-[11px] text-muted">
                         {searchSets.length
                             ? `${searchSets.length} set${searchSets.length === 1 ? '' : 's'} loaded`
-                            : 'Loading sets…'}
+                            : catalogError
+                                ? 'Couldn’t load this feed'
+                                : (busy === 'search' || searchLoadingMore)
+                                    ? 'Loading sets…'
+                                    : 'No sets yet'}
                         {searchSets.length > searchSetsPageSize
                             ? ` · page ${Math.min(searchSetsPage, searchSetsPageCount)} / ${searchSetsPageCount}`
                             : ''}
@@ -287,6 +292,10 @@ export const PosterSetsTpdbRecentView: React.FC = () => {
                         <div className="flex items-center gap-2 text-sm text-muted">
                             <Loader2 className="h-4 w-4 animate-spin text-plex" />
                             Loading first pages…
+                        </div>
+                    ) : catalogError && !searchSets.length ? (
+                        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm leading-relaxed text-amber-100">
+                            {catalogError}
                         </div>
                     ) : (
                         <div className={posterGridClass} style={catalogGridStyle}>
