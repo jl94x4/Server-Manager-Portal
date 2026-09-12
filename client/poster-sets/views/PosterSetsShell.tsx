@@ -73,7 +73,7 @@ export const PosterSetsShell: React.FC = () => {
         selectedBulkCount,
         inspectorOpen,
         libraryDetailItem,
-        setLibraryDetailItem,
+        closeLibraryItem,
         libraryDetailLayout,
         setLibraryDetailLayout,
         configDraft,
@@ -332,7 +332,7 @@ export const PosterSetsShell: React.FC = () => {
             <LibraryTitleDetailPanel
                     item={libraryDetailItem}
                     pageVisible={tab === 'library'}
-                    onClose={() => setLibraryDetailItem(null)}
+                    onClose={closeLibraryItem}
                     dupePreference={
                         !isTpdbEnabled(configDraft)
                             ? 'mediux'

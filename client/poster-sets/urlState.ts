@@ -1,6 +1,6 @@
 /** Hash routing for Poster Sets — library-first with Discover sub-views. */
 
-import { withPreservedPortalScroll } from './shared/posterSetsScroll';
+import { restorePortalScroll, scheduleScrollRestore, withPreservedPortalScroll, type PortalScrollSnapshot } from './shared/posterSetsScroll';
 
 export const POSTER_SETS_PRIMARY_TABS = ['library', 'collections', 'discover', 'queue', 'watches', 'logs', 'paste', 'settings'] as const;
 export type PosterSetsPrimaryTab = (typeof POSTER_SETS_PRIMARY_TABS)[number];
@@ -290,7 +290,11 @@ export function buildPosterSetsHash(state: PosterSetsUrlState): string {
     return hash;
 }
 
-export function writePosterSetsUrl(state: PosterSetsUrlState, mode: 'push' | 'replace' = 'push') {
+export function writePosterSetsUrl(
+    state: PosterSetsUrlState,
+    mode: 'push' | 'replace' = 'push',
+    options?: { restoreScroll?: PortalScrollSnapshot | null },
+) {
     if (typeof window === 'undefined') return;
     const desired = buildPosterSetsHash(state);
     const current = window.location.hash || '';
@@ -310,6 +314,15 @@ export function writePosterSetsUrl(state: PosterSetsUrlState, mode: 'push' | 're
         }
     };
     // Changing `#discover?url=` ↔ `#discover` makes Safari/iOS jump to the top.
+    if (options?.restoreScroll) {
+        apply();
+        restorePortalScroll(options.restoreScroll);
+        scheduleScrollRestore(() => restorePortalScroll(options.restoreScroll), {
+            frames: 3,
+            delays: [0, 50, 160, 400],
+        });
+        return;
+    }
     withPreservedPortalScroll(apply);
 }
 

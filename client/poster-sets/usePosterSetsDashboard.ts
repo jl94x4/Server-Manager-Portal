@@ -243,6 +243,7 @@ export function usePosterSetsDashboardState() {
     const libraryLoadGenRef = useRef(0);
     const scrollPreviewAfterLoadRef = useRef(false);
     const resultsScrollTopRef = useRef<PortalScrollSnapshot | null>(null);
+    const libraryListScrollRef = useRef<PortalScrollSnapshot | null>(null);
     const syncedSetUrlRef = useRef<string | null>(initialLocation.setUrl);
     const titleCardsOnlyRef = useRef(Boolean(initialLocation.titleCardsOnly));
     const deepLinkHandledRef = useRef(false);
@@ -440,7 +441,7 @@ export function usePosterSetsDashboardState() {
 
     /** Collapse the inline set inspector without wiping search/browse results. */
     const collapseSetInspector = useCallback((options?: { scrollToSets?: boolean }) => {
-        const saved = resultsScrollTopRef.current || capturePortalScroll();
+        const saved = resultsScrollTopRef.current ?? capturePortalScroll();
         setPreview(null);
         setSelectedSearchSet(null);
         setSelectedAssetIds([]);
@@ -462,7 +463,7 @@ export function usePosterSetsDashboardState() {
                 setUrl: userUrl,
                 creator: null,
                 titleCardsOnly: false,
-            }), 'replace');
+            }), 'replace', { restoreScroll: saved });
         } else {
             syncedSetUrlRef.current = null;
             writePosterSetsUrl(normalizePosterLocation({
@@ -471,14 +472,14 @@ export function usePosterSetsDashboardState() {
                 setUrl: null,
                 creator: tab === 'apply' ? creator : null,
                 titleCardsOnly: false,
-            }), 'replace');
+            }), 'replace', { restoreScroll: saved });
         }
         if (options?.scrollToSets !== false) {
             requestAnimationFrame(() => {
                 searchSetsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             });
         } else {
-            scheduleScrollRestore(() => restorePortalScroll(saved));
+            scheduleScrollRestore(() => restorePortalScroll(saved), { frames: 3, delays: [0, 50, 160, 400] });
         }
     }, [browseSeeAllId, searchMode, searchQuery, tab]);
 
@@ -2178,8 +2179,20 @@ export function usePosterSetsDashboardState() {
     openTpdbRecentCatalogRef.current = openTpdbRecentCatalog;
 
     const openLibraryItem = (item: LibraryRecentItem) => {
+        if (libraryDetailLayout !== 'drawer') {
+            libraryListScrollRef.current = capturePortalScroll();
+        }
         setLibraryDetailItem(item);
     };
+
+    const closeLibraryItem = useCallback(() => {
+        const saved = libraryListScrollRef.current;
+        libraryListScrollRef.current = null;
+        setLibraryDetailItem(null);
+        if (saved) {
+            scheduleScrollRestore(() => restorePortalScroll(saved), { frames: 3, delays: [0, 50, 160, 400] });
+        }
+    }, []);
 
     const openSearchTitle = async (title: PosterSetsSearchTitle, libraryItem?: LibraryRecentItem) => {
         const gen = ++catalogSearchGenRef.current;
@@ -2896,6 +2909,7 @@ export function usePosterSetsDashboardState() {
         openCreatorCatalog,
         openTpdbRecentCatalog,
         openLibraryItem,
+        closeLibraryItem,
         openSearchTitle,
         runLibraryItemSearch,
         pickSearchSet,
