@@ -386,8 +386,8 @@ export function SetInspectorThumbStrip({
                                         disabled={!canPreview}
                                         className={`group relative shrink-0 overflow-hidden rounded-lg border border-white/10 bg-black/40 text-left shadow-sm transition ${
                                             landscape
-                                                ? 'aspect-[16/9] w-[7.5rem] sm:w-[8.75rem]'
-                                                : 'aspect-[2/3] w-[4.35rem] sm:w-[4.85rem]'
+                                                ? 'aspect-[16/9] w-[13rem] sm:w-[16rem]'
+                                                : 'aspect-[2/3] w-[6.75rem] sm:w-[8rem]'
                                         } ${
                                             canPreview
                                                 ? 'cursor-zoom-in hover:border-plex/50 hover:ring-1 hover:ring-plex/30'
