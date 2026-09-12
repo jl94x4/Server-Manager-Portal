@@ -1,4 +1,5 @@
 import type { PosterSetsWatch } from './types';
+import { isLibraryPendingWatchError } from './shared/posterSetsFormat';
 import {
     classifyRecentSet,
     RECENT_CATEGORY_ORDER,
@@ -165,7 +166,7 @@ export const groupPosterSetsWatches = (watches: PosterSetsWatch[]): PosterSetsWa
             title,
             thumbUrl,
             watches: members,
-            errored: members.some((watch) => Boolean(watch.lastError)),
+            errored: members.some((watch) => Boolean(watch.lastError) && !isLibraryPendingWatchError(watch.lastError)),
             lastCheckedAt: lastCheckedAt ? String(lastCheckedAt) : null,
         };
     });

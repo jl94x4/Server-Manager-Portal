@@ -94,6 +94,7 @@ export const PosterSetsShell: React.FC = () => {
     const lastJob = status?.recentJobs?.[0] || null;
     const lastJobState = formatJobState(lastJob?.state);
     const lastJobFailed = /fail|error|cancel/i.test(String(lastJob?.state || ''));
+    const lastJobWarning = /warn/i.test(String(lastJob?.state || ''));
     const failedHistoryCount = historyJobs.filter((job) => (
         ['failed', 'error'].includes(String(job.state || '').toLowerCase())
     )).length;
@@ -120,10 +121,12 @@ export const PosterSetsShell: React.FC = () => {
         {
             label: 'Last job',
             value: lastJobState,
-            ok: !lastJobFailed && lastJobState !== 'None',
+            ok: !lastJobFailed && !lastJobWarning && lastJobState !== 'None',
             icon: lastJobFailed
                 ? <XCircle className="h-3.5 w-3.5 text-rose-300" />
-                : <ListOrdered className="h-3.5 w-3.5 text-sky-300" />,
+                : lastJobWarning
+                    ? <Clock className="h-3.5 w-3.5 text-amber-300" />
+                    : <ListOrdered className="h-3.5 w-3.5 text-sky-300" />,
             hint: lastJob
                 ? `${lastJob.type || 'job'} · ${lastJobState}`
                 : 'No jobs yet',

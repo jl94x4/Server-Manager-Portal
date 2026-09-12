@@ -55,9 +55,13 @@ import {
     fieldClass,
     formatSetLabel,
     formatTime,
+    isFailedJobState,
     isTitleCardRail,
     isTitleCardSet,
+    isWarningJobState,
     jobCardTone,
+    jobErrorBoxClass,
+    jobErrorTextClass,
     jobSetMeta,
     jobTitle,
     posterMediaRadiusClass,
@@ -324,9 +328,10 @@ export const PosterSetsHistoryView: React.FC = () => {
 
     if (tab !== 'history') return null;
     const watcherBusy = Boolean(watcherPass?.busy || watcherPass?.running);
-    const failedHistoryCount = historyJobs.filter((job) => ['failed', 'error'].includes(String(job.state || '').toLowerCase())).length;
+    const failedHistoryCount = historyJobs.filter((job) => isFailedJobState(job.state)).length;
     const failedAuditCount = auditEntries.filter((entry) => (
-        Boolean(entry.error) || ['failed', 'error'].includes(String(entry.state || '').toLowerCase())
+        !isWarningJobState(entry.state)
+        && (Boolean(entry.error) || isFailedJobState(entry.state))
     )).length;
     return (
 
@@ -349,6 +354,7 @@ export const PosterSetsHistoryView: React.FC = () => {
                                 ['all', 'All'],
                                 ['running', 'Running'],
                                 ['succeeded', 'Succeeded'],
+                                ['warning', 'Warning'],
                                 ['failed', 'Failed'],
                                 ['audit', 'Audit log'],
                             ] as const).map(([value, label]) => (
@@ -410,7 +416,7 @@ export const PosterSetsHistoryView: React.FC = () => {
                                         try {
                                             const response = await posterSetsApi.clearFailedJobs();
                                             setHistoryJobs(response.jobs || []);
-                                            if (selectedHistoryJob && ['failed', 'error'].includes(String(selectedHistoryJob.state || '').toLowerCase())) {
+                                            if (selectedHistoryJob && isFailedJobState(selectedHistoryJob.state)) {
                                                 setSelectedHistoryJob(null);
                                             }
                                             await loadQueue();
@@ -569,7 +575,11 @@ export const PosterSetsHistoryView: React.FC = () => {
                                             {typeof entry.selectedCount === 'number' ? (
                                                 <span>{entry.selectedCount} selected</span>
                                             ) : null}
-                                            {entry.error ? <span className="text-red-300">{entry.error}</span> : null}
+                                            {entry.error ? (
+                                                <span className={isWarningJobState(entry.state) ? 'text-amber-200' : 'text-red-300'}>
+                                                    {entry.error}
+                                                </span>
+                                            ) : null}
                                         </div>
                                     </article>
                                 );
@@ -627,7 +637,7 @@ export const PosterSetsHistoryView: React.FC = () => {
                                                 </span>
                                             ) : null}
                                             {typeof job.logCount === 'number' ? <span>{job.logCount} log lines</span> : null}
-                                            {job.error ? <span className="text-red-300">{job.error}</span> : null}
+                                            {job.error ? <span className={jobErrorTextClass(job.state)}>{job.error}</span> : null}
                                         </div>
                                     </article>
                                 );
@@ -664,7 +674,7 @@ export const PosterSetsHistoryView: React.FC = () => {
                                         ) : null}
                                     </div>
                                     {selectedHistoryJob.error ? (
-                                        <p className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+                                        <p className={jobErrorBoxClass(selectedHistoryJob.state)}>
                                             {selectedHistoryJob.error}
                                         </p>
                                     ) : null}

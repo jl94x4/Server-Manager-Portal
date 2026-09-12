@@ -57,6 +57,7 @@ import {
     isTitleCardRail,
     isTitleCardSet,
     jobCardTone,
+    jobErrorTextClass,
     jobSetMeta,
     jobTitle,
     normalizeSearchSetsPageSize,
@@ -806,7 +807,7 @@ export const PosterSetsSearchView: React.FC = () => {
                                 <h2 className="text-lg font-bold text-text">Job #{activeJob.id.slice(0, 8)}</h2>
                                 <StatusPill value={activeJob.state} />
                             </div>
-                            {activeJob.error ? <p className="text-sm text-red-300">{activeJob.error}</p> : null}
+                            {activeJob.error ? <p className={`text-sm ${jobErrorTextClass(activeJob.state)}`}>{activeJob.error}</p> : null}
                             {activeJob.result && typeof activeJob.result.uploaded === 'number' ? (
                                 <p className="text-sm text-emerald-300">
                                     Uploaded {String(activeJob.result.uploaded)} / {String(activeJob.result.attempted ?? activeJob.result.uploaded)}

@@ -46,7 +46,12 @@ export {
 export {
     formatSetLabel,
     formatTime,
+    isFailedJobState,
+    isLibraryPendingWatchError,
+    isWarningJobState,
     jobCardTone,
+    jobErrorBoxClass,
+    jobErrorTextClass,
     jobLogLines,
     jobSetMeta,
     jobTitle,

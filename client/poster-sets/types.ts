@@ -172,6 +172,7 @@ export type PosterSetsQueueStats = {
     queued?: number;
     running?: number;
     succeeded?: number;
+    warning?: number;
     failed?: number;
     cancelled?: number;
     pending?: number;

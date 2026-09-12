@@ -25,6 +25,7 @@ import {
     buttonClass,
     fieldClass,
     isTitleCardSet,
+    jobErrorTextClass,
     normalizeSearchSetsPageSize,
     parseTpdbUserHandle,
     isTpdbRecentUrl,
@@ -176,7 +177,7 @@ export const PosterSetsPasteView: React.FC = () => {
                 : '';
             return `Finished — uploaded ${uploaded}${attemptedBit} poster${uploaded === 1 ? '' : 's'}${jobsBit}.`;
         }
-        if (bulkState === 'failed' || bulkState === 'cancelled') {
+        if (bulkState === 'failed' || bulkState === 'cancelled' || bulkState === 'warning') {
             return bulkJob?.error || `Bulk ${bulkState}.`;
         }
         return `Bulk ${bulkCountLabel}${bulkSourceLabel}.`;
@@ -639,11 +640,11 @@ export const PosterSetsPasteView: React.FC = () => {
                                 <p className="text-xs font-bold text-text">Bulk progress</p>
                                 <StatusPill value={bulkState || 'queued'} />
                             </div>
-                            <p className={`text-xs ${bulkState === 'failed' ? 'text-red-300' : 'text-muted'}`}>
+                            <p className={`text-xs ${bulkState === 'failed' ? 'text-red-300' : bulkState === 'warning' ? 'text-amber-200' : 'text-muted'}`}>
                                 {bulkSummary}
                             </p>
-                            {bulkJob?.error && bulkState !== 'failed' ? (
-                                <p className="text-xs text-red-300">{bulkJob.error}</p>
+                            {bulkJob?.error && bulkState !== 'failed' && bulkState !== 'warning' ? (
+                                <p className={`text-xs ${jobErrorTextClass(bulkState)}`}>{bulkJob.error}</p>
                             ) : null}
                             <div
                                 ref={bulkLogRef}

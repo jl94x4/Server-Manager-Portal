@@ -64,6 +64,7 @@ import {
     isTitleCardSet,
     isMediuxEnabled,
     isTpdbEnabled,
+    isLibraryPendingWatchError,
     jobCardTone,
     jobSetMeta,
     jobTitle,
@@ -592,8 +593,16 @@ export const PosterSetsWatchingView: React.FC = () => {
 
                                 <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 custom-scrollbar sm:px-5">
                                     {sheetWatch?.lastError ? (
-                                        <div className="space-y-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2">
-                                            <p className="text-xs leading-relaxed text-red-200">
+                                        <div className={`space-y-2 rounded-xl px-3 py-2 ${
+                                            isLibraryPendingWatchError(sheetWatch.lastError)
+                                                ? 'border border-amber-500/30 bg-amber-500/10'
+                                                : 'border border-red-500/30 bg-red-500/10'
+                                        }`}>
+                                            <p className={`text-xs leading-relaxed ${
+                                                isLibraryPendingWatchError(sheetWatch.lastError)
+                                                    ? 'text-amber-100'
+                                                    : 'text-red-200'
+                                            }`}>
                                                 {sheetWatch.lastError}
                                             </p>
                                             <button
@@ -1058,6 +1067,7 @@ export const PosterSetsWatchingView: React.FC = () => {
                                                             : watchThumb)
                                                         : '';
                                                     const actionBtnClass = 'inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-black/25 px-2 text-[11px] font-semibold text-text transition hover:border-plex/40 hover:bg-white/5 disabled:pointer-events-none disabled:opacity-40';
+                                                    const waitingForLibrary = isLibraryPendingWatchError(watch.lastError);
                                                     return (
                                                         <div
                                                             key={watch.id}
@@ -1065,7 +1075,9 @@ export const PosterSetsWatchingView: React.FC = () => {
                                                                 watchIndex > 0 ? 'border-t border-white/10 pt-2' : ''
                                                             } ${
                                                                 watch.lastError
-                                                                    ? 'rounded-xl border border-red-500/30 bg-red-500/10 p-2'
+                                                                    ? waitingForLibrary
+                                                                        ? 'rounded-xl border border-amber-500/30 bg-amber-500/10 p-2'
+                                                                        : 'rounded-xl border border-red-500/30 bg-red-500/10 p-2'
                                                                     : ''
                                                             }`}
                                                         >
@@ -1132,12 +1144,18 @@ export const PosterSetsWatchingView: React.FC = () => {
                                                             )}
                                                             {watch.lastError ? (
                                                                 <div className="space-y-1">
-                                                                    <p className="line-clamp-3 break-words text-[10px] leading-snug text-red-300 [overflow-wrap:anywhere]" title={watch.lastError}>
+                                                                    <p className={`line-clamp-3 break-words text-[10px] leading-snug [overflow-wrap:anywhere] ${
+                                                                        waitingForLibrary ? 'text-amber-100' : 'text-red-300'
+                                                                    }`} title={watch.lastError}>
                                                                         {watch.lastError}
                                                                     </p>
                                                                     <button
                                                                         type="button"
-                                                                        className="text-[10px] font-semibold text-red-200/80 underline-offset-2 hover:text-red-100 hover:underline"
+                                                                        className={`text-[10px] font-semibold underline-offset-2 hover:underline ${
+                                                                            waitingForLibrary
+                                                                                ? 'text-amber-200/80 hover:text-amber-100'
+                                                                                : 'text-red-200/80 hover:text-red-100'
+                                                                        }`}
                                                                         disabled={busy !== null}
                                                                         onClick={(event) => {
                                                                             event.stopPropagation();

@@ -1750,13 +1750,13 @@ export const PosterSetsSettingsView: React.FC = () => {
                     <div className="space-y-0 rounded-xl border border-white/10 bg-black/20 px-4">
                         <SettingsToggleRow
                             title="Enable set watchers"
-                            description="Periodically re-scrape pinned sets and queue only new assets (respects Queue pause)."
+                            description="Required for auto-apply. Periodically re-scrape pinned sets and queue only new or newly matched assets (respects Queue pause)."
                             checked={configDraft.watchersEnabled !== false}
                             onChange={(next) => setConfigDraft((prev) => ({ ...prev, watchersEnabled: next }))}
                         />
                         <SettingsToggleRow
                             title="Auto-watch on apply"
-                            description="After you apply a set — including bulk queue and bulk lists — pin it on Watching so posters auto-apply when the title lands or the set gets new art."
+                            description="After you apply a set — including bulk — pin it on Watching. If the title is not in your library yet, the apply is logged as a Warning and the set auto-applies when the title is added."
                             checked={configDraft.autoWatchOnApply !== false}
                             onChange={(next) => setConfigDraft((prev) => ({ ...prev, autoWatchOnApply: next }))}
                         />
@@ -1787,7 +1787,7 @@ export const PosterSetsSettingsView: React.FC = () => {
                                 setConfigDraft((prev) => ({ ...prev, watchIntervalHours: hours }));
                             }}
                         />
-                        <span className="mt-1 block text-[11px] text-muted">Default 6. Minimum 1.</span>
+                        <span className="mt-1 block text-[11px] text-muted">Default 6 hours. Minimum 1. Plex library-add and Sonarr import also check matching watches sooner.</span>
                     </label>
                     <StickySaveBar>
                         <button type="button" className={buttonClass} disabled={busy !== null} onClick={() => void runTest()}>

@@ -57,6 +57,8 @@ import {
     isTitleCardRail,
     isTitleCardSet,
     jobCardTone,
+    jobErrorBoxClass,
+    jobErrorTextClass,
     jobSetMeta,
     jobTitle,
     posterMediaRadiusClass,
@@ -316,6 +318,8 @@ export const PosterSetsQueueView: React.FC = () => {
                                 {' · '}
                                 {queueStats.succeeded || 0} succeeded
                                 {' · '}
+                                {queueStats.warning || 0} warning
+                                {' · '}
                                 {queueStats.failed || 0} failed
                             </p>
                         </div>
@@ -442,7 +446,7 @@ export const PosterSetsQueueView: React.FC = () => {
                                                     {job.input?.selectedCount ? ` · ${job.input.selectedCount} selected` : ''}
                                                 </p>
                                                 {job.error ? (
-                                                    <p className="break-words text-xs text-red-300 sm:text-sm [overflow-wrap:anywhere]">{job.error}</p>
+                                                    <p className={`break-words text-xs sm:text-sm [overflow-wrap:anywhere] ${jobErrorTextClass(job.state)}`}>{job.error}</p>
                                                 ) : null}
                                                 {meta?.url ? (
                                                     <a
@@ -501,7 +505,7 @@ export const PosterSetsQueueView: React.FC = () => {
                                                         <X className="h-4 w-4" /> Stop
                                                     </button>
                                                 ) : null}
-                                                {(state === 'failed' || state === 'cancelled') ? (
+                                                {(state === 'failed' || state === 'cancelled' || state === 'warning') ? (
                                                     <button
                                                         type="button"
                                                         className={primaryButtonClass}
@@ -523,7 +527,7 @@ export const PosterSetsQueueView: React.FC = () => {
                                                         <RotateCcw className="h-4 w-4" /> Retry
                                                     </button>
                                                 ) : null}
-                                                {(state === 'failed' || state === 'cancelled' || state === 'succeeded') ? (
+                                                {(state === 'failed' || state === 'cancelled' || state === 'succeeded' || state === 'warning') ? (
                                                     <button
                                                         type="button"
                                                         className={buttonClass}
@@ -547,7 +551,7 @@ export const PosterSetsQueueView: React.FC = () => {
                                                         <X className="h-4 w-4" /> Dismiss
                                                     </button>
                                                 ) : null}
-                                                {state === 'failed' && (job.input?.url || meta?.url) ? (
+                                                {(state === 'failed' || state === 'warning') && (job.input?.url || meta?.url) ? (
                                                     <button
                                                         type="button"
                                                         className={buttonClass}
@@ -601,7 +605,7 @@ export const PosterSetsQueueView: React.FC = () => {
                                 ) : null}
                             </div>
                             {selectedQueueJob.error ? (
-                                <p className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+                                <p className={jobErrorBoxClass(selectedQueueJob.state)}>
                                     {selectedQueueJob.error}
                                 </p>
                             ) : null}

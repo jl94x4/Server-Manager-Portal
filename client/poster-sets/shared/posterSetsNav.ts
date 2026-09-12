@@ -3,7 +3,7 @@ import type { PosterSetsConfig } from '../types';
 
 export type TabId = 'apply' | 'browse' | 'tpdb' | 'library' | 'collections' | 'queue' | 'watches' | 'recent' | 'paste' | 'history' | 'settings';
 export type PrimaryTabId = 'library' | 'collections' | 'discover' | 'queue' | 'watches' | 'logs' | 'paste' | 'settings';
-export type HistoryFilter = 'all' | 'running' | 'succeeded' | 'failed' | 'audit';
+export type HistoryFilter = 'all' | 'running' | 'succeeded' | 'warning' | 'failed' | 'audit';
 
 export const DISCOVER_SUB_NAV: Array<{ id: DiscoverView; label: string; internalTab: TabId }> = [
     { id: 'search', label: 'Search', internalTab: 'apply' },

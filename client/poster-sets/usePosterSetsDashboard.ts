@@ -2730,6 +2730,7 @@ export function usePosterSetsDashboardState() {
             const state = String(job.state || '').toLowerCase();
             if (historyFilter === 'running') return ['running', 'queued'].includes(state);
             if (historyFilter === 'succeeded') return ['succeeded', 'completed', 'success'].includes(state);
+            if (historyFilter === 'warning') return ['warning', 'warn'].includes(state);
             if (historyFilter === 'failed') return ['failed', 'error'].includes(state);
             return true;
         }).filter((job) => {

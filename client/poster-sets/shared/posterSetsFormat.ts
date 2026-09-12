@@ -51,6 +51,9 @@ export const statusTone = (value?: string | null) => {
     if (['succeeded', 'completed', 'success', 'ready', 'connected', 'valid'].includes(state)) {
         return 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200';
     }
+    if (['warning', 'warn'].includes(state)) {
+        return 'border-amber-500/40 bg-amber-500/15 text-amber-100';
+    }
     if (['failed', 'error', 'missing'].includes(state)) {
         return 'border-red-500/40 bg-red-500/15 text-red-200';
     }
@@ -60,8 +63,33 @@ export const statusTone = (value?: string | null) => {
     return 'border-white/10 bg-white/5 text-muted';
 };
 
+export const isWarningJobState = (value?: string | null) => (
+    ['warning', 'warn'].includes(String(value || '').toLowerCase())
+);
+
+export const isFailedJobState = (value?: string | null) => (
+    ['failed', 'error'].includes(String(value || '').toLowerCase())
+);
+
+export const isLibraryPendingWatchError = (message?: string | null) => {
+    const text = String(message || '').toLowerCase();
+    return text.includes('waiting for title in library')
+        || text.includes('will auto-apply when');
+};
+
+export const jobErrorTextClass = (state?: string | null) => (
+    isWarningJobState(state) ? 'text-amber-200' : 'text-red-300'
+);
+
+export const jobErrorBoxClass = (state?: string | null) => (
+    isWarningJobState(state)
+        ? 'rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100'
+        : 'rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200'
+);
+
 export const jobCardTone = (job: PosterSetsJob) => {
     const state = String(job.state || '').toLowerCase();
+    if (['warning', 'warn'].includes(state)) return 'border-l-2 border-l-amber-400/80 bg-amber-500/[0.06]';
     if (['failed', 'error'].includes(state)) return 'border-l-2 border-l-red-400/70 bg-red-500/[0.05]';
     if (['succeeded', 'completed', 'success'].includes(state)) return 'border-l-2 border-l-emerald-400/80 bg-emerald-500/[0.06]';
     if (['running', 'queued'].includes(state)) return 'border-l-2 border-l-plex/70 bg-plex/[0.06]';
