@@ -380,6 +380,47 @@ class CollexionsApiService {
         return apiFetch(base('/jobs'));
     }
 
+    async getJobPreview(id: string): Promise<{
+        success: boolean;
+        error?: string;
+        name?: string;
+        library?: string;
+        source_type?: string;
+        source_id?: string;
+        source_count?: number;
+        matched?: Array<{
+            title?: string;
+            plex_title?: string;
+            year?: number | string | null;
+            rating_key?: string;
+            tmdb_id?: string;
+            status?: string;
+            reason?: string;
+        }>;
+        unmatched?: Array<{ title?: string; tmdb_id?: string; year?: number | string | null }>;
+        excluded?: Array<{ title?: string; tmdb_id?: string; rating_key?: string }>;
+        extras?: Array<{ title?: string; plex_title?: string; rating_key?: string; year?: number | null }>;
+        unexpected?: Array<{ title?: string; plex_title?: string; rating_key?: string; year?: number | null }>;
+    }> {
+        return withTimeout(cx(`/jobs/preview?id=${encodeURIComponent(id)}`), COLLEXIONS_LONG_MS, 'Job preview');
+    }
+
+    async updateJobItems(payload: {
+        id: string;
+        exclude_tmdb_ids?: string[];
+        exclude_rating_keys?: string[];
+        remove_rating_keys?: string[];
+        add_rating_keys?: string[];
+        extra_rating_keys?: string[];
+        apply?: boolean;
+    }): Promise<{ success: boolean; error?: string; matched?: number; added?: number; removed?: number }> {
+        return withTimeout(
+            cx('/jobs/items', { method: 'POST', body: JSON.stringify(payload) }),
+            COLLEXIONS_LONG_MS,
+            'Updating collection items',
+        );
+    }
+
     async runJobNow(idOrPayload: string | { id?: string; ids?: string[]; all?: boolean }): Promise<any> {
         const payload = typeof idOrPayload === 'string' ? { id: idOrPayload } : idOrPayload;
         return withTimeout(

@@ -156,6 +156,7 @@ COPY collexions/requirements.txt /app/collexions/requirements.txt
 COPY collexions/server.py /app/collexions/server.py
 COPY collexions/ColleXions.py /app/collexions/ColleXions.py
 COPY collexions/plex_identity.py /app/collexions/plex_identity.py
+COPY collexions/plex_match.py /app/collexions/plex_match.py
 RUN python3 -m venv /opt/collexions-venv \
     && /opt/collexions-venv/bin/pip install --no-cache-dir -r /app/collexions/requirements.txt \
     && chown -R node:node /app/collexions /opt/collexions-venv

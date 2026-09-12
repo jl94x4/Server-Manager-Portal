@@ -15,6 +15,8 @@ import threading
 from contextlib import contextmanager
 from flask import Flask, request, jsonify, send_from_directory, Response, abort
 from flask_cors import CORS
+
+from plex_match import pick_match_reason
 try:
     import psutil
     PSUTIL_AVAILABLE = True
@@ -965,6 +967,7 @@ def fetch_source_items(source_type, source_id, config):
                             continue
                         items.append({
                             'title': part.get('title') or part.get('name'),
+                            'original_title': part.get('original_title') or '',
                             'tmdb_id': part.get('id'),
                             'type': 'movie',
                             'year': (part.get('release_date') or '')[:4],
@@ -1632,79 +1635,188 @@ def _finalize_collection_for_plex_web(coll, library, config=None):
         return []
 
 
-def _match_external_to_plex(library, external_items, tmdb_cache=None):
-    """Match external {tmdb_id/id, title} items to local Plex items.
+def _id_list(values) -> list:
+    out = []
+    seen = set()
+    for value in values or []:
+        key = str(value or '').strip()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        out.append(key)
+    return out
 
-    For small lists (franchises / trending), prefer per-title search so we don't
-    scan the entire library (which often exceeds the portal proxy timeout).
+
+def _job_item_overrides(job) -> tuple[set[str], set[str], list[str]]:
+    job = job if isinstance(job, dict) else {}
+    skip_tmdb = set(_id_list(job.get('excluded_tmdb_ids')))
+    skip_keys = set(_id_list(job.get('excluded_rating_keys')))
+    extra_keys = _id_list(job.get('extra_rating_keys'))
+    return skip_tmdb, skip_keys, extra_keys
+
+
+def _plex_candidate_dict(item) -> dict:
+    return {
+        'acceptable': True,
+        'title': getattr(item, 'title', '') or '',
+        'originalTitle': getattr(item, 'originalTitle', '') or '',
+        'titleSort': getattr(item, 'titleSort', '') or '',
+        'year': getattr(item, 'year', None),
+        'tmdb_ids': _plex_item_tmdb_ids(item),
+    }
+
+
+def _pick_strict_plex_match(results, ext, lib_type):
+    """Return (item, reason) using TMDB guid or normalized title+year — never first hit."""
+    for item in list(results or [])[:25]:
+        if not _acceptable_collection_member(item, lib_type):
+            continue
+        reason = pick_match_reason(_plex_candidate_dict(item), ext if isinstance(ext, dict) else {})
+        if reason:
+            return item, reason
+    return None, None
+
+
+def _fetch_library_items_by_keys(library, keys):
+    items = []
+    lib_type = normalize_media_kind(getattr(library, 'type', None))
+    for key in _id_list(keys):
+        try:
+            item = library.fetchItem(int(key))
+        except Exception:
+            continue
+        if _acceptable_collection_member(item, lib_type):
+            items.append(item)
+    return items
+
+
+def _match_external_to_plex(
+    library,
+    external_items,
+    tmdb_cache=None,
+    *,
+    report=False,
+    skip_tmdb_ids=None,
+    skip_rating_keys=None,
+):
+    """Match external {tmdb_id/id, title, year} items to local Plex items.
+
+    Requires a TMDB guid or a normalized title match (year when known).
+    The old first-search-result fallback pulled unrelated library movies
+    into franchise collections.
     """
-    items = list(external_items or [])
+    items = [ext for ext in (external_items or []) if isinstance(ext, dict)]
+    skip_tmdb = {str(x).strip() for x in (skip_tmdb_ids or []) if str(x).strip()}
+    skip_keys = {str(x).strip() for x in (skip_rating_keys or []) if str(x).strip()}
+    empty = [] if not report else ([], [])
     if not items:
-        return []
+        return empty if report else []
 
     matched = []
     seen_keys = set()
-
+    rows = []
     lib_type = normalize_media_kind(getattr(library, 'type', None))
+    cache = tmdb_cache
+    if cache is None and len(items) > 80:
+        logging.info(f"Building full TMDB cache for {len(items)} items (slow path)")
+        cache = _build_library_tmdb_cache(library)
 
-    # Fast path: title search (+ TMDB guid verify) for modest lists.
-    if tmdb_cache is None and len(items) <= 80:
-        logging.info(f"Matching {len(items)} items via title search (fast path)")
-        for ext in items:
-            tmdb_id = str(ext.get('tmdb_id') or ext.get('id') or '').strip()
-            title = str(ext.get('title') or '').strip()
-            libtype = 'movie' if str(ext.get('type') or 'movie') == 'movie' else 'show'
-            if not title and not tmdb_id:
+    unmatched = []
+    for ext in items:
+        tmdb_id = str(ext.get('tmdb_id') or ext.get('id') or '').strip()
+        title = str(ext.get('title') or ext.get('name') or '').strip()
+        year = ext.get('year')
+        if tmdb_id and tmdb_id in skip_tmdb:
+            rows.append({
+                'title': title, 'tmdb_id': tmdb_id, 'year': year,
+                'status': 'excluded', 'reason': 'excluded',
+            })
+            continue
+        if not title and not tmdb_id:
+            continue
+
+        pick = None
+        reason = None
+        if cache is not None and tmdb_id:
+            cached = cache.get(tmdb_id)
+            if cached is not None and _acceptable_collection_member(cached, lib_type):
+                pick, reason = cached, 'tmdb'
+
+        if pick is None:
+            unmatched.append(ext)
+        else:
+            key = str(getattr(pick, 'ratingKey', '') or '').strip()
+            if key and key in skip_keys:
+                rows.append({
+                    'title': title, 'tmdb_id': tmdb_id, 'year': year,
+                    'status': 'excluded', 'reason': 'excluded',
+                    'plex_title': getattr(pick, 'title', ''),
+                    'rating_key': key,
+                })
                 continue
-            pick = None
+            if key and key not in seen_keys:
+                seen_keys.add(key)
+                matched.append(pick)
+            rows.append({
+                'title': title, 'tmdb_id': tmdb_id, 'year': year,
+                'status': 'matched', 'reason': reason,
+                'plex_title': getattr(pick, 'title', ''),
+                'rating_key': key,
+                'plex_year': getattr(pick, 'year', None),
+            })
+
+    can_search = unmatched and (len(items) <= 80 or len(unmatched) <= 40)
+    if can_search:
+        logging.info(f"Matching {len(unmatched)} items via strict title search")
+        for ext in unmatched:
+            tmdb_id = str(ext.get('tmdb_id') or ext.get('id') or '').strip()
+            title = str(ext.get('title') or ext.get('name') or '').strip()
+            year = ext.get('year')
+            libtype = 'movie' if str(ext.get('type') or 'movie') == 'movie' else 'show'
             try:
                 results = library.search(title=title, libtype=libtype) if title else []
             except Exception as e:
                 logging.debug(f"Search failed for '{title}': {e}")
                 results = []
-            if tmdb_id and results:
-                for r in results[:20]:
-                    if not _acceptable_collection_member(r, lib_type):
-                        continue
-                    if tmdb_id in _plex_item_tmdb_ids(r):
-                        pick = r
-                        break
-            if pick is None and title and results:
-                for r in results[:10]:
-                    if not _acceptable_collection_member(r, lib_type):
-                        continue
-                    if (getattr(r, 'title', '') or '').casefold() == title.casefold():
-                        pick = r
-                        break
-            if pick is None and results:
-                for r in results[:10]:
-                    if _acceptable_collection_member(r, lib_type):
-                        pick = r
-                        break
-            if pick is not None:
-                key = getattr(pick, 'ratingKey', None)
-                if key not in seen_keys:
-                    seen_keys.add(key)
-                    matched.append(pick)
-        return _sanitize_collection_members(library, matched)
+            pick, reason = _pick_strict_plex_match(results, ext, lib_type)
+            if pick is None:
+                rows.append({
+                    'title': title, 'tmdb_id': tmdb_id, 'year': year,
+                    'status': 'unmatched', 'reason': 'no_match',
+                })
+                continue
+            key = str(getattr(pick, 'ratingKey', '') or '').strip()
+            if key and key in skip_keys:
+                rows.append({
+                    'title': title, 'tmdb_id': tmdb_id, 'year': year,
+                    'status': 'excluded', 'reason': 'excluded',
+                    'plex_title': getattr(pick, 'title', ''),
+                    'rating_key': key,
+                })
+                continue
+            if key and key not in seen_keys:
+                seen_keys.add(key)
+                matched.append(pick)
+            rows.append({
+                'title': title, 'tmdb_id': tmdb_id, 'year': year,
+                'status': 'matched', 'reason': reason,
+                'plex_title': getattr(pick, 'title', ''),
+                'rating_key': key,
+                'plex_year': getattr(pick, 'year', None),
+            })
+    else:
+        for ext in unmatched:
+            rows.append({
+                'title': str(ext.get('title') or ''),
+                'tmdb_id': str(ext.get('tmdb_id') or ext.get('id') or ''),
+                'year': ext.get('year'),
+                'status': 'unmatched', 'reason': 'no_match',
+            })
 
-    if tmdb_cache is None:
-        logging.info(f"Building full TMDB cache for {len(items)} items (slow path)")
-        tmdb_cache = _build_library_tmdb_cache(library)
-
-    for ext in items:
-        tmdb_id_val = ext.get('tmdb_id') or ext.get('id')
-        if not tmdb_id_val:
-            continue
-        local_item = tmdb_cache.get(str(tmdb_id_val))
-        if not local_item:
-            continue
-        key = getattr(local_item, 'ratingKey', None)
-        if key in seen_keys:
-            continue
-        seen_keys.add(key)
-        matched.append(local_item)
-    return _sanitize_collection_members(library, matched)
+    clean = _sanitize_collection_members(library, matched)
+    if report:
+        return clean, rows
+    return clean
 
 
 def _managed_job_id(library_name, title):
@@ -1748,6 +1860,10 @@ def _register_managed_job(library_name, title, source_type, source_id, sort_orde
     keep_key = str(rating_key or existing.get('rating_key') or existing.get('ratingKey') or '').strip()
     if keep_key:
         payload['rating_key'] = keep_key
+    for field in ('excluded_tmdb_ids', 'excluded_rating_keys', 'extra_rating_keys'):
+        kept = _id_list(existing.get(field))
+        if kept:
+            payload[field] = kept
     managed[job_id] = payload
     save_managed_collections(managed)
     log_action(f"Registered Auto-Sync job for '{title}' (Source: {source_type})")
@@ -3243,23 +3359,19 @@ def run_sync_job(job_id=None):
                 continue
             label = config.get('collexions_label', 'Collexions')
             tmdb_cache = _build_library_tmdb_cache(library)
-            plex_items = _match_external_to_plex(library, items, tmdb_cache=tmdb_cache)
-
-            # Fallback: title search for items without TMDB guid match
-            if len(plex_items) < max(1, len(items) // 4):
-                matched_keys = {getattr(i, 'ratingKey', None) for i in plex_items}
-                for itm in items:
-                    search_type = 'movie' if itm.get('type') == 'movie' else 'show'
-                    results = library.search(title=itm.get('title'), libtype=search_type)
-                    if not results:
-                        continue
-                    for candidate in results[:5]:
-                        if not _acceptable_collection_member(candidate, getattr(library, 'type', None)):
-                            continue
-                        if candidate.ratingKey not in matched_keys:
-                            plex_items.append(candidate)
-                            matched_keys.add(candidate.ratingKey)
-                            break
+            skip_tmdb, skip_keys, extra_keys = _job_item_overrides(job)
+            plex_items = _match_external_to_plex(
+                library,
+                items,
+                tmdb_cache=tmdb_cache,
+                skip_tmdb_ids=skip_tmdb,
+                skip_rating_keys=skip_keys,
+            )
+            if extra_keys:
+                for extra in _fetch_library_items_by_keys(library, extra_keys):
+                    key = str(getattr(extra, 'ratingKey', '') or '').strip()
+                    if key and key not in skip_keys and key not in {str(getattr(i, 'ratingKey', '') or '') for i in plex_items}:
+                        plex_items.append(extra)
 
             plex_items = _sanitize_collection_members(library, plex_items)
             if not plex_items:
@@ -4779,6 +4891,187 @@ def pin_collection():
 def get_jobs():
     managed = heal_managed_job_sources(load_managed_collections())
     return jsonify(managed)
+
+
+def _job_or_404(job_id):
+    managed = heal_managed_job_sources(load_managed_collections())
+    job = managed.get(str(job_id or '').strip())
+    if not isinstance(job, dict):
+        return None, None, (jsonify({"success": False, "error": "Job not found"}), 404)
+    return managed, job, None
+
+
+def _serialize_member(item, *, status, reason='', source_title='', tmdb_id='', year=None):
+    return {
+        'title': str(getattr(item, 'title', '') or source_title or ''),
+        'plex_title': str(getattr(item, 'title', '') or ''),
+        'year': getattr(item, 'year', None) if item is not None else year,
+        'rating_key': str(getattr(item, 'ratingKey', '') or ''),
+        'tmdb_id': str(tmdb_id or ''),
+        'status': status,
+        'reason': reason,
+        'source_title': source_title,
+    }
+
+
+@app.route('/api/jobs/preview', methods=['GET'])
+@require_auth
+def preview_job_items():
+    """Source titles vs strict Plex matches vs unexpected collection members."""
+    job_id = str(request.args.get('id') or '').strip()
+    managed, job, err = _job_or_404(job_id)
+    if err:
+        return err
+    config = load_config()
+    plex = get_plex_instance()
+    if not plex:
+        return jsonify({"success": False, "error": "Plex connection failed"}), 500
+    try:
+        library = plex.library.section(job.get('library'))
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+    source_type = normalize_source_type(job.get('source_type'), job.get('source_id'))
+    source_items = fetch_source_items(source_type, job.get('source_id'), config) or []
+    skip_tmdb, skip_keys, extra_keys = _job_item_overrides(job)
+    tmdb_cache = _build_library_tmdb_cache(library)
+    matched, rows = _match_external_to_plex(
+        library,
+        source_items,
+        tmdb_cache=tmdb_cache,
+        report=True,
+        skip_tmdb_ids=skip_tmdb,
+        skip_rating_keys=skip_keys,
+    )
+    extra_items = _fetch_library_items_by_keys(library, extra_keys)
+    matched_keys = {str(getattr(i, 'ratingKey', '') or '') for i in matched}
+    extras = []
+    for item in extra_items:
+        key = str(getattr(item, 'ratingKey', '') or '')
+        if key and key not in matched_keys and key not in skip_keys:
+            extras.append(_serialize_member(item, status='extra', reason='manual'))
+            matched_keys.add(key)
+    coll = _resolve_collection(
+        library,
+        title=job.get('name'),
+        rating_key=str(job.get('rating_key') or job.get('ratingKey') or '').strip() or None,
+    )
+    unexpected = []
+    if coll is not None:
+        try:
+            current = list(coll.items() or [])
+        except Exception:
+            current = []
+        for item in current:
+            if not _acceptable_collection_member(item, library):
+                continue
+            key = str(getattr(item, 'ratingKey', '') or '')
+            if key and key not in matched_keys:
+                unexpected.append(_serialize_member(item, status='unexpected', reason='not_in_source'))
+    return jsonify({
+        "success": True,
+        "job_id": job_id,
+        "name": job.get('name'),
+        "library": job.get('library'),
+        "source_type": source_type,
+        "source_id": job.get('source_id') or '',
+        "source_count": len(source_items),
+        "matched": [row for row in rows if row.get('status') == 'matched'],
+        "unmatched": [row for row in rows if row.get('status') == 'unmatched'],
+        "excluded": [row for row in rows if row.get('status') == 'excluded'],
+        "extras": extras,
+        "unexpected": unexpected,
+        "excluded_tmdb_ids": _id_list(job.get('excluded_tmdb_ids')),
+        "excluded_rating_keys": _id_list(job.get('excluded_rating_keys')),
+        "extra_rating_keys": extra_keys,
+    })
+
+
+@app.route('/api/jobs/items', methods=['POST'])
+@require_auth
+def update_job_items():
+    """Exclude / pin members, then rewrite the Plex collection with strict matching."""
+    data = request.json or {}
+    job_id = str(data.get('id') or '').strip()
+    managed, job, err = _job_or_404(job_id)
+    if err:
+        return err
+    skip_tmdb = set(_id_list(job.get('excluded_tmdb_ids')))
+    skip_keys = set(_id_list(job.get('excluded_rating_keys')))
+    extra_keys = set(_id_list(job.get('extra_rating_keys')))
+    skip_tmdb.update(_id_list(data.get('exclude_tmdb_ids')))
+    skip_keys.update(_id_list(data.get('exclude_rating_keys') or data.get('remove_rating_keys')))
+    extra_keys.update(_id_list(data.get('extra_rating_keys') or data.get('add_rating_keys')))
+    for key in _id_list(data.get('remove_rating_keys') or data.get('exclude_rating_keys')):
+        extra_keys.discard(key)
+    for tid in _id_list(data.get('include_tmdb_ids')):
+        skip_tmdb.discard(tid)
+    job['excluded_tmdb_ids'] = sorted(skip_tmdb)
+    job['excluded_rating_keys'] = sorted(skip_keys)
+    job['extra_rating_keys'] = sorted(extra_keys)
+    save_managed_collections(managed)
+
+    apply = data.get('apply', True)
+    if not apply:
+        return jsonify({"success": True, "saved": True, "applied": False})
+
+    config = load_config()
+    plex = get_plex_instance()
+    if not plex:
+        return jsonify({"success": False, "error": "Plex connection failed", "saved": True}), 500
+    try:
+        library = plex.library.section(job.get('library'))
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e), "saved": True}), 400
+    source_type = normalize_source_type(job.get('source_type'), job.get('source_id'))
+    source_items = fetch_source_items(source_type, job.get('source_id'), config) or []
+    label = config.get('collexions_label', 'Collexions')
+    tmdb_cache = _build_library_tmdb_cache(library)
+    plex_items = _match_external_to_plex(
+        library,
+        source_items,
+        tmdb_cache=tmdb_cache,
+        skip_tmdb_ids=skip_tmdb,
+        skip_rating_keys=skip_keys,
+    )
+    for extra in _fetch_library_items_by_keys(library, extra_keys):
+        key = str(getattr(extra, 'ratingKey', '') or '')
+        if key and key not in skip_keys and key not in {str(getattr(i, 'ratingKey', '') or '') for i in plex_items}:
+            plex_items.append(extra)
+    plex_items = _sanitize_collection_members(library, plex_items)
+    if not plex_items:
+        return jsonify({"success": False, "error": "No matching Plex items left", "saved": True}), 400
+    try:
+        with _collection_create_lock(job.get('library'), job.get('name')):
+            keep_key = str(job.get('rating_key') or job.get('ratingKey') or '').strip() or None
+            coll, _, delta = _upsert_plex_collection(
+                library,
+                job.get('name'),
+                plex_items,
+                sort_order=_normalize_sort_order(job.get('sort_order', 'custom')),
+                label=label,
+                keep_rating_key=keep_key,
+            )
+            coll_key = str(getattr(coll, 'ratingKey', '') or '').strip()
+            if coll_key:
+                job['rating_key'] = coll_key
+                save_managed_collections(managed)
+            _notify_portal_collection_updated(coll, job.get('library'), job.get('name'), delta)
+        GALLERY_CACHE['data'] = None
+        log_action(
+            f"Updated members for '{job.get('name')}' "
+            f"(+{delta.get('added', 0)}/-{delta.get('removed', 0)})."
+        )
+        return jsonify({
+            "success": True,
+            "saved": True,
+            "applied": True,
+            "matched": len(plex_items),
+            "added": delta.get('added', 0),
+            "removed": delta.get('removed', 0),
+        })
+    except Exception as e:
+        logging.error(f"Job item update failed: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e), "saved": True}), 500
 
 @app.route('/api/jobs/run', methods=['POST'])
 @require_auth

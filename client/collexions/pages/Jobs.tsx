@@ -16,7 +16,9 @@ import {
     Search,
     Settings2,
     Pencil,
-    X
+    X,
+    Plus,
+    Loader2
 } from 'lucide-react';
 
 import { CustomSelect } from '../components/ui/Inputs';
@@ -34,6 +36,25 @@ interface ManagedJob {
     last_status?: string;
     last_error?: string;
 }
+
+type JobMemberRow = {
+    title?: string;
+    plex_title?: string;
+    year?: number | string | null;
+    rating_key?: string;
+    tmdb_id?: string;
+    status?: string;
+    reason?: string;
+};
+
+type JobPreview = {
+    source_count?: number;
+    matched?: JobMemberRow[];
+    unmatched?: JobMemberRow[];
+    excluded?: JobMemberRow[];
+    extras?: JobMemberRow[];
+    unexpected?: JobMemberRow[];
+};
 
 const SORT_OPTIONS = [
     { value: 'custom', label: 'Manual' },
@@ -112,6 +133,13 @@ const JobsPage: React.FC = () => {
     const [editSort, setEditSort] = useState('custom');
     const [editAutoSync, setEditAutoSync] = useState(true);
     const [savingEdit, setSavingEdit] = useState(false);
+    const [jobPreview, setJobPreview] = useState<JobPreview | null>(null);
+    const [previewLoading, setPreviewLoading] = useState(false);
+    const [previewError, setPreviewError] = useState('');
+    const [memberBusy, setMemberBusy] = useState(false);
+    const [addQuery, setAddQuery] = useState('');
+    const [addResults, setAddResults] = useState<Array<{ title?: string; year?: number; ratingKey?: string | number }>>([]);
+    const [addSearching, setAddSearching] = useState(false);
 
     // Search & Filter State
     const [searchQuery, setSearchQuery] = useState('');
@@ -255,12 +283,36 @@ const JobsPage: React.FC = () => {
         }
     };
 
+    const loadJobPreview = async (id: string) => {
+        setPreviewLoading(true);
+        setPreviewError('');
+        try {
+            const data = await api.getJobPreview(id);
+            if (data?.success === false) {
+                setPreviewError(data.error || 'Could not load collection members.');
+                setJobPreview(null);
+                return;
+            }
+            setJobPreview(data);
+        } catch (e) {
+            console.error('Failed to load job preview', e);
+            setPreviewError('Could not load collection members.');
+            setJobPreview(null);
+        } finally {
+            setPreviewLoading(false);
+        }
+    };
+
     const openEdit = (id: string) => {
         const job = jobs[id];
         if (!job) return;
         setEditingJobId(id);
         setEditSort(job.sort_order || 'custom');
         setEditAutoSync(job.auto_sync !== false);
+        setJobPreview(null);
+        setAddQuery('');
+        setAddResults([]);
+        void loadJobPreview(id);
     };
 
     const handleSaveEdit = async () => {
@@ -294,6 +346,52 @@ const JobsPage: React.FC = () => {
             setRunFeedback('Failed to save collection settings.');
         } finally {
             setSavingEdit(false);
+        }
+    };
+
+    const applyMemberChange = async (payload: {
+        exclude_tmdb_ids?: string[];
+        remove_rating_keys?: string[];
+        add_rating_keys?: string[];
+    }) => {
+        if (!editingJobId) return;
+        setMemberBusy(true);
+        setPreviewError('');
+        try {
+            const result = await api.updateJobItems({ id: editingJobId, apply: true, ...payload });
+            if (result?.success === false) {
+                setPreviewError(result.error || 'Could not update collection members.');
+                return;
+            }
+            setRunFeedbackTone('info');
+            setRunFeedback(
+                `Updated “${jobs[editingJobId]?.name || 'collection'}” — ${result.matched || 0} titles`
+                + (result.removed ? `, removed ${result.removed}` : '')
+                + (result.added ? `, added ${result.added}` : '')
+                + '.',
+            );
+            await loadJobPreview(editingJobId);
+        } catch (e) {
+            console.error('Failed to update members', e);
+            setPreviewError('Could not update collection members.');
+        } finally {
+            setMemberBusy(false);
+        }
+    };
+
+    const handleSearchAdd = async () => {
+        if (!editingJobId || !addQuery.trim()) return;
+        const job = jobs[editingJobId];
+        if (!job?.library) return;
+        setAddSearching(true);
+        try {
+            const results = await api.searchLibrary(job.library, addQuery.trim());
+            setAddResults(Array.isArray(results) ? results.slice(0, 8) : []);
+        } catch (e) {
+            console.error('Library search failed', e);
+            setAddResults([]);
+        } finally {
+            setAddSearching(false);
         }
     };
 
@@ -634,13 +732,13 @@ const JobsPage: React.FC = () => {
             {editingJobId && jobs[editingJobId] ? (
                 <div
                     className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
-                    onClick={() => { if (!savingEdit) setEditingJobId(null); }}
+                    onClick={() => { if (!savingEdit && !memberBusy) setEditingJobId(null); }}
                 >
                     <div
-                        className="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+                        className="w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl border border-border bg-card shadow-2xl flex flex-col"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-border">
+                        <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-border shrink-0">
                             <div className="min-w-0">
                                 <h3 className="text-lg font-bold text-text flex items-center gap-2">
                                     <Pencil className="w-5 h-5 text-plex shrink-0" />
@@ -651,13 +749,13 @@ const JobsPage: React.FC = () => {
                             <button
                                 type="button"
                                 onClick={() => setEditingJobId(null)}
-                                disabled={savingEdit}
+                                disabled={savingEdit || memberBusy}
                                 className="p-2 rounded-lg text-muted hover:text-text hover:bg-white/5 disabled:opacity-50"
                             >
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
-                        <div className="px-5 py-4 space-y-4">
+                        <div className="px-5 py-4 space-y-4 overflow-y-auto">
                             <div className="grid grid-cols-2 gap-3 text-sm">
                                 <div className="rounded-xl border border-border bg-background/40 p-3">
                                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted mb-1">Library</p>
@@ -688,12 +786,176 @@ const JobsPage: React.FC = () => {
                                     {editAutoSync ? 'Enabled' : 'Disabled'}
                                 </button>
                             </div>
+
+                            <div className="rounded-xl border border-border bg-background/30 p-4 space-y-3">
+                                <div className="flex items-center justify-between gap-2">
+                                    <div>
+                                        <p className="text-sm font-bold text-text">Titles in this collection</p>
+                                        <p className="text-xs text-muted">
+                                            Source list vs what Plex matched. Unexpected titles were not on the source list.
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        {previewLoading ? <Loader2 className="w-4 h-4 animate-spin text-plex" /> : null}
+                                        <button
+                                            type="button"
+                                            disabled={memberBusy || previewLoading}
+                                            onClick={() => void applyMemberChange({})}
+                                            className="text-xs font-bold text-plex hover:text-white disabled:opacity-40"
+                                        >
+                                            Rebuild from source
+                                        </button>
+                                    </div>
+                                </div>
+                                {previewError ? (
+                                    <p className="text-sm text-amber-200">{previewError}</p>
+                                ) : null}
+                                {jobPreview ? (
+                                    <p className="text-[11px] text-muted">
+                                        Source has {jobPreview.source_count || 0} title{(jobPreview.source_count || 0) === 1 ? '' : 's'}
+                                        {' · '}
+                                        {(jobPreview.matched || []).length} matched
+                                        {(jobPreview.unexpected || []).length ? ` · ${(jobPreview.unexpected || []).length} unexpected` : ''}
+                                        {(jobPreview.unmatched || []).length ? ` · ${(jobPreview.unmatched || []).length} missing from library` : ''}
+                                    </p>
+                                ) : null}
+
+                                {(jobPreview?.unexpected || []).length ? (
+                                    <div>
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-amber-300 mb-2">Not on the source list</p>
+                                        <div className="space-y-1 max-h-40 overflow-y-auto">
+                                            {(jobPreview?.unexpected || []).map((row) => (
+                                                <div key={row.rating_key || row.title} className="flex items-center justify-between gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-sm">
+                                                    <span className="min-w-0 truncate text-amber-100">
+                                                        {row.plex_title || row.title}
+                                                        {row.year ? ` (${row.year})` : ''}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        disabled={memberBusy || !row.rating_key}
+                                                        onClick={() => void applyMemberChange({ remove_rating_keys: [String(row.rating_key)] })}
+                                                        className="shrink-0 text-xs font-bold text-amber-200 hover:text-white disabled:opacity-40"
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : null}
+
+                                <div>
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted mb-2">Matched from source</p>
+                                    <div className="space-y-1 max-h-56 overflow-y-auto">
+                                        {(jobPreview?.matched || []).length === 0 && !previewLoading ? (
+                                            <p className="text-xs text-muted px-1">No strict matches yet. Save settings, then Run Now after the matcher update.</p>
+                                        ) : (jobPreview?.matched || []).map((row) => (
+                                            <div key={row.rating_key || row.tmdb_id || row.title} className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card/40 px-3 py-2 text-sm">
+                                                <span className="min-w-0 truncate text-text">
+                                                    {row.plex_title || row.title}
+                                                    {row.year ? ` (${row.year})` : ''}
+                                                    <span className="ml-2 text-[10px] uppercase tracking-wide text-muted">
+                                                        {row.reason === 'tmdb' ? 'TMDB id' : row.reason === 'title' ? 'title' : row.reason || ''}
+                                                    </span>
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    disabled={memberBusy || !row.rating_key}
+                                                    onClick={() => void applyMemberChange({
+                                                        remove_rating_keys: [String(row.rating_key)],
+                                                        exclude_tmdb_ids: row.tmdb_id ? [String(row.tmdb_id)] : [],
+                                                    })}
+                                                    className="shrink-0 text-xs font-bold text-muted hover:text-red-300 disabled:opacity-40"
+                                                >
+                                                    Exclude
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {(jobPreview?.unmatched || []).length ? (
+                                    <div>
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted mb-2">On the source list, not in this library</p>
+                                        <div className="space-y-1 max-h-32 overflow-y-auto">
+                                            {(jobPreview?.unmatched || []).map((row) => (
+                                                <p key={row.tmdb_id || row.title} className="text-xs text-muted px-1">
+                                                    {row.title}{row.year ? ` (${row.year})` : ''}
+                                                </p>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : null}
+
+                                {(jobPreview?.extras || []).length ? (
+                                    <div>
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted mb-2">Pinned extras</p>
+                                        {(jobPreview?.extras || []).map((row) => (
+                                            <div key={row.rating_key} className="flex items-center justify-between gap-2 text-sm px-1 py-1">
+                                                <span className="truncate">{row.plex_title || row.title}</span>
+                                                <button
+                                                    type="button"
+                                                    disabled={memberBusy || !row.rating_key}
+                                                    onClick={() => void applyMemberChange({ remove_rating_keys: [String(row.rating_key)] })}
+                                                    className="text-xs font-bold text-muted hover:text-red-300 disabled:opacity-40"
+                                                >
+                                                    Remove
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : null}
+
+                                <div className="pt-1 space-y-2">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted">Add from library</p>
+                                    <div className="flex gap-2">
+                                        <input
+                                            className="flex-1 bg-background/60 border border-border rounded-xl px-3 py-2 text-sm text-text"
+                                            placeholder="Search this library…"
+                                            value={addQuery}
+                                            onChange={(e) => setAddQuery(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    void handleSearchAdd();
+                                                }
+                                            }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => void handleSearchAdd()}
+                                            disabled={addSearching || !addQuery.trim()}
+                                            className="px-3 py-2 rounded-xl border border-border text-sm font-bold text-text hover:bg-white/5 disabled:opacity-40"
+                                        >
+                                            {addSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Search'}
+                                        </button>
+                                    </div>
+                                    {addResults.length ? (
+                                        <div className="space-y-1">
+                                            {addResults.map((item) => (
+                                                <div key={String(item.ratingKey)} className="flex items-center justify-between gap-2 text-sm px-1">
+                                                    <span className="truncate">{item.title}{item.year ? ` (${item.year})` : ''}</span>
+                                                    <button
+                                                        type="button"
+                                                        disabled={memberBusy || item.ratingKey == null}
+                                                        onClick={() => void applyMemberChange({ add_rating_keys: [String(item.ratingKey)] })}
+                                                        className="inline-flex items-center gap-1 text-xs font-bold text-plex hover:text-white disabled:opacity-40"
+                                                    >
+                                                        <Plus className="w-3 h-3" />
+                                                        Add
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : null}
+                                </div>
+                            </div>
                         </div>
-                        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
+                        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
                             <button
                                 type="button"
                                 onClick={() => setEditingJobId(null)}
-                                disabled={savingEdit}
+                                disabled={savingEdit || memberBusy}
                                 className="px-4 py-2 rounded-lg text-sm font-bold text-muted border border-border hover:text-text hover:bg-white/5 disabled:opacity-50"
                             >
                                 Cancel
@@ -701,7 +963,7 @@ const JobsPage: React.FC = () => {
                             <button
                                 type="button"
                                 onClick={() => void handleSaveEdit()}
-                                disabled={savingEdit}
+                                disabled={savingEdit || memberBusy}
                                 className="px-4 py-2 rounded-lg text-sm font-bold bg-plex text-background hover:bg-plex-hover disabled:opacity-50"
                             >
                                 {savingEdit ? 'Saving…' : 'Save settings'}
