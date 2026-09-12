@@ -88,6 +88,9 @@ export const PosterSetsShell: React.FC = () => {
 
     const workerReady = Boolean(status?.workerReady);
     const configured = Boolean(status?.configured);
+    const libraryPageOpen = Boolean(libraryDetailItem)
+        && libraryDetailLayout !== 'drawer'
+        && tab === 'library';
     const lastJob = status?.recentJobs?.[0] || null;
     const lastJobState = formatJobState(lastJob?.state);
     const lastJobFailed = /fail|error|cancel/i.test(String(lastJob?.state || ''));
@@ -309,20 +312,23 @@ export const PosterSetsShell: React.FC = () => {
                 ) : null}
                 </div>
 
-            <PosterSetsBrowseView />
-            <PosterSetsLibraryView />
-            <PosterSetsCollectionsView />
-            <PosterSetsQueueView />
-            <PosterSetsWatchingView />
-            <PosterSetsRecentView />
-            <PosterSetsTpdbRecentView />
-            <PosterSetsSearchView />
-            <PosterSetsPasteView />
-            <PosterSetsHistoryView />
-            <PosterSetsSettingsView />
+            <div className={libraryPageOpen ? 'hidden' : undefined} aria-hidden={libraryPageOpen}>
+                <PosterSetsBrowseView />
+                <PosterSetsLibraryView />
+                <PosterSetsCollectionsView />
+                <PosterSetsQueueView />
+                <PosterSetsWatchingView />
+                <PosterSetsRecentView />
+                <PosterSetsTpdbRecentView />
+                <PosterSetsSearchView />
+                <PosterSetsPasteView />
+                <PosterSetsHistoryView />
+                <PosterSetsSettingsView />
+            </div>
             <PosterSetsFloatingBars />
             <LibraryTitleDetailPanel
                     item={libraryDetailItem}
+                    pageVisible={tab === 'library'}
                     onClose={() => setLibraryDetailItem(null)}
                     dupePreference={
                         !isTpdbEnabled(configDraft)

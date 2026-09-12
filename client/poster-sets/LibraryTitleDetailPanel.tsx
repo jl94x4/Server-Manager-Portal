@@ -40,7 +40,7 @@ import {
     partitionSetsByCategory,
     SEARCH_SET_CATEGORY_ORDER,
 } from './shared/posterSetsRecent';
-import type { LibraryDetailLayout } from './shared/posterSetsUi';
+import { cardClass, type LibraryDetailLayout } from './shared/posterSetsUi';
 import {
     captureElementScroll,
     restoreElementScroll,
@@ -151,6 +151,8 @@ export type LibraryTitleDetailPanelProps = {
     watches: PosterSetsWatch[];
     serverType?: string;
     layoutMode?: LibraryDetailLayout;
+    /** Full-screen (in-page) panel is hidden when the Library tab is not active. */
+    pageVisible?: boolean;
     onLayoutModeChange?: (layout: LibraryDetailLayout) => void;
     toast: (message: string, type?: 'success' | 'error') => void;
     onApplied?: () => void;
@@ -178,6 +180,7 @@ export function LibraryTitleDetailPanel({
     onArtReset,
     serverType = 'plex',
     layoutMode = 'modal',
+    pageVisible = true,
     onLayoutModeChange,
     tpdbConfigured = false,
     tpdbEnabled = true,
@@ -558,6 +561,7 @@ export function LibraryTitleDetailPanel({
 
     useEffect(() => {
         if (!item) return undefined;
+        if (layoutMode === 'modal' && !pageVisible) return undefined;
         const onKey = (event: KeyboardEvent) => {
             if (event.key !== 'Escape') return;
             if (preview || selectedSet) {
@@ -568,7 +572,14 @@ export function LibraryTitleDetailPanel({
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
-    }, [item, onClose, preview, selectedSet, backToSets]);
+    }, [item, layoutMode, pageVisible, onClose, preview, selectedSet, backToSets]);
+
+    useEffect(() => {
+        if (!item || layoutMode !== 'modal' || !pageVisible) return;
+        requestAnimationFrame(() => {
+            panelRef.current?.scrollIntoView({ block: 'nearest' });
+        });
+    }, [item?.id, layoutMode, pageVisible]);
 
     const currentSetMeta = (): PosterSetsSetMeta | null => {
         if (!selectedSet && !preview?.setMeta) return null;
@@ -972,10 +983,10 @@ export function LibraryTitleDetailPanel({
         : 'grid grid-cols-[repeat(auto-fill,minmax(10rem,13rem))] justify-start gap-2.5';
     const panelShellClass = isModalLayout
         ? [
-            'fixed z-[330] flex flex-col bg-card shadow-2xl',
-            // Sit above the mobile bottom nav so pagination isn't trapped behind it.
-            'top-0 right-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] h-auto w-full max-w-[min(100%,520px)] border-l border-white/10 pt-[env(safe-area-inset-top,0px)]',
-            'md:inset-3 md:bottom-3 md:left-3 md:right-3 md:top-3 md:h-auto md:w-auto md:max-w-none md:max-h-none md:translate-x-0 md:translate-y-0 md:rounded-2xl md:border md:border-white/10 md:pt-0',
+            cardClass,
+            'flex w-full flex-col',
+            'h-[calc(100dvh-11rem)] min-h-[32rem] max-h-[calc(100dvh-11rem)]',
+            'max-md:h-[calc(100dvh-14.5rem)] max-md:max-h-[calc(100dvh-14.5rem)]',
         ].join(' ')
         : [
             'fixed top-0 right-0 z-[330] flex h-auto w-full max-w-[min(100%,520px)] flex-col border-l border-white/10 bg-card pt-[env(safe-area-inset-top,0px)] shadow-2xl',
@@ -983,20 +994,12 @@ export function LibraryTitleDetailPanel({
             'md:inset-y-0 md:bottom-0 md:h-auto md:max-h-none md:max-w-[min(100%,1040px)]',
         ].join(' ');
 
-    return (
-        <ModalPortal open>
-            <>
-            <button
-                type="button"
-                aria-label="Close title detail"
-                className="fixed inset-0 z-[320] bg-background/80 backdrop-blur-sm"
-                onClick={onClose}
-            />
+    const panel = (
             <div
                 ref={panelRef}
                 className={panelShellClass}
             >
-                <div className="flex shrink-0 items-start gap-3 border-b border-white/10 bg-black/20 p-4 sm:p-5 md:rounded-t-2xl">
+                <div className={`flex shrink-0 items-start gap-3 border-b border-white/10 bg-black/20 p-4 sm:p-5 ${isModalLayout ? 'rounded-t-2xl' : 'md:rounded-t-2xl'}`}>
                     <div className={`relative shrink-0 overflow-hidden rounded-md border border-white/10 bg-black ${
                         isModalLayout ? 'h-28 w-20 sm:h-36 sm:w-24' : 'h-20 w-14'
                     }`}>
@@ -1106,7 +1109,7 @@ export function LibraryTitleDetailPanel({
                         {onLayoutModeChange ? (
                             <button
                                 type="button"
-                                className={`${buttonClass} hidden md:inline-flex`}
+                                className={buttonClass}
                                 onClick={() => onLayoutModeChange(isModalLayout ? 'drawer' : 'modal')}
                                 title={isModalLayout ? 'Switch to side drawer' : 'Switch to full screen'}
                                 aria-label={isModalLayout ? 'Switch to side drawer' : 'Switch to full screen'}
@@ -1470,6 +1473,26 @@ export function LibraryTitleDetailPanel({
                     </div>
                 ) : null}
             </div>
+    );
+
+    if (isModalLayout) {
+        return (
+            <div className={pageVisible ? undefined : 'hidden'} aria-hidden={!pageVisible}>
+                {panel}
+            </div>
+        );
+    }
+
+    return (
+        <ModalPortal open>
+            <>
+            <button
+                type="button"
+                aria-label="Close title detail"
+                className="fixed inset-0 z-[320] bg-background/80 backdrop-blur-sm"
+                onClick={onClose}
+            />
+            {panel}
             </>
         </ModalPortal>
     );
