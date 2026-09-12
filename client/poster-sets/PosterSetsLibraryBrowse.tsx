@@ -5,11 +5,11 @@ import {
     normalizeUpgraderGridSize,
     UPGRADER_GRID_SIZE_OPTIONS,
     upgraderPosterGridClass,
-    upgraderPosterGridStyle,
     type UpgraderGridSize,
 } from '../shared/portalLayout';
 import { posterSetsApi } from './api';
 import { LibraryMediaCard } from './shared/posterSetsCards';
+import { posterSetsPosterGridStyle } from './shared/posterSetsUi';
 import { useTpdbCoverageMap } from './shared/useTpdbCoverageMap';
 import {
     normalizeLibraryItems,
@@ -67,7 +67,7 @@ export function PosterSetsLibraryBrowse({
     const loadGenRef = useRef(0);
 
     const posterGridClass = upgraderPosterGridClass(gridSize);
-    const posterGridStyle = upgraderPosterGridStyle(gridSize);
+    const posterGridStyle = posterSetsPosterGridStyle(gridSize);
     const { levelFor } = useTpdbCoverageMap(items, items.length > 0 && showTpdbCoverage);
 
     useEffect(() => {

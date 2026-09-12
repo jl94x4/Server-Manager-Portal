@@ -1,12 +1,54 @@
-import { UPGRADER_GRID_SIZE_OPTIONS } from '../../shared/portalLayout';
+import type { CSSProperties } from 'react';
+import { UPGRADER_GRID_SIZE_OPTIONS, type UpgraderGridSize } from '../../shared/portalLayout';
 import { dashboardPanelClass } from '../../shared/dashboard/DashboardChrome';
 import { MEDIUX_FILTER_OPTIONS, type PosterSetsBrowseRail } from '../types';
 
-export const POSTER_SETS_GRID_STORAGE_KEY = 'posterSetsGridSize.v3';
+export const POSTER_SETS_GRID_STORAGE_KEY = 'posterSetsGridSize.v4';
+const POSTER_SETS_GRID_STORAGE_KEY_V3 = 'posterSetsGridSize.v3';
 export const POSTER_SETS_LIBRARY_DETAIL_LAYOUT_KEY = 'posterSetsLibraryDetailLayout.v2';
 export const POSTER_SETS_GRID_OPTIONS = UPGRADER_GRID_SIZE_OPTIONS.filter((option) => option.value !== 'list');
-/** Watching / Library / Discover poster grids — Extra large by default. */
-export const DEFAULT_POSTER_SETS_GRID_SIZE = 'xlarge' as const;
+/** Watching / Library / Discover poster grids — Large is the previous Extra large. */
+export const DEFAULT_POSTER_SETS_GRID_SIZE = 'large' as const;
+
+/** Shifted one step up from the shared Upgrader/Discover scale. */
+export const POSTER_SETS_GRID_MIN_WIDTH: Record<UpgraderGridSize, string> = {
+    small: '7rem',
+    medium: '9.5rem',
+    large: '13rem',
+    xlarge: '17rem',
+    list: '100%',
+};
+
+export const POSTER_SETS_LANDSCAPE_GRID_MIN_WIDTH: Record<UpgraderGridSize, string> = {
+    small: '14rem',
+    medium: '18rem',
+    large: '22rem',
+    xlarge: '28rem',
+    list: '100%',
+};
+
+export const posterSetsPosterGridStyle = (size: UpgraderGridSize): CSSProperties => (
+    size === 'list' ? {} : { gridTemplateColumns: `repeat(auto-fill, minmax(${POSTER_SETS_GRID_MIN_WIDTH[size]}, 1fr))` }
+);
+
+export const posterSetsLandscapeGridStyle = (size: UpgraderGridSize): CSSProperties => (
+    size === 'list' ? {} : { gridTemplateColumns: `repeat(auto-fill, minmax(${POSTER_SETS_LANDSCAPE_GRID_MIN_WIDTH[size]}, 1fr))` }
+);
+
+/** v3 Extra large → Large, Large → Medium, Medium → Small. */
+export const migratePosterSetsGridSize = (value: unknown): UpgraderGridSize => {
+    if (value === 'xlarge') return 'large';
+    if (value === 'large') return 'medium';
+    if (value === 'medium' || value === 'small') return 'small';
+    return DEFAULT_POSTER_SETS_GRID_SIZE;
+};
+
+export const readStoredPosterSetsGridSize = (): UpgraderGridSize => {
+    if (typeof window === 'undefined') return DEFAULT_POSTER_SETS_GRID_SIZE;
+    const stored = window.localStorage.getItem(POSTER_SETS_GRID_STORAGE_KEY);
+    if (stored === 'small' || stored === 'medium' || stored === 'large' || stored === 'xlarge') return stored;
+    return migratePosterSetsGridSize(window.localStorage.getItem(POSTER_SETS_GRID_STORAGE_KEY_V3));
+};
 
 export type LibraryDetailLayout = 'drawer' | 'modal';
 
