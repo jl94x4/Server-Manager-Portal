@@ -49,6 +49,16 @@ export const isTitleCardRail = (rail?: PosterSetsBrowseRail | null) => {
     return sample.length > 0 && sample.every((set) => isTitleCardSet(set));
 };
 
+export const isExclusiveTitleCardSet = (
+    set?: { title?: string | null; setKind?: string | null; posterThumbUrl?: string | null } | null,
+    options?: { mediaType?: string | null },
+) => {
+    if (!isTitleCardSet(set, options)) return false;
+    if (String(set?.posterThumbUrl || '').trim()) return false;
+    const title = String(set?.title || '');
+    return /(title\s*cards?|episode\s*cards?|cover\s*style)/i.test(title);
+};
+
 export const isBackgroundSet = (set?: { title?: string | null; setKind?: string | null } | null) => {
     const kind = String(set?.setKind || '').trim().toLowerCase();
     if (kind === 'backgrounds' || kind === 'background' || kind === 'backdrop' || kind === 'backdrops') return true;
@@ -112,18 +122,36 @@ export const RECENT_CATEGORY_ORDER: Array<{ id: RecentSetCategory; title: string
     { id: 'title_cards', title: 'Title cards', landscape: true },
 ];
 
-/** Split search/browse results so title-card packs use landscape rows. */
+/** Split search/browse results so title-card packs use landscape rows.
+ *  Mixed MediUX sets (posters + episode cards) appear in both Posters and Title cards. */
 export const partitionSetsByCategory = (
-    sets: Array<{ title?: string | null; setKind?: string | null }>,
+    sets: Array<{
+        title?: string | null;
+        setKind?: string | null;
+        thumbUrl?: string | null;
+        posterThumbUrl?: string | null;
+        landscapeThumbUrl?: string | null;
+    }>,
     options?: { mediaType?: string | null },
 ) => {
     const titleCards: typeof sets = [];
     const backgrounds: typeof sets = [];
     const posters: typeof sets = [];
     for (const set of sets) {
-        if (isTitleCardSet(set, options)) titleCards.push(set);
-        else if (isBackgroundSet(set)) backgrounds.push(set);
-        else posters.push(set);
+        if (isBackgroundSet(set)) {
+            backgrounds.push(set);
+            continue;
+        }
+        const landscapeThumb = String(set.landscapeThumbUrl || '').trim();
+        const posterThumb = String(set.posterThumbUrl || '').trim();
+        const titleCard = isTitleCardSet(set, options) || Boolean(landscapeThumb);
+        const exclusiveTitleCard = isExclusiveTitleCardSet(set, options);
+        if (titleCard) {
+            titleCards.push(landscapeThumb ? { ...set, thumbUrl: landscapeThumb } : set);
+        }
+        if (!exclusiveTitleCard && (posterThumb || !titleCard)) {
+            posters.push(posterThumb ? { ...set, thumbUrl: posterThumb } : set);
+        }
     }
     return { titleCards, backgrounds, posters };
 };

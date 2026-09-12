@@ -292,6 +292,10 @@ export type PosterSetsSearchSet = {
     title: string;
     url: string;
     thumbUrl?: string;
+    /** Portrait (2/3) preview when the listing also has landscape title-card art. */
+    posterThumbUrl?: string;
+    /** Landscape (16/9) preview for title cards / backdrops. */
+    landscapeThumbUrl?: string;
     user?: string | null;
     posterCount?: number | null;
     provider?: string;

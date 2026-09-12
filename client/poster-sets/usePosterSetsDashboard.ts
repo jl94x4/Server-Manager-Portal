@@ -88,6 +88,7 @@ import {
     inferRecentSetKindFromAssets,
     inferRecentSetKindFromFilters,
     isBackgroundSet,
+    isExclusiveTitleCardSet,
     isTitleCardSet,
     jobLogLines,
     jobSetMeta,
@@ -1034,7 +1035,7 @@ export function usePosterSetsDashboardState() {
             return;
         }
 
-        const restrictTitleCards = isTitleCardSet(set);
+        const restrictTitleCards = isExclusiveTitleCardSet(set);
         const stayOnTab = Boolean(options?.stayOnTab);
         if (!selectedSearchSet || !(preview || busy === 'preview')) {
             resultsScrollTopRef.current = capturePortalScroll();

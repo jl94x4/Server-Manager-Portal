@@ -4487,6 +4487,9 @@ def _infer_mediux_set_kind_from_card(card, *, media_type: str | None = None) -> 
             video += 1
         elif "aspect-2/3" in classes:
             poster += 1
+    if video > 0 and poster > 0:
+        # Mixed packs (posters + episode cards). Don't hide posters behind title_cards.
+        return None
     if video > poster:
         kind = str(media_type or "").strip().lower()
         if kind in {"movie", "movies"}:
@@ -4596,6 +4599,8 @@ def _enrich_mediux_set_entry(anchor, entry: dict, *, media_type: str | None = No
         inferred = _infer_set_kind(title=str(entry.get("title") or ""))
         if inferred:
             entry["setKind"] = inferred
+    if card is not None:
+        _apply_mediux_thumb_variants(entry, card)
 
 
 def _mediux_thumb_asset_key(url: str) -> str:
@@ -4893,6 +4898,28 @@ def _mediux_thumbs_from_node(node) -> list[tuple[str, str]]:
     return out
 
 
+def _mediux_thumbs_by_kind(node) -> dict[str, str]:
+    """First poster (2/3) and landscape (16/9) thumbs under a MediUX card."""
+    poster = ""
+    landscape = ""
+    for aspect, url in _mediux_thumbs_from_node(node):
+        if not url:
+            continue
+        if aspect == "poster" and not poster:
+            poster = url
+        elif aspect == "video" and not landscape:
+            landscape = url
+    return {"poster": poster, "landscape": landscape}
+
+
+def _apply_mediux_thumb_variants(entry: dict, node) -> None:
+    by_kind = _mediux_thumbs_by_kind(node)
+    if by_kind["poster"]:
+        entry["posterThumbUrl"] = by_kind["poster"]
+    if by_kind["landscape"]:
+        entry["landscapeThumbUrl"] = by_kind["landscape"]
+
+
 def _pick_mediux_set_thumb(
     node,
     *,
@@ -4951,6 +4978,7 @@ def _collect_mediux_set_cards(soup, *, sets: dict, default_user: str | None = No
             )
             if preferred:
                 existing["thumbUrl"] = preferred
+            _apply_mediux_thumb_variants(existing, card or anchor)
             if default_user and not existing.get("user"):
                 existing["user"] = default_user
             continue
@@ -4975,6 +5003,7 @@ def _collect_mediux_set_cards(soup, *, sets: dict, default_user: str | None = No
         )
         if preferred:
             entry["thumbUrl"] = preferred
+        _apply_mediux_thumb_variants(entry, card or anchor)
         sets[set_id] = entry
         added += 1
     return added

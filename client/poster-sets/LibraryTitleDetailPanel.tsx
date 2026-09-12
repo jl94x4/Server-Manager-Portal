@@ -37,6 +37,7 @@ import { ProviderCornerBadge } from './shared/posterSetsPills';
 import {
     inferRecentSetKindFromAssets,
     isTitleCardSet,
+    isExclusiveTitleCardSet,
     partitionSetsByCategory,
     SEARCH_SET_CATEGORY_ORDER,
 } from './shared/posterSetsRecent';
@@ -689,7 +690,7 @@ export function LibraryTitleDetailPanel({
             toast('This set is missing a URL.', 'error');
             return;
         }
-        const restrictTitleCards = isTitleCardSet(set, { mediaType: item?.mediaType });
+        const restrictTitleCards = isExclusiveTitleCardSet(set, { mediaType: item?.mediaType });
         setsScrollTopRef.current = captureElementScroll(scrollBodyRef.current);
         setSelectedSet(set);
         setTitleCardsOnly(restrictTitleCards);

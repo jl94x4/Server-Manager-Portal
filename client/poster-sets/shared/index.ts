@@ -68,6 +68,7 @@ export {
     isBackgroundSet,
     isTitleCardRail,
     isTitleCardSet,
+    isExclusiveTitleCardSet,
     normalizeRecentSetKind,
     partitionSetsByCategory,
     parseSetRef,
