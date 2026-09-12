@@ -2128,6 +2128,7 @@ export function usePosterSetsDashboardState() {
                 tpdbConfigured,
                 tpdbEnabled: isTpdbEnabled(configDraft),
                 mediuxEnabled: isMediuxEnabled(configDraft),
+                searchProvider,
                 onPartial: (partial) => {
                     if ((partial.sets?.length || 0) > 0) {
                         setSearchSets(partial.sets || []);

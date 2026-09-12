@@ -69,6 +69,7 @@ import {
     upsertRecentSet,
     isMediuxEnabled,
     isTpdbEnabled,
+    posterSetsSearchScopeLabel,
 } from '../shared';
 import { usePosterSetsDashboard } from '../PosterSetsDashboardContext';
 
@@ -299,7 +300,7 @@ export const PosterSetsSearchView: React.FC = () => {
                         <div>
                             <label className="text-xs font-bold uppercase tracking-wide text-muted">Find poster sets</label>
                             <p className="mt-1 text-sm text-muted">
-                                Search â†’ expand inline â†’ queue matched
+                                Search, expand inline, then queue matched
                             </p>
                             <div className="mt-3 flex flex-wrap gap-2">
                                 {([
@@ -455,7 +456,7 @@ export const PosterSetsSearchView: React.FC = () => {
                                 {searchResultsLoading && !searchHasResults ? (
                                     <div className="mt-4 flex flex-col items-center justify-center gap-2 rounded-xl border border-white/10 bg-black/20 px-4 py-10 text-sm text-muted">
                                         <Loader2 className="h-5 w-5 animate-spin text-plex" />
-                                        Searching MediUX and ThePosterDB…
+                                        Searching {posterSetsSearchScopeLabel(searchProvider)}…
                                     </div>
                                 ) : null}
         
@@ -469,7 +470,7 @@ export const PosterSetsSearchView: React.FC = () => {
                                             {searchEmptyLabel ? ` for "${searchEmptyLabel}"` : ''}
                                         </p>
                                         <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-muted">
-                                            This title matched on your library, but MediUX and ThePosterDB returned no sets.
+                                            This title matched on your library, but {posterSetsSearchScopeLabel(searchProvider)} returned no sets.
                                             Try editing the search above, pick a different title match, or browse the sites directly.
                                         </p>
                                     </div>

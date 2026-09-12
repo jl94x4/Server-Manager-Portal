@@ -46,3 +46,11 @@ export const posterSetsHeroTitle = (config?: Partial<PosterSetsConfig> | null) =
     if (mediux) return 'Artwork from MediUX';
     return 'Artwork from your library';
 };
+
+/** Label for the Find search-provider pill (Both / MediUX / ThePosterDB). */
+export const posterSetsSearchScopeLabel = (provider?: string | null) => {
+    const raw = String(provider || 'both').trim().toLowerCase();
+    if (raw === 'posterdb' || raw === 'tpdb' || raw === 'theposterdb') return 'ThePosterDB';
+    if (raw === 'mediux') return 'MediUX';
+    return 'MediUX and ThePosterDB';
+};

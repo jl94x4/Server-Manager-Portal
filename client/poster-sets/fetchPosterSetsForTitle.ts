@@ -20,6 +20,8 @@ export type FetchPosterSetsOptions = {
     tpdbConfigured?: boolean;
     tpdbEnabled?: boolean;
     mediuxEnabled?: boolean;
+    /** Find-page pill. When posterdb/mediux, do not fetch or show the other source. */
+    searchProvider?: 'mediux' | 'posterdb' | 'both';
     /** Called with merged sets as either provider lands (TPDB preferred in order). */
     onPartial?: (result: PosterSetsSearchResult) => void;
     /** Fired once MediUX settles (sets or soft failure) so the UI can leave the blank spinner. */
@@ -73,6 +75,21 @@ export const collectTitleSources = (title: PosterSetsSearchTitle): TitleSource[]
 
 const mediuxMediaType = (source: TitleSource, fallback: 'show' | 'movie') =>
     normalizePosterSetsMediaType(source.mediaType) || fallback;
+
+const normalizeSearchProvider = (value?: string | null): 'mediux' | 'posterdb' | 'both' => {
+    const raw = String(value || 'both').trim().toLowerCase();
+    if (raw === 'posterdb' || raw === 'tpdb' || raw === 'theposterdb') return 'posterdb';
+    if (raw === 'mediux') return 'mediux';
+    return 'both';
+};
+
+const wantsPosterdb = (options: Pick<FetchPosterSetsOptions, 'searchProvider' | 'tpdbEnabled'>) => (
+    options.tpdbEnabled !== false && normalizeSearchProvider(options.searchProvider) !== 'mediux'
+);
+
+const wantsMediux = (options: Pick<FetchPosterSetsOptions, 'searchProvider' | 'mediuxEnabled'>) => (
+    options.mediuxEnabled !== false && normalizeSearchProvider(options.searchProvider) !== 'posterdb'
+);
 
 const TPDB_EMPTY_HINT = 'ThePosterDB returned no sets for this title; showing MediUX sets instead.';
 const TPDB_NEEDS_LOGIN_HINT = 'ThePosterDB login not configured — add TPDB credentials in Poster Sets → Settings (required for many TV titles), or paste a set URL in Discover.';
@@ -678,6 +695,8 @@ export async function fetchPosterSetsForTitle(
         || normalizePosterSetsMediaType(title.mediaType);
     const sources = collectTitleSources(title);
     const dupePreference = options.dupePreference;
+    const tpdbOn = wantsPosterdb(options);
+    const mediuxOn = wantsMediux(options);
     const linkedTmdbId = await resolveLinkedTmdbId(sources, title, options, fallbackMedia);
     const titleHint = options.libraryItem?.title || title.title;
     const yearHint = options.libraryItem?.year ?? title.year ?? null;
@@ -687,12 +706,26 @@ export async function fetchPosterSetsForTitle(
     const useProgressive = Boolean(linkedTmdbId);
 
     const fetchBothSources = async (sourceList: TitleSource[]) => {
+        const filteredSources = sourceList.filter((source) => {
+            const provider = String(source.provider || '').toLowerCase();
+            if (provider === 'mediux') return mediuxOn;
+            if (provider === 'posterdb' || provider === 'tpdb') return tpdbOn;
+            return true;
+        });
+        const toSend = filteredSources.length
+            ? filteredSources
+            : (tpdbOn && linkedTmdbId
+                ? [{ provider: 'posterdb', id: '', url: '', mediaType: fallbackMedia }]
+                : (mediuxOn && linkedTmdbId
+                    ? [{ provider: 'mediux', id: linkedTmdbId, url: '', mediaType: fallbackMedia }]
+                    : sourceList));
+        const provider = tpdbOn && mediuxOn ? 'both' : tpdbOn ? 'posterdb' : 'mediux';
         try {
             return await posterSetsApi.search({
-                provider: 'both',
+                provider,
                 query: title.title,
                 title: title.title,
-                titleSources: sourceList,
+                titleSources: toSend,
                 mediaType: fallbackMedia,
                 dupePreference,
                 limit: 500,
@@ -705,12 +738,19 @@ export async function fetchPosterSetsForTitle(
         }
     };
 
+    const keepRequestedSets = (sets: PosterSetsSearchSet[] = []) => sets.filter((set) => {
+        const provider = String(set.provider || '').toLowerCase();
+        if (provider === 'mediux') return mediuxOn;
+        if (provider === 'posterdb' || provider === 'tpdb' || provider === 'theposterdb') return tpdbOn;
+        return true;
+    });
+
     const withPreferred = (result: PosterSetsSearchResult): PosterSetsSearchResult => {
         const filtered = filterResultForWork(result, titleHint || title.title);
         return {
             ...filtered,
             sets: excludeBlockedCreators(
-                prioritizeSetsByFollowedCreators(filtered.sets || [], options.preferredCreators),
+                prioritizeSetsByFollowedCreators(keepRequestedSets(filtered.sets || []), options.preferredCreators),
                 options.blockedCreators,
             ),
         };
@@ -723,7 +763,7 @@ export async function fetchPosterSetsForTitle(
         // Progressive already tried MediUX — never fall through to another untimeouted MediUX scrape.
         // Skip work-title set filtering: TMDB-scoped pages include season packs whose card titles
         // do not contain the show name (filtering would wipe most MediUX results).
-        return await fetchBothSetsProgressive(linkedTmdbId, {
+        const result = await fetchBothSetsProgressive(linkedTmdbId, {
             dupePreference,
             preferredCreators: options.preferredCreators,
             blockedCreators: options.blockedCreators,
@@ -737,12 +777,18 @@ export async function fetchPosterSetsForTitle(
                 mediaType: fallbackMedia,
             },
             tpdbConfigured: options.tpdbConfigured,
-            tpdbEnabled: options.tpdbEnabled,
-            mediuxEnabled: options.mediuxEnabled,
-            onPartial: options.onPartial,
+            tpdbEnabled: tpdbOn,
+            mediuxEnabled: mediuxOn,
+            onPartial: options.onPartial
+                ? (partial) => options.onPartial?.({
+                    ...partial,
+                    sets: keepRequestedSets(partial.sets || []),
+                })
+                : undefined,
             onMediuxSettled: options.onMediuxSettled,
             onTpdbSettled: options.onTpdbSettled,
         });
+        return { ...result, sets: keepRequestedSets(result.sets || []) };
     }
 
     if (sources.length > 1) {
@@ -785,6 +831,8 @@ export async function fetchPosterSetsForTitle(
     }
 
     if ((response.sets?.length || 0) > 0) return withPreferred(response);
+
+    if (!mediuxOn) return withPreferred(response);
 
     const fallback = await tryMediuxFallback(
         sources,

@@ -34,6 +34,7 @@ export {
     isMediuxEnabled,
     isTpdbEnabled,
     posterSetsHeroTitle,
+    posterSetsSearchScopeLabel,
     type HistoryFilter,
     type PrimaryTabId,
     type SearchProvider,
