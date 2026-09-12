@@ -6,6 +6,7 @@ import {
 } from './api';
 import { formatSetLabel, providerLabel } from './shared/posterSetsFormat';
 import type { PosterSetsWatch } from './types';
+import { formatWatchArtSlots, watchArtSlots } from './watchArtSlots';
 
 const describeWatchedSet = (watch: PosterSetsWatch | null | undefined) => {
     const label = formatSetLabel(watch);
@@ -22,8 +23,10 @@ export const confirmReplaceTitleWatch = async (conflict: PosterSetsTitleWatchCon
     const current = conflict.existing.map((watch) => describeWatchedSet(watch)).join(', ');
     const next = describeWatchedSet(conflict.incoming);
     const many = conflict.existing.length > 1;
+    const slotLabel = formatWatchArtSlots(watchArtSlots(conflict.incoming));
+    const slotCopy = slotLabel === 'this title' ? title : `${slotLabel} for ${title}`;
     return askConfirm(
-        `You're already watching ${title} with ${current}. Pinning ${next} will replace ${many ? 'those sets' : 'that set'}. Only one set can be watched per show or movie.`,
+        `You're already watching ${slotCopy} with ${current}. Pinning ${next} will replace ${many ? 'those sets' : 'that set'} for ${slotLabel === 'this title' ? 'this title' : slotLabel}. Other art types stay watched.`,
         { title: 'Replace watched set?', confirmLabel: 'Replace set', danger: true },
     );
 };

@@ -15,6 +15,7 @@ import { askConfirm } from '../shared/confirm';
 import { ModalPortal } from '../shared/ModalPortal';
 import { posterSetsApi, PosterSetsTitleWatchConflict } from './api';
 import { addWatchWithTitleReplaceConfirm, confirmReplaceTitleWatch } from './pinWatch';
+import { overlappingTitleWatches } from './watchArtSlots';
 import { isPosterSetsUpstreamOutage } from './upstreamErrors';
 import { pickAutoMatchedTitle, rankSearchTitlesForLibraryItem, catalogTitleMatchesLibraryItem } from './autoMatchTitle';
 import { fetchPosterSetsForTitle } from './fetchPosterSetsForTitle';
@@ -36,6 +37,7 @@ import {
 import { ProviderCornerBadge } from './shared/posterSetsPills';
 import {
     inferRecentSetKindFromAssets,
+    inferRecentSetKindFromFilters,
     isTitleCardSet,
     isExclusiveTitleCardSet,
     partitionSetsByCategory,
@@ -537,15 +539,26 @@ export function LibraryTitleDetailPanel({
     const currentSetMeta = (): PosterSetsSetMeta | null => {
         if (!selectedSet && !preview?.setMeta) return null;
         const previewMeta = preview?.setMeta;
+        const selected = selectedAssetIds.length && preview?.assets?.length
+            ? preview.assets.filter((asset) => selectedAssetIds.includes(asset.id))
+            : [];
+        const mediuxFilters = selected.length ? mediuxFiltersFromAssets(selected) : undefined;
+        const setKind = inferRecentSetKindFromFilters(mediuxFilters)
+            || (titleCardsOnly || isExclusiveTitleCardSet(selectedSet, { mediaType: item?.mediaType })
+                ? 'title_cards'
+                : null);
         return {
             provider: selectedSet?.provider || previewMeta?.provider || null,
             setId: selectedSet?.setId || previewMeta?.setId || null,
             url: selectedSet?.url || previewMeta?.url || null,
-            title: previewMeta?.title || selectedSet?.title || null,
+            title: previewMeta?.title || selectedSet?.title || item?.title || null,
             user: previewMeta?.user || selectedSet?.user || null,
+            tmdbId: item?.tmdbId != null ? String(item.tmdbId) : previewMeta?.tmdbId || null,
+            tvdbId: item?.tvdbId != null ? String(item.tvdbId) : previewMeta?.tvdbId || null,
             thumbUrl: selectedSet?.thumbUrl || previewMeta?.thumbUrl || '',
             assetCount: selectedSet?.posterCount ?? preview?.total ?? previewMeta?.assetCount ?? null,
-            setKind: isTitleCardSet(selectedSet, { mediaType: item?.mediaType }) ? 'title_cards' : null,
+            setKind,
+            mediuxFilters: mediuxFilters?.length ? mediuxFilters : undefined,
         };
     };
 
@@ -559,22 +572,34 @@ export function LibraryTitleDetailPanel({
         let replacedTitleWatch = false;
         if (nextEnabled) {
             const target = String(titleWatchSetUrl || '').trim();
-            const itemTmdb = String(item.tmdbId || '').trim();
-            const others = watches.filter((watch) => {
-                const url = String(watch.url || '').trim();
-                if (target && url === target) return false;
-                if (item.id && String(watch.plexHint?.ratingKey || '') === String(item.id)) return true;
-                if (itemTmdb && String(watch.tmdbId || '') === itemTmdb) return true;
-                return String(watch.title || '').trim().toLowerCase() === item.title.trim().toLowerCase();
-            });
+            const meta = currentSetMeta();
+            const others = overlappingTitleWatches(
+                watches,
+                {
+                    url: target,
+                    title: item.title,
+                    tmdbId: item.tmdbId != null ? String(item.tmdbId) : null,
+                    setKind: meta?.setKind,
+                    mediuxFilters: meta?.mediuxFilters,
+                    plexHint: { ratingKey: item.id },
+                },
+                (watch) => {
+                    const itemTmdb = String(item.tmdbId || '').trim();
+                    if (item.id && String(watch.plexHint?.ratingKey || '') === String(item.id)) return true;
+                    if (itemTmdb && String(watch.tmdbId || '') === itemTmdb) return true;
+                    return String(watch.title || '').trim().toLowerCase() === item.title.trim().toLowerCase();
+                },
+            );
             if (others.length) {
                 const confirmed = await confirmReplaceTitleWatch(new PosterSetsTitleWatchConflict({
                     existing: others,
                     incoming: {
                         title: item.title,
                         url: target,
-                        user: currentSetMeta()?.user,
-                        provider: currentSetMeta()?.provider,
+                        user: meta?.user,
+                        provider: meta?.provider,
+                        setKind: meta?.setKind,
+                        mediuxFilters: meta?.mediuxFilters || undefined,
                     } as PosterSetsWatch,
                     error: `Already watching a set for ${item.title}.`,
                 }));
@@ -844,7 +869,18 @@ export function LibraryTitleDetailPanel({
         }
         setBusy('watch');
         try {
-            const result = await addWatchWithTitleReplaceConfirm({ url: target });
+            const result = await addWatchWithTitleReplaceConfirm({
+                url: target,
+                title: currentSetMeta()?.title || undefined,
+                user: currentSetMeta()?.user || undefined,
+                thumbUrl: currentSetMeta()?.thumbUrl || undefined,
+                provider: currentSetMeta()?.provider || undefined,
+                setId: currentSetMeta()?.setId || undefined,
+                setKind: currentSetMeta()?.setKind,
+                mediuxFilters: currentSetMeta()?.mediuxFilters || undefined,
+                tmdbId: currentSetMeta()?.tmdbId || undefined,
+                tvdbId: currentSetMeta()?.tvdbId || undefined,
+            });
             if (result.cancelled) return;
             toast(result.replaced
                 ? 'Replaced the watched set for this title.'

@@ -566,9 +566,16 @@ export function usePosterSetsDashboardState() {
     const currentSetMeta = useCallback((): PosterSetsSetMeta | null => {
         if (selectedSearchSet || preview?.setMeta) {
             const previewMeta = preview?.setMeta as PosterSetsSetMeta | undefined;
-            const setKind = normalizeRecentSetKind(selectedSearchSet?.setKind)
+            const selected = selectedAssetIds.length && preview?.assets?.length
+                ? preview.assets.filter((asset) => selectedAssetIds.includes(asset.id))
+                : [];
+            const mediuxFilters = selected.length
+                ? mediuxFiltersFromAssets(selected)
+                : (titleCardsOnly ? TITLE_CARD_ONLY_FILTERS : undefined);
+            const setKind = inferRecentSetKindFromFilters(mediuxFilters)
+                || normalizeRecentSetKind(selectedSearchSet?.setKind)
                 || normalizeRecentSetKind(previewMeta?.setKind)
-                || (titleCardsOnly || isTitleCardSet(selectedSearchSet) ? 'title_cards' : null)
+                || (titleCardsOnly || isExclusiveTitleCardSet(selectedSearchSet) ? 'title_cards' : null)
                 || inferRecentSetKindFromAssets(preview?.assets)
                 || null;
             return {
@@ -584,6 +591,7 @@ export function usePosterSetsDashboardState() {
                     ?? previewMeta?.assetCount
                     ?? null,
                 setKind,
+                mediuxFilters: mediuxFilters?.length ? mediuxFilters : undefined,
             };
         }
         return url ? {
@@ -592,8 +600,9 @@ export function usePosterSetsDashboardState() {
             user: null,
             thumbUrl: '',
             setKind: titleCardsOnly ? 'title_cards' : null,
+            mediuxFilters: titleCardsOnly ? TITLE_CARD_ONLY_FILTERS : undefined,
         } : null;
-    }, [preview, selectedSearchSet, titleCardsOnly, url]);
+    }, [preview, selectedAssetIds, selectedSearchSet, titleCardsOnly, url]);
 
     const rememberRecentFromContext = useCallback((
         meta: PosterSetsSetMeta | null | undefined,

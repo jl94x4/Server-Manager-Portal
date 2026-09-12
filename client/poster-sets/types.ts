@@ -136,6 +136,7 @@ export type PosterSetsSetMeta = {
     assetCount?: number | null;
     /** Dominant art type when known (title_cards, backgrounds, posters). */
     setKind?: string | null;
+    mediuxFilters?: string[] | null;
 };
 
 export type PosterSetsJobInput = {

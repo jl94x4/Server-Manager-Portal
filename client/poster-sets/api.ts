@@ -46,6 +46,9 @@ export type PosterSetsAddWatchPayload = {
     provider?: string;
     setId?: string;
     mediuxFilters?: string[];
+    setKind?: string | null;
+    tmdbId?: string | null;
+    tvdbId?: string | null;
     replaceExisting?: boolean;
 };
 
