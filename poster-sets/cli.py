@@ -151,6 +151,7 @@ def main() -> int:
                 batch_pages=batch_pages,
                 config=config,
                 max_set_pages=max_set_pages,
+                titles_only=bool(request.get("titlesOnly") or request.get("titles_only")),
             )
             write_event("result", **result)
             return 0

@@ -1,4 +1,5 @@
 import { portalUrl } from '../shared/basePath';
+import type { PosterSetsSearchTitle } from './types';
 
 export type LibraryRecentItem = {
     id: string;
@@ -124,4 +125,23 @@ export const libraryItemPosterSrc = (item: LibraryRecentItem): string => {
         return portalUrl(raw.startsWith('/') ? raw : `/${raw}`);
     }
     return '';
+};
+
+/** Discover picker row for a library title that already has a TMDB id. */
+export const libraryItemToSearchTitle = (item: LibraryRecentItem): PosterSetsSearchTitle | null => {
+    const tmdbId = String(item.tmdbId || '').trim();
+    const title = String(item.title || '').trim();
+    if (!title || !/^\d+$/.test(tmdbId)) return null;
+    return {
+        id: tmdbId,
+        title,
+        year: item.year ?? null,
+        url: item.mediaType === 'show'
+            ? `https://mediux.pro/shows/${tmdbId}`
+            : `https://mediux.pro/movies/${tmdbId}`,
+        mediaType: item.mediaType,
+        thumbUrl: libraryItemPosterSrc(item),
+        provider: 'mediux',
+        inLibrary: true,
+    };
 };

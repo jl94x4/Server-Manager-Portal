@@ -3845,6 +3845,7 @@ def search_posterdb_titles(
     _skip_resolve: bool = False,
     year_hint: int | None = None,
     max_pages: int = 1,
+    thumb_probes: int | None = None,
 ) -> dict:
     term = str(query or "").strip()
     if not term:
@@ -3964,7 +3965,9 @@ def search_posterdb_titles(
 
     take = max(1, int(limit or 24))
     trimmed = titles[:take]
-    _posterdb_enrich_title_thumbs(trimmed, config=config, progress=progress, limit=min(take, 12))
+    probe_budget = min(take, 12) if thumb_probes is None else max(0, int(thumb_probes))
+    if probe_budget:
+        _posterdb_enrich_title_thumbs(trimmed, config=config, progress=progress, limit=probe_budget)
     return {
         "ok": True,
         "provider": "posterdb",
@@ -5476,8 +5479,13 @@ def search_catalog(
     batch_pages: int = 3,
     config: dict | None = None,
     max_set_pages: int | None = None,
+    titles_only: bool = False,
 ) -> dict:
-    """Scrape MediUX / ThePosterDB discovery pages (user-initiated only)."""
+    """Scrape MediUX / ThePosterDB discovery pages (user-initiated only).
+
+    titles_only: fast title-picker pass — one public search page, no page resolve,
+    no thumb probes, no set loading. Sets are fetched later when the user opens a title.
+    """
     config = config if isinstance(config, dict) else {}
     source = str(provider or "").strip().lower()
     if source in {"tpdb", "posterdb", "theposterdb"}:
@@ -5557,6 +5565,42 @@ def search_catalog(
         title_url_value = str(title_url or "").strip()
         user_title_url = title_url_value
         take = max(1, min(500, int(limit or 500)))
+
+        if titles_only and not title_url_value:
+            # Fast title picker: one public search page, no /posters resolve,
+            # no thumb probes, no set-page loads. Full resolve runs on open.
+            search_term = str(query or title_hint or "").strip()
+            if not search_term:
+                raise ValueError("query or title hint is required for ThePosterDB title search")
+            titles: list[dict] = []
+            seen_ids: set[str] = set()
+            for term in (_posterdb_search_terms_from_hint(search_term) or [search_term])[:1]:
+                part = search_posterdb_titles(
+                    term,
+                    progress=progress,
+                    limit=take,
+                    config=config,
+                    media_type=media_type,
+                    _skip_resolve=True,
+                    max_pages=1,
+                    year_hint=year_val if term == search_term else None,
+                    thumb_probes=0,
+                )
+                for item in part.get("titles") or []:
+                    pid = str(item.get("id") or "")
+                    if not pid or pid in seen_ids:
+                        continue
+                    seen_ids.add(pid)
+                    titles.append(item)
+            return {
+                "ok": True,
+                "provider": "posterdb",
+                "phase": "titles",
+                "query": search_term,
+                "titles": titles[:max(1, min(40, take))],
+                "sets": [],
+            }
+
         resolved_page: Optional[dict] = None
         if not title_url_value and (tmdb_id or tvdb_id or imdb_id):
             resolved_page = resolve_posterdb_title_page(

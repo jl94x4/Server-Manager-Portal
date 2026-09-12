@@ -60,6 +60,7 @@ import {
     writeLibrarySearchCache,
 } from './libraryCache';
 import {
+    libraryItemToSearchTitle,
     normalizeLibraryItems,
     type LibraryRecentItem,
 } from './libraryRecent';
@@ -1881,25 +1882,59 @@ export function usePosterSetsDashboardState() {
                 return;
             }
 
-            const response = await posterSetsApi.search({
-                provider,
-                query: q,
-                mode,
-                dupePreference: configDraft.dupePreference === 'mediux' ? 'mediux' : 'posterdb',
-                limit: 24,
-            });
+            const paintLibraryTitles = async () => {
+                try {
+                    const cached = readLibrarySearchCache(q);
+                    const cachedTitles = (cached || []).map(libraryItemToSearchTitle).filter(Boolean) as PosterSetsSearchTitle[];
+                    if (cachedTitles.length && !abort.signal.aborted) {
+                        setSearchTitles(cachedTitles);
+                        setSearchContext(q);
+                        setBusy(null);
+                        setSearchLoadingMore(true);
+                    }
+                    const lib = await posterSetsApi.librarySearch(q, 12);
+                    if (abort.signal.aborted) return;
+                    const titles = normalizeLibraryItems(lib.results || [])
+                        .map(libraryItemToSearchTitle)
+                        .filter(Boolean) as PosterSetsSearchTitle[];
+                    if (!titles.length) return;
+                    writeLibrarySearchCache(q, normalizeLibraryItems(lib.results || []));
+                    setSearchTitles((current) => (current.length ? current : titles));
+                    setSearchContext(q);
+                    setBusy((current) => (current === 'search' ? null : current));
+                    setSearchLoadingMore(true);
+                } catch {
+                    /* catalog search still owns the error toast */
+                }
+            };
+
+            const [response] = await Promise.all([
+                posterSetsApi.search({
+                    provider,
+                    query: q,
+                    mode,
+                    dupePreference: configDraft.dupePreference === 'mediux' ? 'mediux' : 'posterdb',
+                    limit: 24,
+                }),
+                paintLibraryTitles(),
+            ]);
+            if (abort.signal.aborted) return;
             setSearchTitles(response.titles || []);
             setSearchSets(response.sets || []);
             setSearchSetsPage(1);
             setSearchContext(response.title || q);
             const titleCount = response.titles?.length || 0;
             const setCount = response.sets?.length || 0;
+            const libraryCount = (response.titles || []).filter((title) => title.inLibrary).length;
             const dupes = Number(response.dupesCollapsed || 0);
             const dupeNote = dupes > 0 ? ` · ${dupes} duplicate${dupes === 1 ? '' : 's'} collapsed` : '';
+            const libraryNote = libraryCount > 0
+                ? ` · ${libraryCount} in your library`
+                : '';
             if (!titleCount && !setCount) {
                 toast('No matches found.', 'error');
             } else if (titleCount) {
-                toast(`Found ${titleCount} title${titleCount === 1 ? '' : 's'}${dupeNote}. Choose one.`);
+                toast(`Found ${titleCount} title${titleCount === 1 ? '' : 's'}${libraryNote}${dupeNote}. Choose one.`);
             } else {
                 toast(`Found ${setCount} set${setCount === 1 ? '' : 's'}${dupeNote}. Choose one to preview.`);
             }
@@ -1909,6 +1944,7 @@ export function usePosterSetsDashboardState() {
             }
         } catch (error) {
             if (error instanceof DOMException && error.name === 'AbortError') return;
+            if (abort.signal.aborted) return;
             const message = error instanceof Error ? error.message : 'Search failed';
             setCatalogError(message);
             toast(message, 'error');
@@ -1917,8 +1953,10 @@ export function usePosterSetsDashboardState() {
             if (creatorSearchAbortRef.current === abort) {
                 creatorSearchAbortRef.current = null;
             }
-            setBusy((current) => (current === 'search' ? null : current));
-            if (!abort.signal.aborted) setSearchLoadingMore(false);
+            if (!abort.signal.aborted) {
+                setBusy((current) => (current === 'search' ? null : current));
+                setSearchLoadingMore(false);
+            }
         }
     };
 
@@ -2051,6 +2089,7 @@ export function usePosterSetsDashboardState() {
     };
 
     const openSearchTitle = async (title: PosterSetsSearchTitle, libraryItem?: LibraryRecentItem) => {
+        creatorSearchAbortRef.current?.abort();
         setBusy('search');
         setSearchSets([]);
         setSearchSetsPage(1);

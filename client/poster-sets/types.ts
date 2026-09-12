@@ -263,6 +263,8 @@ export type PosterSetsSearchTitle = {
     mediaType?: string | null;
     thumbUrl?: string;
     provider?: string;
+    /** True when this picker row came from (or matched) the Plex/Jellyfin library. */
+    inLibrary?: boolean;
     sources?: Array<{
         provider: string;
         id: string;

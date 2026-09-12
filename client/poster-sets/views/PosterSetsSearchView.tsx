@@ -25,6 +25,7 @@ import { CustomSelect, SettingsToggleRow } from '../../shared/ui';
 import { askConfirm } from '../../shared/confirm';
 import { normalizeUpgraderGridSize } from '../../shared/portalLayout';
 import { posterSetsApi } from '../api';
+import { portalUrl } from '../../shared/basePath';
 import { MEDIUX_FILTER_OPTIONS } from '../types';
 import { PosterSetsSetupChecklist } from '../PosterSetsSetupChecklist';
 import { PosterSetsLibraryBrowse } from '../PosterSetsLibraryBrowse';
@@ -486,9 +487,15 @@ export const PosterSetsSearchView: React.FC = () => {
                                                 <div className="h-14 w-10 shrink-0 overflow-hidden rounded-md bg-black/40">
                                                     {title.thumbUrl ? (
                                                         <img
-                                                            src={title.thumbUrl.startsWith('https://image.tmdb.org/')
+                                                            src={(
+                                                                title.thumbUrl.startsWith('https://image.tmdb.org/')
+                                                                || title.thumbUrl.startsWith('http://')
+                                                                || title.thumbUrl.startsWith('https://')
+                                                            )
                                                                 ? title.thumbUrl
-                                                                : posterSetsApi.imageUrl(title.thumbUrl)}
+                                                                : title.thumbUrl.startsWith('/')
+                                                                    ? portalUrl(title.thumbUrl)
+                                                                    : posterSetsApi.imageUrl(title.thumbUrl)}
                                                             alt=""
                                                             className="h-full w-full object-cover"
                                                             loading="lazy"
@@ -502,7 +509,10 @@ export const PosterSetsSearchView: React.FC = () => {
                                                 <div className="min-w-0">
                                                     <p className="truncate text-sm font-semibold text-text">{title.title}</p>
                                                     <p className="text-[11px] text-muted">
-                                                        {providerLabel(title.provider)}
+                                                        {title.inLibrary ? 'In library' : providerLabel(title.provider)}
+                                                        {title.inLibrary && title.provider
+                                                            ? ` · ${providerLabel(title.provider)}`
+                                                            : ''}
                                                         {title.alsoOn?.length
                                                             ? ` · also ${title.alsoOn.map((entry) => providerLabel(entry.provider)).join(', ')}`
                                                             : ''}
