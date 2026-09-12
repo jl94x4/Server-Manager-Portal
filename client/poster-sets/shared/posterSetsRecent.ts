@@ -4,7 +4,9 @@ import { type SetProvider } from './posterSetsNav';
 
 export const RECENT_SETS_KEY = 'poster-sets-recent-v2';
 const RECENT_SETS_KEY_LEGACY = 'poster-sets-recent-v1';
-export const MAX_RECENT_SETS = 36;
+const REMOVED_RECENT_SETS_KEY = 'poster-sets-recent-removed-v1';
+/** Keep a long local preview history; the Recent tab paginates the rest. */
+export const MAX_RECENT_SETS = 500;
 
 export type RecentSetCategory = 'posters' | 'backgrounds' | 'title_cards';
 
@@ -210,6 +212,37 @@ export const writeRecentSets = (entries: RecentSetChip[]) => {
     }
 };
 
+export const readRemovedRecentSetUrls = (): Set<string> => {
+    try {
+        const raw = localStorage.getItem(REMOVED_RECENT_SETS_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(parsed)) return new Set();
+        return new Set(parsed.map((item) => String(item || '').trim()).filter(Boolean));
+    } catch {
+        return new Set();
+    }
+};
+
+const writeRemovedRecentSetUrls = (urls: Iterable<string>) => {
+    try {
+        const next = [...new Set([...urls].map((item) => String(item || '').trim()).filter(Boolean))];
+        localStorage.setItem(REMOVED_RECENT_SETS_KEY, JSON.stringify(next));
+    } catch {
+        // ignore quota / private mode
+    }
+};
+
+export const removeRecentSets = (urls: string[]) => {
+    const drop = new Set(urls.map((item) => String(item || '').trim()).filter(Boolean));
+    if (!drop.size) return;
+    writeRecentSets(readRecentSets().filter((item) => !drop.has(item.url)));
+    const removed = readRemovedRecentSetUrls();
+    for (const url of drop) removed.add(url);
+    writeRemovedRecentSetUrls(removed);
+};
+
+export const removeRecentSet = (url: string) => removeRecentSets([url]);
+
 export const upsertRecentSet = (
     meta: PosterSetsSetMeta | null | undefined,
     fallbackUrl?: string,
@@ -242,4 +275,6 @@ export const upsertRecentSet = (
     };
     const existing = readRecentSets().filter((item) => item.url !== url);
     writeRecentSets([next, ...existing]);
+    const removed = readRemovedRecentSetUrls();
+    if (removed.delete(url)) writeRemovedRecentSetUrls(removed);
 };

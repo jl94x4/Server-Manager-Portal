@@ -44,8 +44,10 @@ import {
     PreviewAssetGallery,
     ProviderPill,
     RECENT_CATEGORY_ORDER,
+    RECENT_SETS_PAGE_SIZE_STORAGE_KEY,
     RelatedSetsRail,
     SEARCH_SETS_PAGE_SIZE,
+    SEARCH_SETS_PAGE_SIZE_OPTIONS,
     SetKindPill,
     StatusPill,
     WATCHES_PAGE_SIZE_OPTIONS,
@@ -60,13 +62,16 @@ import {
     jobCardTone,
     jobSetMeta,
     jobTitle,
+    normalizeSearchSetsPageSize,
     posterMediaRadiusClass,
     primaryButtonClass,
     providerLabel,
+    removeRecentSets,
     sectionBodyClass,
     sectionTitleClass,
     textToList,
     upsertRecentSet,
+    type RecentSetCategory,
 } from '../shared';
 import { usePosterSetsDashboard } from '../PosterSetsDashboardContext';
 
@@ -296,6 +301,61 @@ export const PosterSetsRecentView: React.FC = () => {
         initialUrlState,
         initialLocation,
     } = usePosterSetsDashboard();
+
+    const [recentPageSize, setRecentPageSize] = React.useState(() => {
+        if (typeof window === 'undefined') return SEARCH_SETS_PAGE_SIZE;
+        return normalizeSearchSetsPageSize(window.localStorage.getItem(RECENT_SETS_PAGE_SIZE_STORAGE_KEY));
+    });
+    const [recentPages, setRecentPages] = React.useState<Record<RecentSetCategory, number>>({
+        posters: 1,
+        backgrounds: 1,
+        title_cards: 1,
+    });
+
+    React.useEffect(() => {
+        window.localStorage.setItem(RECENT_SETS_PAGE_SIZE_STORAGE_KEY, String(recentPageSize));
+    }, [recentPageSize]);
+
+    React.useEffect(() => {
+        setRecentPages((prev) => {
+            let changed = false;
+            const next = { ...prev };
+            for (const category of RECENT_CATEGORY_ORDER) {
+                const count = recentSetsByCategory[category.id].length;
+                const pageCount = Math.max(1, Math.ceil(count / recentPageSize) || 1);
+                if (next[category.id] > pageCount) {
+                    next[category.id] = pageCount;
+                    changed = true;
+                }
+            }
+            return changed ? next : prev;
+        });
+    }, [recentPageSize, recentSetsByCategory]);
+
+    const bumpRecentPage = (category: RecentSetCategory, page: number) => {
+        setRecentPages((prev) => ({ ...prev, [category]: Math.max(1, page) }));
+    };
+
+    const removeRecentUrls = async (urls: string[], confirmLabel: string) => {
+        const unique = [...new Set(urls.map((item) => String(item || '').trim()).filter(Boolean))];
+        if (!unique.length) return;
+        const ok = await askConfirm(confirmLabel, {
+            title: unique.length === 1 ? 'Remove from Recent?' : 'Remove selected from Recent?',
+            confirmLabel: 'Remove',
+            cancelLabel: 'Keep',
+            danger: true,
+        });
+        if (!ok) return;
+        removeRecentSets(unique);
+        setSelectedBulkSets((prev) => {
+            const next = { ...prev };
+            for (const url of unique) delete next[url];
+            return next;
+        });
+        setRecentTick((value) => value + 1);
+        toast(unique.length === 1 ? 'Removed from Recent.' : `Removed ${unique.length} sets from Recent.`);
+    };
+
     if (tab !== 'recent') return null;
     return (
 
@@ -306,16 +366,42 @@ export const PosterSetsRecentView: React.FC = () => {
                         <div className="min-w-0 max-w-3xl">
                             <h2 className={sectionTitleClass}>Recent sets</h2>
                             <p className={sectionBodyClass}>
-                                Re-preview or re-apply sets you&apos;ve already used, grouped by art type.
+                                Every set you&apos;ve previewed, grouped by art type. Remove items you don&apos;t need anymore.
                             </p>
                         </div>
-                        <CustomSelect
-                            value={gridSize === 'list' ? 'medium' : gridSize}
-                            onChange={(value) => setGridSize(normalizeUpgraderGridSize(value))}
-                            options={POSTER_SETS_GRID_OPTIONS}
-                            className="w-full min-w-[140px] sm:w-auto"
-                            compact
-                        />
+                        <div className="flex flex-wrap items-center gap-2">
+                            {selectedBulkCount ? (
+                                <button
+                                    type="button"
+                                    className={buttonClass}
+                                    disabled={busy !== null}
+                                    onClick={() => void removeRecentUrls(
+                                        Object.keys(selectedBulkSets),
+                                        `Remove ${selectedBulkCount} set${selectedBulkCount === 1 ? '' : 's'} from Recent? Logs and Watching are unchanged.`,
+                                    )}
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                    Remove selected
+                                </button>
+                            ) : null}
+                            <CustomSelect
+                                value={String(recentPageSize)}
+                                onChange={(value) => {
+                                    setRecentPageSize(normalizeSearchSetsPageSize(value));
+                                    setRecentPages({ posters: 1, backgrounds: 1, title_cards: 1 });
+                                }}
+                                options={[...SEARCH_SETS_PAGE_SIZE_OPTIONS]}
+                                className="w-full min-w-[140px] sm:w-auto"
+                                compact
+                            />
+                            <CustomSelect
+                                value={gridSize === 'list' ? 'medium' : gridSize}
+                                onChange={(value) => setGridSize(normalizeUpgraderGridSize(value))}
+                                options={POSTER_SETS_GRID_OPTIONS}
+                                className="w-full min-w-[140px] sm:w-auto"
+                                compact
+                            />
+                        </div>
                     </div>
                     {recentSets.length ? (
                         <div className="space-y-6">
@@ -323,17 +409,46 @@ export const PosterSetsRecentView: React.FC = () => {
                                 const items = recentSetsByCategory[category.id];
                                 if (!items.length) return null;
                                 const landscape = category.landscape;
+                                const pageCount = Math.max(1, Math.ceil(items.length / recentPageSize));
+                                const page = Math.min(recentPages[category.id] || 1, pageCount);
+                                const start = (page - 1) * recentPageSize;
+                                const pagedItems = items.slice(start, start + recentPageSize);
                                 return (
                                     <div key={category.id} className="space-y-3">
                                         <div className="flex flex-wrap items-center gap-2">
                                             <h3 className="text-sm font-bold text-text sm:text-base">{category.title}</h3>
                                             <span className="text-[11px] text-muted">{items.length}</span>
+                                            {pageCount > 1 ? (
+                                                <div className="ml-auto flex flex-wrap items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        className={buttonClass}
+                                                        disabled={page <= 1}
+                                                        onClick={() => bumpRecentPage(category.id, page - 1)}
+                                                    >
+                                                        <ChevronLeft className="h-4 w-4" />
+                                                        Prev
+                                                    </button>
+                                                    <span className="text-xs text-muted">
+                                                        Page {page} / {pageCount}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        className={buttonClass}
+                                                        disabled={page >= pageCount}
+                                                        onClick={() => bumpRecentPage(category.id, page + 1)}
+                                                    >
+                                                        Next
+                                                        <ChevronRight className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            ) : null}
                                         </div>
                                         <div
                                             className={posterGridClass}
                                             style={landscape ? titleCardGridStyle : posterGridStyle}
                                         >
-                                            {items.map((item) => {
+                                            {pagedItems.map((item) => {
                                                 const label = formatSetLabel(item) || item.title;
                                                 const bulkSelected = Boolean(selectedBulkSets[item.url]);
                                                 const openRecent = () => {
@@ -442,6 +557,19 @@ export const PosterSetsRecentView: React.FC = () => {
                                                                     ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                                                     : <RotateCcw className="h-3.5 w-3.5" />}
                                                             </button>
+                                                            <button
+                                                                type="button"
+                                                                className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-black/20 text-muted transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-300 disabled:pointer-events-none disabled:opacity-40"
+                                                                disabled={busy !== null}
+                                                                aria-label="Remove from Recent"
+                                                                title="Remove from Recent"
+                                                                onClick={() => void removeRecentUrls(
+                                                                    [item.url],
+                                                                    'Remove this set from Recent? Logs and Watching are unchanged.',
+                                                                )}
+                                                            >
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </button>
                                                         </div>
                                                     </div>
                                                 );
@@ -453,7 +581,7 @@ export const PosterSetsRecentView: React.FC = () => {
                         </div>
                     ) : (
                         <p className="rounded-xl border border-white/10 bg-black/20 p-5 text-sm text-muted">
-                            No recent sets yet. Search and apply a set on the Apply tab and it will show up here.
+                            No recent sets yet. Preview a set from Search, Browse, or Library and it will show up here.
                         </p>
                     )}
                 </section>

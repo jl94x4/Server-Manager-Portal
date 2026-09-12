@@ -101,6 +101,7 @@ import {
     isTpdbRecentUrl,
     isTpdbFeedUrl,
     readRecentSets,
+    readRemovedRecentSetUrls,
     textToList,
     upsertRecentSet,
     type BulkSetSelection,
@@ -2582,7 +2583,9 @@ export function usePosterSetsDashboardState() {
                 at: job.finishedAt || job.createdAt || new Date(0).toISOString(),
             });
         }
+        const removed = readRemovedRecentSetUrls();
         return [...byUrl.values()]
+            .filter((item) => !removed.has(item.url))
             .sort((a, b) => String(b.at).localeCompare(String(a.at)))
             .slice(0, MAX_RECENT_SETS);
     }, [historyJobs, recentTick]);

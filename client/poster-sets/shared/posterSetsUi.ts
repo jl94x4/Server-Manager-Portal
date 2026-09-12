@@ -20,6 +20,7 @@ export const normalizeLibraryDetailLayout = (value?: string | null): LibraryDeta
 );
 export const SEARCH_SETS_PAGE_SIZE = 50;
 export const SEARCH_SETS_PAGE_SIZE_STORAGE_KEY = 'posterSetsSearchPageSize.v1';
+export const RECENT_SETS_PAGE_SIZE_STORAGE_KEY = 'posterSetsRecentPageSize.v1';
 export const SEARCH_SETS_PAGE_SIZE_OPTIONS = [
     { value: '24', label: '24 per page' },
     { value: '50', label: '50 per page' },
