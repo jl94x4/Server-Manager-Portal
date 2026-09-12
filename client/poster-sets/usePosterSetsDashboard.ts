@@ -185,7 +185,7 @@ export function usePosterSetsDashboardState() {
         return DEFAULT_POSTER_SETS_GRID_SIZE;
     });
     const [libraryDetailLayout, setLibraryDetailLayout] = useState(() => {
-        if (typeof window === 'undefined') return normalizeLibraryDetailLayout('drawer');
+        if (typeof window === 'undefined') return normalizeLibraryDetailLayout('modal');
         return normalizeLibraryDetailLayout(window.localStorage.getItem(POSTER_SETS_LIBRARY_DETAIL_LAYOUT_KEY));
     });
     const [preview, setPreview] = useState<PosterSetsPreview | null>(null);
@@ -1455,12 +1455,11 @@ export function usePosterSetsDashboardState() {
     const applyMatched = async () => {
         const assets = preview?.assets || [];
         const matchedIds = assets.filter((asset) => asset.matched === true).map((asset) => asset.id);
-        const ids = matchedIds.length ? matchedIds : selectedAssetIds;
+        const ids = selectedAssetIds.length ? selectedAssetIds : matchedIds;
         if (!ids.length) {
-            toast('No matched posters to apply.', 'error');
+            toast('No posters to apply. Check at least one art type.', 'error');
             return;
         }
-        setSelectedAssetIds(ids);
         setBusy('apply');
         try {
             const target = url.trim();
@@ -2465,7 +2464,15 @@ export function usePosterSetsDashboardState() {
         || (busy === 'preview' && Boolean(String(url || '').trim())),
     );
     const matchedThumbStrip = useMemo(() => {
-        let assets = (preview?.assets || []).filter((asset) => asset.matched === true);
+        const selected = new Set(selectedAssetIds);
+        let assets = preview?.assets || [];
+        if (selected.size) {
+            const filtered = assets.filter((asset) => selected.has(asset.id));
+            if (filtered.length) assets = filtered;
+            else assets = assets.filter((asset) => asset.matched === true);
+        } else {
+            assets = assets.filter((asset) => asset.matched === true);
+        }
         if (titleCardsOnly || isTitleCardSet(selectedSearchSet)) {
             const titleCards = assets.filter((asset) => classifyPreviewAsset(asset) === 'title_card');
             const rest = assets.filter((asset) => classifyPreviewAsset(asset) !== 'title_card');
@@ -2476,7 +2483,7 @@ export function usePosterSetsDashboardState() {
             title: asset.title,
             thumbUrl: asset.thumbUrl ? posterSetsApi.imageUrl(asset.thumbUrl) : '',
         }));
-    }, [preview, titleCardsOnly, selectedSearchSet]);
+    }, [preview, titleCardsOnly, selectedSearchSet, selectedAssetIds]);
 
     const queueEntireWithConfirm = async () => {
         const ok = await askConfirm('Queue the entire set, including posters not matched in your libraries?', {

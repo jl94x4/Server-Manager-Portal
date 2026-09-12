@@ -3,7 +3,6 @@ import {
     CheckCircle2,
     ChevronLeft,
     Eye,
-    History,
     Image as ImageIcon,
     Loader2,
     Ban,
@@ -14,7 +13,6 @@ import {
 } from 'lucide-react';
 import { askConfirm } from '../shared/confirm';
 import { ModalPortal } from '../shared/ModalPortal';
-import { SettingsToggleRow } from '../shared/ui';
 import { posterSetsApi, PosterSetsTitleWatchConflict } from './api';
 import { addWatchWithTitleReplaceConfirm, confirmReplaceTitleWatch } from './pinWatch';
 import { isPosterSetsUpstreamOutage } from './upstreamErrors';
@@ -51,7 +49,7 @@ import {
 
 const TITLE_CARD_ONLY_FILTERS = ['title_card'];
 const SETS_PAGE_SIZE_DRAWER = 16;
-const SETS_PAGE_SIZE_MODAL = 20;
+const SETS_PAGE_SIZE_MODAL = 36;
 
 const buttonClass = 'inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-black/20 px-2.5 py-1.5 text-xs font-semibold text-text transition hover:border-plex/40 hover:bg-white/5 disabled:pointer-events-none disabled:opacity-40 sm:gap-2 sm:px-3 sm:py-2 sm:text-sm';
 const primaryButtonClass = 'inline-flex items-center justify-center gap-1.5 rounded-xl bg-plex px-2.5 py-1.5 text-xs font-bold text-background transition hover:bg-plex-hover active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40 sm:gap-2 sm:px-3 sm:py-2 sm:text-sm';
@@ -179,7 +177,7 @@ export function LibraryTitleDetailPanel({
     onWatchAdded,
     onArtReset,
     serverType = 'plex',
-    layoutMode = 'drawer',
+    layoutMode = 'modal',
     onLayoutModeChange,
     tpdbConfigured = false,
     tpdbEnabled = true,
@@ -516,6 +514,11 @@ export function LibraryTitleDetailPanel({
         || titleStatus?.lastApply?.url
         || '',
     ).trim();
+    const lastApplyMatchesSet = (set?: { url?: string | null } | null) => {
+        const applyUrl = String(titleStatus?.lastApply?.url || '').trim();
+        const setUrl = String(set?.url || '').trim();
+        return Boolean(applyUrl && setUrl && applyUrl === setUrl);
+    };
 
     const runResetArt = async () => {
         if (!item) return;
@@ -687,7 +690,9 @@ export function LibraryTitleDetailPanel({
             if (!restrictTitleCards && inferRecentSetKindFromAssets(response.assets) === 'title_cards') {
                 setTitleCardsOnly(true);
             }
-            setSelectedAssetIds([]);
+            const assets = response.assets || [];
+            const matchedIds = assets.filter((asset) => asset.matched === true).map((asset) => asset.id);
+            setSelectedAssetIds(matchedIds.length ? matchedIds : assets.map((asset) => asset.id));
         } catch (error) {
             toast(error instanceof Error ? error.message : 'Preview failed', 'error');
             setPreview(null);
@@ -707,9 +712,9 @@ export function LibraryTitleDetailPanel({
             return;
         }
         const matchedIds = (preview.assets || []).filter((asset) => asset.matched === true).map((asset) => asset.id);
-        const ids = matchedIds.length ? matchedIds : selectedAssetIds;
+        const ids = selectedAssetIds.length ? selectedAssetIds : matchedIds;
         if (!ids.length) {
-            toast('No matched posters to apply.', 'error');
+            toast('No posters to apply. Check at least one art type.', 'error');
             return;
         }
         setBusy('apply');
@@ -894,7 +899,15 @@ export function LibraryTitleDetailPanel({
     );
 
     const matchedThumbStrip = useMemo(() => {
-        let assets = (preview?.assets || []).filter((asset) => asset.matched === true);
+        const selected = new Set(selectedAssetIds);
+        let assets = preview?.assets || [];
+        if (selected.size) {
+            const filtered = assets.filter((asset) => selected.has(asset.id));
+            if (filtered.length) assets = filtered;
+            else assets = assets.filter((asset) => asset.matched === true);
+        } else {
+            assets = assets.filter((asset) => asset.matched === true);
+        }
         // Title-card packs often still include a show poster first in scrape order —
         // surface episode title cards at the front of the matched strip.
         if (titleCardsOnly || isTitleCardSet(selectedSet, { mediaType: item?.mediaType })) {
@@ -907,7 +920,7 @@ export function LibraryTitleDetailPanel({
             title: asset.title,
             thumbUrl: asset.thumbUrl ? posterSetsApi.imageUrl(asset.thumbUrl) : '',
         }));
-    }, [preview, titleCardsOnly, selectedSet, item?.mediaType]);
+    }, [preview, titleCardsOnly, selectedSet, item?.mediaType, selectedAssetIds]);
 
     const setsByCategory = useMemo(
         () => partitionSetsByCategory(
@@ -932,8 +945,13 @@ export function LibraryTitleDetailPanel({
 
     const selectedSetUsesLandscape = useMemo(() => {
         if (titleCardsOnly || isTitleCardSet(selectedSet, { mediaType: item?.mediaType })) return true;
+        if (selectedAssetIds.length && preview?.assets?.length) {
+            const selected = new Set(selectedAssetIds);
+            const picked = preview.assets.filter((asset) => selected.has(asset.id));
+            if (picked.length && picked.every((asset) => classifyPreviewAsset(asset) === 'title_card')) return true;
+        }
         return inferRecentSetKindFromAssets(preview?.assets) === 'title_cards';
-    }, [preview?.assets, selectedSet, titleCardsOnly, item?.mediaType]);
+    }, [preview?.assets, selectedSet, titleCardsOnly, item?.mediaType, selectedAssetIds]);
 
     const readyToApply = Boolean(preview && !busy);
     // Background TPDB fetch uses busy='search' / loadingMoreSets — keep MediUX sets clickable.
@@ -946,14 +964,18 @@ export function LibraryTitleDetailPanel({
 
     const isModalLayout = layoutMode === 'modal';
     // Cap card width so wide drawer/modal don't blow posters up when few sets match.
-    const setsGridClass = 'grid grid-cols-[repeat(auto-fill,minmax(7.5rem,9.5rem))] justify-start gap-2.5';
-    const setsGridClassLandscape = 'grid grid-cols-[repeat(auto-fill,minmax(10rem,13rem))] justify-start gap-2.5';
+    const setsGridClass = isModalLayout
+        ? 'grid grid-cols-[repeat(auto-fill,minmax(8.5rem,11rem))] justify-start gap-3'
+        : 'grid grid-cols-[repeat(auto-fill,minmax(7.5rem,9.5rem))] justify-start gap-2.5';
+    const setsGridClassLandscape = isModalLayout
+        ? 'grid grid-cols-[repeat(auto-fill,minmax(12rem,16rem))] justify-start gap-3'
+        : 'grid grid-cols-[repeat(auto-fill,minmax(10rem,13rem))] justify-start gap-2.5';
     const panelShellClass = isModalLayout
         ? [
             'fixed z-[330] flex flex-col bg-card shadow-2xl',
             // Sit above the mobile bottom nav so pagination isn't trapped behind it.
             'top-0 right-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] h-auto w-full max-w-[min(100%,520px)] border-l border-white/10 pt-[env(safe-area-inset-top,0px)]',
-            'md:inset-auto md:bottom-auto md:left-1/2 md:top-1/2 md:h-auto md:w-[min(96vw,1320px)] md:max-w-[min(96vw,1320px)] md:max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)))] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-2xl md:border md:border-white/10 md:pt-0',
+            'md:inset-3 md:bottom-3 md:left-3 md:right-3 md:top-3 md:h-auto md:w-auto md:max-w-none md:max-h-none md:translate-x-0 md:translate-y-0 md:rounded-2xl md:border md:border-white/10 md:pt-0',
         ].join(' ')
         : [
             'fixed top-0 right-0 z-[330] flex h-auto w-full max-w-[min(100%,520px)] flex-col border-l border-white/10 bg-card pt-[env(safe-area-inset-top,0px)] shadow-2xl',
@@ -975,7 +997,9 @@ export function LibraryTitleDetailPanel({
                 className={panelShellClass}
             >
                 <div className="flex shrink-0 items-start gap-3 border-b border-white/10 bg-black/20 p-4 sm:p-5 md:rounded-t-2xl">
-                    <div className="relative h-20 w-14 shrink-0 overflow-hidden rounded-md border border-white/10 bg-black">
+                    <div className={`relative shrink-0 overflow-hidden rounded-md border border-white/10 bg-black ${
+                        isModalLayout ? 'h-28 w-20 sm:h-36 sm:w-24' : 'h-20 w-14'
+                    }`}>
                         <PosterThumb
                             src={libraryItemPosterSrc(item)}
                             alt={item.title}
@@ -987,13 +1011,96 @@ export function LibraryTitleDetailPanel({
                         <p className="text-[10px] font-bold uppercase tracking-wide text-plex">
                             {item.mediaType === 'movie' ? 'Movie' : 'TV show'}
                         </p>
-                        <h2 className="mt-0.5 truncate text-lg font-bold text-text" title={headerLabel}>
+                        <h2 className={`mt-0.5 truncate font-bold text-text ${isModalLayout ? 'text-xl sm:text-2xl' : 'text-lg'}`} title={headerLabel}>
                             {item.title}
                         </h2>
                         {item.year ? <p className="text-sm text-muted">{item.year}</p> : null}
                         {searchContext && searchContext !== item.title ? (
                             <p className="mt-1 truncate text-xs text-muted">Matched as “{searchContext}”</p>
                         ) : null}
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            {statusLoading ? (
+                                <span className="inline-flex items-center gap-1.5 text-[11px] text-muted">
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    Status…
+                                </span>
+                            ) : titleStatus?.lastApply ? (
+                                <span
+                                    className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-emerald-500/35 bg-emerald-500/15 px-2.5 py-1 text-[11px] font-semibold text-emerald-100"
+                                    title={[
+                                        titleStatus.lastApply.title || titleStatus.lastApply.url,
+                                        titleStatus.lastApply.user ? `@${titleStatus.lastApply.user}` : '',
+                                        titleStatus.lastApply.at ? formatWhen(titleStatus.lastApply.at) : '',
+                                    ].filter(Boolean).join(' · ')}
+                                >
+                                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                                    <span className="truncate">
+                                        Already applied
+                                        {titleStatus.lastApply.title ? ` · ${titleStatus.lastApply.title}` : ''}
+                                    </span>
+                                </span>
+                            ) : (
+                                <span className="text-[11px] text-muted">Not applied yet</span>
+                            )}
+                            <button
+                                type="button"
+                                className={`${titleWatchEnabled ? primaryButtonClass : buttonClass} !px-2 !py-1 text-[11px]`}
+                                disabled={interactionLocked || (!titleWatchEnabled && !titleWatchSetUrl)}
+                                title={titleWatchSetUrl
+                                    ? `Pin updates for ${titleStatus?.titleWatch?.setTitle || titleStatus?.lastApply?.title || 'the active poster set'}.`
+                                    : 'Apply a poster set first, then auto-queue new art for this title.'}
+                                onClick={() => void toggleTitleWatch()}
+                            >
+                                {busy === 'title-watch' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
+                                {titleWatchEnabled ? 'Watching' : 'Watch'}
+                            </button>
+                            {(titleStatus?.watchingCount || 0) > 0 ? (
+                                <span className="text-[11px] text-plex">
+                                    {titleStatus?.watchingCount} set{(titleStatus?.watchingCount || 0) === 1 ? '' : 's'}
+                                </span>
+                            ) : null}
+                            {String(serverType).toLowerCase() === 'plex' ? (
+                                <details className="relative">
+                                    <summary className={`${buttonClass} !px-2 !py-1 text-[11px] cursor-pointer list-none [&::-webkit-details-marker]:hidden`}>
+                                        {busy === 'reset' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+                                        Reset art
+                                    </summary>
+                                    <div className="absolute right-0 z-20 mt-1 w-56 space-y-2 rounded-xl border border-white/10 bg-card p-2 shadow-xl">
+                                        {item.mediaType === 'show' ? (
+                                            <div className="flex flex-wrap gap-1">
+                                                {([
+                                                    ['poster', 'Show poster'],
+                                                    ['seasons', '+ seasons'],
+                                                    ['episodes', 'Episodes'],
+                                                    ['all', 'All'],
+                                                ] as const).map(([id, label]) => (
+                                                    <button
+                                                        key={id}
+                                                        type="button"
+                                                        className={`rounded-lg border px-2 py-1 text-[10px] font-semibold ${
+                                                            resetScope === id
+                                                                ? 'border-plex/40 bg-plex/15 text-plex'
+                                                                : 'border-white/10 text-muted hover:text-text'
+                                                        }`}
+                                                        onClick={() => setResetScope(id)}
+                                                    >
+                                                        {label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        ) : null}
+                                        <button
+                                            type="button"
+                                            className={`${buttonClass} w-full`}
+                                            disabled={interactionLocked}
+                                            onClick={() => void runResetArt()}
+                                        >
+                                            Reset to default art
+                                        </button>
+                                    </div>
+                                </details>
+                            ) : null}
+                        </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
                         {onLayoutModeChange ? (
@@ -1001,8 +1108,8 @@ export function LibraryTitleDetailPanel({
                                 type="button"
                                 className={`${buttonClass} hidden md:inline-flex`}
                                 onClick={() => onLayoutModeChange(isModalLayout ? 'drawer' : 'modal')}
-                                title={isModalLayout ? 'Switch to side drawer' : 'Switch to centered modal'}
-                                aria-label={isModalLayout ? 'Switch to side drawer' : 'Switch to centered modal'}
+                                title={isModalLayout ? 'Switch to side drawer' : 'Switch to full screen'}
+                                aria-label={isModalLayout ? 'Switch to side drawer' : 'Switch to full screen'}
                             >
                                 {isModalLayout ? <PanelRight className="h-4 w-4" /> : <Square className="h-4 w-4" />}
                             </button>
@@ -1014,96 +1121,6 @@ export function LibraryTitleDetailPanel({
                 </div>
 
                 <div ref={scrollBodyRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 pb-4 sm:p-5 custom-scrollbar">
-                    {statusLoading ? (
-                        <div className="mb-4 flex items-center gap-2 text-xs text-muted">
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            Loading title status…
-                        </div>
-                    ) : null}
-                    {(titleStatus || String(serverType).toLowerCase() === 'plex') && !statusLoading ? (
-                        <div className="mb-4 space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
-                            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-muted">
-                                <History className="h-3.5 w-3.5" />
-                                Title status
-                            </div>
-                            {titleStatus?.lastApply ? (
-                                <div className="text-sm">
-                                    <p className="font-semibold text-text">
-                                        Last applied
-                                        {titleStatus.lastApply.uploaded != null
-                                            ? ` · ${titleStatus.lastApply.uploaded} uploaded`
-                                            : ''}
-                                    </p>
-                                    <p className="mt-0.5 text-xs text-muted">
-                                        {titleStatus.lastApply.title || titleStatus.lastApply.url || 'Poster set'}
-                                        {titleStatus.lastApply.user ? ` · @${titleStatus.lastApply.user}` : ''}
-                                    </p>
-                                    {titleStatus.lastApply.at ? (
-                                        <p className="mt-0.5 text-[11px] text-muted">{formatWhen(titleStatus.lastApply.at)}</p>
-                                    ) : null}
-                                </div>
-                            ) : (
-                                <p className="text-sm text-muted">No successful apply recorded for this title yet.</p>
-                            )}
-                            <div className="rounded-lg border border-white/10 bg-black/30 px-3">
-                                <SettingsToggleRow
-                                    title="Watch this title"
-                                    description={
-                                        titleWatchSetUrl
-                                            ? `Pin updates for ${titleStatus?.titleWatch?.setTitle || titleStatus?.lastApply?.title || 'the active poster set'}.`
-                                            : 'Apply a poster set first, then auto-queue new art for this title.'
-                                    }
-                                    checked={titleWatchEnabled}
-                                    disabled={interactionLocked || ( !titleWatchEnabled && !titleWatchSetUrl )}
-                                    onChange={(next) => { void toggleTitleWatch(next); }}
-                                    border={false}
-                                />
-                            </div>
-                            {(titleStatus?.watchingCount || 0) > 0 ? (
-                                <p className="flex items-center gap-1.5 text-xs text-plex">
-                                    <Eye className="h-3.5 w-3.5" />
-                                    Watching {titleStatus?.watchingCount} set{(titleStatus?.watchingCount || 0) === 1 ? '' : 's'} for updates
-                                </p>
-                            ) : null}
-                            {String(serverType).toLowerCase() === 'plex' ? (
-                                <div className="space-y-2 border-t border-white/10 pt-3">
-                                    {item.mediaType === 'show' ? (
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {([
-                                                ['poster', 'Show poster'],
-                                                ['seasons', '+ seasons'],
-                                                ['episodes', 'Episodes'],
-                                                ['all', 'All'],
-                                            ] as const).map(([id, label]) => (
-                                                <button
-                                                    key={id}
-                                                    type="button"
-                                                    className={`rounded-lg border px-2 py-1 text-[10px] font-semibold ${
-                                                        resetScope === id
-                                                            ? 'border-plex/40 bg-plex/15 text-plex'
-                                                            : 'border-white/10 text-muted hover:text-text'
-                                                    }`}
-                                                    onClick={() => setResetScope(id)}
-                                                >
-                                                    {label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    ) : null}
-                                    <button
-                                        type="button"
-                                        className={`${buttonClass} w-full`}
-                                        disabled={interactionLocked}
-                                        onClick={() => void runResetArt()}
-                                    >
-                                        {busy === 'reset' ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
-                                        Reset to default art
-                                    </button>
-                                </div>
-                            ) : null}
-                        </div>
-                    ) : null}
-
                     {loading ? (
                         <div className="flex flex-col items-center justify-center gap-3 py-16 text-sm text-muted">
                             <Loader2 className="h-6 w-6 animate-spin text-plex" />
@@ -1242,6 +1259,7 @@ export function LibraryTitleDetailPanel({
                                             <div className={landscape ? setsGridClassLandscape : setsGridClass}>
                                                 {items.map((set) => {
                                                     const watching = isSetWatched(set);
+                                                    const applied = lastApplyMatchesSet(set);
                                                     const setTitle = String(set.title || '').trim() || `Set #${set.setId}`;
                                                     const creator = String(set.user || '').trim().replace(/^@+/, '');
                                                     const expanded = selectedSet?.url === set.url;
@@ -1273,11 +1291,18 @@ export function LibraryTitleDetailPanel({
                                                                     )}
                                                                     <ProviderCornerBadge provider={set.provider} />
                                                                 </div>
-                                                                {watching ? (
-                                                                    <div className="px-2 pt-2">
-                                                                        <span className="inline-flex rounded-full border border-plex/35 bg-plex/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-plex">
-                                                                            Watching
-                                                                        </span>
+                                                                {applied || watching ? (
+                                                                    <div className="flex flex-wrap justify-center gap-1 px-2 pt-2">
+                                                                        {applied ? (
+                                                                            <span className="inline-flex rounded-full border border-emerald-500/35 bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-100">
+                                                                                Applied
+                                                                            </span>
+                                                                        ) : null}
+                                                                        {watching ? (
+                                                                            <span className="inline-flex rounded-full border border-plex/35 bg-plex/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-plex">
+                                                                                Watching
+                                                                            </span>
+                                                                        ) : null}
                                                                     </div>
                                                                 ) : null}
                                                                 <div className="px-2 py-2 text-center">
@@ -1356,6 +1381,10 @@ export function LibraryTitleDetailPanel({
                                 showAssets={showAssets}
                                 busy={busy}
                                 closeLabel="Back to sets"
+                                assets={preview?.assets}
+                                onChangeSelectedIds={setSelectedAssetIds}
+                                alreadyApplied={lastApplyMatchesSet(selectedSet)}
+                                alreadyAppliedLabel={titleStatus?.lastApply?.at ? formatWhen(titleStatus.lastApply.at) : undefined}
                                 onToggleShowAssets={() => setShowAssets((value) => !value)}
                                 onQueueMatched={() => void applyMatched()}
                                 onQueueSelected={() => void applySelected()}

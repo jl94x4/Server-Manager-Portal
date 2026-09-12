@@ -1680,7 +1680,7 @@ export const PosterSetsSettingsView: React.FC = () => {
                     <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
                         <p className="text-sm font-semibold text-text">Library title panel</p>
                         <p className="mt-1 text-xs text-muted">
-                            On desktop, open a library title in a right-side drawer or a larger centered modal.
+                            On desktop, open a library title full screen (more room for art) or as a right-side drawer.
                             Mobile always uses the slide-out drawer. You can also toggle layout from the panel header.
                         </p>
                         <div className="mt-3">

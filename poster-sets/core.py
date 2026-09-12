@@ -103,6 +103,8 @@ def asset_label(kind: str, poster: dict) -> str:
     if kind == "collection":
         return "Collection"
     if kind == "movie":
+        if poster.get("season") == "Backdrop" or asset_file_type("movie", poster) == "background":
+            return "Background"
         return "Movie poster"
     season = poster.get("season")
     episode = poster.get("episode")
@@ -118,21 +120,75 @@ def asset_label(kind: str, poster: dict) -> str:
 
 
 def asset_file_type(kind: str, poster: dict) -> str | None:
-    """Map a poster row to a mediux_filters id (show assets only)."""
-    explicit = poster.get("file_type") or poster.get("fileType")
-    if explicit in {"title_card", "background", "season_cover", "show_cover"}:
+    """Map a poster row to a mediux_filters / art-type picker id."""
+    explicit = str(poster.get("file_type") or poster.get("fileType") or "").strip().lower()
+    if explicit in {"backdrop", "background"}:
+        return "background"
+    if explicit in {"title_card", "season_cover", "show_cover"}:
         return explicit
+    season = poster.get("season")
+    if season == "Backdrop":
+        return "background"
     if kind != "show":
         return None
-    season = poster.get("season")
     episode = poster.get("episode")
     if season == "Cover":
         return "show_cover"
-    if season == "Backdrop":
-        return "background"
     if episode == "Cover" or episode is None or episode == "":
         return "season_cover"
     return "title_card"
+
+
+_POSTERDB_SEASON_SUFFIX = re.compile(r"^Season\s+(\d+)$", re.I)
+
+
+def parse_posterdb_caption(caption: str) -> dict:
+    """Split a ThePosterDB overlay caption into title / year / poster target.
+
+    ThePosterDB is posters only (show, season, movie, collection). It has no
+    backdrops or episode title cards — those are MediUX. Captions look like:
+      Show (2020)
+      Show (2020) - Season 1
+      Show (2020) - Specials
+      Movie (2026)
+    """
+    text = " ".join(str(caption or "").split()).strip()
+    year = None
+    year_match = re.search(r"\((\d{4}|N/A)\)", text)
+    if year_match:
+        if year_match.group(1).isdigit():
+            year = int(year_match.group(1))
+        title = text[: year_match.start()].strip() or text
+        rest = text[year_match.end() :].strip()
+    else:
+        title = text
+        rest = ""
+    suffix = rest.lstrip("-–— ").strip() if rest else ""
+
+    season: Any = None
+    file_type: str | None = None
+    if suffix:
+        low = suffix.lower()
+        if low in {"specials", "special"}:
+            season = 0
+            file_type = "season_cover"
+        elif low in {"cover", "poster"}:
+            season = "Cover"
+            file_type = "show_cover"
+        else:
+            sea = _POSTERDB_SEASON_SUFFIX.match(suffix)
+            if sea:
+                season = int(sea.group(1))
+                file_type = "season_cover"
+
+    return {
+        "title": title or text,
+        "year": year,
+        "suffix": suffix,
+        "season": season,
+        "episode": None,
+        "file_type": file_type,
+    }
 
 
 def _image_suffix(content_type: str, url: str) -> str:
@@ -1905,9 +1961,17 @@ def upload_movie_poster(poster, movies, progress: ProgressFn = None) -> dict:
         return result
     for movie_item in movie_items:
         try:
-            apply_poster_or_art(movie_item, poster, progress=progress)
+            as_background = (
+                poster.get("season") == "Backdrop"
+                or asset_file_type("movie", poster) == "background"
+            )
+            apply_poster_or_art(movie_item, poster, art=as_background, progress=progress)
             clear_kometa_overlay(movie_item, config=poster.get("_config"), progress=progress)
-            msg = f'Uploaded art for {poster["title"]} in {movie_item.librarySectionTitle}.'
+            msg = (
+                f'Uploaded background for {poster["title"]} in {movie_item.librarySectionTitle}.'
+                if as_background
+                else f'Uploaded art for {poster["title"]} in {movie_item.librarySectionTitle}.'
+            )
             result["ok"] = True
             result["message"] = msg
             emit(progress, msg)
@@ -1949,7 +2013,11 @@ def upload_collection_poster(poster, movies, progress: ProgressFn = None, tv=Non
         return result
     for item in items:
         try:
-            apply_poster_or_art(item, poster, progress=progress)
+            as_background = (
+                poster.get("season") == "Backdrop"
+                or asset_file_type("collection", poster) == "background"
+            )
+            apply_poster_or_art(item, poster, art=as_background, progress=progress)
             clear_kometa_overlay(item, config=poster.get("_config"), progress=progress)
             msg = (
                 f'Uploaded art for {title} on {getattr(item, "title", title)} '
@@ -2047,19 +2115,28 @@ def scrape_posterdb_single_poster(soup, poster_url: str = "") -> Tuple[list, lis
         if not title and og and og.get("content"):
             title = re.sub(r"\s*\|\s*TPDb.*$", "", str(og.get("content")), flags=re.I).strip() or None
 
+    parsed = parse_posterdb_caption(title or "")
     entry = {
-        "title": title or f"Poster {poster_id}",
+        "title": parsed["title"] or title or f"Poster {poster_id}",
         "url": asset_url,
-        "year": year,
+        "year": year if year is not None else parsed["year"],
         "source": "posterdb",
+        "file_type": parsed["file_type"],
+        "season": parsed["season"],
+        "episode": None,
     }
     if media_type == "Show":
-        entry["season"] = "Cover"
-        entry["episode"] = None
+        if entry["season"] is None:
+            entry["season"] = "Cover"
+            entry["file_type"] = "show_cover"
         showposters.append(entry)
     elif media_type == "Collection":
+        entry["season"] = None
+        entry["file_type"] = None
         collectionposters.append(entry)
     else:
+        entry["season"] = None
+        entry["file_type"] = None
         movieposters.append(entry)
 
     page_meta.update({
@@ -2088,61 +2165,54 @@ def scrape_posterdb(soup) -> Tuple[list, list, list]:
         return movieposters, showposters, collectionposters
     posters = poster_div.find_all("div", class_="col-6 col-lg-2 p-1")
     for poster in posters:
-        media_type = poster.find(
+        tip = poster.find(
             "a", class_="text-white", attrs={"data-toggle": "tooltip", "data-placement": "top"}
-        )["title"]
+        )
+        if not tip:
+            continue
+        media_type = tip.get("title")
         overlay_div = poster.find("div", class_="overlay")
+        if not overlay_div or not overlay_div.get("data-poster-id"):
+            continue
         poster_id = overlay_div.get("data-poster-id")
         poster_url = "https://theposterdb.com/api/assets/" + poster_id
-        title_p = poster.find("p", class_="p-0 mb-1 text-break").string
+        title_node = poster.find("p", class_="p-0 mb-1 text-break")
+        title_p = title_node.get_text(" ", strip=True) if title_node else ""
+        parsed = parse_posterdb_caption(title_p)
 
         if media_type == "Show":
-            title = title_p.split(" (")[0]
-            try:
-                year = int(title_p.split(" (")[1].split(")")[0])
-            except Exception:
-                year = None
-            if " - " in title_p:
-                split_season = title_p.split(" - ")[-1]
-                if split_season == "Specials":
-                    season: Any = 0
-                elif "Season" in split_season:
-                    season = int(split_season.split(" ")[1])
-                else:
-                    season = "Cover"
-            else:
+            season = parsed["season"]
+            file_type = parsed["file_type"]
+            if season is None:
                 season = "Cover"
+                file_type = "show_cover"
             showposters.append(
                 {
-                    "title": title,
+                    "title": parsed["title"] or title_p or f"Poster {poster_id}",
                     "url": poster_url,
                     "season": season,
                     "episode": None,
-                    "year": year,
+                    "year": parsed["year"],
                     "source": "posterdb",
+                    "file_type": file_type,
                 }
             )
         elif media_type == "Movie":
-            title_split = title_p.split(" (")
-            if len(title_split[1]) != 5:
-                title = title_split[0] + " (" + title_split[1]
-            else:
-                title = title_split[0]
-            year = title_split[-1].split(")")[0]
             movieposters.append(
                 {
-                    "title": title,
+                    "title": parsed["title"] or title_p or f"Poster {poster_id}",
                     "url": poster_url,
-                    "year": int(year),
+                    "year": parsed["year"],
                     "source": "posterdb",
                 }
             )
         elif media_type == "Collection":
             collectionposters.append(
                 {
-                    "title": title_p,
+                    "title": parsed["title"] or title_p,
                     "url": poster_url,
                     "source": "posterdb",
+                    "year": parsed["year"],
                 }
             )
     return movieposters, showposters, collectionposters
@@ -2347,6 +2417,12 @@ def scrape_mediux(soup, mediux_filters: Optional[Sequence[str]] = None, progress
                 continue
 
         elif media_type == "Movie":
+            file_type = None
+            season = None
+            movie_file = str(data.get("fileType") or data.get("file_type") or "").strip().lower()
+            if movie_file in {"backdrop", "background"} or data.get("movie_id_backdrop") is not None:
+                file_type = "background"
+                season = "Backdrop"
             if data.get("movie_id"):
                 if data_dict["set"].get("movie"):
                     title = data_dict["set"]["movie"]["title"]
@@ -2359,6 +2435,12 @@ def scrape_mediux(soup, mediux_filters: Optional[Sequence[str]] = None, progress
                     year = int(movie_data["release_date"][:4])
             elif data.get("collection_id"):
                 title = data_dict["set"]["collection"]["collection_name"]
+            elif file_type == "background" and data_dict["set"].get("movie"):
+                title = data_dict["set"]["movie"]["title"]
+                try:
+                    year = int(data_dict["set"]["movie"]["release_date"][:4])
+                except Exception:
+                    year = None
 
         image_stub = data["id"]
         poster_url = f"{base_url}{image_stub}"
@@ -2380,17 +2462,28 @@ def scrape_mediux(soup, mediux_filters: Optional[Sequence[str]] = None, progress
         elif media_type == "Movie":
             if "Collection" in str(title):
                 collectionposters.append(
-                    {"title": title, "url": poster_url, "source": "mediux"}
-                )
-            else:
-                movieposters.append(
                     {
                         "title": title,
-                        "year": int(year) if year else None,
                         "url": poster_url,
                         "source": "mediux",
+                        "season": season,
+                        "file_type": file_type,
                     }
                 )
+            else:
+                movie_row = {
+                    "title": title,
+                    "year": int(year) if year else None,
+                    "url": poster_url,
+                    "source": "mediux",
+                    "season": season,
+                    "file_type": file_type,
+                }
+                keep_type = file_type or "show_cover"
+                if check_mediux_filter(mediux_filters, keep_type):
+                    movieposters.append(movie_row)
+                else:
+                    emit(progress, f"{title} - skipping. '{keep_type}' is not in mediux_filters")
 
     if not page_meta.get("title"):
         for group in (showposters, movieposters, collectionposters):
@@ -2643,8 +2736,8 @@ def build_preview_assets(movieposters, showposters, collectionposters, tv=None, 
                 "kind": kind,
                 "title": poster.get("title") or "Untitled",
                 "year": poster.get("year"),
-                "season": None,
-                "episode": None,
+                "season": poster.get("season"),
+                "episode": poster.get("episode"),
                 "label": asset_label(kind, poster),
                 "thumbUrl": poster.get("url") or "",
                 "matched": matched if tv is not None else None,
@@ -2681,7 +2774,7 @@ def build_preview_assets(movieposters, showposters, collectionposters, tv=None, 
                 "kind": kind,
                 "title": poster.get("title") or "Untitled",
                 "year": None,
-                "season": None,
+                "season": poster.get("season"),
                 "episode": None,
                 "label": asset_label(kind, poster),
                 "thumbUrl": poster.get("url") or "",

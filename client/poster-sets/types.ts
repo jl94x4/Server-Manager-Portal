@@ -436,9 +436,17 @@ export const mediuxFiltersFromAssets = (assets: Array<Partial<PosterSetsPreviewA
     const filters = new Set<string>();
     for (const asset of assets) {
         if (!asset) continue;
-        const explicit = String(asset.fileType || '').trim();
+        const explicit = String(asset.fileType || '').trim().toLowerCase();
+        if (explicit === 'backdrop' || explicit === 'background') {
+            filters.add('background');
+            continue;
+        }
         if (MEDIUX_FILTER_IDS.has(explicit as typeof MEDIUX_FILTER_OPTIONS[number]['id'])) {
             filters.add(explicit);
+            continue;
+        }
+        if (asset.season === 'Backdrop') {
+            filters.add('background');
             continue;
         }
         if (asset.kind !== 'show') continue;

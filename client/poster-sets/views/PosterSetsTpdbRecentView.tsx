@@ -53,6 +53,7 @@ export const PosterSetsTpdbRecentView: React.FC = () => {
         readyToApply,
         matchedAssetCount,
         selectedAssetIds,
+        setSelectedAssetIds,
         selectedBulkSets,
         titleCardsOnly,
         showInspectorAssets,
@@ -228,6 +229,8 @@ export const PosterSetsTpdbRecentView: React.FC = () => {
                     titleCardsOnly={titleCardsOnly}
                     showAssets={showInspectorAssets}
                     busy={busy}
+                    assets={preview?.assets}
+                    onChangeSelectedIds={setSelectedAssetIds}
                     onToggleShowAssets={() => setShowInspectorAssets((value: boolean) => !value)}
                     onQueueMatched={() => void applyMatched()}
                     onQueueSelected={() => void runApply(true)}

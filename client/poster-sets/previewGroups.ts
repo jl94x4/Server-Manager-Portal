@@ -26,18 +26,34 @@ const asSeasonNumber = (value: unknown): number | null => {
 };
 
 export const classifyPreviewAsset = (asset: PosterSetsPreviewAsset): PreviewAssetKind => {
-    const explicit = String(asset.fileType || '').trim();
-    if (explicit === 'show_cover' || explicit === 'season_cover' || explicit === 'background' || explicit === 'title_card') {
+    // ThePosterDB is posters only — show/season/movie/collection posters, never backdrops or title cards.
+    if (isPosterdbPreviewAsset(asset)) {
+        if (asset.kind === 'movie' || asset.kind === 'collection') return 'poster';
+        const season = asset.season;
+        if (season === 'Cover' || season === 'Backdrop' || season == null || season === '') return 'show_cover';
+        return 'season_cover';
+    }
+
+    const explicit = String(asset.fileType || '').trim().toLowerCase();
+    if (explicit === 'backdrop' || explicit === 'background') return 'background';
+    if (explicit === 'show_cover' || explicit === 'season_cover' || explicit === 'title_card') {
         return explicit;
     }
+    const season = asset.season;
+    if (season === 'Backdrop') return 'background';
     if (asset.kind === 'movie' || asset.kind === 'collection') return 'poster';
 
-    const season = asset.season;
     const episode = asset.episode;
     if (season === 'Cover') return 'show_cover';
-    if (season === 'Backdrop') return 'background';
     if (episode === 'Cover' || episode == null || episode === '') return 'season_cover';
     return 'title_card';
+};
+
+const isPosterdbPreviewAsset = (asset: PosterSetsPreviewAsset) => {
+    const source = String(asset.source || '').toLowerCase();
+    if (source === 'posterdb' || source === 'tpdb' || source === 'theposterdb') return true;
+    const url = String(asset.thumbUrl || '');
+    return /theposterdb\.com/i.test(url);
 };
 
 const seasonSortValue = (season: number | string) => {
@@ -140,4 +156,81 @@ export const previewAssetEpisodeLabel = (asset: PosterSetsPreviewAsset) => {
         return `E${episode}`;
     }
     return String(asset.label || asset.title || 'Title card');
+};
+
+/** Queue-picker buckets: movie/show posters share “Poster”. */
+export type PreviewQueueKind = 'poster' | 'season_cover' | 'background' | 'title_card';
+
+export const PREVIEW_QUEUE_KIND_ORDER: PreviewQueueKind[] = [
+    'poster',
+    'background',
+    'season_cover',
+    'title_card',
+];
+
+export const canonicalPreviewQueueKind = (kind: PreviewAssetKind): PreviewQueueKind => (
+    kind === 'show_cover' ? 'poster' : kind
+);
+
+export const previewQueueKindLabel = (kind: PreviewQueueKind): string => {
+    switch (kind) {
+        case 'poster': return 'Poster';
+        case 'background': return 'Backdrop';
+        case 'season_cover': return 'Season poster';
+        case 'title_card': return 'Title cards';
+        default: return kind;
+    }
+};
+
+export type PreviewQueueKindOption = {
+    id: PreviewQueueKind;
+    label: string;
+    count: number;
+    matched: number;
+};
+
+export const previewQueueKindOptions = (assets: PosterSetsPreviewAsset[] = []): PreviewQueueKindOption[] => {
+    const stats = new Map<PreviewQueueKind, { count: number; matched: number }>();
+    for (const asset of assets) {
+        const kind = canonicalPreviewQueueKind(classifyPreviewAsset(asset));
+        const entry = stats.get(kind) || { count: 0, matched: 0 };
+        entry.count += 1;
+        if (asset.matched === true) entry.matched += 1;
+        stats.set(kind, entry);
+    }
+    return PREVIEW_QUEUE_KIND_ORDER
+        .filter((id) => (stats.get(id)?.count || 0) > 0)
+        .map((id) => ({
+            id,
+            label: previewQueueKindLabel(id),
+            count: stats.get(id)!.count,
+            matched: stats.get(id)!.matched,
+        }));
+};
+
+export const previewAssetsKey = (assets: PosterSetsPreviewAsset[] = []) => (
+    assets.map((asset) => asset.id).join('|')
+);
+
+/**
+ * IDs to queue for checked art types.
+ * If a type has matched Plex items, only those are queued; otherwise all assets of that type.
+ */
+export const assetIdsForQueueKinds = (
+    assets: PosterSetsPreviewAsset[] = [],
+    kinds: Iterable<PreviewQueueKind>,
+    preferMatched = true,
+): string[] => {
+    const kindSet = kinds instanceof Set ? kinds : new Set(kinds);
+    if (!kindSet.size) return [];
+    const ids: string[] = [];
+    for (const kind of PREVIEW_QUEUE_KIND_ORDER) {
+        if (!kindSet.has(kind)) continue;
+        const ofKind = assets.filter((asset) => canonicalPreviewQueueKind(classifyPreviewAsset(asset)) === kind);
+        if (!ofKind.length) continue;
+        const matched = ofKind.filter((asset) => asset.matched === true);
+        if (preferMatched && matched.length) ids.push(...matched.map((asset) => asset.id));
+        else ids.push(...ofKind.map((asset) => asset.id));
+    }
+    return ids;
 };

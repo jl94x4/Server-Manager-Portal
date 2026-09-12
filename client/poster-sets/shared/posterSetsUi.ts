@@ -3,7 +3,7 @@ import { dashboardPanelClass } from '../../shared/dashboard/DashboardChrome';
 import { MEDIUX_FILTER_OPTIONS, type PosterSetsBrowseRail } from '../types';
 
 export const POSTER_SETS_GRID_STORAGE_KEY = 'posterSetsGridSize.v3';
-export const POSTER_SETS_LIBRARY_DETAIL_LAYOUT_KEY = 'posterSetsLibraryDetailLayout';
+export const POSTER_SETS_LIBRARY_DETAIL_LAYOUT_KEY = 'posterSetsLibraryDetailLayout.v2';
 export const POSTER_SETS_GRID_OPTIONS = UPGRADER_GRID_SIZE_OPTIONS.filter((option) => option.value !== 'list');
 /** Watching / Library / Discover poster grids — Extra large by default. */
 export const DEFAULT_POSTER_SETS_GRID_SIZE = 'xlarge' as const;
@@ -11,12 +11,12 @@ export const DEFAULT_POSTER_SETS_GRID_SIZE = 'xlarge' as const;
 export type LibraryDetailLayout = 'drawer' | 'modal';
 
 export const LIBRARY_DETAIL_LAYOUT_OPTIONS = [
+    { value: 'modal', label: 'Full screen' },
     { value: 'drawer', label: 'Side drawer' },
-    { value: 'modal', label: 'Centered modal' },
 ] as const;
 
 export const normalizeLibraryDetailLayout = (value?: string | null): LibraryDetailLayout => (
-    value === 'modal' ? 'modal' : 'drawer'
+    value === 'drawer' ? 'drawer' : 'modal'
 );
 export const SEARCH_SETS_PAGE_SIZE = 50;
 export const SEARCH_SETS_PAGE_SIZE_STORAGE_KEY = 'posterSetsSearchPageSize.v1';

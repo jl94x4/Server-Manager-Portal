@@ -61,6 +61,7 @@ export const PosterSetsCollectionsView: React.FC = () => {
         matchedAssetCount,
         preview,
         selectedAssetIds,
+        setSelectedAssetIds,
         titleCardsOnly,
         showInspectorAssets,
         setShowInspectorAssets,
@@ -282,6 +283,8 @@ export const PosterSetsCollectionsView: React.FC = () => {
                                 titleCardsOnly={titleCardsOnly}
                                 showAssets={showInspectorAssets}
                                 busy={busy}
+                                assets={preview?.assets}
+                                onChangeSelectedIds={setSelectedAssetIds}
                                 onToggleShowAssets={() => setShowInspectorAssets((value) => !value)}
                                 onQueueMatched={() => void applyMatched()}
                                 onQueueSelected={() => void runApply(true)}

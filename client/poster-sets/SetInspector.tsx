@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     CheckCircle2,
     ChevronDown,
@@ -8,9 +8,15 @@ import {
     Loader2,
     X,
 } from 'lucide-react';
-import type { PosterSetsSearchSet } from './types';
+import type { PosterSetsPreviewAsset, PosterSetsSearchSet } from './types';
 import { PosterImageLightbox } from './shared/posterSetsCards';
 import { ProviderPill } from './shared/posterSetsPills';
+import {
+    assetIdsForQueueKinds,
+    previewAssetsKey,
+    previewQueueKindOptions,
+    type PreviewQueueKind,
+} from './previewGroups';
 
 const buttonClass = 'inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-black/20 px-2.5 py-1.5 text-xs font-semibold text-text transition hover:border-plex/40 hover:bg-white/5 disabled:pointer-events-none disabled:opacity-40 sm:gap-2 sm:px-3 sm:py-2 sm:text-sm';
 const primaryButtonClass = 'inline-flex items-center justify-center gap-1.5 rounded-xl bg-plex px-2.5 py-1.5 text-xs font-bold text-background transition hover:bg-plex-hover active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40 sm:gap-2 sm:px-3 sm:py-2 sm:text-sm';
@@ -43,6 +49,12 @@ export type SetInspectorProps = {
     thumbStrip?: React.ReactNode;
     gallery?: React.ReactNode;
     relatedRail?: React.ReactNode;
+    /** Preview assets — drives Aura-style Poster / Backdrop / Season / Title card checkboxes. */
+    assets?: PosterSetsPreviewAsset[];
+    onChangeSelectedIds?: (ids: string[]) => void;
+    /** Green “already applied” chip when this set is the title’s last successful apply. */
+    alreadyApplied?: boolean;
+    alreadyAppliedLabel?: string;
 };
 
 export function SetInspector({
@@ -72,14 +84,49 @@ export function SetInspector({
     thumbStrip,
     gallery,
     relatedRail,
+    assets,
+    onChangeSelectedIds,
+    alreadyApplied,
+    alreadyAppliedLabel,
 }: SetInspectorProps) {
+    const kindOptions = useMemo(() => previewQueueKindOptions(assets || []), [assets]);
+    const assetsKey = previewAssetsKey(assets || []);
+    const [selectedKinds, setSelectedKinds] = useState<Set<PreviewQueueKind>>(() => new Set());
+    const onChangeSelectedIdsRef = useRef(onChangeSelectedIds);
+    onChangeSelectedIdsRef.current = onChangeSelectedIds;
+
+    useEffect(() => {
+        const list = assets || [];
+        if (!list.length) {
+            setSelectedKinds((prev) => (prev.size ? new Set() : prev));
+            return;
+        }
+        const options = previewQueueKindOptions(list);
+        const next = new Set(options.map((option) => option.id));
+        setSelectedKinds(next);
+        onChangeSelectedIdsRef.current?.(assetIdsForQueueKinds(list, next));
+        // Fingerprint asset ids so parent selected-id updates don't reset the type picker.
+    }, [assetsKey]);
+
+    const toggleKind = (kind: PreviewQueueKind) => {
+        const next = new Set(selectedKinds);
+        if (next.has(kind)) next.delete(kind);
+        else next.add(kind);
+        setSelectedKinds(next);
+        onChangeSelectedIds?.(assetIdsForQueueKinds(assets || [], next));
+    };
+
     if (!set && !loading && !ready) return null;
 
-    const queueMatchedLabel = matchedCount
-        ? `Queue matched (${matchedCount})`
-        : selectedCount
-            ? `Queue selected (${selectedCount})`
-            : 'Queue matched';
+    const hasKindPicker = kindOptions.length > 0;
+    const queueCount = selectedCount;
+    const queueMatchedLabel = hasKindPicker
+        ? (queueCount ? `Queue (${queueCount})` : 'Queue')
+        : matchedCount
+            ? `Queue matched (${matchedCount})`
+            : selectedCount
+                ? `Queue selected (${selectedCount})`
+                : 'Queue matched';
 
     const dismissIcon = closeLabel.toLowerCase().includes('back')
         ? <ChevronLeft className="h-4 w-4" />
@@ -122,6 +169,9 @@ export function SetInspector({
                                         @{String(set.user).trim().replace(/^@+/, '')}
                                     </p>
                                 ) : null}
+                                {set?.setId ? (
+                                    <p className="mt-0.5 text-xs text-muted">Set ID: {set.setId}</p>
+                                ) : null}
                             </div>
                             <button type="button" className={`${buttonClass} shrink-0`} onClick={onClose}>
                                 {dismissIcon}
@@ -129,81 +179,131 @@ export function SetInspector({
                             </button>
                         </div>
 
+                        {alreadyApplied ? (
+                            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
+                                Already applied to this title
+                                {alreadyAppliedLabel ? ` · ${alreadyAppliedLabel}` : ''}
+                            </div>
+                        ) : null}
+
                         <p className="text-sm text-muted">
                             <span className="text-emerald-300">{matchedCount} matched</span>
                             {' · '}
                             <span className="text-amber-200">{unmatchedCount} missing</span>
                             {' · '}
                             {totalCount} in set
-                            {' · '}
-                            {selectedCount} selected
+                            {hasKindPicker ? null : (
+                                <>
+                                    {' · '}
+                                    {selectedCount} selected
+                                </>
+                            )}
                         </p>
-                        <p className="text-xs text-muted">
-                            {titleCardsOnly
-                                ? 'Title-card pack — only episode title cards from this set.'
-                                : 'Matched art is ready to queue. Click art to enlarge, or open assets to pick pieces.'}
-                        </p>
-
-                        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                            <button
-                                type="button"
-                                className={`${primaryButtonClass} w-full sm:w-auto sm:min-w-[11rem]`}
-                                disabled={busy !== null || (matchedCount < 1 && !selectedCount)}
-                                onClick={onQueueMatched}
-                            >
-                                {busy === 'apply' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                                {queueMatchedLabel}
-                            </button>
-                            <button
-                                type="button"
-                                className={`${buttonClass} w-full sm:w-auto`}
-                                disabled={busy !== null}
-                                onClick={onQueueEntire}
-                            >
-                                Queue entire set
-                            </button>
-                            <button type="button" className={`${buttonClass} w-full sm:w-auto`} onClick={onToggleShowAssets}>
-                                {showAssets ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                                {showAssets ? 'Hide assets' : 'Show all assets'}
-                            </button>
-                        </div>
-
-                        {showAssets ? (
-                            <div className="flex flex-wrap gap-2 border-t border-white/10 pt-3">
-                                <button type="button" className={buttonClass} onClick={onSelectMatched}>Matched only</button>
-                                <button type="button" className={buttonClass} onClick={onSelectAll}>Select all</button>
-                                <button type="button" className={buttonClass} onClick={onClearSelection}>Clear selection</button>
-                                <button
-                                    type="button"
-                                    className={buttonClass}
-                                    disabled={busy !== null || !selectedCount}
-                                    onClick={onQueueSelected}
-                                >
-                                    Queue selected ({selectedCount})
-                                </button>
-                                <button
-                                    type="button"
-                                    className={buttonClass}
-                                    disabled={busy !== null}
-                                    onClick={onQueueUnmatched}
-                                >
-                                    Queue unmatched
-                                </button>
-                                <button
-                                    type="button"
-                                    className={buttonClass}
-                                    disabled={busy !== null}
-                                    onClick={onQueueNewSinceWatch}
-                                >
-                                    Queue new since watch
-                                </button>
-                            </div>
-                        ) : null}
                     </div>
 
                     {thumbStrip ? (
                         <div className="min-w-0 border-t border-white/10 pt-4">
                             {thumbStrip}
+                        </div>
+                    ) : null}
+
+                    {hasKindPicker ? (
+                        <div className="space-y-2 border-t border-white/10 pt-4">
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-muted">Art types</p>
+                            <div className="space-y-0.5 rounded-xl border border-white/10 bg-black/25 p-2 sm:p-3">
+                                {kindOptions.map((option) => {
+                                    const checked = selectedKinds.has(option.id);
+                                    return (
+                                        <label
+                                            key={option.id}
+                                            className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 hover:bg-white/5"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                className="h-4 w-4 shrink-0 rounded border-white/20 bg-black/40 accent-plex"
+                                                checked={checked}
+                                                onChange={() => toggleKind(option.id)}
+                                            />
+                                            <span className="min-w-0 flex-1 text-sm font-medium text-text">{option.label}</span>
+                                            <span className="shrink-0 text-xs text-muted">
+                                                {option.matched && option.matched !== option.count
+                                                    ? `${option.matched}/${option.count}`
+                                                    : option.count}
+                                            </span>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                            <p className="text-xs text-muted">
+                                {queueCount
+                                    ? `${queueCount} image${queueCount === 1 ? '' : 's'} ready to queue`
+                                    : 'Check at least one art type to queue.'}
+                                {kindOptions.some((option) => option.id === 'title_card')
+                                    ? ' Uncheck posters to apply title cards only.'
+                                    : ''}
+                            </p>
+                        </div>
+                    ) : (
+                        <p className="text-xs text-muted">
+                            {titleCardsOnly
+                                ? 'Title-card pack — only episode title cards from this set.'
+                                : 'Matched art is ready to queue. Click art to enlarge, or open assets to pick pieces.'}
+                        </p>
+                    )}
+
+                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                        <button
+                            type="button"
+                            className={`${primaryButtonClass} w-full sm:w-auto sm:min-w-[11rem]`}
+                            disabled={busy !== null || (hasKindPicker ? !queueCount : (matchedCount < 1 && !selectedCount))}
+                            onClick={onQueueMatched}
+                        >
+                            {busy === 'apply' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                            {queueMatchedLabel}
+                        </button>
+                        <button
+                            type="button"
+                            className={`${buttonClass} w-full sm:w-auto`}
+                            disabled={busy !== null}
+                            onClick={onQueueEntire}
+                        >
+                            Queue entire set
+                        </button>
+                        <button type="button" className={`${buttonClass} w-full sm:w-auto`} onClick={onToggleShowAssets}>
+                            {showAssets ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            {showAssets ? 'Hide assets' : 'Show all assets'}
+                        </button>
+                    </div>
+
+                    {showAssets ? (
+                        <div className="flex flex-wrap gap-2 border-t border-white/10 pt-3">
+                            <button type="button" className={buttonClass} onClick={onSelectMatched}>Matched only</button>
+                            <button type="button" className={buttonClass} onClick={onSelectAll}>Select all</button>
+                            <button type="button" className={buttonClass} onClick={onClearSelection}>Clear selection</button>
+                            <button
+                                type="button"
+                                className={buttonClass}
+                                disabled={busy !== null || !selectedCount}
+                                onClick={onQueueSelected}
+                            >
+                                Queue selected ({selectedCount})
+                            </button>
+                            <button
+                                type="button"
+                                className={buttonClass}
+                                disabled={busy !== null}
+                                onClick={onQueueUnmatched}
+                            >
+                                Queue unmatched
+                            </button>
+                            <button
+                                type="button"
+                                className={buttonClass}
+                                disabled={busy !== null}
+                                onClick={onQueueNewSinceWatch}
+                            >
+                                Queue new since watch
+                            </button>
                         </div>
                     ) : null}
 
@@ -263,7 +363,7 @@ export function SetInspectorThumbStrip({
             />
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-muted">
-                    Matched preview
+                    Preview
                     <span className="ml-1.5 font-semibold normal-case tracking-normal text-muted/80">{thumbs.length}</span>
                 </p>
                 <p className="inline-flex items-center gap-1 text-[10px] text-muted">
