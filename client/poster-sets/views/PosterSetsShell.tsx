@@ -2,6 +2,7 @@ import React from 'react';
 import {
     CheckCircle2,
     ClipboardPaste,
+    Clock,
     Compass,
     Eye,
     Image as ImageIcon,
