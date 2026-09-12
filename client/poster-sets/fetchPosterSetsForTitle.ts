@@ -214,6 +214,7 @@ async function fetchBothSetsProgressive(
         tpdbConfigured?: boolean;
         tpdbEnabled?: boolean;
         mediuxEnabled?: boolean;
+        tvdbId?: string | null;
         onPartial?: (result: PosterSetsSearchResult) => void;
         onMediuxSettled?: (result: PosterSetsSearchResult) => void;
         onTpdbSettled?: (result: PosterSetsSearchResult) => void;
@@ -296,6 +297,7 @@ async function fetchBothSetsProgressive(
     const tpdbTask = tpdbOn ? (async () => {
         const fetchPromise = fetchPosterdbSets(posterdbSource, {
             tmdbId: linkedTmdbId,
+            tvdbId: options.tvdbId,
             titleHint: options.titleHint,
             yearHint: options.yearHint,
             mediaType: options.fallbackMedia,
@@ -391,29 +393,6 @@ async function fetchBothSetsProgressive(
             };
             paintMerged();
         }).catch(() => {});
-
-        // After a cache hit, await a live merge so new sets appear in the UI (and disk).
-        if (posterdbResult.fromCache && options.tpdbConfigured !== false) {
-            try {
-                const refreshed = await fetchPosterdbSets(posterdbSource, {
-                    tmdbId: linkedTmdbId,
-                    titleHint: options.titleHint,
-                    yearHint: options.yearHint,
-                    mediaType: options.fallbackMedia,
-                    tpdbConfigured: options.tpdbConfigured,
-                    refresh: true,
-                });
-                if ((refreshed.sets?.length || 0) > 0) {
-                    posterdbResult = {
-                        ...refreshed,
-                        fromCache: true,
-                    };
-                    paintMerged();
-                }
-            } catch {
-                // Keep the cache paint — scheduled refresh will try again later.
-            }
-        }
     })() : Promise.resolve().then(() => {
         options.onTpdbSettled?.(posterdbResult);
     });
@@ -510,6 +489,7 @@ async function fetchPosterdbSets(
     source: TitleSource,
     options: {
         tmdbId?: string | null;
+        tvdbId?: string | null;
         titleHint?: string;
         yearHint?: number | null;
         mediaType?: 'show' | 'movie';
@@ -537,6 +517,7 @@ async function fetchPosterdbSets(
         titleHint: titleHint || undefined,
         yearHint: yearHint ?? undefined,
         mediaType: options.mediaType,
+        tvdbId: options.tvdbId || undefined,
         limit: 500,
         refresh: options.refresh === true,
     };
@@ -730,6 +711,7 @@ export async function fetchPosterSetsForTitle(
                 dupePreference,
                 limit: 500,
                 tmdbId: linkedTmdbId || undefined,
+                tvdbId: options.libraryItem?.tvdbId || undefined,
                 titleHint: titleHint || undefined,
                 yearHint: yearHint ?? undefined,
             });
@@ -779,6 +761,7 @@ export async function fetchPosterSetsForTitle(
             tpdbConfigured: options.tpdbConfigured,
             tpdbEnabled: tpdbOn,
             mediuxEnabled: mediuxOn,
+            tvdbId: options.libraryItem?.tvdbId || null,
             onPartial: options.onPartial
                 ? (partial) => options.onPartial?.({
                     ...partial,
@@ -820,6 +803,7 @@ export async function fetchPosterSetsForTitle(
         } else {
             response = await fetchPosterdbSets(source, {
                 tmdbId: linkedTmdbId,
+                tvdbId: options.libraryItem?.tvdbId || null,
                 titleHint,
                 yearHint,
                 mediaType: fallbackMedia,

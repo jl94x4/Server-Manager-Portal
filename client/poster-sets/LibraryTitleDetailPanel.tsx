@@ -302,9 +302,12 @@ export function LibraryTitleDetailPanel({
                         if (partial.fromCache) setTpdbFromCache(true);
                         // Unlock as soon as either provider paints sets.
                         setBusy((current) => (current === 'search' ? null : current));
-                        // Cache-first: don't keep a heavy spinner once TPDB sets are on screen.
-                        if (partial.fromCache || !waitForTpdb) {
-                            setLoadingMoreSets(Boolean(waitForTpdb && !partial.fromCache));
+                        const hasPosterdb = (partial.sets || []).some((set) => {
+                            const provider = String(set.provider || '').toLowerCase();
+                            return provider === 'posterdb' || provider === 'tpdb' || provider === 'theposterdb';
+                        });
+                        if (partial.fromCache || hasPosterdb || !waitForTpdb) {
+                            setLoadingMoreSets(Boolean(waitForTpdb && !partial.fromCache && !hasPosterdb));
                         } else {
                             setLoadingMoreSets(true);
                         }

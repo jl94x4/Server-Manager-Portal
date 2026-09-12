@@ -100,6 +100,7 @@ export type PosterSetsSearchPayload = {
     query?: string;
     titleUrl?: string;
     tmdbId?: string | number;
+    tvdbId?: string | number;
     imdbId?: string | number;
     titleHint?: string;
     yearHint?: number | null;
