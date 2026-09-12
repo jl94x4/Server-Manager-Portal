@@ -43,7 +43,7 @@ const resolveNotificationDestination = (item = {}) => {
                     : 'notifications.openInDiscover',
         };
     }
-    if (href.startsWith('/support') || type === 'support_ticket') {
+    if (href.startsWith('/support') || type === 'support_ticket' || type === 'support_reply' || type === 'support_media_issue') {
         return {
             kind: 'support',
             path: href.startsWith('/support') ? href : '/support',

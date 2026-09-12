@@ -161,6 +161,8 @@ const typeVisual = (type?: string) => {
                 tile: 'from-cyan-500/25 via-cyan-500/10 to-card',
             };
         case 'support_ticket':
+        case 'support_reply':
+        case 'support_media_issue':
             return {
                 Icon: LifeBuoy,
                 tone: 'text-plex bg-plex/15 border-plex/35',
