@@ -3057,7 +3057,8 @@ def _posterdb_year_tolerance(media_type: str = "show") -> int:
     if raw in {"movie", "movies", "film"}:
         # Theatrical vs digital / "2025 film, 2026 release" mismatches are common on TPDB.
         return 2
-    return 5
+    # Plex TV rows often carry latest-season year vs TPDB premiere year.
+    return 20
 
 
 def _posterdb_years_compatible(
@@ -3126,7 +3127,22 @@ def _pick_posterdb_title_candidate(
             ):
                 return item
         # Year was requested but page-1 search missed it (common for "Sisters").
-        # Do not fall through to an unrelated same-name / fuzzy hit.
+        # Shows: Plex often has latest-season year while TPDB keeps premiere year
+        # (e.g. 2026 vs 2011). If the title uniquely matches, still pick it.
+        if _posterdb_is_show(media_type) and title_only:
+            same_name = [
+                item for item in titles
+                if _posterdb_title_only_key(item.get("title") or "") == title_only
+            ]
+            if len(same_name) == 1:
+                return same_name[0]
+            if same_name and year_hint is not None:
+                def _year_distance(item: dict) -> int:
+                    try:
+                        return abs(int(item.get("year")) - int(year_hint))
+                    except Exception:
+                        return 10_000
+                return min(same_name, key=_year_distance)
         return None
     if title_only:
         for item in titles:
