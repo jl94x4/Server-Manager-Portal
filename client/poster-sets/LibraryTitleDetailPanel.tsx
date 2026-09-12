@@ -19,10 +19,10 @@ import { isPosterSetsUpstreamOutage } from './upstreamErrors';
 import { pickAutoMatchedTitle, rankSearchTitlesForLibraryItem, catalogTitleMatchesLibraryItem } from './autoMatchTitle';
 import { fetchPosterSetsForTitle } from './fetchPosterSetsForTitle';
 import { collapseNearDuplicateSets, excludeBlockedCreators, prioritizeSetsByFollowedCreators } from './prioritizeCreatorSets';
-import { classifyPreviewAsset, previewAssetEpisodeLabel } from './previewGroups';
+import { classifyPreviewAsset, groupPreviewAssets, inspectorThumbsFromAssets } from './previewGroups';
 import { libraryItemPosterSrc, type LibraryRecentItem } from './libraryRecent';
 import { SetInspector, SetInspectorThumbStrip } from './SetInspector';
-import { PreviewAssetStrip } from './shared/posterSetsPreview';
+import { PreviewAssetGallery } from './shared/posterSetsPreview';
 import {
     mediuxFiltersFromAssets,
     type PosterSetsPreview,
@@ -78,57 +78,6 @@ function PosterThumb({
         <div className={className}>
             <img src={src} alt={alt} className={imgClassName} loading="lazy" />
         </div>
-    );
-}
-
-function PreviewAssetTile({
-    asset,
-    selected,
-    layout,
-    onToggle,
-}: {
-    asset: PosterSetsPreviewAsset;
-    selected: boolean;
-    layout: 'poster' | 'landscape';
-    onToggle: (id: string) => void;
-}) {
-    const matched = asset.matched === true;
-    const unmatched = asset.matched === false;
-    const title = layout === 'landscape'
-        ? previewAssetEpisodeLabel(asset)
-        : `${asset.title}${asset.year ? ` (${asset.year})` : ''}`;
-    return (
-        <button
-            type="button"
-            onClick={() => onToggle(asset.id)}
-            className={`group shrink-0 overflow-hidden rounded-md border text-left transition ${
-                layout === 'landscape' ? 'w-72 sm:w-80' : 'w-[5.75rem] sm:w-32'
-            } ${
-                selected
-                    ? 'border-plex/60 bg-plex/10 ring-1 ring-plex/40'
-                    : unmatched
-                        ? 'border-amber-500/45 bg-amber-500/[0.06] hover:border-amber-400/60'
-                        : 'border-white/10 bg-black/20 hover:border-plex/35'
-            }`}
-        >
-            <div className={`relative bg-black/40 ${layout === 'landscape' ? 'aspect-[16/9]' : 'aspect-[2/3]'}`}>
-                {asset.thumbUrl ? (
-                    <img
-                        src={posterSetsApi.imageUrl(asset.thumbUrl)}
-                        alt={asset.title}
-                        loading="lazy"
-                        className="h-full w-full object-cover"
-                    />
-                ) : (
-                    <div className="flex h-full items-center justify-center text-muted">
-                        <ImageIcon className="h-8 w-8 opacity-40" />
-                    </div>
-                )}
-            </div>
-            <div className="space-y-0.5 p-2">
-                <p className="line-clamp-2 text-[10px] font-medium leading-snug text-text/90">{title}</p>
-            </div>
-        </button>
     );
 }
 
@@ -923,19 +872,20 @@ export function LibraryTitleDetailPanel({
         } else {
             assets = assets.filter((asset) => asset.matched === true);
         }
-        // Title-card packs often still include a show poster first in scrape order —
-        // surface episode title cards at the front of the matched strip.
-        if (titleCardsOnly || isTitleCardSet(selectedSet, { mediaType: item?.mediaType })) {
+        if (titleCardsOnly) {
             const titleCards = assets.filter((asset) => classifyPreviewAsset(asset) === 'title_card');
-            const rest = assets.filter((asset) => classifyPreviewAsset(asset) !== 'title_card');
-            assets = titleCardsOnly && titleCards.length ? titleCards : [...titleCards, ...rest];
+            if (titleCards.length) assets = titleCards;
         }
-        return assets.map((asset) => ({
-            id: asset.id,
-            title: asset.title,
-            thumbUrl: asset.thumbUrl ? posterSetsApi.imageUrl(asset.thumbUrl) : '',
-        }));
-    }, [preview, titleCardsOnly, selectedSet, item?.mediaType, selectedAssetIds]);
+        return inspectorThumbsFromAssets(
+            assets,
+            (url) => (url ? posterSetsApi.imageUrl(url) : ''),
+        );
+    }, [preview, titleCardsOnly, selectedAssetIds]);
+
+    const previewSections = useMemo(
+        () => groupPreviewAssets(preview?.assets || []),
+        [preview],
+    );
 
     const setsByCategory = useMemo(
         () => partitionSetsByCategory(
@@ -1414,24 +1364,15 @@ export function LibraryTitleDetailPanel({
                                     />
                                 )}
                                 gallery={showAssets && preview ? (
-                                    <PreviewAssetStrip
-                                        title="All assets"
-                                        count={(preview.assets || []).length}
-                                    >
-                                        {(preview.assets || []).map((asset) => (
-                                            <PreviewAssetTile
-                                                key={asset.id}
-                                                asset={asset}
-                                                selected={selectedAssetIds.includes(asset.id)}
-                                                layout={selectedSetUsesLandscape ? 'landscape' : 'poster'}
-                                                onToggle={(id) => setSelectedAssetIds((current) => (
-                                                    current.includes(id)
-                                                        ? current.filter((entry) => entry !== id)
-                                                        : [...current, id]
-                                                ))}
-                                            />
+                                    <PreviewAssetGallery
+                                        sections={previewSections}
+                                        selectedAssetIds={selectedAssetIds}
+                                        onToggle={(id) => setSelectedAssetIds((current) => (
+                                            current.includes(id)
+                                                ? current.filter((entry) => entry !== id)
+                                                : [...current, id]
                                         ))}
-                                    </PreviewAssetStrip>
+                                    />
                                 ) : undefined}
                             />
                             {!isSetWatched(selectedSet) ? (

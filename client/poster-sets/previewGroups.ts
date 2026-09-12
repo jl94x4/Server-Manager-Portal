@@ -172,6 +172,79 @@ export const canonicalPreviewQueueKind = (kind: PreviewAssetKind): PreviewQueueK
     kind === 'show_cover' ? 'poster' : kind
 );
 
+export type InspectorThumbPreview = {
+    id: string;
+    thumbUrl?: string;
+    title: string;
+    kind?: PreviewQueueKind;
+};
+
+export function inspectorThumbsFromAssets(
+    assets: PosterSetsPreviewAsset[],
+    imageUrl: (url?: string) => string,
+): InspectorThumbPreview[] {
+    return assets.map((asset) => ({
+        id: asset.id,
+        title: asset.title,
+        thumbUrl: imageUrl(asset.thumbUrl),
+        kind: canonicalPreviewQueueKind(classifyPreviewAsset(asset)),
+    }));
+}
+
+const INSPECTOR_THUMB_GROUPS: Array<{
+    id: string;
+    label: string;
+    layout: 'poster' | 'landscape';
+    kinds: PreviewQueueKind[];
+}> = [
+    { id: 'posters', label: 'Posters', layout: 'poster', kinds: ['poster', 'season_cover'] },
+    { id: 'backdrops', label: 'Backdrops', layout: 'landscape', kinds: ['background'] },
+    { id: 'title_cards', label: 'Title cards', layout: 'landscape', kinds: ['title_card'] },
+];
+
+export type InspectorThumbGroup = {
+    id: string;
+    label: string;
+    layout: 'poster' | 'landscape';
+    thumbs: InspectorThumbPreview[];
+};
+
+/** Split inspector preview thumbs so posters and title cards never share a row. */
+export function groupInspectorThumbs(
+    thumbs: InspectorThumbPreview[],
+    fallbackLayout: 'poster' | 'landscape' = 'poster',
+): InspectorThumbGroup[] {
+    if (!thumbs.length) return [];
+    const hasKinds = thumbs.some((thumb) => thumb.kind);
+    if (!hasKinds) {
+        return [{
+            id: 'preview',
+            label: 'Preview',
+            layout: fallbackLayout,
+            thumbs,
+        }];
+    }
+    const known = new Set(INSPECTOR_THUMB_GROUPS.flatMap((group) => group.kinds));
+    const groups = INSPECTOR_THUMB_GROUPS
+        .map((group) => ({
+            id: group.id,
+            label: group.label,
+            layout: group.layout,
+            thumbs: thumbs.filter((thumb) => thumb.kind && group.kinds.includes(thumb.kind)),
+        }))
+        .filter((group) => group.thumbs.length > 0);
+    const leftover = thumbs.filter((thumb) => !thumb.kind || !known.has(thumb.kind));
+    if (leftover.length) {
+        groups.push({
+            id: 'other',
+            label: 'Other',
+            layout: fallbackLayout,
+            thumbs: leftover,
+        });
+    }
+    return groups;
+}
+
 export const previewQueueKindLabel = (kind: PreviewQueueKind): string => {
     switch (kind) {
         case 'poster': return 'Poster';
