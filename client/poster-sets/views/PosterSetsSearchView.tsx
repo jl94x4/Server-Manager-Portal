@@ -118,7 +118,7 @@ export const PosterSetsSearchView: React.FC = () => {
         setSearchLoadingMore,
         searchContext,
         setSearchContext,
-        creatorSearchAbortRef,
+        resetSearchCatalogUi,
         selectedSearchTitle,
         setSelectedSearchTitle,
         selectedSearchSet,
@@ -263,7 +263,9 @@ export const PosterSetsSearchView: React.FC = () => {
         searchResultsLoading,
         searchHasResults,
         searchEmptyLabel,
+        loadingTitleSets,
         showSearchEmpty,
+        showSearchSetGrid,
         watchedUrlSet,
         isSetWatched,
         filteredWatches,
@@ -297,10 +299,64 @@ export const PosterSetsSearchView: React.FC = () => {
 
         <div className="min-w-0 space-y-4">
                     <section className={`${cardClass} min-w-0 space-y-4 overflow-hidden p-5`}>
+                        {inspectorOpen ? (
+                            <SetInspector
+                                panelRef={previewPanelRef}
+                                set={selectedSearchSet}
+                                headerLabel={previewHeaderLabel}
+                                loading={busy === 'preview'}
+                                ready={readyToApply}
+                                matchedCount={matchedAssetCount}
+                                unmatchedCount={preview?.unmatched ?? 0}
+                                totalCount={preview?.total || 0}
+                                selectedCount={selectedAssetIds.length}
+                                titleCardsOnly={titleCardsOnly}
+                                showAssets={showInspectorAssets}
+                                busy={busy}
+                                assets={preview?.assets}
+                                onChangeSelectedIds={setSelectedAssetIds}
+                                onToggleShowAssets={() => setShowInspectorAssets((value) => !value)}
+                                onQueueMatched={() => void applyMatched()}
+                                onQueueSelected={() => void runApply(true)}
+                                onQueueEntire={() => void queueEntireWithConfirm()}
+                                onQueueUnmatched={() => void applyUnmatched()}
+                                onQueueNewSinceWatch={() => void applyNewSinceWatch()}
+                                onSelectMatched={() => selectPreviewAssets('matched')}
+                                onSelectAll={() => selectPreviewAssets('all')}
+                                onClearSelection={() => selectPreviewAssets('none')}
+                                onClose={() => collapseSetInspector({ scrollToSets: false })}
+                                closeLabel="Back"
+                                thumbStrip={(
+                                    <SetInspectorThumbStrip
+                                        thumbs={matchedThumbStrip}
+                                        layout={titleCardsOnly || isTitleCardSet(selectedSearchSet) ? 'landscape' : 'poster'}
+                                        setUrl={selectedSearchSet?.url}
+                                        provider={selectedSearchSet?.provider}
+                                    />
+                                )}
+                                gallery={(
+                                    <PreviewAssetGallery
+                                        sections={previewSections}
+                                        selectedAssetIds={selectedAssetIds}
+                                        onToggle={toggleAsset}
+                                    />
+                                )}
+                                relatedRail={(
+                                    <RelatedSetsRail
+                                        sets={relatedSets}
+                                        loading={relatedSetsLoading}
+                                        mediaLabel={inferPreviewMediaType(preview) === 'show' ? 'show' : 'movie'}
+                                        disabled={busy !== null}
+                                        onOpen={(item) => void expandSetInline(item, { stayOnTab: true, toggle: false })}
+                                        onOpenCreator={openCreatorCatalog}
+                                    />
+                                )}
+                            />
+                        ) : (
                         <div>
                             <label className="text-xs font-bold uppercase tracking-wide text-muted">Find poster sets</label>
                             <p className="mt-1 text-sm text-muted">
-                                Search, expand inline, then queue matched
+                                Search, open a set, then queue matched
                             </p>
                             <div className="mt-3 flex flex-wrap gap-2">
                                 {([
@@ -315,18 +371,12 @@ export const PosterSetsSearchView: React.FC = () => {
                                         type="button"
                                         className={`${buttonClass} ${searchProvider === id ? 'border-plex/40 bg-plex/15 text-plex' : ''}`}
                                         onClick={() => {
-                                            creatorSearchAbortRef.current?.abort();
+                                            resetSearchCatalogUi();
                                             setSearchProvider(id);
                                             if (id !== 'both') setFindProvider(id);
-                                            setSearchTitles([]);
-                                            setSearchSets([]);
-                                            setSearchSetsPage(1);
-                                            setSearchLoadingMore(false);
-                                            setSearchContext('');
-                                            setSelectedSearchTitle(null);
-                                            setSelectedSearchSet(null);
-                                            setPreview(null);
-                                            setShowInspectorAssets(false);
+                                            if (searchMode === 'recent' || searchMode === 'feed') {
+                                                setSearchMode('title');
+                                            }
                                         }}
                                     >
                                         {label}
@@ -341,17 +391,8 @@ export const PosterSetsSearchView: React.FC = () => {
                                         type="button"
                                         className={`${buttonClass} ${searchMode === id ? 'border-plex/40 bg-plex/15 text-plex' : ''}`}
                                         onClick={() => {
-                                            creatorSearchAbortRef.current?.abort();
+                                            resetSearchCatalogUi();
                                             setSearchMode(id);
-                                            setSearchTitles([]);
-                                            setSearchSets([]);
-                                            setSearchSetsPage(1);
-                                            setSearchLoadingMore(false);
-                                            setSearchContext('');
-                                            setSelectedSearchTitle(null);
-                                            setSelectedSearchSet(null);
-                                            setPreview(null);
-                                            setShowInspectorAssets(false);
                                         }}
                                     >
                                         <Icon className="h-4 w-4" />
@@ -395,7 +436,7 @@ export const PosterSetsSearchView: React.FC = () => {
                                             : 'Search titles e.g. The Matrix'}
                                     />
                                 </div>
-                                <button type="button" className={primaryButtonClass} disabled={busy !== null} onClick={() => void runCatalogSearch()}>
+                                <button type="button" className={primaryButtonClass} disabled={busy !== null && busy !== 'search'} onClick={() => void runCatalogSearch()}>
                                     {busy === 'search' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                                     Search
                                 </button>
@@ -453,7 +494,12 @@ export const PosterSetsSearchView: React.FC = () => {
                             ) : null}
         
                             <div ref={searchSetsSectionRef}>
-                                {searchResultsLoading && !searchHasResults ? (
+                                {loadingTitleSets ? (
+                                    <div className="mt-4 flex flex-col items-center justify-center gap-2 rounded-xl border border-white/10 bg-black/20 px-4 py-10 text-sm text-muted">
+                                        <Loader2 className="h-5 w-5 animate-spin text-plex" />
+                                        Loading sets for {selectedSearchTitle?.title || 'this title'}…
+                                    </div>
+                                ) : searchResultsLoading && !searchHasResults ? (
                                     <div className="mt-4 flex flex-col items-center justify-center gap-2 rounded-xl border border-white/10 bg-black/20 px-4 py-10 text-sm text-muted">
                                         <Loader2 className="h-5 w-5 animate-spin text-plex" />
                                         Searching {posterSetsSearchScopeLabel(searchProvider)}…
@@ -477,7 +523,7 @@ export const PosterSetsSearchView: React.FC = () => {
                                 ) : null}
                             </div>
         
-                            {searchTitles.length ? (
+                            {searchTitles.length && !selectedSearchTitle ? (
                                 <div className="mt-4 space-y-2">
                                     <p className="text-xs font-bold uppercase tracking-wide text-muted">Choose a title</p>
                                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -485,8 +531,8 @@ export const PosterSetsSearchView: React.FC = () => {
                                             <button
                                                 key={`${title.provider || findProvider}-${title.id}`}
                                                 type="button"
-                                                className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 p-2 text-left transition hover:border-plex/40"
-                                                disabled={busy !== null}
+                                                className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 p-2 text-left transition hover:border-plex/40 disabled:pointer-events-none disabled:opacity-40"
+                                                disabled={busy === 'search'}
                                                 onClick={() => void openSearchTitle(title)}
                                             >
                                                 <div className="h-14 w-10 shrink-0 overflow-hidden rounded-md bg-black/40">
@@ -532,7 +578,7 @@ export const PosterSetsSearchView: React.FC = () => {
                                 </div>
                             ) : null}
         
-                            {searchSets.length ? (
+                            {showSearchSetGrid ? (
                                 <div className="mt-4 space-y-2">
                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                         <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -733,62 +779,6 @@ export const PosterSetsSearchView: React.FC = () => {
                                 </div>
                             ) : null}
         
-                            {inspectorOpen ? (
-                                <div className="mt-4">
-                                    <SetInspector
-                                        panelRef={previewPanelRef}
-                                        set={selectedSearchSet}
-                                        headerLabel={previewHeaderLabel}
-                                        loading={busy === 'preview'}
-                                        ready={readyToApply}
-                                        matchedCount={matchedAssetCount}
-                                        unmatchedCount={preview?.unmatched ?? 0}
-                                        totalCount={preview?.total || 0}
-                                        selectedCount={selectedAssetIds.length}
-                                        titleCardsOnly={titleCardsOnly}
-                                        showAssets={showInspectorAssets}
-                                        busy={busy}
-                                        assets={preview?.assets}
-                                        onChangeSelectedIds={setSelectedAssetIds}
-                                        onToggleShowAssets={() => setShowInspectorAssets((value) => !value)}
-                                        onQueueMatched={() => void applyMatched()}
-                                        onQueueSelected={() => void runApply(true)}
-                                        onQueueEntire={() => void queueEntireWithConfirm()}
-                                        onQueueUnmatched={() => void applyUnmatched()}
-                                        onQueueNewSinceWatch={() => void applyNewSinceWatch()}
-                                        onSelectMatched={() => selectPreviewAssets('matched')}
-                                        onSelectAll={() => selectPreviewAssets('all')}
-                                        onClearSelection={() => selectPreviewAssets('none')}
-                                        onClose={() => collapseSetInspector({ scrollToSets: false })}
-                                        thumbStrip={(
-                                            <SetInspectorThumbStrip
-                                                thumbs={matchedThumbStrip}
-                                                layout={titleCardsOnly || isTitleCardSet(selectedSearchSet) ? 'landscape' : 'poster'}
-                                                setUrl={selectedSearchSet?.url}
-                                                provider={selectedSearchSet?.provider}
-                                            />
-                                        )}
-                                        gallery={(
-                                            <PreviewAssetGallery
-                                                sections={previewSections}
-                                                selectedAssetIds={selectedAssetIds}
-                                                onToggle={toggleAsset}
-                                            />
-                                        )}
-                                        relatedRail={(
-                                            <RelatedSetsRail
-                                                sets={relatedSets}
-                                                loading={relatedSetsLoading}
-                                                mediaLabel={inferPreviewMediaType(preview) === 'show' ? 'show' : 'movie'}
-                                                disabled={busy !== null}
-                                                onOpen={(item) => void expandSetInline(item, { stayOnTab: true, toggle: false })}
-                                                onOpenCreator={openCreatorCatalog}
-                                            />
-                                        )}
-                                    />
-                                </div>
-                            ) : null}
-        
                             <div className="mt-5 border-t border-white/10 pt-4">
                                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
@@ -807,9 +797,10 @@ export const PosterSetsSearchView: React.FC = () => {
                                 </div>
                             </div>
                         </div>
+                        )}
                     </section>
         
-                    {activeJob ? (
+                    {!inspectorOpen && activeJob ? (
                         <section className={`${cardClass} space-y-3 p-5`}>
                             <div className="flex flex-wrap items-center justify-between gap-2">
                                 <h2 className="text-lg font-bold text-text">Job #{activeJob.id.slice(0, 8)}</h2>

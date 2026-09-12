@@ -3,6 +3,8 @@ import { ChevronLeft, ChevronRight, Image as ImageIcon } from 'lucide-react';
 import { posterSetsApi } from '../api';
 import { previewAssetEpisodeLabel, type PreviewAssetSections } from '../previewGroups';
 import { type PosterSetsPreviewAsset } from '../types';
+import { previewThumbWidthPx } from '../previewThumbScale';
+import { usePreviewThumbScale } from '../usePreviewThumbScale';
 import { posterMediaRadiusClass, previewStripClass } from './posterSetsUi';
 
 export function PreviewAssetTile({
@@ -18,6 +20,7 @@ export function PreviewAssetTile({
     caption?: string;
     onToggle: (id: string) => void;
 }) {
+    const [thumbScale] = usePreviewThumbScale();
     const matched = asset.matched === true;
     const unmatched = asset.matched === false;
     const title = caption
@@ -27,14 +30,13 @@ export function PreviewAssetTile({
             type="button"
             onClick={() => onToggle(asset.id)}
             className={`group shrink-0 overflow-hidden ${posterMediaRadiusClass} border text-left transition ${
-                layout === 'landscape' ? 'w-64 sm:w-72' : 'w-[7.25rem] sm:w-36'
-            } ${
                 selected
                     ? 'border-plex/60 bg-plex/10 ring-1 ring-plex/40'
                     : unmatched
                         ? 'border-amber-500/45 bg-amber-500/[0.06] hover:border-amber-400/60'
                         : 'border-white/10 bg-black/20 hover:border-plex/35'
             }`}
+            style={{ width: `${previewThumbWidthPx(layout, thumbScale)}px` }}
         >
             <div className={`relative bg-black/40 ${layout === 'landscape' ? 'aspect-[16/9]' : 'aspect-[2/3]'}`}>
                 {asset.thumbUrl ? (
@@ -85,14 +87,21 @@ export function PreviewAssetStrip({
     title,
     count,
     children,
+    hint,
+    shiftDrag = false,
 }: {
-    title: React.ReactNode;
+    title?: React.ReactNode;
     count: number;
     children: React.ReactNode;
+    hint?: React.ReactNode;
+    shiftDrag?: boolean;
 }) {
     const scrollRef = useRef<HTMLDivElement>(null);
+    const dragRef = useRef<{ pointerId: number; startX: number; startScroll: number; moved: boolean } | null>(null);
+    const ignoreClickRef = useRef(false);
     const [atStart, setAtStart] = useState(true);
     const [atEnd, setAtEnd] = useState(true);
+    const [dragging, setDragging] = useState(false);
 
     const updateScrollState = useCallback(() => {
         const node = scrollRef.current;
@@ -133,14 +142,32 @@ export function PreviewAssetStrip({
         node.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' });
     };
 
+    const endShiftDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+        const drag = dragRef.current;
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        dragRef.current = null;
+        setDragging(false);
+        if (drag.moved) ignoreClickRef.current = true;
+        try {
+            scrollRef.current?.releasePointerCapture(event.pointerId);
+        } catch {
+            /* already released */
+        }
+    };
+
     const showArrows = !(atStart && atEnd);
 
     return (
         <section className="min-w-0 space-y-2.5">
             <div className="flex items-center justify-between gap-2">
-                <div className="flex min-w-0 items-baseline gap-2">
-                    <h4 className="min-w-0 text-xs font-bold uppercase tracking-wide text-muted">{title}</h4>
+                <div className="flex min-w-0 flex-wrap items-baseline gap-2">
+                    {title ? <h4 className="min-w-0 text-xs font-bold uppercase tracking-wide text-muted">{title}</h4> : null}
                     <span className="shrink-0 text-[11px] text-muted/80">{count}</span>
+                    {hint && showArrows ? (
+                        <span className="hidden text-[11px] font-medium normal-case tracking-normal text-muted/70 sm:inline">
+                            {hint}
+                        </span>
+                    ) : null}
                 </div>
                 {showArrows ? (
                     <div className="flex shrink-0 items-center gap-1">
@@ -172,7 +199,40 @@ export function PreviewAssetStrip({
             <div
                 ref={scrollRef}
                 onScroll={updateScrollState}
-                className={previewStripClass}
+                onPointerDownCapture={(event) => {
+                    if (!shiftDrag || !event.shiftKey || event.button !== 0 || (atStart && atEnd)) return;
+                    const node = scrollRef.current;
+                    if (!node) return;
+                    event.preventDefault();
+                    dragRef.current = {
+                        pointerId: event.pointerId,
+                        startX: event.clientX,
+                        startScroll: node.scrollLeft,
+                        moved: false,
+                    };
+                    setDragging(true);
+                    ignoreClickRef.current = false;
+                    node.setPointerCapture(event.pointerId);
+                }}
+                onPointerMove={(event) => {
+                    const drag = dragRef.current;
+                    const node = scrollRef.current;
+                    if (!drag || drag.pointerId !== event.pointerId || !node) return;
+                    const dx = event.clientX - drag.startX;
+                    if (Math.abs(dx) > 3) drag.moved = true;
+                    node.scrollLeft = drag.startScroll - dx;
+                    event.preventDefault();
+                }}
+                onPointerUp={endShiftDrag}
+                onPointerCancel={endShiftDrag}
+                onClickCapture={(event) => {
+                    if (!ignoreClickRef.current) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    ignoreClickRef.current = false;
+                }}
+                className={`${previewStripClass} ${dragging ? 'cursor-grabbing select-none scroll-auto' : ''}`}
+                title={shiftDrag && showArrows ? 'Hold Shift and drag to scroll' : undefined}
             >
                 {children}
             </div>
@@ -197,7 +257,7 @@ export function PreviewAssetGallery({
     ) => {
         if (!assets.length) return null;
         return (
-            <PreviewAssetStrip title={title} count={assets.length}>
+            <PreviewAssetStrip title={title} count={assets.length} shiftDrag={layout === 'landscape'} hint={layout === 'landscape' ? 'Shift-drag to scroll' : undefined}>
                 {assets.map((asset) => (
                     <PreviewAssetTile
                         key={asset.id}
@@ -221,6 +281,8 @@ export function PreviewAssetGallery({
                 <PreviewAssetStrip
                     key={season.key}
                     count={season.assets.length}
+                    shiftDrag
+                    hint="Shift-drag to scroll"
                     title={(
                         <>
                             {season.label}

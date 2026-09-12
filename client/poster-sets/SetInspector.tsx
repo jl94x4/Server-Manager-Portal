@@ -20,6 +20,12 @@ import {
     type InspectorThumbPreview,
     type PreviewQueueKind,
 } from './previewGroups';
+import {
+    PREVIEW_THUMB_SCALE_MAX,
+    PREVIEW_THUMB_SCALE_MIN,
+    previewThumbWidthPx,
+} from './previewThumbScale';
+import { usePreviewThumbScale } from './usePreviewThumbScale';
 
 const buttonClass = 'inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-black/20 px-2.5 py-1.5 text-xs font-semibold text-text transition hover:border-plex/40 hover:bg-white/5 disabled:pointer-events-none disabled:opacity-40 sm:gap-2 sm:px-3 sm:py-2 sm:text-sm';
 const primaryButtonClass = 'inline-flex items-center justify-center gap-1.5 rounded-xl bg-plex px-2.5 py-1.5 text-xs font-bold text-background transition hover:bg-plex-hover active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40 sm:gap-2 sm:px-3 sm:py-2 sm:text-sm';
@@ -337,9 +343,25 @@ export function SetInspectorThumbStrip({
 }) {
     const [lightbox, setLightbox] = useState<InspectorThumbPreview | null>(null);
     const groups = useMemo(() => groupInspectorThumbs(thumbs, layout), [thumbs, layout]);
+    const [thumbScale, setThumbScale] = usePreviewThumbScale();
     if (!groups.length) return null;
 
     const showGroupLabels = groups.length > 1;
+    const sizeSlider = (
+        <label className="flex min-w-0 items-center gap-2 text-[11px] font-semibold normal-case tracking-normal text-muted">
+            Size
+            <input
+                type="range"
+                min={PREVIEW_THUMB_SCALE_MIN}
+                max={PREVIEW_THUMB_SCALE_MAX}
+                step={5}
+                value={thumbScale}
+                aria-label="Preview image size"
+                className="h-1.5 w-28 cursor-pointer appearance-none rounded-full bg-white/15 accent-plex sm:w-36 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-plex [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-plex"
+                onChange={(event) => setThumbScale(Number(event.target.value))}
+            />
+        </label>
+    );
 
     return (
         <div className="space-y-2">
@@ -352,7 +374,7 @@ export function SetInspectorThumbStrip({
                 onClose={() => setLightbox(null)}
             />
             <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-2.5 sm:p-3">
-                {showGroupLabels ? (
+                <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-muted">
                         Preview
                         <span className="inline-flex items-center gap-1 font-semibold normal-case tracking-normal text-muted/70">
@@ -360,22 +382,18 @@ export function SetInspectorThumbStrip({
                             Click to enlarge
                         </span>
                     </div>
-                ) : null}
+                    {sizeSlider}
+                </div>
                 {groups.map((group) => {
                     const landscape = group.layout === 'landscape';
+                    const thumbWidth = previewThumbWidthPx(group.layout, thumbScale);
                     return (
                         <PreviewAssetStrip
                             key={group.id}
                             count={group.thumbs.length}
-                            title={showGroupLabels ? group.label : (
-                                <span className="inline-flex items-center gap-2">
-                                    Preview
-                                    <span className="inline-flex items-center gap-1 font-semibold normal-case tracking-normal text-muted/70">
-                                        <Expand className="h-3 w-3" />
-                                        Click to enlarge
-                                    </span>
-                                </span>
-                            )}
+                            shiftDrag
+                            hint={landscape ? 'Shift-drag to scroll' : undefined}
+                            title={showGroupLabels ? group.label : null}
                         >
                             {group.thumbs.map((thumb) => {
                                 const canPreview = Boolean(String(thumb.thumbUrl || '').trim());
@@ -385,14 +403,13 @@ export function SetInspectorThumbStrip({
                                         type="button"
                                         disabled={!canPreview}
                                         className={`group relative shrink-0 overflow-hidden rounded-lg border border-white/10 bg-black/40 text-left shadow-sm transition ${
-                                            landscape
-                                                ? 'aspect-[16/9] w-[13rem] sm:w-[16rem]'
-                                                : 'aspect-[2/3] w-[6.75rem] sm:w-[8rem]'
+                                            landscape ? 'aspect-[16/9]' : 'aspect-[2/3]'
                                         } ${
                                             canPreview
                                                 ? 'cursor-zoom-in hover:border-plex/50 hover:ring-1 hover:ring-plex/30'
                                                 : 'cursor-default opacity-60'
                                         }`}
+                                        style={{ width: `${thumbWidth}px` }}
                                         title={canPreview ? `Enlarge ${thumb.title}` : thumb.title}
                                         aria-label={canPreview ? `Enlarge ${thumb.title}` : thumb.title}
                                         onClick={() => {
@@ -406,6 +423,7 @@ export function SetInspectorThumbStrip({
                                                 alt={thumb.title}
                                                 className="h-full w-full object-cover object-center transition duration-300 group-hover:scale-[1.02]"
                                                 loading="lazy"
+                                                draggable={false}
                                             />
                                         ) : (
                                             <div className="h-full w-full bg-white/5" />

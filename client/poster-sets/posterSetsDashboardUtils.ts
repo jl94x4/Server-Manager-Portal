@@ -49,3 +49,28 @@ export const pickBestRelatedTitle = (
     }
     return bestScore >= 45 ? best : null;
 };
+
+const TPDB_RECENT_CONTEXT = 'ThePosterDB · Recently added';
+const TPDB_FEED_CONTEXT = 'ThePosterDB · Following';
+
+/** Catalogs that belong on TPDB New / Recent, not Discover Search. */
+export const isTpdbDiscoverCatalogContext = (context?: string | null) => {
+    const value = String(context || '').trim();
+    return value === TPDB_RECENT_CONTEXT || value === TPDB_FEED_CONTEXT;
+};
+
+/** Search tab shares `searchSets` with TPDB New; never paint that leftover catalog there. */
+export const shouldShowSearchSetGrid = ({
+    searchMode,
+    setCount,
+    searchContext,
+}: {
+    searchMode: string;
+    setCount: number;
+    searchContext?: string | null;
+}) => {
+    if (setCount <= 0) return false;
+    if (searchMode === 'recent' || searchMode === 'feed') return false;
+    if (isTpdbDiscoverCatalogContext(searchContext)) return false;
+    return true;
+};

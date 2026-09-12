@@ -99,6 +99,65 @@ export const PosterSetsTpdbRecentView: React.FC = () => {
     const catalogGridStyle = searchSetsUseTitleCardGrid ? titleCardGridStyle : posterGridStyle;
     const catalogBusy = busy !== null && busy !== 'preview' && busy !== 'search';
 
+    if (inspectorOpen) {
+        return (
+            <section ref={searchSetsSectionRef} className="min-w-0 space-y-5 overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-xl">
+                <SetInspector
+                    panelRef={previewPanelRef}
+                    set={selectedSearchSet}
+                    headerLabel={previewHeaderLabel}
+                    loading={busy === 'preview'}
+                    ready={readyToApply}
+                    matchedCount={matchedAssetCount}
+                    unmatchedCount={preview?.unmatched ?? 0}
+                    totalCount={preview?.total || 0}
+                    selectedCount={selectedAssetIds.length}
+                    titleCardsOnly={titleCardsOnly}
+                    showAssets={showInspectorAssets}
+                    busy={busy}
+                    assets={preview?.assets}
+                    onChangeSelectedIds={setSelectedAssetIds}
+                    onToggleShowAssets={() => setShowInspectorAssets((value: boolean) => !value)}
+                    onQueueMatched={() => void applyMatched()}
+                    onQueueSelected={() => void runApply(true)}
+                    onQueueEntire={() => void queueEntireWithConfirm()}
+                    onQueueUnmatched={() => void applyUnmatched()}
+                    onQueueNewSinceWatch={() => void applyNewSinceWatch()}
+                    onSelectMatched={() => selectPreviewAssets('matched')}
+                    onSelectAll={() => selectPreviewAssets('all')}
+                    onClearSelection={() => selectPreviewAssets('none')}
+                    onClose={() => collapseSetInspector({ scrollToSets: false })}
+                    closeLabel="Back"
+                    thumbStrip={(
+                        <SetInspectorThumbStrip
+                            thumbs={matchedThumbStrip}
+                            layout={titleCardsOnly || isTitleCardSet(selectedSearchSet) ? 'landscape' : 'poster'}
+                            setUrl={selectedSearchSet?.url}
+                            provider={selectedSearchSet?.provider}
+                        />
+                    )}
+                    gallery={(
+                        <PreviewAssetGallery
+                            sections={previewSections}
+                            selectedAssetIds={selectedAssetIds}
+                            onToggle={toggleAsset}
+                        />
+                    )}
+                    relatedRail={(
+                        <RelatedSetsRail
+                            sets={relatedSets}
+                            loading={relatedSetsLoading}
+                            mediaLabel={inferPreviewMediaType(preview) === 'show' ? 'show' : 'movie'}
+                            disabled={busy !== null}
+                            onOpen={(item) => void expandSetInline(item, { stayOnTab: true, toggle: false })}
+                            onOpenCreator={(user) => openCreatorCatalog(user, { locationTab: 'apply' })}
+                        />
+                    )}
+                />
+            </section>
+        );
+    }
+
     return (
         <section ref={searchSetsSectionRef} className="min-w-0 space-y-5 overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-xl">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -215,61 +274,7 @@ export const PosterSetsTpdbRecentView: React.FC = () => {
                 </div>
             </div>
 
-            {inspectorOpen ? (
-                <SetInspector
-                    panelRef={previewPanelRef}
-                    set={selectedSearchSet}
-                    headerLabel={previewHeaderLabel}
-                    loading={busy === 'preview'}
-                    ready={readyToApply}
-                    matchedCount={matchedAssetCount}
-                    unmatchedCount={preview?.unmatched ?? 0}
-                    totalCount={preview?.total || 0}
-                    selectedCount={selectedAssetIds.length}
-                    titleCardsOnly={titleCardsOnly}
-                    showAssets={showInspectorAssets}
-                    busy={busy}
-                    assets={preview?.assets}
-                    onChangeSelectedIds={setSelectedAssetIds}
-                    onToggleShowAssets={() => setShowInspectorAssets((value: boolean) => !value)}
-                    onQueueMatched={() => void applyMatched()}
-                    onQueueSelected={() => void runApply(true)}
-                    onQueueEntire={() => void queueEntireWithConfirm()}
-                    onQueueUnmatched={() => void applyUnmatched()}
-                    onQueueNewSinceWatch={() => void applyNewSinceWatch()}
-                    onSelectMatched={() => selectPreviewAssets('matched')}
-                    onSelectAll={() => selectPreviewAssets('all')}
-                    onClearSelection={() => selectPreviewAssets('none')}
-                    onClose={() => collapseSetInspector({ scrollToSets: false })}
-                    closeLabel="Back to sets"
-                    thumbStrip={(
-                        <SetInspectorThumbStrip
-                            thumbs={matchedThumbStrip}
-                            layout={titleCardsOnly || isTitleCardSet(selectedSearchSet) ? 'landscape' : 'poster'}
-                            setUrl={selectedSearchSet?.url}
-                            provider={selectedSearchSet?.provider}
-                        />
-                    )}
-                    gallery={(
-                        <PreviewAssetGallery
-                            sections={previewSections}
-                            selectedAssetIds={selectedAssetIds}
-                            onToggle={toggleAsset}
-                        />
-                    )}
-                    relatedRail={(
-                        <RelatedSetsRail
-                            sets={relatedSets}
-                            loading={relatedSetsLoading}
-                            mediaLabel={inferPreviewMediaType(preview) === 'show' ? 'show' : 'movie'}
-                            disabled={busy !== null}
-                            onOpen={(item) => void expandSetInline(item, { stayOnTab: true, toggle: false })}
-                            onOpenCreator={(user) => openCreatorCatalog(user, { locationTab: 'apply' })}
-                        />
-                    )}
-                />
-            ) : (
-                <div className="space-y-3">
+            <div className="space-y-3">
                     <div className="flex flex-wrap gap-2">
                         <button
                             type="button"
@@ -317,20 +322,13 @@ export const PosterSetsTpdbRecentView: React.FC = () => {
                                     disabled={catalogBusy}
                                     bulkSelected={Boolean(selectedBulkSets[set.url])}
                                     onToggleBulk={() => toggleBulkSet(bulkEntryFromSet(set))}
-                                    onOpen={(item) => {
-                                        const target = String(item.url || '').trim();
-                                        if (!target) return;
-                                        setSelectedSearchSet(item);
-                                        setUrl(target);
-                                        void runPreview(target, { titleCardsOnly: false, keepSearch: true });
-                                    }}
+                                    onOpen={(item) => void expandSetInline(item, { stayOnTab: true, toggle: true })}
                                     onOpenCreator={(user) => openCreatorCatalog(user, { locationTab: 'apply' })}
                                 />
                             ))}
                         </div>
                     )}
                 </div>
-            )}
         </section>
     );
 };

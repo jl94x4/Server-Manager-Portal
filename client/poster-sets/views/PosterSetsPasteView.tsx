@@ -279,6 +279,67 @@ export const PosterSetsPasteView: React.FC = () => {
 
     if (tab !== 'paste') return null;
 
+    if (inspectorOpen) {
+        return (
+            <div className="min-w-0 space-y-4">
+                <section className="min-w-0 space-y-5 overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-xl">
+                    <SetInspector
+                        panelRef={previewPanelRef}
+                        set={selectedSearchSet}
+                        headerLabel={previewHeaderLabel}
+                        loading={busy === 'preview'}
+                        ready={readyToApply}
+                        matchedCount={matchedAssetCount}
+                        unmatchedCount={preview?.unmatched ?? 0}
+                        totalCount={preview?.total || 0}
+                        selectedCount={selectedAssetIds.length}
+                        titleCardsOnly={titleCardsOnly}
+                        showAssets={showInspectorAssets}
+                        busy={busy}
+                        assets={preview?.assets}
+                        onChangeSelectedIds={setSelectedAssetIds}
+                        onToggleShowAssets={() => setShowInspectorAssets((value: boolean) => !value)}
+                        onQueueMatched={() => void applyMatched()}
+                        onQueueSelected={() => void runApply(true)}
+                        onQueueEntire={() => void queueEntireWithConfirm()}
+                        onQueueUnmatched={() => void applyUnmatched()}
+                        onQueueNewSinceWatch={() => void applyNewSinceWatch()}
+                        onSelectMatched={() => selectPreviewAssets('matched')}
+                        onSelectAll={() => selectPreviewAssets('all')}
+                        onClearSelection={() => selectPreviewAssets('none')}
+                        onClose={() => collapseSetInspector({ scrollToSets: false })}
+                        closeLabel="Back"
+                        thumbStrip={(
+                            <SetInspectorThumbStrip
+                                thumbs={matchedThumbStrip}
+                                layout={titleCardsOnly || isTitleCardSet(selectedSearchSet) ? 'landscape' : 'poster'}
+                                setUrl={selectedSearchSet?.url}
+                                provider={selectedSearchSet?.provider}
+                            />
+                        )}
+                        gallery={(
+                            <PreviewAssetGallery
+                                sections={previewSections}
+                                selectedAssetIds={selectedAssetIds}
+                                onToggle={toggleAsset}
+                            />
+                        )}
+                        relatedRail={(
+                            <RelatedSetsRail
+                                sets={relatedSets}
+                                loading={relatedSetsLoading}
+                                mediaLabel={inferPreviewMediaType(preview) === 'show' ? 'show' : 'movie'}
+                                disabled={busy !== null}
+                                onOpen={(item) => void expandSetInline(item, { stayOnTab: true, toggle: false })}
+                                onOpenCreator={(user) => openCreatorCatalog(user, { locationTab: 'paste' })}
+                            />
+                        )}
+                    />
+                </section>
+            </div>
+        );
+    }
+
     return (
         <div className="min-w-0 space-y-4">
             <section className="min-w-0 space-y-5 overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-xl">
@@ -483,14 +544,7 @@ export const PosterSetsPasteView: React.FC = () => {
                                         disabled={busy !== null && busy !== 'preview' && busy !== 'search'}
                                         bulkSelected={Boolean(selectedBulkSets[set.url])}
                                         onToggleBulk={() => toggleBulkSet(bulkEntryFromSet(set))}
-                                        onOpen={(item) => {
-                                            const target = String(item.url || '').trim();
-                                            if (!target) return;
-                                            setSelectedSearchSet(item);
-                                            setUrl(target);
-                                            stayOnPaste(target);
-                                            void runPreview(target, { titleCardsOnly: false, keepSearch: true });
-                                        }}
+                                        onOpen={(item) => void expandSetInline(item, { stayOnTab: true, toggle: true })}
                                         onOpenCreator={(user) => openCreatorCatalog(user, { locationTab: 'paste' })}
                                     />
                                 ))}
@@ -550,75 +604,11 @@ export const PosterSetsPasteView: React.FC = () => {
                                     disabled={busy !== null}
                                     bulkSelected={Boolean(selectedBulkSets[set.url])}
                                     onToggleBulk={() => toggleBulkSet(bulkEntryFromSet(set))}
-                                    onOpen={(item) => {
-                                        const target = String(item.url || '').trim();
-                                        if (!target) return;
-                                        setSelectedSearchSet(item);
-                                        setUrl(target);
-                                        stayOnPaste(target);
-                                        void runPreview(target, { titleCardsOnly: false, keepSearch: true });
-                                    }}
+                                    onOpen={(item) => void expandSetInline(item, { stayOnTab: true, toggle: true })}
                                     onOpenCreator={(user) => openCreatorCatalog(user, { locationTab: 'paste' })}
                                 />
                             ))}
                         </div>
-                    </div>
-                ) : null}
-
-                {inspectorOpen ? (
-                    <div className="border-t border-white/10 pt-4">
-                        <SetInspector
-                            panelRef={previewPanelRef}
-                            set={selectedSearchSet}
-                            headerLabel={previewHeaderLabel}
-                            loading={busy === 'preview'}
-                            ready={readyToApply}
-                            matchedCount={matchedAssetCount}
-                            unmatchedCount={preview?.unmatched ?? 0}
-                            totalCount={preview?.total || 0}
-                            selectedCount={selectedAssetIds.length}
-                            titleCardsOnly={titleCardsOnly}
-                            showAssets={showInspectorAssets}
-                            busy={busy}
-                            assets={preview?.assets}
-                            onChangeSelectedIds={setSelectedAssetIds}
-                            onToggleShowAssets={() => setShowInspectorAssets((value: boolean) => !value)}
-                            onQueueMatched={() => void applyMatched()}
-                            onQueueSelected={() => void runApply(true)}
-                            onQueueEntire={() => void queueEntireWithConfirm()}
-                            onQueueUnmatched={() => void applyUnmatched()}
-                            onQueueNewSinceWatch={() => void applyNewSinceWatch()}
-                            onSelectMatched={() => selectPreviewAssets('matched')}
-                            onSelectAll={() => selectPreviewAssets('all')}
-                            onClearSelection={() => selectPreviewAssets('none')}
-                            onClose={() => collapseSetInspector({ scrollToSets: false })}
-                            closeLabel={searchMode === 'creator' || searchMode === 'recent' || searchMode === 'feed' ? 'Back to sets' : 'Close'}
-                            thumbStrip={(
-                                <SetInspectorThumbStrip
-                                    thumbs={matchedThumbStrip}
-                                    layout={titleCardsOnly || isTitleCardSet(selectedSearchSet) ? 'landscape' : 'poster'}
-                                    setUrl={selectedSearchSet?.url}
-                                    provider={selectedSearchSet?.provider}
-                                />
-                            )}
-                            gallery={(
-                                <PreviewAssetGallery
-                                    sections={previewSections}
-                                    selectedAssetIds={selectedAssetIds}
-                                    onToggle={toggleAsset}
-                                />
-                            )}
-                            relatedRail={(
-                                <RelatedSetsRail
-                                    sets={relatedSets}
-                                    loading={relatedSetsLoading}
-                                    mediaLabel={inferPreviewMediaType(preview) === 'show' ? 'show' : 'movie'}
-                                    disabled={busy !== null}
-                                    onOpen={(item) => void expandSetInline(item, { stayOnTab: true, toggle: false })}
-                                    onOpenCreator={(user) => openCreatorCatalog(user, { locationTab: 'paste' })}
-                                />
-                            )}
-                        />
                     </div>
                 ) : null}
 

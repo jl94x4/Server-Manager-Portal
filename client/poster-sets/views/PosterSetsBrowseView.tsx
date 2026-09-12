@@ -302,7 +302,60 @@ export const PosterSetsBrowseView: React.FC = () => {
 
 
         <section className={`${cardClass} space-y-5 p-4 sm:p-5`}>
-                    {browseSeeAllRail ? (
+                    {inspectorOpen && tab === 'browse' ? (
+                        <SetInspector
+                            panelRef={previewPanelRef}
+                            set={selectedSearchSet}
+                            headerLabel={previewHeaderLabel}
+                            loading={busy === 'preview'}
+                            ready={readyToApply}
+                            matchedCount={matchedAssetCount}
+                            unmatchedCount={preview?.unmatched ?? 0}
+                            totalCount={preview?.total || 0}
+                            selectedCount={selectedAssetIds.length}
+                            titleCardsOnly={titleCardsOnly}
+                            showAssets={showInspectorAssets}
+                            busy={busy}
+                            assets={preview?.assets}
+                            onChangeSelectedIds={setSelectedAssetIds}
+                            onToggleShowAssets={() => setShowInspectorAssets((value) => !value)}
+                            onQueueMatched={() => void applyMatched()}
+                            onQueueSelected={() => void runApply(true)}
+                            onQueueEntire={() => void queueEntireWithConfirm()}
+                            onQueueUnmatched={() => void applyUnmatched()}
+                            onQueueNewSinceWatch={() => void applyNewSinceWatch()}
+                            onSelectMatched={() => selectPreviewAssets('matched')}
+                            onSelectAll={() => selectPreviewAssets('all')}
+                            onClearSelection={() => selectPreviewAssets('none')}
+                            onClose={() => collapseSetInspector({ scrollToSets: false })}
+                            closeLabel="Back"
+                            thumbStrip={(
+                                <SetInspectorThumbStrip
+                                    thumbs={matchedThumbStrip}
+                                    layout={titleCardsOnly || isTitleCardSet(selectedSearchSet) ? 'landscape' : 'poster'}
+                                    setUrl={selectedSearchSet?.url}
+                                    provider={selectedSearchSet?.provider}
+                                />
+                            )}
+                            gallery={(
+                                <PreviewAssetGallery
+                                    sections={previewSections}
+                                    selectedAssetIds={selectedAssetIds}
+                                    onToggle={toggleAsset}
+                                />
+                            )}
+                            relatedRail={(
+                                <RelatedSetsRail
+                                    sets={relatedSets}
+                                    loading={relatedSetsLoading}
+                                    mediaLabel={inferPreviewMediaType(preview) === 'show' ? 'show' : 'movie'}
+                                    disabled={busy !== null}
+                                    onOpen={(item) => void expandSetInline(item, { stayOnTab: true, toggle: false, skipUrl: true })}
+                                    onOpenCreator={openCreatorCatalog}
+                                />
+                            )}
+                        />
+                    ) : browseSeeAllRail ? (
                         <>
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                 <div className="min-w-0 max-w-3xl">
@@ -367,61 +420,6 @@ export const PosterSetsBrowseView: React.FC = () => {
                                     />
                                 ))}
                             </div>
-                            {inspectorOpen && tab === 'browse' ? (
-                                <div className="mt-4">
-                                    <SetInspector
-                                        panelRef={previewPanelRef}
-                                        set={selectedSearchSet}
-                                        headerLabel={previewHeaderLabel}
-                                        loading={busy === 'preview'}
-                                        ready={readyToApply}
-                                        matchedCount={matchedAssetCount}
-                                        unmatchedCount={preview?.unmatched ?? 0}
-                                        totalCount={preview?.total || 0}
-                                        selectedCount={selectedAssetIds.length}
-                                        titleCardsOnly={titleCardsOnly}
-                                        showAssets={showInspectorAssets}
-                                        busy={busy}
-                                        assets={preview?.assets}
-                                        onChangeSelectedIds={setSelectedAssetIds}
-                                        onToggleShowAssets={() => setShowInspectorAssets((value) => !value)}
-                                        onQueueMatched={() => void applyMatched()}
-                                        onQueueSelected={() => void runApply(true)}
-                                        onQueueEntire={() => void queueEntireWithConfirm()}
-                                        onQueueUnmatched={() => void applyUnmatched()}
-                                        onQueueNewSinceWatch={() => void applyNewSinceWatch()}
-                                        onSelectMatched={() => selectPreviewAssets('matched')}
-                                        onSelectAll={() => selectPreviewAssets('all')}
-                                        onClearSelection={() => selectPreviewAssets('none')}
-                                        onClose={() => collapseSetInspector({ scrollToSets: false })}
-                                        thumbStrip={(
-                                            <SetInspectorThumbStrip
-                                                thumbs={matchedThumbStrip}
-                                                layout={titleCardsOnly || isTitleCardSet(selectedSearchSet) ? 'landscape' : 'poster'}
-                                                setUrl={selectedSearchSet?.url}
-                                                provider={selectedSearchSet?.provider}
-                                            />
-                                        )}
-                                        gallery={(
-                                            <PreviewAssetGallery
-                                                sections={previewSections}
-                                                selectedAssetIds={selectedAssetIds}
-                                                onToggle={toggleAsset}
-                                            />
-                                        )}
-                                        relatedRail={(
-                                            <RelatedSetsRail
-                                                sets={relatedSets}
-                                                loading={relatedSetsLoading}
-                                                mediaLabel={inferPreviewMediaType(preview) === 'show' ? 'show' : 'movie'}
-                                                disabled={busy !== null}
-                                                onOpen={(item) => void expandSetInline(item, { stayOnTab: true, toggle: false, skipUrl: true })}
-                                                onOpenCreator={openCreatorCatalog}
-                                            />
-                                        )}
-                                    />
-                                </div>
-                            ) : null}
                             {!browseSeeAllRail.sets.length && browseLoading ? (
                                 <div className="flex items-center gap-2 text-sm text-muted">
                                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -540,61 +538,6 @@ export const PosterSetsBrowseView: React.FC = () => {
                                     ) : null}
                                 </div>
                             ))}
-                            {inspectorOpen && tab === 'browse' && !browseSeeAllRail ? (
-                                <div className="mt-4">
-                                    <SetInspector
-                                        panelRef={previewPanelRef}
-                                        set={selectedSearchSet}
-                                        headerLabel={previewHeaderLabel}
-                                        loading={busy === 'preview'}
-                                        ready={readyToApply}
-                                        matchedCount={matchedAssetCount}
-                                        unmatchedCount={preview?.unmatched ?? 0}
-                                        totalCount={preview?.total || 0}
-                                        selectedCount={selectedAssetIds.length}
-                                        titleCardsOnly={titleCardsOnly}
-                                        showAssets={showInspectorAssets}
-                                        busy={busy}
-                                        assets={preview?.assets}
-                                        onChangeSelectedIds={setSelectedAssetIds}
-                                        onToggleShowAssets={() => setShowInspectorAssets((value) => !value)}
-                                        onQueueMatched={() => void applyMatched()}
-                                        onQueueSelected={() => void runApply(true)}
-                                        onQueueEntire={() => void queueEntireWithConfirm()}
-                                        onQueueUnmatched={() => void applyUnmatched()}
-                                        onQueueNewSinceWatch={() => void applyNewSinceWatch()}
-                                        onSelectMatched={() => selectPreviewAssets('matched')}
-                                        onSelectAll={() => selectPreviewAssets('all')}
-                                        onClearSelection={() => selectPreviewAssets('none')}
-                                        onClose={() => collapseSetInspector({ scrollToSets: false })}
-                                        thumbStrip={(
-                                            <SetInspectorThumbStrip
-                                                thumbs={matchedThumbStrip}
-                                                layout={titleCardsOnly || isTitleCardSet(selectedSearchSet) ? 'landscape' : 'poster'}
-                                                setUrl={selectedSearchSet?.url}
-                                                provider={selectedSearchSet?.provider}
-                                            />
-                                        )}
-                                        gallery={(
-                                            <PreviewAssetGallery
-                                                sections={previewSections}
-                                                selectedAssetIds={selectedAssetIds}
-                                                onToggle={toggleAsset}
-                                            />
-                                        )}
-                                        relatedRail={(
-                                            <RelatedSetsRail
-                                                sets={relatedSets}
-                                                loading={relatedSetsLoading}
-                                                mediaLabel={inferPreviewMediaType(preview) === 'show' ? 'show' : 'movie'}
-                                                disabled={busy !== null}
-                                                onOpen={(item) => void expandSetInline(item, { stayOnTab: true, toggle: false, skipUrl: true })}
-                                                onOpenCreator={openCreatorCatalog}
-                                            />
-                                        )}
-                                    />
-                                </div>
-                            ) : null}
                         </>
                     )}
                 </section>

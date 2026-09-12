@@ -147,12 +147,20 @@ const readNdjsonStream = async (
             const lines = buffer.split(/\r?\n/);
             buffer = lines.pop() || '';
             for (const line of lines) {
+                if (signal?.aborted) {
+                    await reader.cancel().catch(() => undefined);
+                    throw new DOMException('Aborted', 'AbortError');
+                }
                 const trimmed = line.trim();
                 if (!trimmed) continue;
                 onEvent(JSON.parse(trimmed) as PosterSetsSearchResult & { type?: string });
             }
         }
         if (buffer.trim()) {
+            if (signal?.aborted) {
+                await reader.cancel().catch(() => undefined);
+                throw new DOMException('Aborted', 'AbortError');
+            }
             onEvent(JSON.parse(buffer.trim()) as PosterSetsSearchResult & { type?: string });
         }
     } finally {
@@ -216,8 +224,8 @@ export const posterSetsApi = {
         url,
         ...(options?.mediuxFilters?.length ? { mediuxFilters: options.mediuxFilters } : {}),
     })) as Promise<PosterSetsPreview>,
-    search: (payload: PosterSetsSearchPayload) => (
-        apiFetch(`${ROOT}/search`, json(payload)) as Promise<PosterSetsSearchResult>
+    search: (payload: PosterSetsSearchPayload, init?: { signal?: AbortSignal }) => (
+        apiFetch(`${ROOT}/search`, { ...json(payload), signal: init?.signal }) as Promise<PosterSetsSearchResult>
     ),
     browse: (options?: { refresh?: boolean }) => (
         apiFetch(`${ROOT}/browse`, json({ refresh: Boolean(options?.refresh) })) as Promise<PosterSetsBrowseResponse>

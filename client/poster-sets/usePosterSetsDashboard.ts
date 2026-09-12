@@ -116,9 +116,11 @@ import {
 } from './shared';
 import {
     inferPreviewMediaType,
+    isTpdbDiscoverCatalogContext,
     normalizeRelatedTitle,
     pickBestRelatedTitle,
     relatedSetKey,
+    shouldShowSearchSetGrid,
 } from './posterSetsDashboardUtils';
 
 /** Provider-only state hook. Views must use `usePosterSetsDashboard` from PosterSetsDashboardContext. */
@@ -172,6 +174,9 @@ export function usePosterSetsDashboardState() {
     const [searchContext, setSearchContext] = useState('');
     const [catalogError, setCatalogError] = useState('');
     const creatorSearchAbortRef = useRef<AbortController | null>(null);
+    const catalogSearchGenRef = useRef(0);
+    const searchModeRef = useRef(searchMode);
+    searchModeRef.current = searchMode;
     const [selectedSearchTitle, setSelectedSearchTitle] = useState<PosterSetsSearchTitle | null>(null);
     const [selectedSearchSet, setSelectedSearchSet] = useState<PosterSetsSearchSet | null>(null);
     const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -483,6 +488,27 @@ export function usePosterSetsDashboardState() {
 
     const dismissPreviewToSearch = collapseSetInspector;
 
+    const invalidateCatalogSearch = useCallback(() => {
+        catalogSearchGenRef.current += 1;
+        creatorSearchAbortRef.current?.abort();
+        creatorSearchAbortRef.current = null;
+    }, []);
+
+    const resetSearchCatalogUi = useCallback(() => {
+        invalidateCatalogSearch();
+        setSearchTitles([]);
+        setSearchSets([]);
+        setSearchSetsPage(1);
+        setSearchLoadingMore(false);
+        setSearchContext('');
+        setCatalogError('');
+        setSelectedSearchTitle(null);
+        setSelectedSearchSet(null);
+        setPreview(null);
+        setShowInspectorAssets(false);
+        setBusy((current) => (current === 'search' ? null : current));
+    }, [invalidateCatalogSearch]);
+
     const pushPosterLocation = useCallback((next: Parameters<typeof normalizePosterLocation>[0], mode: 'push' | 'replace' = 'push') => {
         const state = normalizePosterLocation(next);
         const internal = internalTabFromUrl(state);
@@ -496,6 +522,12 @@ export function usePosterSetsDashboardState() {
     }, []);
 
     const goToTab = useCallback((id: TabId, options?: { rail?: string | null; mode?: 'push' | 'replace' }) => {
+        if (id !== tab) {
+            setPreview(null);
+            setSelectedSearchSet(null);
+            setSelectedAssetIds([]);
+            setShowInspectorAssets(false);
+        }
         setLibraryDetailItem(null);
         setTab(id);
         const rail = id === 'browse' ? (options?.rail !== undefined ? options.rail : null) : null;
@@ -513,6 +545,13 @@ export function usePosterSetsDashboardState() {
             creator: null,
             titleCardsOnly: false,
         }, options?.mode || 'push');
+        if (id === 'apply') {
+            const mode = searchModeRef.current;
+            if (mode === 'recent' || mode === 'feed') {
+                resetSearchCatalogUi();
+                setSearchMode('title');
+            }
+        }
         if (id === 'history') {
             void loadHistory();
             void loadAudit();
@@ -526,7 +565,7 @@ export function usePosterSetsDashboardState() {
         if (id === 'tpdb') {
             queueMicrotask(() => openTpdbRecentCatalogRef.current({ skipUrl: true }));
         }
-    }, [historyFilter, loadAudit, loadBrowse, loadCollections, loadHistory, loadLibraryRecent, loadQueue, loadWatches, libraryMovies.length, libraryShows.length, pushPosterLocation, setHistoryFilter]);
+    }, [historyFilter, loadAudit, loadBrowse, loadCollections, loadHistory, loadLibraryRecent, loadQueue, loadWatches, libraryMovies.length, libraryShows.length, pushPosterLocation, resetSearchCatalogUi, setHistoryFilter, tab]);
 
     const goToPrimaryTab = useCallback((id: PrimaryTabId, options?: { mode?: 'push' | 'replace' }) => {
         if (id === 'discover') {
@@ -1071,9 +1110,9 @@ export function usePosterSetsDashboardState() {
             }, 'push');
         } else if (!stayOnTab) {
             syncedSetUrlRef.current = target;
-        } else if (tab === 'apply' && !options?.skipUrl) {
+        } else if (!options?.skipUrl && (tab === 'apply' || tab === 'paste')) {
             pushPosterLocation({
-                tab: 'apply',
+                tab,
                 rail: null,
                 setUrl: target,
                 creator: null,
@@ -1448,7 +1487,7 @@ export function usePosterSetsDashboardState() {
                     : (titleCardsOnly ? TITLE_CARD_ONLY_FILTERS : undefined),
             });
             await loadQueue();
-            dismissPreviewToSearch();
+            collapseSetInspector({ scrollToSets: false });
             toast(queuePaused
                 ? 'Added to queue (paused — resume in Queue tab).'
                 : selectedOnly
@@ -1487,7 +1526,7 @@ export function usePosterSetsDashboardState() {
                 mediuxFilters: filtersForSelectedIds(ids),
             });
             await loadQueue();
-            collapseSetInspector({ scrollToSets: tab === 'apply' && searchSets.length > 0 });
+            collapseSetInspector({ scrollToSets: false });
             toast(queuePaused
                 ? `Queued ${ids.length} poster${ids.length === 1 ? '' : 's'} (queue paused).`
                 : `Queued ${ids.length} poster${ids.length === 1 ? '' : 's'}.`);
@@ -1533,7 +1572,7 @@ export function usePosterSetsDashboardState() {
                 mediuxFilters: filtersForSelectedIds(unmatchedIds),
             });
             await loadQueue();
-            dismissPreviewToSearch();
+            collapseSetInspector({ scrollToSets: false });
             toast(queuePaused
                 ? `Queued ${unmatchedIds.length} unmatched poster${unmatchedIds.length === 1 ? '' : 's'} (queue paused).`
                 : `Queued ${unmatchedIds.length} unmatched poster${unmatchedIds.length === 1 ? '' : 's'}.`);
@@ -1610,7 +1649,7 @@ export function usePosterSetsDashboardState() {
                 mediuxFilters: filtersForSelectedIds(newIds),
             });
             await loadQueue();
-            dismissPreviewToSearch();
+            collapseSetInspector({ scrollToSets: false });
             toast(queuePaused
                 ? `Queued ${newIds.length} new poster${newIds.length === 1 ? '' : 's'} (queue paused).`
                 : `Queued ${newIds.length} new poster${newIds.length === 1 ? '' : 's'}.`);
@@ -1832,16 +1871,26 @@ export function usePosterSetsDashboardState() {
         query?: string;
         provider?: SearchProvider;
     }) => {
-        const mode = options?.mode || searchMode;
+        const requestedMode = options?.mode || searchMode;
+        // Discover Search must never re-run a leftover TPDB New catalog just because
+        // searchMode is still 'recent'/'feed' from the other sub-tab.
+        const mode = (!options?.mode && tab === 'apply' && (requestedMode === 'recent' || requestedMode === 'feed'))
+            ? 'title'
+            : requestedMode;
+        if (mode === 'title' && (searchMode === 'recent' || searchMode === 'feed')) {
+            setSearchMode('title');
+        }
         const q = String(options?.query ?? searchQuery).trim().replace(/^@+/, '');
         const provider = options?.provider || searchProvider;
         if (mode !== 'recent' && mode !== 'feed' && !q) {
             toast(mode === 'creator' ? 'Enter a creator username.' : 'Enter a title to search.', 'error');
             return;
         }
+        const gen = ++catalogSearchGenRef.current;
         creatorSearchAbortRef.current?.abort();
         const abort = new AbortController();
         creatorSearchAbortRef.current = abort;
+        const catalogIsCurrent = () => gen === catalogSearchGenRef.current && !abort.signal.aborted;
 
         setBusy('search');
         setSearchTitles([]);
@@ -1868,7 +1917,7 @@ export function usePosterSetsDashboardState() {
                 }, {
                     signal: abort.signal,
                     onBatch: (event) => {
-                        if (abort.signal.aborted) return;
+                        if (!catalogIsCurrent()) return;
                         const sets = event.sets || [];
                         setSearchSets(sets);
                         setSearchContext(event.title || (mode === 'feed'
@@ -1887,7 +1936,7 @@ export function usePosterSetsDashboardState() {
                         }
                     },
                 });
-                if (abort.signal.aborted) return;
+                if (!catalogIsCurrent()) return;
                 const setCount = finalEvent?.sets?.length || 0;
                 const dupes = Number(finalEvent?.dupesCollapsed || 0);
                 const dupeNote = dupes > 0 ? ` · ${dupes} duplicate${dupes === 1 ? '' : 's'} collapsed` : '';
@@ -1913,14 +1962,14 @@ export function usePosterSetsDashboardState() {
                 try {
                     const cached = readLibrarySearchCache(q);
                     const cachedTitles = (cached || []).map(libraryItemToSearchTitle).filter(Boolean) as PosterSetsSearchTitle[];
-                    if (cachedTitles.length && !abort.signal.aborted) {
+                    if (cachedTitles.length && catalogIsCurrent()) {
                         setSearchTitles(cachedTitles);
                         setSearchContext(q);
                         setBusy(null);
                         setSearchLoadingMore(true);
                     }
                     const lib = await posterSetsApi.librarySearch(q, 12);
-                    if (abort.signal.aborted) return;
+                    if (!catalogIsCurrent()) return;
                     const titles = normalizeLibraryItems(lib.results || [])
                         .map(libraryItemToSearchTitle)
                         .filter(Boolean) as PosterSetsSearchTitle[];
@@ -1942,10 +1991,10 @@ export function usePosterSetsDashboardState() {
                     mode,
                     dupePreference: configDraft.dupePreference === 'mediux' ? 'mediux' : 'posterdb',
                     limit: 24,
-                }),
+                }, { signal: abort.signal }),
                 paintLibraryTitles(),
             ]);
-            if (abort.signal.aborted) return;
+            if (!catalogIsCurrent()) return;
             setSearchTitles(response.titles || []);
             setSearchSets(response.sets || []);
             setSearchSetsPage(1);
@@ -1971,7 +2020,7 @@ export function usePosterSetsDashboardState() {
             }
         } catch (error) {
             if (error instanceof DOMException && error.name === 'AbortError') return;
-            if (abort.signal.aborted) return;
+            if (!catalogIsCurrent()) return;
             const message = error instanceof Error ? error.message : 'Search failed';
             setCatalogError(message);
             toast(message, 'error');
@@ -1980,7 +2029,7 @@ export function usePosterSetsDashboardState() {
             if (creatorSearchAbortRef.current === abort) {
                 creatorSearchAbortRef.current = null;
             }
-            if (!abort.signal.aborted) {
+            if (catalogIsCurrent()) {
                 setBusy((current) => (current === 'search' ? null : current));
                 setSearchLoadingMore(false);
             }
@@ -2137,18 +2186,22 @@ export function usePosterSetsDashboardState() {
     };
 
     const openSearchTitle = async (title: PosterSetsSearchTitle, libraryItem?: LibraryRecentItem) => {
+        const gen = ++catalogSearchGenRef.current;
         creatorSearchAbortRef.current?.abort();
+        creatorSearchAbortRef.current = null;
+        const titleLoadIsCurrent = () => gen === catalogSearchGenRef.current;
         setBusy('search');
         setSearchSets([]);
         setSearchSetsPage(1);
-        setSearchLoadingMore(false);
+        setSearchLoadingMore(true);
         setSelectedSearchTitle(title);
         setSelectedSearchSet(null);
         setPreview(null);
+        // Hide the picker immediately so the click doesn't look like a no-op while sets load.
+        setSearchTitles([]);
         const hasLinkedTmdb = String(title.provider || '').toLowerCase() === 'mediux' && Boolean(title.id);
         const tpdbConfigured = Boolean(configDraft.hasTpdbPassword && String(configDraft.tpdb_username || '').trim());
         const waitForTpdb = hasLinkedTmdb && tpdbConfigured;
-        if (hasLinkedTmdb) setSearchLoadingMore(true);
         try {
             const response = await fetchPosterSetsForTitle(title, {
                 dupePreference: configDraft.dupePreference === 'mediux' ? 'mediux' : 'posterdb',
@@ -2161,6 +2214,7 @@ export function usePosterSetsDashboardState() {
                 mediuxEnabled: isMediuxEnabled(configDraft),
                 searchProvider,
                 onPartial: (partial) => {
+                    if (!titleLoadIsCurrent()) return;
                     if ((partial.sets?.length || 0) > 0) {
                         setSearchSets(partial.sets || []);
                         setSearchContext(partial.title || title.title);
@@ -2169,13 +2223,21 @@ export function usePosterSetsDashboardState() {
                     }
                 },
                 onMediuxSettled: () => {
-                    setBusy((current) => (current === 'search' ? null : current));
-                    if (!waitForTpdb) setSearchLoadingMore(false);
+                    if (!titleLoadIsCurrent()) return;
+                    // Keep the spinner until sets land or TPDB finishes — empty MediUX
+                    // settle used to clear busy while the title list was still on screen.
+                    if (!waitForTpdb) {
+                        setBusy((current) => (current === 'search' ? null : current));
+                        setSearchLoadingMore(false);
+                    }
                 },
                 onTpdbSettled: () => {
+                    if (!titleLoadIsCurrent()) return;
                     setBusy((current) => (current === 'search' ? null : current));
+                    setSearchLoadingMore(false);
                 },
             });
+            if (!titleLoadIsCurrent()) return;
             setSearchSets((prev) => {
                 const next = response.sets || [];
                 if (next.length === 0) return prev;
@@ -2209,10 +2271,13 @@ export function usePosterSetsDashboardState() {
                 }
             }
         } catch (error) {
+            if (!titleLoadIsCurrent()) return;
             toast(error instanceof Error ? error.message : 'Failed to load sets', 'error');
         } finally {
-            setBusy((current) => (current === 'search' ? null : current));
-            setSearchLoadingMore(false);
+            if (titleLoadIsCurrent()) {
+                setBusy((current) => (current === 'search' ? null : current));
+                setSearchLoadingMore(false);
+            }
         }
     };
 
@@ -2318,8 +2383,7 @@ export function usePosterSetsDashboardState() {
     };
 
     const clearSearch = () => {
-        creatorSearchAbortRef.current?.abort();
-        creatorSearchAbortRef.current = null;
+        invalidateCatalogSearch();
         setSearchQuery('');
         setSearchTitles([]);
         setSearchSets([]);
@@ -2365,13 +2429,28 @@ export function usePosterSetsDashboardState() {
         return rankedSearchSets.slice(start, start + searchSetsPageSize);
     }, [rankedSearchSets, searchSetsPage, searchSetsPageCount, searchSetsPageSize]);
 
+    const leftoverDiscoverCatalog = searchMode === 'recent'
+        || searchMode === 'feed'
+        || isTpdbDiscoverCatalogContext(searchContext);
     const searchResultsLoading = busy === 'search';
-    const searchHasResults = searchTitles.length > 0 || searchSets.length > 0 || !!preview || !!selectedSearchSet;
+    const searchHasResults = searchTitles.length > 0
+        || (searchSets.length > 0 && !leftoverDiscoverCatalog)
+        || !!preview
+        || !!selectedSearchSet;
     const searchEmptyLabel = selectedSearchTitle?.title || searchContext || searchQuery.trim();
+    const loadingTitleSets = Boolean(selectedSearchTitle)
+        && searchSets.length === 0
+        && (searchResultsLoading || searchLoadingMore);
     const showSearchEmpty = !searchResultsLoading
         && !searchLoadingMore
         && !searchHasResults
-        && Boolean(searchContext || selectedSearchTitle);
+        && Boolean(searchContext || selectedSearchTitle)
+        && !leftoverDiscoverCatalog;
+    const showSearchSetGrid = shouldShowSearchSetGrid({
+        searchMode,
+        setCount: searchSets.length,
+        searchContext,
+    });
 
     const watchedUrlSet = useMemo(() => {
         const urls = new Set<string>();
@@ -2711,6 +2790,7 @@ export function usePosterSetsDashboardState() {
         searchLoadingMore, setSearchLoadingMore,
         searchContext, setSearchContext,
         creatorSearchAbortRef,
+        resetSearchCatalogUi,
         selectedSearchTitle, setSelectedSearchTitle,
         selectedSearchSet, setSelectedSearchSet,
         advancedOpen, setAdvancedOpen,
@@ -2832,7 +2912,9 @@ export function usePosterSetsDashboardState() {
         searchResultsLoading,
         searchHasResults,
         searchEmptyLabel,
+        loadingTitleSets,
         showSearchEmpty,
+        showSearchSetGrid,
         watchedUrlSet,
         isSetWatched,
         filteredWatches,
