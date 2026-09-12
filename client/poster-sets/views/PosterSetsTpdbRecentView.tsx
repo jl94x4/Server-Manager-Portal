@@ -32,6 +32,7 @@ export const PosterSetsTpdbRecentView: React.FC = () => {
         busy,
         setUrl,
         runPreview,
+        configDraft,
         setSelectedSearchSet,
         setSearchSetsPage,
         searchSets,
@@ -87,6 +88,13 @@ export const PosterSetsTpdbRecentView: React.FC = () => {
 
     if (tab !== 'tpdb') return null;
 
+    const followedHandles = (configDraft.creatorWhitelist || [])
+        .map((name) => String(name || '').replace(/^@+/, '').trim())
+        .filter(Boolean);
+    const followingSiteHref = followedHandles[0]
+        ? `https://theposterdb.com/user/${encodeURIComponent(followedHandles[0])}`
+        : 'https://theposterdb.com/';
+
     const catalogGridStyle = searchSetsUseTitleCardGrid ? titleCardGridStyle : posterGridStyle;
     const catalogBusy = busy !== null && busy !== 'preview' && busy !== 'search';
 
@@ -103,7 +111,7 @@ export const PosterSetsTpdbRecentView: React.FC = () => {
                     </h2>
                     <p className={sectionBodyClass}>
                         {searchMode === 'feed'
-                            ? 'Sets from creators you follow on ThePosterDB (theposterdb.com/feed). Needs TPDB login in Settings.'
+                            ? 'Sets from Creators you follow in Poster Sets settings — public TPDB profiles, no ThePosterDB login.'
                             : 'Newest sets from theposterdb.com/recent, loaded like a creator catalog. Tick full sets, then Queue & watch.'}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -195,7 +203,7 @@ export const PosterSetsTpdbRecentView: React.FC = () => {
                         Refresh
                     </button>
                     <a
-                        href={searchMode === 'feed' ? 'https://theposterdb.com/feed' : 'https://theposterdb.com/recent'}
+                        href={searchMode === 'feed' ? followingSiteHref : 'https://theposterdb.com/recent'}
                         target="_blank"
                         rel="noreferrer"
                         className={`${buttonClass} no-underline`}

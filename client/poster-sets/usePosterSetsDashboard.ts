@@ -1885,7 +1885,7 @@ export function usePosterSetsDashboardState() {
                 setSearchLoadingMore(false);
                 if (!setCount && !sawFirstBatch) {
                     const emptyMessage = mode === 'feed'
-                        ? 'No sets in your ThePosterDB following feed.'
+                        ? 'No sets from creators you follow in Poster Sets settings.'
                         : 'No matches found.';
                     setCatalogError(emptyMessage);
                     toast(emptyMessage, 'error');
@@ -2042,8 +2042,29 @@ export function usePosterSetsDashboardState() {
     const openTpdbRecentCatalog = (options?: { skipUrl?: boolean; locationTab?: 'paste' | 'tpdb'; refresh?: boolean; kind?: 'recent' | 'feed' }) => {
         const locationTab = options?.locationTab === 'paste' ? 'paste' : 'tpdb';
         const kind = options?.kind === 'feed' ? 'feed' : 'recent';
+        const followed = (configDraft.creatorWhitelist || [])
+            .map((name) => String(name || '').replace(/^@+/, '').trim())
+            .filter(Boolean);
+        if (kind === 'feed' && !followed.length) {
+            setTab(locationTab);
+            setSearchMode('feed');
+            setSearchSets([]);
+            setSearchLoadingMore(false);
+            setCatalogError('Add creators under Poster Sets → Settings → Creators you follow.');
+            toast('Add creators under Poster Sets → Settings → Creators you follow.', 'error');
+            if (!options?.skipUrl && locationTab !== 'paste') {
+                pushPosterLocation({
+                    tab: 'tpdb',
+                    rail: null,
+                    setUrl: null,
+                    creator: null,
+                    titleCardsOnly: false,
+                }, 'push');
+            }
+            return;
+        }
         const catalogUrl = kind === 'feed'
-            ? 'https://theposterdb.com/feed'
+            ? `https://theposterdb.com/user/${encodeURIComponent(followed[0])}`
             : 'https://theposterdb.com/recent';
         if (
             !options?.refresh
