@@ -279,6 +279,14 @@ import {
     shouldSkipTautulliAdminUser,
     usableStoredPlexAccountId,
 } from './lib/plex/localAccountId.js';
+import {
+    fetchPlexHomeUsers,
+    findRememberedPlexHomeUser,
+    isSamePlexHomeUser,
+    shouldOfferPlexHomeSelect,
+    switchPlexHomeUser,
+    toPublicPlexHomeUser,
+} from './lib/plex/homeUsers.js';
 
 const resolveAppVersion = () => {
     const pkgVersion = resolvePackageVersion();
@@ -1137,6 +1145,115 @@ const consumePlexOauthState = (req, res, pinId) => {
     const cookiePin = raw.slice(0, sep);
     const cookieNonce = raw.slice(sep + 1);
     return safeEqualString(cookiePin, id) && safeEqualString(cookieNonce, expected.nonce);
+};
+
+const PLEX_HOME_SELECT_COOKIE = 'plex_home_select';
+const plexHomeSelectPending = new Map(); // id -> { nonce, authToken, userData, ref, expiresAt }
+const PLEX_HOME_SELECT_TTL_MS = 10 * 60 * 1000;
+
+const prunePlexHomeSelectPending = () => {
+    const now = Date.now();
+    plexHomeSelectPending.forEach((entry, id) => {
+        if (!entry?.expiresAt || entry.expiresAt <= now) plexHomeSelectPending.delete(id);
+    });
+};
+
+const issuePlexHomeSelectPending = (req, res, { authToken, userData, ref }) => {
+    prunePlexHomeSelectPending();
+    const id = randomBytes(16).toString('hex');
+    const nonce = randomBytes(24).toString('base64url');
+    plexHomeSelectPending.set(id, {
+        nonce,
+        authToken,
+        userData,
+        ref: String(ref || '').trim(),
+        expiresAt: Date.now() + PLEX_HOME_SELECT_TTL_MS,
+    });
+    res.cookie(PLEX_HOME_SELECT_COOKIE, `${id}.${nonce}`, {
+        ...sessionCookieBase(req),
+        maxAge: PLEX_HOME_SELECT_TTL_MS,
+    });
+    return id;
+};
+
+const readPlexHomeSelectPending = (req) => {
+    prunePlexHomeSelectPending();
+    const raw = String(req.cookies?.[PLEX_HOME_SELECT_COOKIE] || '').trim();
+    const sep = raw.indexOf('.');
+    if (sep <= 0) return null;
+    const id = raw.slice(0, sep);
+    const nonce = raw.slice(sep + 1);
+    const entry = plexHomeSelectPending.get(id);
+    if (!entry || entry.expiresAt <= Date.now()) return null;
+    if (!safeEqualString(entry.nonce, nonce)) return null;
+    return { id, ...entry };
+};
+
+const clearPlexHomeSelectPending = (req, res) => {
+    const pending = readPlexHomeSelectPending(req);
+    if (pending?.id) plexHomeSelectPending.delete(pending.id);
+    res.clearCookie(PLEX_HOME_SELECT_COOKIE, sessionCookieBase(req));
+};
+
+const PLEX_HOME_REMEMBER_COOKIE = 'plex_home_remember';
+const PLEX_HOME_REMEMBER_TTL_MS = 365 * 24 * 60 * 60 * 1000;
+
+const encodePlexHomeRemember = ({ ownerId, userId, pin }) => {
+    const payload = JSON.stringify({
+        o: String(ownerId || '').trim(),
+        u: String(userId || '').trim(),
+        p: String(pin || '').trim(),
+    });
+    return encryptPlexAuthToken(payload);
+};
+
+const decodePlexHomeRemember = (raw) => {
+    const decrypted = decryptPlexAuthToken(raw);
+    if (!decrypted) return null;
+    try {
+        const parsed = JSON.parse(decrypted);
+        const ownerId = String(parsed?.o || parsed?.ownerId || '').trim();
+        const userId = String(parsed?.u || parsed?.userId || '').trim();
+        if (!ownerId || !userId) return null;
+        return {
+            ownerId,
+            userId,
+            pin: String(parsed?.p || parsed?.pin || '').trim(),
+        };
+    } catch {
+        return null;
+    }
+};
+
+const readPlexHomeRemember = (req) => decodePlexHomeRemember(req.cookies?.[PLEX_HOME_REMEMBER_COOKIE]);
+
+const setPlexHomeRemember = (req, res, { ownerId, userId, pin }) => {
+    const encoded = encodePlexHomeRemember({ ownerId, userId, pin });
+    if (!encoded) return;
+    res.cookie(PLEX_HOME_REMEMBER_COOKIE, encoded, {
+        ...sessionCookieBase(req),
+        maxAge: PLEX_HOME_REMEMBER_TTL_MS,
+    });
+};
+
+const clearPlexHomeRemember = (req, res) => {
+    res.clearCookie(PLEX_HOME_REMEMBER_COOKIE, sessionCookieBase(req));
+};
+
+const PLEX_HOME_SKIP_REMEMBER_COOKIE = 'plex_home_skip_remember';
+const PLEX_HOME_SKIP_REMEMBER_TTL_MS = 15 * 60 * 1000;
+
+const issuePlexHomeSkipRemember = (req, res) => {
+    res.cookie(PLEX_HOME_SKIP_REMEMBER_COOKIE, '1', {
+        ...sessionCookieBase(req),
+        maxAge: PLEX_HOME_SKIP_REMEMBER_TTL_MS,
+    });
+};
+
+const consumePlexHomeSkipRemember = (req, res) => {
+    const skip = String(req.cookies?.[PLEX_HOME_SKIP_REMEMBER_COOKIE] || '') === '1';
+    if (skip) res.clearCookie(PLEX_HOME_SKIP_REMEMBER_COOKIE, sessionCookieBase(req));
+    return skip;
 };
 
 const rejectPlexOauthState = (req, res, { redirectOnSuccess = false } = {}) => {
@@ -2854,6 +2971,36 @@ const ensurePortalUserForNotifications = async (sessionUser, { config: configArg
     return { users, localUser: created, created: true };
 };
 
+/** Owner-authenticated Plex Home profiles are already on the server — provision as members. */
+const ensurePortalUserForPlexHomeProfile = async (sessionUser) => {
+    await updateUsers((users) => {
+        if (findLocalUserForSession(users, sessionUser)) return users;
+        const plexId = String(sessionUser?.plexId || '').trim();
+        const stableId = String(sessionUser?.id || plexId).trim();
+        if (!stableId) return users;
+        users.push({
+            id: stableId,
+            ...(plexId ? { plexId } : {}),
+            username: sessionUser.username || 'Plex Home user',
+            email: sessionUser.email || '',
+            thumb: sessionUser.thumb || null,
+            joiningDate: new Date().toISOString(),
+            expiryDate: null,
+            plexAccessStatus: 'active',
+            isTrial: false,
+            isAdmin: false,
+            plexHomeUser: true,
+            notifyRequestAvailableEmail: true,
+            notifyRequestAvailableInApp: true,
+            notifyRequestAvailableWebPush: true,
+            notifyWebPush: true,
+            notifySummaryDigest: true,
+        });
+        log(`Provisioned Plex Home portal user ${sessionUser.username} (${stableId})`);
+        return users;
+    });
+};
+
 /** Record portal last-login using the same identity matching as membership checks. */
 const touchUserLastLogin = (users, sessionUser, at = new Date().toISOString(), extras = {}) => {
     const existingUser = findLocalUserForSession(users, sessionUser);
@@ -4175,6 +4322,7 @@ app.post('/api/auth/plex/login', authRateLimit, async (req, res) => {
         if (!response.ok) throw new Error('Failed to generate Plex PIN');
         const data = await response.json();
         if (data?.id) issuePlexOauthState(req, res, data.id);
+        if (req.body?.skipHomeRemember === true) issuePlexHomeSkipRemember(req, res);
         res.json({ ...data, clientIdentifier: CLIENT_ID });
     } catch (err) {
         log('Error in plex login: ' + err.message);
@@ -4592,6 +4740,212 @@ const claimReferralForSession = async (sessionUser, config, ref) => {
     return claimOutcome || { kind: 'skip' };
 };
 
+const plexLoginFail = (req, res, message, { redirectOnSuccess = false, status = 403 } = {}) => {
+    clearSessionCookie(req, res);
+    if (redirectOnSuccess) {
+        return res.redirect(withBasePath('/?loginError=' + encodeURIComponent(message)));
+    }
+    return res.status(status).json({ error: message });
+};
+
+const completePlexPortalLogin = async (req, res, {
+    userData,
+    authToken,
+    ref,
+    redirectOnSuccess = false,
+    autoProvisionHomeUser = false,
+} = {}) => {
+    const config = await loadFile(CONFIG_PATH, {});
+    await syncAdminPlexIdFromConfigToken(config);
+    const adminId = await getAdminId(config);
+    const isAdmin = !!(adminId && String(userData.id) === String(adminId));
+
+    const sessionUser = {
+        id: userData.uuid || String(userData.id),
+        plexId: userData.id,
+        email: userData.email || '',
+        username: userData.username || userData.title || userData.friendlyName || 'Plex User',
+        thumb: userData.thumb || null,
+        isAdmin,
+    };
+
+    if (autoProvisionHomeUser && !isAdmin) {
+        await ensurePortalUserForPlexHomeProfile(sessionUser);
+    }
+
+    const deletedUsers = await loadFile(DELETED_USERS_PATH, []);
+    if (!isAdmin && isDeletedUser(deletedUsers, sessionUser)) {
+        await appendAuditLog('login_blocked_deleted_user', sessionUser, sessionUser);
+        return plexLoginFail(req, res, 'Your portal session has expired. Please contact the admin for access.', { redirectOnSuccess });
+    }
+
+    if (!isAdmin) {
+        const users = await loadFile(USERS_PATH, []);
+        const knownUser = findLocalUserForSession(users, sessionUser);
+        const canSelfRegister = !!config.allowTemporaryAccess || (!!config.referralEnabled && !!ref);
+        if (!knownUser && !canSelfRegister) {
+            await appendAuditLog('login_blocked_non_member', sessionUser, sessionUser);
+            log(`Plex login blocked for ${sessionUser.username}: not a portal member (admin=${isAdmin}, adminPlexId=${config.adminPlexId || 'unset'})`);
+            return plexLoginFail(req, res, 'Your account is not registered for this portal.', { redirectOnSuccess });
+        }
+    }
+
+    if (!isAdmin && config.referralEnabled && ref) {
+        await claimReferralForSession(sessionUser, config, ref);
+    }
+
+    if (!isAdmin) {
+        const usersAfterReferral = await loadFile(USERS_PATH, []);
+        const knownAfterReferral = findLocalUserForSession(usersAfterReferral, sessionUser);
+        if (!knownAfterReferral && !config.allowTemporaryAccess) {
+            await appendAuditLog('login_blocked_non_member', sessionUser, sessionUser, {
+                reason: ref ? 'referral_not_granted' : 'not_a_member',
+            });
+            const message = ref
+                ? 'This referral link could not be used. Please contact the admin for access.'
+                : 'Your account is not registered for this portal.';
+            return plexLoginFail(req, res, message, { redirectOnSuccess });
+        }
+    }
+
+    const token = jwt.sign(sessionUser, JWT_SECRET, { expiresIn: '7d' });
+    setSessionCookie(req, res, token);
+
+    if (isAdmin) {
+        await ensurePortalUserForNotifications(sessionUser, { config });
+    }
+    await updateUsers((users) => {
+        if (!touchUserLastLogin(users, sessionUser, new Date().toISOString(), {
+            plexAuthToken: authToken,
+        })) {
+            return { data: users, result: users };
+        }
+        return users;
+    });
+    await appendAuditLog('user_login', sessionUser, sessionUser);
+
+    log(`Plex login success for ${sessionUser.username} (admin=${isAdmin}, homeUser=${!!autoProvisionHomeUser}, secureCookie=${FORCE_SECURE_COOKIES})`);
+
+    if (redirectOnSuccess) {
+        return res.redirect(withBasePath('/portal'));
+    }
+    return res.json({ message: 'Logged in successfully', user: sessionUser });
+};
+
+const resolvePlexHomeSwitchIdentity = async ({
+    ownerToken,
+    ownerUserData,
+    userId,
+    pin,
+}) => {
+    const pickedSelf = isSamePlexHomeUser({
+        id: ownerUserData?.id,
+        uuid: ownerUserData?.uuid,
+        plexId: ownerUserData?.id,
+    }, userId);
+    if (pickedSelf) {
+        return { ok: true, pickedSelf: true, needsPin: false, authToken: ownerToken, userData: ownerUserData };
+    }
+
+    const switched = await switchPlexHomeUser({
+        token: ownerToken,
+        userId,
+        pin,
+        headers: plexClientHeaders(ownerToken),
+    });
+    if (switched.needsPin) return { ok: false, pickedSelf: false, needsPin: true, authToken: '', userData: null };
+    if (!switched.ok || !switched.authToken) {
+        return { ok: false, pickedSelf: false, needsPin: false, authToken: '', userData: null };
+    }
+
+    const userRes = await apiFetch('https://plex.tv/api/v2/user', switched.authToken);
+    if (userRes.ok) {
+        return {
+            ok: true,
+            pickedSelf: false,
+            needsPin: false,
+            authToken: switched.authToken,
+            userData: await userRes.json(),
+        };
+    }
+
+    const homeUsers = await fetchPlexHomeUsers(ownerToken, {
+        headers: plexClientHeaders(ownerToken),
+    }).catch(() => []);
+    const selected = findRememberedPlexHomeUser(homeUsers, userId);
+    if (!selected) return { ok: false, pickedSelf: false, needsPin: false, authToken: '', userData: null };
+    return {
+        ok: true,
+        pickedSelf: false,
+        needsPin: false,
+        authToken: switched.authToken,
+        userData: {
+            id: selected.id,
+            uuid: selected.uuid || selected.id,
+            username: selected.username || selected.title,
+            title: selected.title,
+            email: selected.email || '',
+            thumb: selected.thumb,
+        },
+    };
+};
+
+const maybePauseForPlexHomeSelect = async (req, res, {
+    authToken,
+    userData,
+    ref,
+    isAdmin,
+    redirectOnSuccess = false,
+}) => {
+    if (!isAdmin) return false;
+    const homeUsers = await fetchPlexHomeUsers(authToken, { headers: plexClientHeaders(authToken) }).catch(() => []);
+    if (!shouldOfferPlexHomeSelect(homeUsers)) return false;
+
+    const skipRemember = consumePlexHomeSkipRemember(req, res);
+    const remembered = readPlexHomeRemember(req);
+    const rememberedForThisOwner = remembered && String(remembered.ownerId) === String(userData.id);
+    const rememberedForOwner = rememberedForThisOwner
+        ? findRememberedPlexHomeUser(homeUsers, remembered.userId)
+        : null;
+    if (!skipRemember && rememberedForOwner) {
+        const resolved = await resolvePlexHomeSwitchIdentity({
+            ownerToken: authToken,
+            ownerUserData: userData,
+            userId: rememberedForOwner.id,
+            pin: remembered.pin,
+        });
+        if (resolved.ok) {
+            log(`Plex Home auto-signin as ${rememberedForOwner.title || rememberedForOwner.id}`);
+            setPlexHomeRemember(req, res, {
+                ownerId: userData.id,
+                userId: rememberedForOwner.id,
+                pin: remembered.pin,
+            });
+            await completePlexPortalLogin(req, res, {
+                userData: resolved.userData,
+                authToken: resolved.authToken,
+                ref,
+                redirectOnSuccess,
+                autoProvisionHomeUser: !resolved.pickedSelf,
+            });
+            return true;
+        }
+        clearPlexHomeRemember(req, res);
+    } else if (!skipRemember && rememberedForThisOwner) {
+        clearPlexHomeRemember(req, res);
+    }
+
+    issuePlexHomeSelectPending(req, res, { authToken, userData, ref });
+    const users = homeUsers.map(toPublicPlexHomeUser).filter(Boolean);
+    const rememberUserId = rememberedForOwner?.id || null;
+    if (redirectOnSuccess) {
+        res.redirect(withBasePath('/?homeSelect=1'));
+        return true;
+    }
+    res.json({ needsHomeSelect: true, users, rememberUserId });
+    return true;
+};
+
 const handlePlexPinLogin = async (req, res, pinId, ref, { redirectOnSuccess = false } = {}) => {
     const pinData = await fetchPlexPinAuthToken(pinId);
 
@@ -4613,86 +4967,22 @@ const handlePlexPinLogin = async (req, res, pinId, ref, { redirectOnSuccess = fa
     const adminId = await getAdminId(config);
     const isAdmin = !!(adminId && String(userData.id) === String(adminId));
 
-    const deletedUsers = await loadFile(DELETED_USERS_PATH, []);
-    const sessionUser = {
-        id: userData.uuid,
-        plexId: userData.id,
-        email: userData.email,
-        username: userData.username,
-        thumb: userData.thumb || null,
+    if (await maybePauseForPlexHomeSelect(req, res, {
+        authToken: pinData.authToken,
+        userData,
+        ref,
         isAdmin,
-    };
-
-    if (!isAdmin && isDeletedUser(deletedUsers, sessionUser)) {
-        await appendAuditLog('login_blocked_deleted_user', sessionUser, sessionUser);
-        clearSessionCookie(req, res);
-        const message = 'Your portal session has expired. Please contact the admin for access.';
-        if (redirectOnSuccess) {
-            return res.redirect(withBasePath('/?loginError=' + encodeURIComponent(message)));
-        }
-        return res.status(403).json({ error: message });
+        redirectOnSuccess,
+    })) {
+        return;
     }
 
-    if (!isAdmin) {
-        const users = await loadFile(USERS_PATH, []);
-        const knownUser = findLocalUserForSession(users, sessionUser);
-        const canSelfRegister = !!config.allowTemporaryAccess || (!!config.referralEnabled && !!ref);
-        if (!knownUser && !canSelfRegister) {
-            await appendAuditLog('login_blocked_non_member', sessionUser, sessionUser);
-            clearSessionCookie(req, res);
-            log(`Plex login blocked for ${sessionUser.username}: not a portal member (admin=${isAdmin}, adminPlexId=${config.adminPlexId || 'unset'})`);
-            const message = 'Your account is not registered for this portal.';
-            if (redirectOnSuccess) {
-                return res.redirect(withBasePath('/?loginError=' + encodeURIComponent(message)));
-            }
-            return res.status(403).json({ error: message });
-        }
-    }
-
-    if (!isAdmin && config.referralEnabled && ref) {
-        await claimReferralForSession(sessionUser, config, ref);
-    }
-
-    if (!isAdmin) {
-        const usersAfterReferral = await loadFile(USERS_PATH, []);
-        const knownAfterReferral = findLocalUserForSession(usersAfterReferral, sessionUser);
-        if (!knownAfterReferral && !config.allowTemporaryAccess) {
-            await appendAuditLog('login_blocked_non_member', sessionUser, sessionUser, {
-                reason: ref ? 'referral_not_granted' : 'not_a_member',
-            });
-            clearSessionCookie(req, res);
-            const message = ref
-                ? 'This referral link could not be used. Please contact the admin for access.'
-                : 'Your account is not registered for this portal.';
-            if (redirectOnSuccess) {
-                return res.redirect(withBasePath('/?loginError=' + encodeURIComponent(message)));
-            }
-            return res.status(403).json({ error: message });
-        }
-    }
-
-    const token = jwt.sign(sessionUser, JWT_SECRET, { expiresIn: '7d' });
-    setSessionCookie(req, res, token);
-
-    if (isAdmin) {
-        await ensurePortalUserForNotifications(sessionUser, { config });
-    }
-    await updateUsers((users) => {
-        if (!touchUserLastLogin(users, sessionUser, new Date().toISOString(), {
-            plexAuthToken: pinData.authToken,
-        })) {
-            return { data: users, result: users };
-        }
-        return users;
+    return completePlexPortalLogin(req, res, {
+        userData,
+        authToken: pinData.authToken,
+        ref,
+        redirectOnSuccess,
     });
-    await appendAuditLog('user_login', sessionUser, sessionUser);
-
-    log(`Plex login success for ${sessionUser.username} (admin=${isAdmin}, secureCookie=${FORCE_SECURE_COOKIES})`);
-
-    if (redirectOnSuccess) {
-        return res.redirect(withBasePath('/portal'));
-    }
-    return res.json({ message: 'Logged in successfully', user: sessionUser });
 };
 
 app.get('/api/auth/diagnostics', publicReadRateLimit, async (req, res) => {
@@ -4758,6 +5048,83 @@ app.get('/api/auth/plex/callback', authCallbackRateLimit, async (req, res) => {
         log('Error in plex GET callback: ' + err.message);
         clearSessionCookie(req, res);
         res.redirect(withBasePath('/?loginError=' + encodeURIComponent('Login failed. Please try again.')));
+    }
+});
+
+app.get('/api/auth/plex/home-users', authCallbackRateLimit, async (req, res) => {
+    try {
+        const pending = readPlexHomeSelectPending(req);
+        if (!pending?.authToken) {
+            return res.status(404).json({ error: 'Plex Home selection expired. Please sign in again.' });
+        }
+        const homeUsers = await fetchPlexHomeUsers(pending.authToken, {
+            headers: plexClientHeaders(pending.authToken),
+        }).catch(() => []);
+        return res.json({
+            needsHomeSelect: true,
+            users: homeUsers.map(toPublicPlexHomeUser).filter(Boolean),
+            rememberUserId: (() => {
+                const remembered = readPlexHomeRemember(req);
+                if (!remembered || String(remembered.ownerId) !== String(pending.userData?.id || '')) return null;
+                return findRememberedPlexHomeUser(homeUsers, remembered.userId)?.id || null;
+            })(),
+        });
+    } catch (err) {
+        log(`Plex Home users list failed: ${err.message}`);
+        return res.status(500).json({ error: 'Failed to load Plex Home profiles.' });
+    }
+});
+
+app.post('/api/auth/plex/home-select/cancel', authRateLimit, async (req, res) => {
+    clearPlexHomeSelectPending(req, res);
+    clearSessionCookie(req, res);
+    return res.json({ ok: true });
+});
+
+app.post('/api/auth/plex/home-switch', authRateLimit, async (req, res) => {
+    try {
+        const pending = readPlexHomeSelectPending(req);
+        if (!pending?.authToken || !pending?.userData) {
+            return res.status(401).json({ error: 'Plex Home selection expired. Please sign in again.' });
+        }
+        const userId = String(req.body?.userId || '').trim();
+        const pin = String(req.body?.pin || '').trim();
+        const remember = req.body?.remember === true;
+        if (!userId) return res.status(400).json({ error: 'Select a Plex Home profile.' });
+
+        const resolved = await resolvePlexHomeSwitchIdentity({
+            ownerToken: pending.authToken,
+            ownerUserData: pending.userData,
+            userId,
+            pin,
+        });
+        if (resolved.needsPin) {
+            return res.status(401).json({ error: 'Enter the PIN for this profile.' });
+        }
+        if (!resolved.ok || !resolved.authToken || !resolved.userData) {
+            return res.status(401).json({ error: 'Could not switch to that Plex Home profile.' });
+        }
+
+        if (remember) {
+            setPlexHomeRemember(req, res, {
+                ownerId: pending.userData.id,
+                userId,
+                pin,
+            });
+        } else {
+            clearPlexHomeRemember(req, res);
+        }
+
+        clearPlexHomeSelectPending(req, res);
+        return completePlexPortalLogin(req, res, {
+            userData: resolved.userData,
+            authToken: resolved.authToken,
+            ref: pending.ref,
+            autoProvisionHomeUser: !resolved.pickedSelf,
+        });
+    } catch (err) {
+        log(`Plex Home switch failed: ${err.message}`);
+        return res.status(500).json({ error: 'Failed to switch Plex Home profile.' });
     }
 });
 

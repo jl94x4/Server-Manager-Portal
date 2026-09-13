@@ -13,6 +13,7 @@ import { IN_APP_NOTIFICATIONS_CHANGED_EVENT } from './shared/inAppNotificationsR
 import { getPublicOrigin, logoUrl, portalUrl, resolvePortalAssetUrl, stripBasePath, PLEX_ICON_URL, JELLYFIN_ICON_URL, EMBY_ICON_URL } from './shared/basePath';
 import { sizedPlexImageUrl } from './shared/plexImageUrl';
 import { LoginBrandMark } from './shared/LoginBrandMark';
+import { PlexHomeSelect } from './shared/PlexHomeSelect';
 import { formatDate, getDaysUntilExpiry, getAccessProgressPct, addMonths, addYears, formatTime, formatEventName, formatDateTime, hexToRgb, formatSizeCeil, formatStreamingHour, formatPortalDateTime, formatPortalDateTimeCompact } from './shared/format';
 import { CustomSelect, ConfirmModal, StyledCheckbox, ScrollReveal } from './shared/ui';
 import { PeriodDropdown } from './shared/PeriodDropdown';
@@ -6664,6 +6665,9 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, p
     const [jellyfinPassword, setJellyfinPassword] = useState('');
     const [showJellyfinPassword, setShowJellyfinPassword] = useState(false);
     const [quickConnect, setQuickConnect] = useState<{ sessionId: string, code: string, jellyfinUrl: string } | null>(null);
+    const [homeSelectUsers, setHomeSelectUsers] = useState<any[] | null>(null);
+    const [homeSelectBusy, setHomeSelectBusy] = useState(false);
+    const [homeSelectRememberUserId, setHomeSelectRememberUserId] = useState<string | null>(null);
     const quickConnectPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const [publicInfo, setPublicInfo] = useState<{ thumb: string | null, customLogoUrl?: string | null, serverName: string, isConfigured: boolean | null, mediaServerType?: string }>({ thumb: null, customLogoUrl: null, serverName: 'Server Portal', isConfigured: null, mediaServerType: 'plex' });
     const [publicInfoLoading, setPublicInfoLoading] = useState(true);
@@ -6741,6 +6745,25 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, p
             return;
         }
 
+        if (params.get('homeSelect') === '1') {
+            window.history.replaceState({}, '', portalUrl('/'));
+            setIsLoading(true);
+            apiFetch('/api/auth/plex/home-users')
+                .then((data) => {
+                    if (Array.isArray(data?.users) && data.users.length) {
+                        setHomeSelectUsers(data.users);
+                        setHomeSelectRememberUserId(data.rememberUserId || null);
+                        return;
+                    }
+                    setError('No Plex Home profiles were found. Please sign in again.');
+                })
+                .catch((e) => {
+                    setError(e.message || 'Plex Home selection expired. Please sign in again.');
+                })
+                .finally(() => setIsLoading(false));
+            return;
+        }
+
         // Setup wizard OAuth return — SetupWizard handles this, not login
         if (path.startsWith('/auth/setup/')) {
             return;
@@ -6754,7 +6777,12 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, p
             apiFetch('/api/auth/plex/callback', {
                 method: 'POST',
                 body: JSON.stringify({ pinId, ...(storedRef ? { ref: storedRef } : {}) }),
-            }).then(() => {
+            }).then((data) => {
+                if (data?.needsHomeSelect && Array.isArray(data.users)) {
+                    setHomeSelectUsers(data.users);
+                    setHomeSelectRememberUserId(data.rememberUserId || null);
+                    return;
+                }
                 clearStoredReferralRef();
                 onLoginSuccess();
             }).catch(e => {
@@ -6765,11 +6793,16 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, p
         }
     }, [onLoginSuccess]);
 
-    const handlePlexLogin = async () => {
+    const handlePlexLogin = async (options?: { skipHomeRemember?: boolean }) => {
         setIsLoading(true);
         setError('');
         try {
-            const data = await apiFetch('/api/auth/plex/login', { method: 'POST' });
+            const data = await apiFetch('/api/auth/plex/login', {
+                method: 'POST',
+                body: JSON.stringify({
+                    skipHomeRemember: options?.skipHomeRemember === true,
+                }),
+            });
             const clientId = data.clientIdentifier || data.clientId || '';
             const storedRef = readStoredReferralRef();
             const callbackParams = new URLSearchParams({ pinId: String(data.id) });
@@ -6780,6 +6813,43 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, p
         } catch (e) {
             setError('Failed to initiate Plex login');
             setIsLoading(false);
+        }
+    };
+
+    const handlePlexHomeSelect = async (user: { id: string }, pin: string | undefined, remember: boolean) => {
+        setHomeSelectBusy(true);
+        setError('');
+        try {
+            await apiFetch('/api/auth/plex/home-switch', {
+                method: 'POST',
+                body: JSON.stringify({
+                    userId: user.id,
+                    remember: remember === true,
+                    ...(pin ? { pin } : {}),
+                }),
+            });
+            clearStoredReferralRef();
+            setHomeSelectUsers(null);
+            setHomeSelectRememberUserId(null);
+            onLoginSuccess();
+        } catch (e: any) {
+            setError(e.message || 'Could not switch Plex Home profile.');
+        } finally {
+            setHomeSelectBusy(false);
+        }
+    };
+
+    const handlePlexHomeSelectCancel = async () => {
+        setHomeSelectBusy(true);
+        try {
+            await apiFetch('/api/auth/plex/home-select/cancel', { method: 'POST' });
+        } catch {
+            // Cookie may already be gone
+        } finally {
+            setHomeSelectUsers(null);
+            setHomeSelectRememberUserId(null);
+            setHomeSelectBusy(false);
+            setError('');
         }
     };
 
@@ -6866,8 +6936,8 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, p
             <Loader isLoading={isLoading} isCinematic={!!publicConfig?.useCinematicLoading} />
 
             <div className="relative z-10 w-full max-w-6xl flex flex-col gap-6">
-                <div className={`glass-card-lg overflow-hidden flex flex-col ${showTrialAccess ? 'lg:flex-row min-h-[min(680px,calc(100vh-3rem))]' : 'max-w-xl mx-auto w-full'}`}>
-                    {showTrialAccess && (
+                <div className={`glass-card-lg overflow-hidden flex flex-col ${showTrialAccess && !homeSelectUsers ? 'lg:flex-row min-h-[min(680px,calc(100vh-3rem))]' : 'max-w-xl mx-auto w-full'}`}>
+                    {showTrialAccess && !homeSelectUsers && (
                         <div className="flex-1 flex flex-col justify-center p-6 sm:p-8 lg:p-10 xl:p-12 border-t lg:border-t-0 lg:border-r border-white/10 bg-gradient-to-br from-plex/[0.08] via-plex/[0.03] to-transparent min-w-0 order-last lg:order-none">
                             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-plex/10 border border-plex/25 text-plex text-[11px] font-bold uppercase tracking-widest mb-5 w-fit">
                                 <Sparkles className="w-3.5 h-3.5" /> New here?
@@ -6897,12 +6967,23 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, p
                         </div>
                     )}
 
-                    <div className={`flex flex-col justify-center items-center text-center p-6 sm:p-8 lg:p-10 xl:p-12 min-w-0 ${showTrialAccess ? 'flex-1 order-first lg:order-none' : 'w-full py-10 sm:py-12'}`}>
+                    <div className={`flex flex-col justify-center items-center text-center p-6 sm:p-8 lg:p-10 xl:p-12 min-w-0 ${showTrialAccess && !homeSelectUsers ? 'flex-1 order-first lg:order-none' : 'w-full py-10 sm:py-12'}`}>
                         {publicConfigWarning && (
                             <div className="w-full mb-4 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-200 text-center">
                                 {publicConfigWarning}
                             </div>
                         )}
+                        {homeSelectUsers ? (
+                            <PlexHomeSelect
+                                users={homeSelectUsers}
+                                busy={homeSelectBusy}
+                                error={error}
+                                rememberUserId={homeSelectRememberUserId}
+                                onSelect={handlePlexHomeSelect}
+                                onCancel={handlePlexHomeSelectCancel}
+                            />
+                        ) : (
+                            <>
                         <div className={`relative mb-8 flex justify-center w-full ${publicConfig?.loginLogoCircleFrame !== false ? '' : 'max-w-lg px-2'}`}>
                             {!loginLogoSrc && publicConfig?.loginLogoCircleFrame !== false && (
                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-36 h-36 bg-plex/20 rounded-full blur-[60px] pointer-events-none" />
@@ -7009,10 +7090,20 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, p
                                 )}
                             </div>
                         ) : (
-                            <button type="button" className={loginSecondaryBtnClass} onClick={handlePlexLogin} disabled={isLoading}>
-                                <img src={PLEX_ICON_URL} alt="" className="w-5 h-5 object-contain opacity-90" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                                Login with Plex
-                            </button>
+                            <div className="w-full max-w-sm flex flex-col items-center">
+                                <button type="button" className={loginSecondaryBtnClass} onClick={() => handlePlexLogin()} disabled={isLoading}>
+                                    <img src={PLEX_ICON_URL} alt="" className="w-5 h-5 object-contain opacity-90" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                                    Login with Plex
+                                </button>
+                                <button
+                                    type="button"
+                                    className="mt-3 text-xs font-bold text-muted hover:text-text transition"
+                                    onClick={() => handlePlexLogin({ skipHomeRemember: true })}
+                                    disabled={isLoading}
+                                >
+                                    Choose who signs in
+                                </button>
+                            </div>
                         )}
 
                         {!showTrialAccess && !isEmbyLikeAuth && publicConfig?.showPublicLibraryStats !== false && (
@@ -7020,12 +7111,14 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, p
                                 <LivePlexStats />
                             </div>
                         )}
+                            </>
+                        )}
                     </div>
                 </div>
 
                 {publicConfig?.showPublicStatusMonitor !== false && <PublicUptimeBanner />}
 
-                {error && (
+                {error && !homeSelectUsers && (
                     <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-300 text-sm flex items-start gap-3">
                         <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-red-400" />
                         <span>{error}</span>
