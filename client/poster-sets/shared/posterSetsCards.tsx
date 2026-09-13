@@ -249,7 +249,7 @@ export function LibraryMediaCard({
                     className="absolute inset-0 h-full w-full"
                     imgClassName="absolute inset-0 h-full w-full object-cover"
                 />
-                <span className="absolute left-2 top-2 rounded-full border border-white/15 bg-black/55 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">
+                <span className="absolute bottom-2 left-2 rounded-full border border-white/15 bg-black/55 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">
                     {item.mediaType === 'movie' ? 'Movie' : 'TV'}
                 </span>
                 {cacheLabel ? (
