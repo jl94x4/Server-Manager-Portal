@@ -283,6 +283,8 @@ import {
     fetchPlexHomeUsers,
     findRememberedPlexHomeUser,
     isSamePlexHomeUser,
+    sessionCanUsePlexHomeSwitch,
+    sessionIsPlexHomeProfile,
     shouldOfferPlexHomeSelect,
     switchPlexHomeUser,
     toPublicPlexHomeUser,
@@ -3024,7 +3026,14 @@ const ensurePortalUserForNotifications = async (sessionUser, { config: configArg
 /** Owner-authenticated Plex Home profiles are already on the server — provision as members. */
 const ensurePortalUserForPlexHomeProfile = async (sessionUser) => {
     await updateUsers((users) => {
-        if (findLocalUserForSession(users, sessionUser)) return users;
+        const existing = findLocalUserForSession(users, sessionUser);
+        if (existing) {
+            if (!existing.plexHomeUser) {
+                existing.plexHomeUser = true;
+                log(`Marked existing portal user ${existing.username || sessionUser.username} as Plex Home profile`);
+            }
+            return users;
+        }
         const plexId = String(sessionUser?.plexId || '').trim();
         const stableId = String(sessionUser?.id || plexId).trim();
         if (!stableId) return users;
@@ -4817,6 +4826,7 @@ const completePlexPortalLogin = async (req, res, {
         username: userData.username || userData.title || userData.friendlyName || 'Plex User',
         thumb: userData.thumb || null,
         isAdmin,
+        ...(autoProvisionHomeUser && !isAdmin ? { plexHomeUser: true } : {}),
     };
 
     if (autoProvisionHomeUser && !isAdmin) {
@@ -5194,10 +5204,11 @@ const resolvePlexHomeOwnerContext = async (req) => {
         String(req.user?.plexId || '') === String(adminId)
         || String(req.user?.id || '') === String(adminId)
     ));
-    const isHomeUser = !!localUser?.plexHomeUser;
-    if (!isAdmin && !isHomeUser) return null;
-
     const cookie = readPlexHomeOwner(req);
+    const isHomeUser = !!localUser?.plexHomeUser || !!req.user?.plexHomeUser;
+    if (!sessionCanUsePlexHomeSwitch({ isAdmin, plexHomeUser: isHomeUser, hasOwnerToken: !!cookie?.authToken })) {
+        return null;
+    }
     const ownerId = String(cookie?.ownerId || adminId || '').trim();
     let authToken = String(cookie?.authToken || '').trim();
     if (!authToken) {
@@ -5222,10 +5233,17 @@ app.get('/api/auth/plex/home-profiles', requireAuth, requireMember, async (req, 
             headers: plexClientHeaders(owner.authToken),
         }).catch(() => []);
         const users = homeUsers.map(toPublicPlexHomeUser).filter(Boolean);
-        if (!shouldOfferPlexHomeSelect(users)) {
+        const inHome = sessionIsPlexHomeProfile(users, req.user);
+        const adminId = String(owner.ownerId || '');
+        const isOwnerSession = !!(adminId && (
+            String(req.user?.plexId || '') === adminId
+            || String(req.user?.id || '') === adminId
+        ));
+        const hasOwnerCookie = !!readPlexHomeOwner(req)?.authToken;
+        if (!shouldOfferPlexHomeSelect(users) || (!inHome && !isOwnerSession && !hasOwnerCookie)) {
             return res.json({
                 available: false,
-                users,
+                users: inHome || isOwnerSession || hasOwnerCookie ? users : [],
                 currentUserId: String(req.user?.plexId || req.user?.id || ''),
             });
         }
