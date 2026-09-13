@@ -114,6 +114,8 @@ export const resolveInProgressDisplay = (
 
     const status = Number(mediaStatus ?? mediaInfo?.status);
     if (status !== MEDIA_STATUS.PROCESSING) return null;
+    // Files on disk (including still-airing / Partial) are not "waiting to download".
+    if (sonarrHasOnDiskFiles(details?.sonarrLibraryStatus)) return null;
 
     if (hasActiveSeerrDownloads(mediaInfo)) {
         return {
@@ -133,8 +135,25 @@ export const resolveInProgressDisplay = (
 /** Whether a season still has unaired episodes scheduled (currently airing). */
 export const isReturningSeries = (details: any): boolean => {
     const status = String(details?.status || '').toLowerCase();
+    if (status === 'ended' || status === 'canceled' || status === 'cancelled') return false;
     if (status === 'in production') return false;
-    return details?.inProduction === true || status === 'returning series';
+    if (details?.inProduction === true || status === 'returning series') return true;
+    // Browse cards omit TMDB status — Sonarr nextAiring / continuing is the list-path signal.
+    const sonarrStatus = String(details?.sonarrLibraryStatus?.seriesStatus || '').toLowerCase();
+    if (sonarrStatus === 'ended' || sonarrStatus === 'canceled' || sonarrStatus === 'cancelled') return false;
+    if (sonarrStatus === 'continuing' || sonarrStatus === 'upcoming') return true;
+    return Boolean(details?.sonarrLibraryStatus?.nextAiring);
+};
+
+/** True when Sonarr reports episode files on disk (continuing shows are not showComplete). */
+export const sonarrHasOnDiskFiles = (sonarr: any): boolean => {
+    if (!sonarr?.matched || sonarr.hasActiveDownloads) return false;
+    if (sonarr.showComplete) return true;
+    const fileCount = Number(sonarr.fileCount ?? sonarr.episodeFileCount) || 0;
+    if (fileCount > 0) return true;
+    return (sonarr.seasons || []).some((season: any) => (
+        Number(season?.withFile) > 0 || Number(season?.airedWithFile) > 0
+    ));
 };
 
 export const isEndedShow = (details: any): boolean => {

@@ -14,6 +14,7 @@ import {
     REQUEST_STATUS,
     resolveInProgressDisplay,
     sonarrCaughtUpWithAiredEpisodes,
+    sonarrHasOnDiskFiles,
     sonarrMainSeasonsFullyOnDisk,
     type SeasonStatusInfo,
 } from './requestSeasonUtils';
@@ -218,18 +219,21 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
             };
         }
 
+        // Seerr: still-airing shows with files are Partially Available — not Requested —
+        // even when the request overlay left a PROCESSING stamp (approved forever).
+        const onDisk = sonarrHasOnDiskFiles(sonarr);
         const continuingInLibrary = libraryBadgeAllowed
             && Boolean(sonarr?.matched)
             && !ended
             && !caughtUp
             && (
-                Boolean(sonarr?.nextAiring)
+                onDisk
+                || Boolean(sonarr?.nextAiring)
                 || (returning && sonarr?.showComplete === false)
             );
         if (
             continuingInLibrary
-            && stamped >= MEDIA_STATUS.PROCESSING
-            && stamped <= MEDIA_STATUS.AVAILABLE
+            && (onDisk || (stamped >= MEDIA_STATUS.PROCESSING && stamped <= MEDIA_STATUS.AVAILABLE))
         ) {
             return {
                 ...base,

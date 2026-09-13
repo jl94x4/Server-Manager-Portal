@@ -81,3 +81,56 @@ test('resolveMediaAvailabilityState treats approved requests as up to date when 
     assert.equal(state.label, 'Up to date');
     assert.match(String(state.detail || ''), /up to date$/);
 });
+
+test('resolveMediaAvailabilityState does not keep Requested on a still-airing show with files', async () => {
+    const { resolveMediaAvailabilityState } = await loadDiscoverAvailability();
+    const state = resolveMediaAvailabilityState({
+        mediaType: 'tv',
+        tmdbId: 194583,
+        firstAirDate: '2023-06-18',
+        mediaInfo: {
+            status: 3,
+            requests: [{ id: 9, status: 2 }],
+        },
+        sonarrLibraryStatus: {
+            matched: true,
+            showComplete: false,
+            hasActiveDownloads: false,
+            nextAiring: '2026-09-13T00:00:00Z',
+            seriesStatus: 'continuing',
+            fileCount: 22,
+            episodeFileCount: 22,
+        },
+    });
+    assert.notEqual(state.kind, 'requested');
+    assert.notEqual(state.kind, 'processing');
+    assert.equal(state.kind, 'partial');
+});
+
+test('resolveMediaAvailabilityState treats PROCESSING stamps as up to date when Sonarr is caught up', async () => {
+    const { resolveMediaAvailabilityState } = await loadDiscoverAvailability();
+    const state = resolveMediaAvailabilityState({
+        mediaType: 'tv',
+        tmdbId: 194583,
+        firstAirDate: '2023-06-18',
+        mediaInfo: {
+            status: 3,
+            requests: [{ id: 9, status: 2 }],
+        },
+        sonarrLibraryStatus: {
+            matched: true,
+            showComplete: false,
+            hasActiveDownloads: false,
+            nextAiring: '2099-01-01T00:00:00Z',
+            seriesStatus: 'continuing',
+            fileCount: 22,
+            seasons: [
+                { seasonNumber: 1, airedTotal: 6, airedWithFile: 6, complete: true },
+                { seasonNumber: 2, airedTotal: 8, airedWithFile: 8, complete: true },
+                { seasonNumber: 3, airedTotal: 8, airedWithFile: 8, complete: true },
+            ],
+        },
+    });
+    assert.equal(state.kind, 'available');
+    assert.equal(state.label, 'Up to date');
+});

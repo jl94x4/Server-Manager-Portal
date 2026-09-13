@@ -93,3 +93,31 @@ test('enrichDiscoverBrowseRows live-checks titles the disk cache missed', async 
     assert.equal(result[0].mediaInfo.status, 5);
     assert.equal(result[0].radarrLibraryStatus.hasFile, true);
 });
+
+test('mergeAvailabilityOntoItems lets continuing Sonarr files win over PROCESSING requests', async () => {
+    const { mergeAvailabilityOntoItems } = await loadDiscoverAvailabilityEnrich();
+    const result = mergeAvailabilityOntoItems(
+        [{
+            mediaType: 'tv',
+            tmdbId: 194583,
+            mediaInfo: {
+                status: 3,
+                requests: [{ id: 9, status: 2 }],
+            },
+        }],
+        {
+            'tv:194583': {
+                mediaInfo: { status: 3 },
+                sonarrLibraryStatus: {
+                    matched: true,
+                    showComplete: false,
+                    hasActiveDownloads: false,
+                    nextAiring: '2026-09-13T00:00:00Z',
+                    fileCount: 22,
+                },
+            },
+        },
+    );
+    assert.equal(result[0].mediaInfo.status, 4);
+    assert.equal(result[0].sonarrLibraryStatus.fileCount, 22);
+});

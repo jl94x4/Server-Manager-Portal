@@ -10326,8 +10326,15 @@ const resolveDiscoveryItemLibraryMediaStatus = (item = {}, mediaInfo = {}) => {
         return radarr.downloading ? 3 : 5;
     }
     const sonarr = item?.sonarrLibraryStatus;
-    if (sonarr?.matched && sonarr?.showComplete && !sonarr?.hasActiveDownloads) {
-        return 5;
+    if (sonarr?.matched && !sonarr?.hasActiveDownloads) {
+        if (sonarr.showComplete) return 5;
+        const fileCount = Number(sonarr.fileCount ?? sonarr.episodeFileCount) || 0;
+        const hasFiles = fileCount > 0
+            || (Array.isArray(sonarr.seasons) && sonarr.seasons.some((season) => (
+                Number(season?.withFile) > 0 || Number(season?.airedWithFile) > 0
+            )));
+        // Continuing / still-airing shows are Partial in Seerr, not Requested.
+        if (hasFiles) return 4;
     }
     const lidarr = item?.lidarrLibraryStatus;
     if (lidarr?.matched && !lidarr?.hasActiveDownloads) {
@@ -11006,6 +11013,7 @@ app.post('/api/discovery/availability-batch', requireAuth, requireMember, async 
                 mediaInfo: mediaInfo && Object.keys(mediaInfo).length ? mediaInfo : null,
                 sonarrLibraryStatus: item?.sonarrLibraryStatus || null,
                 radarrLibraryStatus: item?.radarrLibraryStatus || null,
+                inLibrary: Number(mediaInfo?.status) === 4 || Number(mediaInfo?.status) === 5,
             };
         });
 

@@ -49,10 +49,20 @@ const LIBRARY_OWNED_STATUSES = new Set<number>([
     MEDIA_STATUS.BLACKLISTED,
 ]);
 
+const sonarrPatchShowsOnDisk = (sonarr: any) => {
+    if (!sonarr?.matched || sonarr.hasActiveDownloads) return false;
+    if (sonarr.showComplete) return true;
+    const fileCount = Number(sonarr.fileCount ?? sonarr.episodeFileCount) || 0;
+    if (fileCount > 0) return true;
+    return (sonarr.seasons || []).some((season: any) => (
+        Number(season?.withFile) > 0 || Number(season?.airedWithFile) > 0
+    ));
+};
+
 const patchShowsLibraryAvailable = (patch: any) => (
     LIBRARY_OWNED_STATUSES.has(Number(patch?.mediaInfo?.status))
     || Boolean(patch?.radarrLibraryStatus?.hasFile && !patch?.radarrLibraryStatus?.downloading)
-    || Boolean(patch?.sonarrLibraryStatus?.showComplete && !patch?.sonarrLibraryStatus?.hasActiveDownloads)
+    || sonarrPatchShowsOnDisk(patch?.sonarrLibraryStatus)
     || Boolean(patch?.inLibrary && !patch?.downloading)
 );
 
@@ -94,6 +104,8 @@ export const mergeAvailabilityOntoItems = <T,>(items: T[], availabilityByKey: Re
                 mergedInfo.status = MEDIA_STATUS.AVAILABLE;
             } else if (patch.sonarrLibraryStatus?.showComplete) {
                 mergedInfo.status = MEDIA_STATUS.AVAILABLE;
+            } else if (sonarrPatchShowsOnDisk(patch.sonarrLibraryStatus)) {
+                mergedInfo.status = MEDIA_STATUS.PARTIAL;
             }
         } else if (preserveRequest) {
             if (REQUEST_PRESERVE_STATUSES.has(existingStatus)) {
