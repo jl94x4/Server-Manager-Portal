@@ -5280,11 +5280,21 @@ app.post('/api/auth/plex/home-profiles/switch', authRateLimit, requireAuth, requ
         }
 
         persistPlexHomeOwner(req, res, owner);
-        setPlexHomeRemember(req, res, {
-            ownerId: owner.ownerId,
-            userId,
-            pin,
-        });
+        if (req.body?.remember === true) {
+            setPlexHomeRemember(req, res, {
+                ownerId: owner.ownerId,
+                userId,
+                pin,
+            });
+        } else if (req.body?.remember === false) {
+            clearPlexHomeRemember(req, res);
+        } else if (readPlexHomeRemember(req)) {
+            setPlexHomeRemember(req, res, {
+                ownerId: owner.ownerId,
+                userId,
+                pin,
+            });
+        }
         return completePlexPortalLogin(req, res, {
             userData: resolved.userData,
             authToken: resolved.authToken,

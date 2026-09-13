@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { Lock, User, X } from 'lucide-react';
 
@@ -12,8 +12,8 @@ export type PlexHomeProfile = {
     protected?: boolean;
 };
 
-const isCurrentProfile = (user: PlexHomeProfile, currentUserId?: string | null) => {
-    const want = String(currentUserId || '').trim();
+const isSameProfile = (user: PlexHomeProfile, targetId?: string | null) => {
+    const want = String(targetId || '').trim();
     if (!want || !user) return false;
     return [user.id, user.uuid].some((value) => String(value || '').trim() === want);
 };
@@ -22,14 +22,42 @@ export const PlexHomeSwitchModal: React.FC<{
     open: boolean;
     users: PlexHomeProfile[];
     currentUserId?: string | null;
+    rememberUserId?: string | null;
+    showRemember?: boolean;
+    rememberDefault?: boolean;
     busy?: boolean;
     error?: string;
-    onSelect: (user: PlexHomeProfile, pin?: string) => void;
+    loginMode?: boolean;
+    onSelect: (user: PlexHomeProfile, pin: string | undefined, remember: boolean) => void;
     onClose: () => void;
     onViewProfile?: () => void;
-}> = ({ open, users, currentUserId, busy, error, onSelect, onClose, onViewProfile }) => {
+    onUseDifferentAccount?: () => void;
+}> = ({
+    open,
+    users,
+    currentUserId,
+    rememberUserId,
+    showRemember = false,
+    rememberDefault = true,
+    busy,
+    error,
+    loginMode = false,
+    onSelect,
+    onClose,
+    onViewProfile,
+    onUseDifferentAccount,
+}) => {
     const [pinUser, setPinUser] = useState<PlexHomeProfile | null>(null);
     const [pin, setPin] = useState('');
+    const [remember, setRemember] = useState(rememberDefault);
+
+    useEffect(() => {
+        if (open) {
+            setRemember(rememberDefault);
+            setPinUser(null);
+            setPin('');
+        }
+    }, [open, rememberDefault]);
 
     const profiles = useMemo(
         () => (Array.isArray(users) ? users.filter((user) => user?.id) : []),
@@ -40,7 +68,7 @@ export const PlexHomeSwitchModal: React.FC<{
 
     const choose = (user: PlexHomeProfile) => {
         if (busy) return;
-        if (isCurrentProfile(user, currentUserId)) {
+        if (!loginMode && isSameProfile(user, currentUserId)) {
             onClose();
             return;
         }
@@ -49,7 +77,7 @@ export const PlexHomeSwitchModal: React.FC<{
             setPin('');
             return;
         }
-        onSelect(user);
+        onSelect(user, undefined, remember);
     };
 
     const submitPin = (event?: React.FormEvent) => {
@@ -57,7 +85,16 @@ export const PlexHomeSwitchModal: React.FC<{
         if (!pinUser || busy) return;
         const value = pin.trim();
         if (!value) return;
-        onSelect(pinUser, value);
+        onSelect(pinUser, value, remember);
+    };
+
+    const dismiss = () => {
+        if (busy) return;
+        if (loginMode && onUseDifferentAccount) {
+            onUseDifferentAccount();
+            return;
+        }
+        onClose();
     };
 
     return ReactDOM.createPortal(
@@ -65,8 +102,8 @@ export const PlexHomeSwitchModal: React.FC<{
             <button
                 type="button"
                 className="absolute inset-0 bg-black/75 backdrop-blur-xl cursor-default"
-                aria-label="Close profile switcher"
-                onClick={() => { if (!busy) onClose(); }}
+                aria-label={loginMode ? 'Use a different Plex account' : 'Close profile switcher'}
+                onClick={dismiss}
             />
             <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
                 <div className="absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-plex/20 blur-[90px]" />
@@ -82,14 +119,16 @@ export const PlexHomeSwitchModal: React.FC<{
                             Who&apos;s watching?
                         </h2>
                         <p className="text-sm text-muted mt-1.5 max-w-md">
-                            Switch to another profile on this device. PIN-protected profiles need their Home PIN.
+                            {loginMode
+                                ? 'Pick a profile to continue. Managed family accounts use this Plex Home login, then a PIN if one is set.'
+                                : 'Switch to another profile on this device. PIN-protected profiles need their Home PIN.'}
                         </p>
                     </div>
                     <button
                         type="button"
-                        onClick={() => { if (!busy) onClose(); }}
+                        onClick={dismiss}
                         className="p-2 rounded-xl text-muted hover:text-text hover:bg-white/5 transition-colors shrink-0"
-                        aria-label="Close profile switcher"
+                        aria-label={loginMode ? 'Use a different Plex account' : 'Close profile switcher'}
                     >
                         <X className="w-5 h-5" />
                     </button>
@@ -98,7 +137,8 @@ export const PlexHomeSwitchModal: React.FC<{
                 <div className="px-5 sm:px-8 pb-6 pt-4">
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                         {profiles.map((user) => {
-                            const current = isCurrentProfile(user, currentUserId);
+                            const current = isSameProfile(user, currentUserId);
+                            const remembered = isSameProfile(user, rememberUserId);
                             return (
                                 <button
                                     key={user.id}
@@ -108,7 +148,9 @@ export const PlexHomeSwitchModal: React.FC<{
                                     className={`group relative flex flex-col items-center gap-3 rounded-2xl border px-3 py-5 transition-all duration-200 disabled:opacity-50 ${
                                         current
                                             ? 'border-plex/70 bg-plex/10 shadow-[0_0_32px_rgba(229,160,13,0.18)]'
-                                            : 'border-white/10 bg-black/20 hover:border-plex/50 hover:bg-white/5 hover:-translate-y-0.5'
+                                            : remembered
+                                                ? 'border-plex/50 bg-plex/5 ring-1 ring-plex/25'
+                                                : 'border-white/10 bg-black/20 hover:border-plex/50 hover:bg-white/5 hover:-translate-y-0.5'
                                     }`}
                                 >
                                     {current ? (
@@ -144,6 +186,21 @@ export const PlexHomeSwitchModal: React.FC<{
                         })}
                     </div>
 
+                    {showRemember ? (
+                        <label className="mt-5 flex items-start gap-2.5 max-w-md cursor-pointer">
+                            <input
+                                type="checkbox"
+                                className="mt-0.5 h-4 w-4 accent-plex"
+                                checked={remember}
+                                onChange={(event) => setRemember(event.target.checked)}
+                                disabled={busy}
+                            />
+                            <span className="text-xs text-muted leading-relaxed text-left">
+                                <span className="font-semibold text-text">Automatically sign in</span> as this profile next time on this device
+                            </span>
+                        </label>
+                    ) : null}
+
                     {pinUser ? (
                         <form
                             onSubmit={submitPin}
@@ -176,7 +233,7 @@ export const PlexHomeSwitchModal: React.FC<{
                                     className="flex-1 rounded-xl bg-plex px-3 py-2.5 text-xs font-bold text-background disabled:opacity-40"
                                     disabled={busy || pin.trim().length < 4}
                                 >
-                                    Switch profile
+                                    {loginMode ? 'Continue' : 'Switch profile'}
                                 </button>
                             </div>
                         </form>
@@ -187,6 +244,16 @@ export const PlexHomeSwitchModal: React.FC<{
                     ) : null}
 
                     <div className="mt-6 flex items-center justify-center gap-4">
+                        {loginMode && onUseDifferentAccount ? (
+                            <button
+                                type="button"
+                                className="text-xs font-bold text-muted hover:text-text transition"
+                                onClick={onUseDifferentAccount}
+                                disabled={busy}
+                            >
+                                Use a different Plex account
+                            </button>
+                        ) : null}
                         {onViewProfile ? (
                             <button
                                 type="button"

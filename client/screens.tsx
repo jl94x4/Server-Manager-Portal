@@ -13,7 +13,6 @@ import { IN_APP_NOTIFICATIONS_CHANGED_EVENT } from './shared/inAppNotificationsR
 import { getPublicOrigin, logoUrl, portalUrl, resolvePortalAssetUrl, stripBasePath, PLEX_ICON_URL, JELLYFIN_ICON_URL, EMBY_ICON_URL } from './shared/basePath';
 import { sizedPlexImageUrl } from './shared/plexImageUrl';
 import { LoginBrandMark } from './shared/LoginBrandMark';
-import { PlexHomeSelect } from './shared/PlexHomeSelect';
 import { PlexHomeSwitchModal } from './shared/PlexHomeSwitchModal';
 import { formatDate, getDaysUntilExpiry, getAccessProgressPct, addMonths, addYears, formatTime, formatEventName, formatDateTime, hexToRgb, formatSizeCeil, formatStreamingHour, formatPortalDateTime, formatPortalDateTimeCompact } from './shared/format';
 import { CustomSelect, ConfirmModal, StyledCheckbox, ScrollReveal } from './shared/ui';
@@ -6932,8 +6931,8 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, p
             <Loader isLoading={isLoading} isCinematic={!!publicConfig?.useCinematicLoading} />
 
             <div className="relative z-10 w-full max-w-6xl flex flex-col gap-6">
-                <div className={`glass-card-lg overflow-hidden flex flex-col ${showTrialAccess && !homeSelectUsers ? 'lg:flex-row min-h-[min(680px,calc(100vh-3rem))]' : 'max-w-xl mx-auto w-full'}`}>
-                    {showTrialAccess && !homeSelectUsers && (
+                <div className={`glass-card-lg overflow-hidden flex flex-col ${showTrialAccess ? 'lg:flex-row min-h-[min(680px,calc(100vh-3rem))]' : 'max-w-xl mx-auto w-full'}`}>
+                    {showTrialAccess && (
                         <div className="flex-1 flex flex-col justify-center p-6 sm:p-8 lg:p-10 xl:p-12 border-t lg:border-t-0 lg:border-r border-white/10 bg-gradient-to-br from-plex/[0.08] via-plex/[0.03] to-transparent min-w-0 order-last lg:order-none">
                             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-plex/10 border border-plex/25 text-plex text-[11px] font-bold uppercase tracking-widest mb-5 w-fit">
                                 <Sparkles className="w-3.5 h-3.5" /> New here?
@@ -6963,23 +6962,12 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, p
                         </div>
                     )}
 
-                    <div className={`flex flex-col justify-center items-center text-center p-6 sm:p-8 lg:p-10 xl:p-12 min-w-0 ${showTrialAccess && !homeSelectUsers ? 'flex-1 order-first lg:order-none' : 'w-full py-10 sm:py-12'}`}>
+                    <div className={`flex flex-col justify-center items-center text-center p-6 sm:p-8 lg:p-10 xl:p-12 min-w-0 ${showTrialAccess ? 'flex-1 order-first lg:order-none' : 'w-full py-10 sm:py-12'}`}>
                         {publicConfigWarning && (
                             <div className="w-full mb-4 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-200 text-center">
                                 {publicConfigWarning}
                             </div>
                         )}
-                        {homeSelectUsers ? (
-                            <PlexHomeSelect
-                                users={homeSelectUsers}
-                                busy={homeSelectBusy}
-                                error={error}
-                                rememberUserId={homeSelectRememberUserId}
-                                onSelect={handlePlexHomeSelect}
-                                onCancel={handlePlexHomeSelectCancel}
-                            />
-                        ) : (
-                            <>
                         <div className={`relative mb-8 flex justify-center w-full ${publicConfig?.loginLogoCircleFrame !== false ? '' : 'max-w-lg px-2'}`}>
                             {!loginLogoSrc && publicConfig?.loginLogoCircleFrame !== false && (
                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-36 h-36 bg-plex/20 rounded-full blur-[60px] pointer-events-none" />
@@ -7097,8 +7085,6 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, p
                                 <LivePlexStats />
                             </div>
                         )}
-                            </>
-                        )}
                     </div>
                 </div>
 
@@ -7111,6 +7097,19 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, p
                     </div>
                 )}
             </div>
+            <PlexHomeSwitchModal
+                open={!!homeSelectUsers}
+                users={homeSelectUsers || []}
+                rememberUserId={homeSelectRememberUserId}
+                showRemember
+                rememberDefault
+                loginMode
+                busy={homeSelectBusy}
+                error={error}
+                onSelect={handlePlexHomeSelect}
+                onClose={handlePlexHomeSelectCancel}
+                onUseDifferentAccount={handlePlexHomeSelectCancel}
+            />
         </div>
     );
 };
@@ -12221,6 +12220,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
     const [homeSwitchAvailable, setHomeSwitchAvailable] = useState(false);
     const [homeSwitchBusy, setHomeSwitchBusy] = useState(false);
     const [homeSwitchError, setHomeSwitchError] = useState('');
+    const [homeSwitchRememberUserId, setHomeSwitchRememberUserId] = useState<string | null>(null);
     const [profileAchievements, setProfileAchievements] = useState<any>(null);
     const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
     const [installHelpOpen, setInstallHelpOpen] = useState(false);
@@ -12257,6 +12257,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
             const available = !!data?.available && users.length > 1;
             setHomeSwitchUsers(users);
             setHomeSwitchCurrentId(data?.currentUserId || null);
+            setHomeSwitchRememberUserId(data?.rememberUserId || null);
             setHomeSwitchAvailable(available);
             return { available, users };
         } catch {
@@ -12287,13 +12288,17 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
         onNavigate('profile');
     }, [homeSwitchAvailable, openPlexHomeSwitcher, onNavigate]);
 
-    const handlePlexHomeSwitch = useCallback(async (user: { id: string }, pin?: string) => {
+    const handlePlexHomeSwitch = useCallback(async (user: { id: string }, pin: string | undefined, remember: boolean) => {
         setHomeSwitchBusy(true);
         setHomeSwitchError('');
         try {
             await apiFetch('/api/auth/plex/home-profiles/switch', {
                 method: 'POST',
-                body: JSON.stringify({ userId: user.id, ...(pin ? { pin } : {}) }),
+                body: JSON.stringify({
+                    userId: user.id,
+                    remember: remember === true,
+                    ...(pin ? { pin } : {}),
+                }),
             });
             setHomeSwitchOpen(false);
             if (onSessionRefresh) await onSessionRefresh();
@@ -13288,6 +13293,9 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                 open={homeSwitchOpen}
                 users={homeSwitchUsers}
                 currentUserId={homeSwitchCurrentId}
+                rememberUserId={homeSwitchRememberUserId}
+                showRemember
+                rememberDefault={!!homeSwitchRememberUserId}
                 busy={homeSwitchBusy}
                 error={homeSwitchError}
                 onSelect={handlePlexHomeSwitch}
