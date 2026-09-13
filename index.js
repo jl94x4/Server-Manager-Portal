@@ -3653,6 +3653,25 @@ const updatePlexShareLibraries = async (user, config, libraryIds = []) => {
     }
 };
 
+/**
+ * Initial Plex share for a portal user (invite claim, trial, resend). Clears stale shares
+ * then uses updatePlexShareLibraries (subset invite → share-all + restrict fallback).
+ */
+const ensurePlexShareInvite = async (user, config) => {
+    if (!config?.serverIdentifier || !config?.plexToken || config.plexToken === SECRET_MASK) {
+        const error = 'Plex server or token not configured in Settings.';
+        log(`ensurePlexShareInvite skipped for ${user?.username}: ${error}`);
+        return { ok: false, error };
+    }
+    try {
+        await revokePlexAccess(user, config);
+    } catch (error) {
+        log(`ensurePlexShareInvite revoke warning for ${user?.username}: ${error?.message || error}`);
+    }
+    const libraryIds = resolveInviteLibraryIds(user, config);
+    return updatePlexShareLibraries(user, config, libraryIds);
+};
+
 const revokePlexAccess = async (user, config) => {
     // The Plex friends list keys users by their Plex account id, which is stored
     // in plexId. Invite/referral users keep a portal UUID in `id`, so always
@@ -3699,6 +3718,10 @@ const revokePlexAccess = async (user, config) => {
 const inviteUserToPlex = async (user, config, libraryIds = null) => {
     if (!config.serverIdentifier) {
         log(`Error: Cannot invite ${user.username} due to missing server ID.`);
+        return false;
+    }
+    if (!config.plexToken || config.plexToken === SECRET_MASK) {
+        log(`Error: Cannot invite ${user.username} due to missing Plex token.`);
         return false;
     }
     const invitedId = plexInvitedAccountId(user);
@@ -14138,12 +14161,22 @@ app.post('/api/invites/:code/claim', authRateLimit, async (req, res) => {
             return res.status(claimed.status).json({ error: claimed.error });
         }
 
-        const { newUser, invite, inviteLibraryIds } = claimed;
+        const { newUser, invite } = claimed;
 
         // Send actual Plex invite (outside locks — slow network I/O)
-        await inviteUserToPlex(newUser, config, inviteLibraryIds.length > 0 ? inviteLibraryIds : null).catch(e => log('Failed to invite claimed user: ' + e.message));
+        const plexShare = await ensurePlexShareInvite(newUser, config);
+        if (!plexShare.ok) {
+            log(`Failed to invite claimed user ${newUser.username}: ${plexShare.error}`);
+            await appendAuditLog('invite_claim_plex_share_failed', { username: plexUser.username, id: plexUser.id }, newUser, {
+                code: invite.code,
+                error: plexShare.error,
+            });
+        }
 
-        await appendAuditLog('invite_claimed', { username: plexUser.username, id: plexUser.id }, newUser, { code: invite.code });
+        await appendAuditLog('invite_claimed', { username: plexUser.username, id: plexUser.id }, newUser, {
+            code: invite.code,
+            plexShareSent: !!plexShare.ok,
+        });
 
         await sendWelcomeEmailToUser(config, newUser).catch((e) => log(`Welcome email after invite claim failed: ${e.message}`));
 
@@ -15374,10 +15407,11 @@ app.post('/api/users/:id/resend-invite', requireAdmin, async (req, res) => {
     const user = users.find((u) => u.id === id);
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
-    const inviteLibs = resolveInviteLibraryIds(user, config);
-    const invited = await inviteUserToPlex(user, config, inviteLibs.length > 0 ? inviteLibs : null);
-    if (!invited) {
-        return res.status(500).json({ error: 'Failed to send share invite. Check that this user has a Plex account id or email.' });
+    const plexShare = await ensurePlexShareInvite(user, config);
+    if (!plexShare.ok) {
+        return res.status(500).json({
+            error: plexShare.error || 'Failed to send share invite. Check that this user has a Plex account id or email.',
+        });
     }
     if (user.plexAccessStatus !== 'active') {
         user.plexAccessStatus = 'pending';
