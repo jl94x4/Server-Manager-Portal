@@ -3032,6 +3032,9 @@ const ensurePortalUserForPlexHomeProfile = async (sessionUser) => {
                 existing.plexHomeUser = true;
                 log(`Marked existing portal user ${existing.username || sessionUser.username} as Plex Home profile`);
             }
+            if (sessionUser.thumb && existing.thumb !== sessionUser.thumb) {
+                existing.thumb = sessionUser.thumb;
+            }
             return users;
         }
         const plexId = String(sessionUser?.plexId || '').trim();
@@ -3067,6 +3070,7 @@ const touchUserLastLogin = (users, sessionUser, at = new Date().toISOString(), e
     existingUser.lastLogin = at;
     if (!existingUser.plexId && sessionUser.plexId) existingUser.plexId = sessionUser.plexId;
     if (!existingUser.jellyfinId && sessionUser.jellyfinId) existingUser.jellyfinId = sessionUser.jellyfinId;
+    if (sessionUser.thumb && existingUser.thumb !== sessionUser.thumb) existingUser.thumb = sessionUser.thumb;
     if (extras.plexAuthToken) existingUser.plexAuthToken = encryptPlexAuthToken(extras.plexAuthToken);
     return existingUser;
 };
@@ -6063,7 +6067,9 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
             adminThumb = profile.thumb;
 
             // Skip Plex /accounts fan-out when session or portal user already has a thumb.
-            if (!sessionThumb) {
+            // Home managed profiles must not inherit the owner's PMS account avatar.
+            const isPlexHomeProfile = !!(req.user?.plexHomeUser || localUser?.plexHomeUser);
+            if (!sessionThumb && !isPlexHomeProfile) {
                 const uri = await getPlexConnectionUri(config);
                 if (uri) {
                     const accountId = await resolveLocalPlexAccountId(config, uri, req.user);

@@ -18,7 +18,7 @@ import { formatDate, getDaysUntilExpiry, getAccessProgressPct, addMonths, addYea
 import { CustomSelect, ConfirmModal, StyledCheckbox, ScrollReveal } from './shared/ui';
 import { PeriodDropdown } from './shared/PeriodDropdown';
 import { formatWatchHistoryWhen, WatchHistoryMediaCard } from './shared/WatchHistoryMediaCard';
-import { titleDiscoveryPath } from './profile/helpers';
+import { DEFAULT_USER_AVATAR, titleDiscoveryPath } from './profile/helpers';
 import { ActivityHeatmap } from './shared/ActivityHeatmap';
 import { Loader, Toast, ToastContainer, pushToast } from './shared/toast';
 import { usePoll } from './shared/usePoll';
@@ -12190,7 +12190,17 @@ interface NavigationProps {
 
 export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLogout, onSessionRefresh, isAdmin, serverName, adminThumb, customLogoUrl, requestUrl, navOrder, navHiddenKeys, memberNavOrder, memberNavHiddenKeys, navFeatures, appVersion, activeTheme, setActiveTheme, pendingRequestCount = 0, supportUnreadCount = 0, chatUnreadCount = 0, watchingCount = 0, downloadCount = 0, mediaAutomationActiveCount = 0, showDashboardWatchingBadge = false, sessionInfo, mediaServerType = 'plex', sidebarIdentityPosition = 'bottom', externalTabId = null, openApplets = [], onCloseApplet }) => {
     const { t } = useDiscoverI18n();
-    const serverIcon = customLogoUrl ? resolvePortalAssetUrl(customLogoUrl) : (adminThumb ? (adminThumb.startsWith('http') ? adminThumb : portalUrl(`/api/plex/image?path=${encodeURIComponent(adminThumb)}&width=256&height=256`)) : logoUrl());
+    const resolveNavAvatar = (thumb?: string | null) => {
+        const raw = String(thumb || '').trim();
+        if (!raw) return '';
+        if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/api/')) {
+            return resolvePortalAssetUrl(raw);
+        }
+        return portalUrl(`/api/plex/image?path=${encodeURIComponent(raw)}&width=256&height=256`);
+    };
+    const brandIcon = customLogoUrl
+        ? resolvePortalAssetUrl(customLogoUrl)
+        : (resolveNavAvatar(adminThumb) || logoUrl());
     const providerName = String(mediaServerType || 'plex').toLowerCase() === 'jellyfin'
         ? 'Jellyfin'
         : String(mediaServerType || 'plex').toLowerCase() === 'emby'
@@ -12199,15 +12209,25 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
     const profile = sessionInfo?.account || sessionInfo?.session || {};
     const profileName = profile?.username || sessionInfo?.session?.username || 'Profile';
     const profileEmail = profile?.email || sessionInfo?.session?.email || '';
-    const profileThumb = profile?.thumb || sessionInfo?.session?.thumb || (isAdmin ? adminThumb : null);
-    const profileIcon = profileThumb
-        ? (String(profileThumb).startsWith('http://') || String(profileThumb).startsWith('https://') || String(profileThumb).startsWith('/api/')
-            ? resolvePortalAssetUrl(profileThumb)
-            : portalUrl(`/api/plex/image?path=${encodeURIComponent(profileThumb)}&width=256&height=256`))
-        : logoUrl();
+    const profileThumb = sessionInfo?.session?.thumb || profile?.thumb || (isAdmin ? adminThumb : null);
+    const profileIcon = resolveNavAvatar(profileThumb) || DEFAULT_USER_AVATAR;
+    const serverIcon = (customLogoUrl || isAdmin) ? brandIcon : profileIcon;
+    const onProfileImageError = (event: React.SyntheticEvent<HTMLImageElement>) => {
+        const image = event.currentTarget;
+        if (image.dataset.fallback === '1') return;
+        image.dataset.fallback = '1';
+        image.src = DEFAULT_USER_AVATAR;
+    };
+    const onIdentityImageError = (event: React.SyntheticEvent<HTMLImageElement>) => {
+        if (customLogoUrl || isAdmin) {
+            event.currentTarget.src = logoUrl();
+            return;
+        }
+        onProfileImageError(event);
+    };
     useEffect(() => {
-        updateFavicon(serverIcon);
-    }, [serverIcon]);
+        updateFavicon(brandIcon);
+    }, [brandIcon]);
 
     const [mobileThemeOpen, setMobileThemeOpen] = useState(false);
     const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
@@ -12956,9 +12976,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                         src={serverIcon}
                                         alt="Server Logo"
                                         className="w-full h-full object-cover"
-                                        onError={(e) => {
-                                            (e.target as HTMLImageElement).src = logoUrl();
-                                        }}
+                                        onError={onIdentityImageError}
                                     />
                                 </div>
                             </div>
@@ -13016,9 +13034,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                         src={serverIcon}
                         alt="Logo"
                         className={`w-8 h-8 shrink-0 ${customLogoUrl ? 'object-contain' : 'rounded-full object-cover'}`}
-                        onError={(e) => {
-                            (e.target as HTMLImageElement).src = logoUrl();
-                        }}
+                        onError={onIdentityImageError}
                     />
                     <span className="font-bold text-text uppercase tracking-widest text-xs truncate">{serverName}</span>
                 </div>
@@ -13103,7 +13119,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                 src={profileIcon}
                                 alt=""
                                 className="w-full h-full object-cover"
-                                onError={(e) => { (e.target as HTMLImageElement).src = logoUrl(); }}
+                                onError={onProfileImageError}
                             />
                         </button>
                     )}
@@ -13206,7 +13222,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                 src={profileIcon}
                                 alt=""
                                 className="w-full h-full object-cover"
-                                onError={(e) => { (e.target as HTMLImageElement).src = logoUrl(); }}
+                                onError={onProfileImageError}
                             />
                         </button>
                         <InAppNotificationsBell
@@ -13233,9 +13249,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                     src={profileIcon}
                                     alt=""
                                     className="w-7 h-7 rounded-full object-cover bg-background/60 border border-white/10"
-                                    onError={(e) => {
-                                        (e.target as HTMLImageElement).src = logoUrl();
-                                    }}
+                                    onError={onProfileImageError}
                                 />
                             </button>
                             <button
@@ -13331,9 +13345,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                         src={profileIcon}
                                         alt={`${profileName} profile`}
                                         className="w-11 h-11 flex-shrink-0 rounded-full object-cover bg-background/60 border border-white/10"
-                                        onError={(e) => {
-                                            (e.target as HTMLImageElement).src = logoUrl();
-                                        }}
+                                        onError={onProfileImageError}
                                     />
                                     <div className="min-w-0">
                                         <p className="text-base font-black text-text truncate">{profileName}</p>

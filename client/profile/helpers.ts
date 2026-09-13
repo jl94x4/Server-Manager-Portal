@@ -1,4 +1,4 @@
-import { getPublicOrigin, logoUrl, portalUrl, resolvePortalAssetUrl, stripBasePath } from '../shared/basePath';
+import { getPublicOrigin, portalUrl, resolvePortalAssetUrl, stripBasePath } from '../shared/basePath';
 import { resolveTmdbImageUrl } from '../discovery/tmdbImageUrl';
 
 export const rarityGlow: Record<string, string> = {
@@ -8,8 +8,10 @@ export const rarityGlow: Record<string, string> = {
     common: 'from-white/10 via-white/5 to-[rgb(var(--color-card))]',
 };
 
+export const DEFAULT_USER_AVATAR = 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y';
+
 export const resolveAvatar = (thumb: string | null | undefined, size = 220) => {
-    if (!thumb) return logoUrl();
+    if (!thumb) return DEFAULT_USER_AVATAR;
     if (thumb.startsWith('http://') || thumb.startsWith('https://') || thumb.startsWith('/api/')) {
         return resolvePortalAssetUrl(thumb);
     }

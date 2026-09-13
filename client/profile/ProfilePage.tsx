@@ -4,7 +4,7 @@ import {
     Minus, Music, Play, Share2, Shield, SlidersHorizontal, Sparkles, Swords, Trophy, Tv, User, UserCheck, UserPlus,
 } from 'lucide-react';
 import { apiFetch } from '../shared/api';
-import { logoUrl, resolvePortalAssetUrl } from '../shared/basePath';
+import { resolvePortalAssetUrl } from '../shared/basePath';
 import { daysSinceDate, formatUkDate, getDaysUntilExpiry } from '../shared/format';
 import { DashboardPageShell, DashboardPanel } from '../shared/dashboard/DashboardChrome';
 import { discoverRowCardWidthClass } from '../shared/portalLayout';
@@ -26,6 +26,7 @@ import {
     requestDiscoveryPath,
     requestPoster,
     resolveAvatar,
+    DEFAULT_USER_AVATAR,
     titleDiscoveryPath,
     trophyRarityClass,
 } from './helpers';
@@ -534,7 +535,7 @@ export const ProfilePage: React.FC<Props> = ({
                                         src={resolveAvatar(identity.thumb, 220)}
                                         alt=""
                                         className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover border-2 border-white/15 bg-black/40"
-                                        onError={(e) => { (e.target as HTMLImageElement).src = logoUrl(); }}
+                                        onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_USER_AVATAR; }}
                                     />
                                     {identity.rank ? (
                                         <span className="absolute -bottom-1 -right-1 inline-flex items-center justify-center min-w-[2.25rem] h-8 px-1.5 rounded-full bg-plex text-xs font-black text-black shadow-lg">
