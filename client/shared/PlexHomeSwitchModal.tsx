@@ -18,6 +18,40 @@ const isSameProfile = (user: PlexHomeProfile, targetId?: string | null) => {
     return [user.id, user.uuid].some((value) => String(value || '').trim() === want);
 };
 
+const ProfileAvatar: React.FC<{
+    user: PlexHomeProfile;
+    current?: boolean;
+    compact?: boolean;
+}> = ({ user, current = false, compact = false }) => {
+    const sizeClass = compact
+        ? 'h-11 w-11 sm:h-16 sm:w-16'
+        : 'h-12 w-12 sm:h-24 sm:w-24';
+    const ringClass = current
+        ? 'border-plex shadow-[0_0_0_3px_rgba(229,160,13,0.2)] sm:shadow-[0_0_0_4px_rgba(229,160,13,0.2)]'
+        : 'border-white/15 group-hover:border-plex/70';
+
+    return (
+        <span className="relative">
+            {user.thumb ? (
+                <img
+                    src={user.thumb}
+                    alt=""
+                    className={`${sizeClass} rounded-full object-cover border-2 transition ${ringClass}`}
+                />
+            ) : (
+                <span className={`flex ${sizeClass} items-center justify-center rounded-full border-2 bg-black/40 text-muted ${ringClass}`}>
+                    <User className={compact ? 'h-5 w-5 sm:h-7 sm:w-7' : 'h-5 w-5 sm:h-8 sm:w-8'} />
+                </span>
+            )}
+            {user.protected ? (
+                <span className={`absolute -bottom-0.5 -right-0.5 flex items-center justify-center rounded-full border border-white/20 bg-black/85 text-muted ${compact ? 'h-5 w-5' : 'h-5 w-5 sm:h-7 sm:w-7'}`}>
+                    <Lock className={compact ? 'h-2.5 w-2.5' : 'h-2.5 w-2.5 sm:h-3.5 sm:w-3.5'} />
+                </span>
+            ) : null}
+        </span>
+    );
+};
+
 export const PlexHomeSwitchModal: React.FC<{
     open: boolean;
     users: PlexHomeProfile[];
@@ -110,15 +144,18 @@ export const PlexHomeSwitchModal: React.FC<{
                 <div className="absolute bottom-0 right-0 h-56 w-56 rounded-full bg-amber-500/10 blur-[80px]" />
             </div>
 
-            <div className="relative w-full sm:max-w-2xl rounded-t-3xl sm:rounded-3xl border border-white/10 bg-[rgb(var(--color-card))]/95 shadow-[0_30px_80px_rgba(0,0,0,0.55)] overflow-hidden animate-fade-in">
+            <div className="relative w-full sm:max-w-2xl max-h-[min(72dvh,32rem)] sm:max-h-[min(86vh,40rem)] overflow-y-auto rounded-t-2xl sm:rounded-3xl border border-white/10 bg-[rgb(var(--color-card))]/95 shadow-[0_30px_80px_rgba(0,0,0,0.55)] animate-fade-in">
                 <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-plex/70 to-transparent" />
-                <div className="flex items-start justify-between gap-3 px-5 sm:px-8 pt-5 sm:pt-7 pb-2">
+                <div className="sm:hidden flex justify-center pt-2.5 pb-0.5" aria-hidden>
+                    <span className="h-1 w-10 rounded-full bg-white/25" />
+                </div>
+                <div className="flex items-start justify-between gap-3 px-4 sm:px-8 pt-3 sm:pt-7 pb-1 sm:pb-2">
                     <div>
-                        <p className="text-[11px] font-bold text-plex uppercase tracking-[0.22em] mb-1">Plex Home</p>
-                        <h2 id="plex-home-switch-title" className="text-2xl sm:text-3xl font-black text-text tracking-tight">
+                        <p className="text-[10px] sm:text-[11px] font-bold text-plex uppercase tracking-[0.22em] mb-0.5 sm:mb-1">Plex Home</p>
+                        <h2 id="plex-home-switch-title" className="text-xl sm:text-3xl font-black text-text tracking-tight">
                             Who&apos;s watching?
                         </h2>
-                        <p className="text-sm text-muted mt-1.5 max-w-md">
+                        <p className="hidden sm:block text-sm text-muted mt-1.5 max-w-md">
                             {loginMode
                                 ? 'Pick a profile to continue. Managed family accounts use this Plex Home login, then a PIN if one is set.'
                                 : 'Switch to another profile on this device. PIN-protected profiles need their Home PIN.'}
@@ -127,67 +164,56 @@ export const PlexHomeSwitchModal: React.FC<{
                     <button
                         type="button"
                         onClick={dismiss}
-                        className="p-2 rounded-xl text-muted hover:text-text hover:bg-white/5 transition-colors shrink-0"
+                        className="p-1.5 sm:p-2 rounded-xl text-muted hover:text-text hover:bg-white/5 transition-colors shrink-0"
                         aria-label={loginMode ? 'Use a different Plex account' : 'Close profile switcher'}
                     >
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
-                <div className="px-5 sm:px-8 pb-6 pt-4">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-                        {profiles.map((user) => {
-                            const current = isSameProfile(user, currentUserId);
-                            const remembered = isSameProfile(user, rememberUserId);
-                            return (
-                                <button
-                                    key={user.id}
-                                    type="button"
-                                    disabled={busy}
-                                    onClick={() => choose(user)}
-                                    className={`group relative flex flex-col items-center gap-3 rounded-2xl border px-3 py-5 transition-all duration-200 disabled:opacity-50 ${
-                                        current
-                                            ? 'border-plex/70 bg-plex/10 shadow-[0_0_32px_rgba(229,160,13,0.18)]'
-                                            : remembered
-                                                ? 'border-plex/50 bg-plex/5 ring-1 ring-plex/25'
-                                                : 'border-white/10 bg-black/20 hover:border-plex/50 hover:bg-white/5 hover:-translate-y-0.5'
-                                    }`}
-                                >
-                                    {current ? (
-                                        <span className="absolute top-2.5 right-2.5 text-[9px] font-black uppercase tracking-[0.14em] text-plex">
-                                            Watching
-                                        </span>
-                                    ) : null}
-                                    <span className="relative">
-                                        {user.thumb ? (
-                                            <img
-                                                src={user.thumb}
-                                                alt=""
-                                                className={`h-[4.5rem] w-[4.5rem] sm:h-24 sm:w-24 rounded-full object-cover border-2 transition ${
-                                                    current ? 'border-plex shadow-[0_0_0_4px_rgba(229,160,13,0.2)]' : 'border-white/15 group-hover:border-plex/70'
-                                                }`}
-                                            />
-                                        ) : (
-                                            <span className={`flex h-[4.5rem] w-[4.5rem] sm:h-24 sm:w-24 items-center justify-center rounded-full border-2 bg-black/40 text-muted ${
-                                                current ? 'border-plex' : 'border-white/15 group-hover:border-plex/70'
-                                            }`}>
-                                                <User className="h-8 w-8" />
-                                            </span>
-                                        )}
-                                        {user.protected ? (
-                                            <span className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-black/85 text-muted">
-                                                <Lock className="h-3.5 w-3.5" />
+                <div className="px-4 sm:px-8 pb-[max(0.85rem,env(safe-area-inset-bottom))] sm:pb-6 pt-3 sm:pt-4">
+                    {pinUser ? (
+                        <div className="mb-3 flex items-center gap-3 rounded-xl border border-plex/40 bg-plex/10 px-3 py-2.5">
+                            <ProfileAvatar user={pinUser} current compact />
+                            <div className="min-w-0">
+                                <p className="text-sm font-bold text-text truncate">{pinUser.title}</p>
+                                <p className="text-[11px] text-muted">Plex Home PIN, not your plex.tv password</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
+                            {profiles.map((user) => {
+                                const current = isSameProfile(user, currentUserId);
+                                const remembered = isSameProfile(user, rememberUserId);
+                                return (
+                                    <button
+                                        key={user.id}
+                                        type="button"
+                                        disabled={busy}
+                                        onClick={() => choose(user)}
+                                        className={`group relative flex flex-col items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl border px-2 py-3 sm:px-3 sm:py-5 transition-all duration-200 disabled:opacity-50 ${
+                                            current
+                                                ? 'border-plex/70 bg-plex/10 shadow-[0_0_32px_rgba(229,160,13,0.18)]'
+                                                : remembered
+                                                    ? 'border-plex/50 bg-plex/5 ring-1 ring-plex/25'
+                                                    : 'border-white/10 bg-black/20 hover:border-plex/50 hover:bg-white/5 hover:-translate-y-0.5'
+                                        }`}
+                                    >
+                                        {current ? (
+                                            <span className="absolute top-1.5 right-1.5 sm:top-2.5 sm:right-2.5 text-[8px] sm:text-[9px] font-black uppercase tracking-[0.14em] text-plex">
+                                                Watching
                                             </span>
                                         ) : null}
-                                    </span>
-                                    <span className="text-sm font-bold text-text line-clamp-2">{user.title}</span>
-                                </button>
-                            );
-                        })}
-                    </div>
+                                        <ProfileAvatar user={user} current={current} />
+                                        <span className="text-xs sm:text-sm font-bold text-text line-clamp-2">{user.title}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
 
-                    {showRemember ? (
-                        <label className="mt-5 flex items-start gap-2.5 max-w-md cursor-pointer">
+                    {showRemember && !pinUser ? (
+                        <label className="mt-3 sm:mt-5 flex items-start gap-2.5 max-w-md cursor-pointer">
                             <input
                                 type="checkbox"
                                 className="mt-0.5 h-4 w-4 accent-plex"
@@ -204,25 +230,37 @@ export const PlexHomeSwitchModal: React.FC<{
                     {pinUser ? (
                         <form
                             onSubmit={submitPin}
-                            className="mt-5 rounded-2xl border border-plex/30 bg-black/35 p-4 sm:p-5"
+                            className="rounded-xl sm:rounded-2xl border border-plex/30 bg-black/35 p-3 sm:p-5"
                         >
-                            <p className="text-sm font-bold text-text mb-1">Enter PIN for {pinUser.title}</p>
-                            <p className="text-xs text-muted mb-3">This is the Plex Home PIN for that profile, not your plex.tv password.</p>
                             <input
                                 type="password"
                                 inputMode="numeric"
                                 autoComplete="one-time-code"
                                 value={pin}
                                 onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 8))}
-                                className="w-full bg-black/25 border border-white/15 rounded-xl px-4 py-3 text-center text-lg tracking-[0.4em] text-text outline-none focus:border-plex/70 focus:ring-2 focus:ring-plex/20"
+                                className="w-full bg-black/25 border border-white/15 rounded-xl px-4 py-2.5 sm:py-3 text-center text-base sm:text-lg tracking-[0.4em] text-text outline-none focus:border-plex/70 focus:ring-2 focus:ring-plex/20"
                                 placeholder="••••"
                                 autoFocus
                                 disabled={busy}
                             />
+                            {showRemember ? (
+                                <label className="mt-3 flex items-start gap-2.5 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="mt-0.5 h-4 w-4 accent-plex"
+                                        checked={remember}
+                                        onChange={(event) => setRemember(event.target.checked)}
+                                        disabled={busy}
+                                    />
+                                    <span className="text-xs text-muted leading-relaxed text-left">
+                                        <span className="font-semibold text-text">Automatically sign in</span> as this profile next time
+                                    </span>
+                                </label>
+                            ) : null}
                             <div className="mt-3 flex gap-2">
                                 <button
                                     type="button"
-                                    className="flex-1 rounded-xl border border-white/10 px-3 py-2.5 text-xs font-bold text-muted hover:text-text"
+                                    className="flex-1 rounded-xl border border-white/10 px-3 py-2 sm:py-2.5 text-xs font-bold text-muted hover:text-text"
                                     onClick={() => { setPinUser(null); setPin(''); }}
                                     disabled={busy}
                                 >
@@ -230,7 +268,7 @@ export const PlexHomeSwitchModal: React.FC<{
                                 </button>
                                 <button
                                     type="submit"
-                                    className="flex-1 rounded-xl bg-plex px-3 py-2.5 text-xs font-bold text-background disabled:opacity-40"
+                                    className="flex-1 rounded-xl bg-plex px-3 py-2 sm:py-2.5 text-xs font-bold text-background disabled:opacity-40"
                                     disabled={busy || pin.trim().length < 4}
                                 >
                                     {loginMode ? 'Continue' : 'Switch profile'}
@@ -240,31 +278,33 @@ export const PlexHomeSwitchModal: React.FC<{
                     ) : null}
 
                     {error ? (
-                        <p className="mt-4 text-sm text-red-300">{error}</p>
+                        <p className="mt-3 sm:mt-4 text-sm text-red-300">{error}</p>
                     ) : null}
 
-                    <div className="mt-6 flex items-center justify-center gap-4">
-                        {loginMode && onUseDifferentAccount ? (
-                            <button
-                                type="button"
-                                className="text-xs font-bold text-muted hover:text-text transition"
-                                onClick={onUseDifferentAccount}
-                                disabled={busy}
-                            >
-                                Use a different Plex account
-                            </button>
-                        ) : null}
-                        {onViewProfile ? (
-                            <button
-                                type="button"
-                                className="text-xs font-bold text-muted hover:text-text transition"
-                                onClick={onViewProfile}
-                                disabled={busy}
-                            >
-                                View profile
-                            </button>
-                        ) : null}
-                    </div>
+                    {(loginMode && onUseDifferentAccount) || onViewProfile ? (
+                        <div className="mt-3 sm:mt-6 flex items-center justify-center gap-4">
+                            {loginMode && onUseDifferentAccount ? (
+                                <button
+                                    type="button"
+                                    className="text-xs font-bold text-muted hover:text-text transition"
+                                    onClick={onUseDifferentAccount}
+                                    disabled={busy}
+                                >
+                                    Use a different Plex account
+                                </button>
+                            ) : null}
+                            {onViewProfile ? (
+                                <button
+                                    type="button"
+                                    className="text-xs font-bold text-muted hover:text-text transition"
+                                    onClick={onViewProfile}
+                                    disabled={busy}
+                                >
+                                    View profile
+                                </button>
+                            ) : null}
+                        </div>
+                    ) : null}
                 </div>
             </div>
         </div>,
