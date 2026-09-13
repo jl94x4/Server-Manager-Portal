@@ -14,8 +14,41 @@ import {
     REQUEST_STATUS,
     resolveInProgressDisplay,
     sonarrCaughtUpWithAiredEpisodes,
+    sonarrMainSeasonsFullyOnDisk,
     type SeasonStatusInfo,
 } from './requestSeasonUtils';
+
+const fulfilledSeasonLabel = (label: string) => (
+    label === 'Available' || isSeasonUpToDateLabel(label)
+);
+
+/** Sort unique season numbers and render as a compact range (e.g. 0-3). */
+export const formatSeasonNumberRange = (seasonNumbers: number[]): string => {
+    const sorted = [...new Set(seasonNumbers)].sort((a, b) => a - b);
+    if (!sorted.length) return '';
+    if (sorted.length === 1) return String(sorted[0]);
+    return `${sorted[0]}-${sorted[sorted.length - 1]}`;
+};
+
+export const formatFulfilledSeasonDetail = (seasonRows: SeasonStatusInfo[]): string | null => {
+    const fulfilled = seasonRows.filter((s) => fulfilledSeasonLabel(s.statusLabel));
+    if (!fulfilled.length) return null;
+    const nums = fulfilled.map((s) => s.seasonNumber);
+    const range = formatSeasonNumberRange(nums);
+    const plural = nums.length !== 1;
+    const preferUpToDate = fulfilled.some((s) => isSeasonUpToDateLabel(s.statusLabel));
+    if (preferUpToDate) {
+        return `Season${plural ? 's' : ''} ${range} up to date`;
+    }
+    return `Season${plural ? 's' : ''} ${range} in library`;
+};
+
+const sonarrRequestFulfilled = (item: any): boolean => {
+    const sonarr = item?.sonarrLibraryStatus;
+    if (!sonarr?.matched || sonarr.hasActiveDownloads) return false;
+    if (sonarr.showComplete) return true;
+    return sonarrCaughtUpWithAiredEpisodes(item) || sonarrMainSeasonsFullyOnDisk(item);
+};
 
 export type MediaAvailabilityKind =
     | 'available'
@@ -62,24 +95,16 @@ const getActiveUserRequest = (mediaInfo: any) => {
 };
 
 const formatSeasonSummary = (seasonRows: SeasonStatusInfo[]) => {
-    const available = seasonRows.filter((s) => s.statusLabel === 'Available').map((s) => s.seasonNumber);
+    const available = seasonRows.filter((s) => s.statusLabel === 'Available');
     if (!available.length) return null;
-    if (available.length <= 4) return `Seasons ${available.join(', ')} in library`;
-    return `${available.length} seasons in library`;
-};
-
-const formatUpToDateSeasonSummary = (seasonRows: SeasonStatusInfo[]) => {
-    const upToDate = seasonRows.filter((s) => isSeasonUpToDateLabel(s.statusLabel)).map((s) => s.seasonNumber);
-    if (!upToDate.length) return null;
-    if (upToDate.length <= 4) return `Season${upToDate.length === 1 ? '' : 's'} ${upToDate.join(', ')} up to date`;
-    return `${upToDate.length} seasons up to date`;
+    const range = formatSeasonNumberRange(available.map((s) => s.seasonNumber));
+    return `Season${available.length === 1 ? '' : 's'} ${range} in library`;
 };
 
 const formatTvLibraryDetail = (seasonRows: SeasonStatusInfo[], airingDetail?: string) => {
-    const parts = [formatSeasonSummary(seasonRows), formatUpToDateSeasonSummary(seasonRows)].filter(Boolean);
-    if (parts.length) {
-        if (airingDetail) return `${parts.join('. ')}. ${airingDetail}`;
-        return parts.join('. ');
+    const detail = formatFulfilledSeasonDetail(seasonRows);
+    if (detail) {
+        return airingDetail ? `${detail}. ${airingDetail}` : detail;
     }
     return airingDetail || 'All requested seasons are available.';
 };
@@ -257,7 +282,7 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
     // Seerr flips seasons/show to Available on approve; don't treat that as on-disk
     // unless Sonarr (or tvLibraryComplete) already confirmed files.
     const approvalStillOpen = userRequestStatus === REQUEST_STATUS.APPROVED
-        && !(item?.sonarrLibraryStatus?.matched && item.sonarrLibraryStatus.showComplete);
+        && !sonarrRequestFulfilled(item);
 
     if (mediaType === 'tv' && seasonRows.length > 0) {
         const requestable = seasonRows.filter((s) => s.requestable);
@@ -549,6 +574,20 @@ export const resolveMediaAvailabilityState = (item: any): MediaAvailabilityState
 
     // Approval ≠ available. Keep requested/processing until files are on disk.
     if (userRequestStatus === REQUEST_STATUS.APPROVED) {
+        if (mediaType === 'tv' && canMarkTvAsAvailable(item)) {
+            const rows = seasonRows.length > 0 ? seasonRows : buildTvSeasonStatusRows(item);
+            if (sonarrRequestFulfilled(item) || isTvShowLibraryComplete(item, rows, mediaInfo)) {
+                const showUpToDate = isReturningSeries(item) && hasAnyEpisodeAired(item);
+                return {
+                    ...base,
+                    kind: 'available',
+                    label: showUpToDate ? 'Up to date' : 'Available in library',
+                    detail: item?.sonarrLibraryStatus?.showComplete
+                        ? 'All aired episodes are on disk (verified via Sonarr).'
+                        : (formatTvLibraryDetail(rows) || 'All aired episodes are in your library.'),
+                };
+            }
+        }
         if (hasActiveShowDownloads(item, mediaInfo) || hasActiveSeerrDownloads(mediaInfo)) {
             return {
                 ...base,

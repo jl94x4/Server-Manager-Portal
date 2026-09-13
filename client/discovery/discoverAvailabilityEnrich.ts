@@ -122,9 +122,20 @@ export const mergeAvailabilityOntoItems = <T,>(items: T[], availabilityByKey: Re
 };
 
 /** Live Radarr/Sonarr lookup for browse rows when the disk cache missed a title. */
+const browseRowNeedsLiveAvailability = (item: any): boolean => {
+    const state = resolveMediaAvailabilityState(item);
+    if (state.kind === 'none') return true;
+    const normalized = normalizeRawDiscoveryItem(item) || item;
+    const mediaType = normalized?.mediaType;
+    const isTv = mediaType === 'tv' || mediaType === 2 || mediaType === '2';
+    if (!isTv) return false;
+    if (!['requested', 'processing', 'pending'].includes(state.kind)) return false;
+    return !item?.sonarrLibraryStatus?.matched;
+};
+
 export async function enrichDiscoverBrowseRows<T>(items: T[]): Promise<T[]> {
     if (!Array.isArray(items) || items.length === 0) return items;
-    const needsLive = items.some((item) => resolveMediaAvailabilityState(item).kind === 'none');
+    const needsLive = items.some((item) => browseRowNeedsLiveAvailability(item));
     if (!needsLive) return items;
     return enrichDiscoverItemsWithAvailability(items);
 }

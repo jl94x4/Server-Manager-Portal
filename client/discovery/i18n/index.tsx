@@ -115,13 +115,13 @@ export const translateDiscoverAvailabilityDetail = (t: DiscoverTranslate, detail
             .join(' ');
     }
 
-    const seasonsInLibrary = raw.match(/^Seasons ([\d,\s]+) in library$/);
+    const seasonsInLibrary = raw.match(/^Seasons ([\d,\s-]+) in library$/);
     if (seasonsInLibrary) return t('availability.seasonsInLibrary', { seasons: seasonsInLibrary[1].trim() });
     const seasonCountInLibrary = raw.match(/^(\d+) seasons in library$/);
     if (seasonCountInLibrary) return t('availability.seasonCountInLibrary', { count: Number(seasonCountInLibrary[1]) });
-    const seasonsUpToDate = raw.match(/^Seasons ([\d,\s]+) up to date$/);
+    const seasonsUpToDate = raw.match(/^Seasons ([\d,\s-]+) up to date$/);
     if (seasonsUpToDate) return t('availability.seasonsUpToDate', { seasons: seasonsUpToDate[1].trim() });
-    const seasonUpToDate = raw.match(/^Season ([\d,\s]+) up to date$/);
+    const seasonUpToDate = raw.match(/^Season ([\d,\s-]+) up to date$/);
     if (seasonUpToDate) return t('availability.seasonUpToDate', { seasons: seasonUpToDate[1].trim() });
     const seasonCountUpToDate = raw.match(/^(\d+) seasons up to date$/);
     if (seasonCountUpToDate) return t('availability.seasonCountUpToDate', { count: Number(seasonCountUpToDate[1]) });
