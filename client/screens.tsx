@@ -14,6 +14,7 @@ import { getPublicOrigin, logoUrl, portalUrl, resolvePortalAssetUrl, stripBasePa
 import { sizedPlexImageUrl } from './shared/plexImageUrl';
 import { LoginBrandMark } from './shared/LoginBrandMark';
 import { PlexHomeSelect } from './shared/PlexHomeSelect';
+import { PlexHomeSwitchModal } from './shared/PlexHomeSwitchModal';
 import { formatDate, getDaysUntilExpiry, getAccessProgressPct, addMonths, addYears, formatTime, formatEventName, formatDateTime, hexToRgb, formatSizeCeil, formatStreamingHour, formatPortalDateTime, formatPortalDateTimeCompact } from './shared/format';
 import { CustomSelect, ConfirmModal, StyledCheckbox, ScrollReveal } from './shared/ui';
 import { PeriodDropdown } from './shared/PeriodDropdown';
@@ -6793,16 +6794,11 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, p
         }
     }, [onLoginSuccess]);
 
-    const handlePlexLogin = async (options?: { skipHomeRemember?: boolean }) => {
+    const handlePlexLogin = async () => {
         setIsLoading(true);
         setError('');
         try {
-            const data = await apiFetch('/api/auth/plex/login', {
-                method: 'POST',
-                body: JSON.stringify({
-                    skipHomeRemember: options?.skipHomeRemember === true,
-                }),
-            });
+            const data = await apiFetch('/api/auth/plex/login', { method: 'POST' });
             const clientId = data.clientIdentifier || data.clientId || '';
             const storedRef = readStoredReferralRef();
             const callbackParams = new URLSearchParams({ pinId: String(data.id) });
@@ -7090,20 +7086,10 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, p
                                 )}
                             </div>
                         ) : (
-                            <div className="w-full max-w-sm flex flex-col items-center">
-                                <button type="button" className={loginSecondaryBtnClass} onClick={() => handlePlexLogin()} disabled={isLoading}>
-                                    <img src={PLEX_ICON_URL} alt="" className="w-5 h-5 object-contain opacity-90" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                                    Login with Plex
-                                </button>
-                                <button
-                                    type="button"
-                                    className="mt-3 text-xs font-bold text-muted hover:text-text transition"
-                                    onClick={() => handlePlexLogin({ skipHomeRemember: true })}
-                                    disabled={isLoading}
-                                >
-                                    Choose who signs in
-                                </button>
-                            </div>
+                            <button type="button" className={loginSecondaryBtnClass} onClick={handlePlexLogin} disabled={isLoading}>
+                                <img src={PLEX_ICON_URL} alt="" className="w-5 h-5 object-contain opacity-90" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                                Login with Plex
+                            </button>
                         )}
 
                         {!showTrialAccess && !isEmbyLikeAuth && publicConfig?.showPublicLibraryStats !== false && (
@@ -12174,6 +12160,7 @@ interface NavigationProps {
         options?: { hash?: string; reviewId?: number; path?: string },
     ) => void;
     onLogout: () => void;
+    onSessionRefresh?: () => Promise<void> | void;
     isAdmin: boolean;
     serverName: string;
     adminThumb?: string | null;
@@ -12202,7 +12189,7 @@ interface NavigationProps {
     onCloseApplet?: (id: string) => void;
 }
 
-export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLogout, isAdmin, serverName, adminThumb, customLogoUrl, requestUrl, navOrder, navHiddenKeys, memberNavOrder, memberNavHiddenKeys, navFeatures, appVersion, activeTheme, setActiveTheme, pendingRequestCount = 0, supportUnreadCount = 0, chatUnreadCount = 0, watchingCount = 0, downloadCount = 0, mediaAutomationActiveCount = 0, showDashboardWatchingBadge = false, sessionInfo, mediaServerType = 'plex', sidebarIdentityPosition = 'bottom', externalTabId = null, openApplets = [], onCloseApplet }) => {
+export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate, onLogout, onSessionRefresh, isAdmin, serverName, adminThumb, customLogoUrl, requestUrl, navOrder, navHiddenKeys, memberNavOrder, memberNavHiddenKeys, navFeatures, appVersion, activeTheme, setActiveTheme, pendingRequestCount = 0, supportUnreadCount = 0, chatUnreadCount = 0, watchingCount = 0, downloadCount = 0, mediaAutomationActiveCount = 0, showDashboardWatchingBadge = false, sessionInfo, mediaServerType = 'plex', sidebarIdentityPosition = 'bottom', externalTabId = null, openApplets = [], onCloseApplet }) => {
     const { t } = useDiscoverI18n();
     const serverIcon = customLogoUrl ? resolvePortalAssetUrl(customLogoUrl) : (adminThumb ? (adminThumb.startsWith('http') ? adminThumb : portalUrl(`/api/plex/image?path=${encodeURIComponent(adminThumb)}&width=256&height=256`)) : logoUrl());
     const providerName = String(mediaServerType || 'plex').toLowerCase() === 'jellyfin'
@@ -12228,6 +12215,12 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
     const [firefoxMobileNav] = useState(() => isFirefoxMobileClient());
     const firefoxNavBarRef = useRef<HTMLDivElement>(null);
     const [profileOpen, setProfileOpen] = useState(false);
+    const [homeSwitchOpen, setHomeSwitchOpen] = useState(false);
+    const [homeSwitchUsers, setHomeSwitchUsers] = useState<any[]>([]);
+    const [homeSwitchCurrentId, setHomeSwitchCurrentId] = useState<string | null>(null);
+    const [homeSwitchAvailable, setHomeSwitchAvailable] = useState(false);
+    const [homeSwitchBusy, setHomeSwitchBusy] = useState(false);
+    const [homeSwitchError, setHomeSwitchError] = useState('');
     const [profileAchievements, setProfileAchievements] = useState<any>(null);
     const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
     const [installHelpOpen, setInstallHelpOpen] = useState(false);
@@ -12248,6 +12241,69 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
     const addInstallToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
         setInstallToasts((prev) => pushToast(prev, message, type));
     }, []);
+
+    const loadPlexHomeProfiles = useCallback(async () => {
+        if (String(mediaServerType || 'plex').toLowerCase() !== 'plex') {
+            setHomeSwitchAvailable(false);
+            return { available: false, users: [] as any[] };
+        }
+        if (sessionInfo?.impersonation?.active) {
+            setHomeSwitchAvailable(false);
+            return { available: false, users: [] as any[] };
+        }
+        try {
+            const data = await apiFetch('/api/auth/plex/home-profiles');
+            const users = Array.isArray(data?.users) ? data.users : [];
+            const available = !!data?.available && users.length > 1;
+            setHomeSwitchUsers(users);
+            setHomeSwitchCurrentId(data?.currentUserId || null);
+            setHomeSwitchAvailable(available);
+            return { available, users };
+        } catch {
+            setHomeSwitchAvailable(false);
+            return { available: false, users: [] as any[] };
+        }
+    }, [mediaServerType, sessionInfo?.impersonation?.active, sessionInfo?.session?.plexId]);
+
+    useEffect(() => {
+        void loadPlexHomeProfiles();
+    }, [loadPlexHomeProfiles]);
+
+    const openPlexHomeSwitcher = useCallback(async () => {
+        setHomeSwitchError('');
+        setHomeSwitchOpen(true);
+        const result = await loadPlexHomeProfiles();
+        if (!result.available) {
+            setHomeSwitchOpen(false);
+            onNavigate('profile');
+        }
+    }, [loadPlexHomeProfiles, onNavigate]);
+
+    const handlePlexHomeAvatarClick = useCallback(() => {
+        if (homeSwitchAvailable) {
+            void openPlexHomeSwitcher();
+            return;
+        }
+        onNavigate('profile');
+    }, [homeSwitchAvailable, openPlexHomeSwitcher, onNavigate]);
+
+    const handlePlexHomeSwitch = useCallback(async (user: { id: string }, pin?: string) => {
+        setHomeSwitchBusy(true);
+        setHomeSwitchError('');
+        try {
+            await apiFetch('/api/auth/plex/home-profiles/switch', {
+                method: 'POST',
+                body: JSON.stringify({ userId: user.id, ...(pin ? { pin } : {}) }),
+            });
+            setHomeSwitchOpen(false);
+            if (onSessionRefresh) await onSessionRefresh();
+            else window.location.reload();
+        } catch (e: any) {
+            setHomeSwitchError(e?.message || 'Could not switch Plex Home profile.');
+        } finally {
+            setHomeSwitchBusy(false);
+        }
+    }, [onSessionRefresh]);
     useFirefoxMobileNavShell({ barRef: firefoxNavBarRef, enabled: firefoxMobileNav });
     const mobileThemeRef = useRef<HTMLDivElement>(null);
     const [mobileThemePos, setMobileThemePos] = useState<{ top: number; right: number } | null>(null);
@@ -13030,6 +13086,22 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                             <MonitorSmartphone className="w-3.5 h-3.5 shrink-0" />
                         </button>
                     )}
+                    {homeSwitchAvailable && (
+                        <button
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); void openPlexHomeSwitcher(); }}
+                            className="w-8 h-8 flex items-center justify-center rounded-md border border-border text-muted hover:border-plex/50 hover:text-text transition-colors overflow-hidden"
+                            title="Switch profile"
+                            aria-label="Switch profile"
+                        >
+                            <img
+                                src={profileIcon}
+                                alt=""
+                                className="w-full h-full object-cover"
+                                onError={(e) => { (e.target as HTMLImageElement).src = logoUrl(); }}
+                            />
+                        </button>
+                    )}
                     <button onClick={(e) => { e.preventDefault(); onLogout(); }} className="w-8 h-8 flex items-center justify-center rounded-md border border-border text-muted hover:border-red-500/50 hover:text-red-500 transition-colors">
                         <LogOut className="w-4 h-4" />
                     </button>
@@ -13117,7 +13189,21 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                 {sidebarIdentityPosition !== 'top' && renderServerIdentity('bottom')}
 
                 {desktopNavIconsOnly ? (
-                    <div className="mt-1 pt-1 border-t border-white/10 shrink-0 w-full flex flex-col items-center">
+                    <div className="mt-1 pt-1 border-t border-white/10 shrink-0 w-full flex flex-col items-center gap-1.5">
+                        <button
+                            type="button"
+                            onClick={handlePlexHomeAvatarClick}
+                            className={`w-9 h-9 rounded-full overflow-hidden border transition-all ${homeSwitchAvailable ? 'border-plex/40 hover:border-plex hover:ring-2 hover:ring-plex/30' : 'border-white/10 hover:border-plex/40'}`}
+                            title={homeSwitchAvailable ? 'Switch profile' : profileName}
+                            aria-label={homeSwitchAvailable ? 'Switch profile' : profileName}
+                        >
+                            <img
+                                src={profileIcon}
+                                alt=""
+                                className="w-full h-full object-cover"
+                                onError={(e) => { (e.target as HTMLImageElement).src = logoUrl(); }}
+                            />
+                        </button>
                         <InAppNotificationsBell
                             onNavigate={(route, options) => onNavigate(route as any, options)}
                             className="overflow-visible"
@@ -13133,17 +13219,25 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                         >
                             <button
                                 type="button"
-                                onClick={() => onNavigate('profile')}
-                                className="min-w-0 flex flex-1 items-center gap-1.5 py-1 pl-1.5 pr-0 text-left overflow-hidden hover:bg-white/10 transition-colors"
+                                onClick={handlePlexHomeAvatarClick}
+                                className={`flex-shrink-0 rounded-full p-0.5 ml-1 ${homeSwitchAvailable ? 'ring-1 ring-plex/40 hover:ring-plex' : ''}`}
+                                title={homeSwitchAvailable ? 'Switch profile' : profileName}
+                                aria-label={homeSwitchAvailable ? 'Switch profile' : profileName}
                             >
                                 <img
                                     src={profileIcon}
                                     alt=""
-                                    className="w-7 h-7 flex-shrink-0 rounded-full object-cover bg-background/60 border border-white/10"
+                                    className="w-7 h-7 rounded-full object-cover bg-background/60 border border-white/10"
                                     onError={(e) => {
                                         (e.target as HTMLImageElement).src = logoUrl();
                                     }}
                                 />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => onNavigate('profile')}
+                                className="min-w-0 flex flex-1 items-center gap-1.5 py-1 pl-1 pr-0 text-left overflow-hidden hover:bg-white/10 transition-colors"
+                            >
                                 <div className="min-w-0 flex-1 overflow-hidden">
                                     <p className="text-xs font-bold text-text truncate">{profileName}</p>
                                     <p className="text-[9px] uppercase tracking-wider text-muted truncate">{providerName} Profile</p>
@@ -13189,6 +13283,20 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                     : <ChevronLeft className="w-3.5 h-3.5" />}
             </button>
             </div>
+
+            <PlexHomeSwitchModal
+                open={homeSwitchOpen}
+                users={homeSwitchUsers}
+                currentUserId={homeSwitchCurrentId}
+                busy={homeSwitchBusy}
+                error={homeSwitchError}
+                onSelect={handlePlexHomeSwitch}
+                onClose={() => { if (!homeSwitchBusy) setHomeSwitchOpen(false); }}
+                onViewProfile={() => {
+                    setHomeSwitchOpen(false);
+                    onNavigate('profile');
+                }}
+            />
 
             {profileOpen && (
                 <div className="hidden md:block fixed inset-0 z-[80]" aria-modal="true" role="dialog">
@@ -13279,6 +13387,19 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                 ]}
                             />
                             </div>
+                            {homeSwitchAvailable && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setProfileOpen(false);
+                                        void openPlexHomeSwitcher();
+                                    }}
+                                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-plex/30 bg-plex/10 px-4 py-3 text-sm font-bold text-plex hover:bg-plex/20 hover:border-plex/50 transition-colors"
+                                >
+                                    <Users className="w-4 h-4" />
+                                    Switch profile
+                                </button>
+                            )}
                             <button
                                 type="button"
                                 onClick={() => {

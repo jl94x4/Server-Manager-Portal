@@ -1173,6 +1173,7 @@ const issuePlexHomeSelectPending = (req, res, { authToken, userData, ref }) => {
         ...sessionCookieBase(req),
         maxAge: PLEX_HOME_SELECT_TTL_MS,
     });
+    persistPlexHomeOwner(req, res, { ownerId: userData?.id, authToken });
     return id;
 };
 
@@ -1238,6 +1239,55 @@ const setPlexHomeRemember = (req, res, { ownerId, userId, pin }) => {
 
 const clearPlexHomeRemember = (req, res) => {
     res.clearCookie(PLEX_HOME_REMEMBER_COOKIE, sessionCookieBase(req));
+};
+
+const PLEX_HOME_OWNER_COOKIE = 'plex_home_owner';
+
+const encodePlexHomeOwner = ({ ownerId, authToken }) => {
+    const payload = JSON.stringify({
+        o: String(ownerId || '').trim(),
+        t: String(authToken || '').trim(),
+    });
+    return encryptPlexAuthToken(payload);
+};
+
+const decodePlexHomeOwner = (raw) => {
+    const decrypted = decryptPlexAuthToken(raw);
+    if (!decrypted) return null;
+    try {
+        const parsed = JSON.parse(decrypted);
+        const ownerId = String(parsed?.o || parsed?.ownerId || '').trim();
+        const authToken = String(parsed?.t || parsed?.authToken || '').trim();
+        if (!ownerId || !authToken) return null;
+        return { ownerId, authToken };
+    } catch {
+        return null;
+    }
+};
+
+const readPlexHomeOwner = (req) => decodePlexHomeOwner(req.cookies?.[PLEX_HOME_OWNER_COOKIE]);
+
+const setPlexHomeOwner = (req, res, { ownerId, authToken }) => {
+    const encoded = encodePlexHomeOwner({ ownerId, authToken });
+    if (!encoded) return;
+    res.cookie(PLEX_HOME_OWNER_COOKIE, encoded, {
+        ...sessionCookieBase(req),
+        maxAge: PLEX_HOME_REMEMBER_TTL_MS,
+    });
+};
+
+const persistPlexHomeOwner = (req, res, { ownerId, authToken }) => {
+    if (!ownerId || !authToken) return;
+    setPlexHomeOwner(req, res, { ownerId, authToken });
+    updateUsers((users) => {
+        const owner = (Array.isArray(users) ? users : []).find((user) => (
+            String(user?.plexId || '') === String(ownerId)
+            || (user?.isAdmin && String(user?.id || '') === String(ownerId))
+        ));
+        if (!owner) return users;
+        owner.plexAuthToken = encryptPlexAuthToken(authToken);
+        return users;
+    }).catch(() => {});
 };
 
 const PLEX_HOME_SKIP_REMEMBER_COOKIE = 'plex_home_skip_remember';
@@ -4810,8 +4860,8 @@ const completePlexPortalLogin = async (req, res, {
 
     const token = jwt.sign(sessionUser, JWT_SECRET, { expiresIn: '7d' });
     setSessionCookie(req, res, token);
-
     if (isAdmin) {
+        persistPlexHomeOwner(req, res, { ownerId: userData.id, authToken });
         await ensurePortalUserForNotifications(sessionUser, { config });
     }
     await updateUsers((users) => {
@@ -4900,6 +4950,7 @@ const maybePauseForPlexHomeSelect = async (req, res, {
     if (!isAdmin) return false;
     const homeUsers = await fetchPlexHomeUsers(authToken, { headers: plexClientHeaders(authToken) }).catch(() => []);
     if (!shouldOfferPlexHomeSelect(homeUsers)) return false;
+    persistPlexHomeOwner(req, res, { ownerId: userData.id, authToken });
 
     const skipRemember = consumePlexHomeSkipRemember(req, res);
     const remembered = readPlexHomeRemember(req);
@@ -5115,6 +5166,10 @@ app.post('/api/auth/plex/home-switch', authRateLimit, async (req, res) => {
             clearPlexHomeRemember(req, res);
         }
 
+        persistPlexHomeOwner(req, res, {
+            ownerId: pending.userData.id,
+            authToken: pending.authToken,
+        });
         clearPlexHomeSelectPending(req, res);
         return completePlexPortalLogin(req, res, {
             userData: resolved.userData,
@@ -5124,6 +5179,119 @@ app.post('/api/auth/plex/home-switch', authRateLimit, async (req, res) => {
         });
     } catch (err) {
         log(`Plex Home switch failed: ${err.message}`);
+        return res.status(500).json({ error: 'Failed to switch Plex Home profile.' });
+    }
+});
+
+const resolvePlexHomeOwnerContext = async (req) => {
+    if (isImpersonatingSession(req.user)) return null;
+    const config = await loadFile(CONFIG_PATH, {});
+    if (String(config?.mediaServerType || 'plex').toLowerCase() !== 'plex') return null;
+    const adminId = await getAdminId(config);
+    const users = await loadFile(USERS_PATH, []);
+    const localUser = findLocalUserForSession(users, req.user);
+    const isAdmin = !!(adminId && (
+        String(req.user?.plexId || '') === String(adminId)
+        || String(req.user?.id || '') === String(adminId)
+    ));
+    const isHomeUser = !!localUser?.plexHomeUser;
+    if (!isAdmin && !isHomeUser) return null;
+
+    const cookie = readPlexHomeOwner(req);
+    const ownerId = String(cookie?.ownerId || adminId || '').trim();
+    let authToken = String(cookie?.authToken || '').trim();
+    if (!authToken) {
+        const adminUser = (Array.isArray(users) ? users : []).find((user) => (
+            String(user?.plexId || '') === String(adminId)
+            || (user?.isAdmin && String(user?.id || '') === String(adminId))
+        ));
+        const fromAdmin = decryptPlexAuthToken(adminUser?.plexAuthToken);
+        const fromLocal = isAdmin ? decryptPlexAuthToken(localUser?.plexAuthToken) : '';
+        authToken = String(fromLocal || fromAdmin || '').trim();
+    }
+    if (!ownerId || !authToken) return null;
+    return { ownerId, authToken };
+};
+
+app.get('/api/auth/plex/home-profiles', requireAuth, requireMember, async (req, res) => {
+    try {
+        if (blockIfImpersonating(req, res)) return;
+        const owner = await resolvePlexHomeOwnerContext(req);
+        if (!owner) return res.json({ available: false, users: [], currentUserId: null });
+        const homeUsers = await fetchPlexHomeUsers(owner.authToken, {
+            headers: plexClientHeaders(owner.authToken),
+        }).catch(() => []);
+        const users = homeUsers.map(toPublicPlexHomeUser).filter(Boolean);
+        if (!shouldOfferPlexHomeSelect(users)) {
+            return res.json({
+                available: false,
+                users,
+                currentUserId: String(req.user?.plexId || req.user?.id || ''),
+            });
+        }
+        setPlexHomeOwner(req, res, owner);
+        const remembered = readPlexHomeRemember(req);
+        return res.json({
+            available: true,
+            users,
+            currentUserId: String(req.user?.plexId || req.user?.id || ''),
+            rememberUserId: remembered?.userId || null,
+        });
+    } catch (err) {
+        log(`Plex Home profiles failed: ${err.message}`);
+        return res.status(500).json({ error: 'Failed to load Plex Home profiles.' });
+    }
+});
+
+app.post('/api/auth/plex/home-profiles/switch', authRateLimit, requireAuth, requireMember, async (req, res) => {
+    try {
+        if (blockIfImpersonating(req, res)) return;
+        const owner = await resolvePlexHomeOwnerContext(req);
+        if (!owner) return res.status(403).json({ error: 'Plex Home switching is not available.' });
+        const userId = String(req.body?.userId || '').trim();
+        const pin = String(req.body?.pin || '').trim();
+        if (!userId) return res.status(400).json({ error: 'Select a Plex Home profile.' });
+
+        const homeUsers = await fetchPlexHomeUsers(owner.authToken, {
+            headers: plexClientHeaders(owner.authToken),
+        }).catch(() => []);
+        const ownerProfile = homeUsers.find((user) => user.admin)
+            || findRememberedPlexHomeUser(homeUsers, owner.ownerId);
+        const ownerUserData = {
+            id: ownerProfile?.id || owner.ownerId,
+            uuid: ownerProfile?.uuid || owner.ownerId,
+            username: ownerProfile?.username || ownerProfile?.title || '',
+            title: ownerProfile?.title || '',
+            email: ownerProfile?.email || '',
+            thumb: ownerProfile?.thumb || null,
+        };
+
+        const resolved = await resolvePlexHomeSwitchIdentity({
+            ownerToken: owner.authToken,
+            ownerUserData,
+            userId,
+            pin,
+        });
+        if (resolved.needsPin) {
+            return res.status(401).json({ error: 'Enter the PIN for this profile.' });
+        }
+        if (!resolved.ok || !resolved.authToken || !resolved.userData) {
+            return res.status(401).json({ error: 'Could not switch to that Plex Home profile.' });
+        }
+
+        persistPlexHomeOwner(req, res, owner);
+        setPlexHomeRemember(req, res, {
+            ownerId: owner.ownerId,
+            userId,
+            pin,
+        });
+        return completePlexPortalLogin(req, res, {
+            userData: resolved.userData,
+            authToken: resolved.authToken,
+            autoProvisionHomeUser: !resolved.pickedSelf,
+        });
+    } catch (err) {
+        log(`Plex Home in-session switch failed: ${err.message}`);
         return res.status(500).json({ error: 'Failed to switch Plex Home profile.' });
     }
 });
