@@ -12320,15 +12320,12 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                     ...(pin ? { pin } : {}),
                 }),
             });
-            setHomeSwitchOpen(false);
-            if (onSessionRefresh) await onSessionRefresh();
-            else window.location.reload();
+            window.location.reload();
         } catch (e: any) {
             setHomeSwitchError(e?.message || 'Could not switch Plex Home profile.');
-        } finally {
             setHomeSwitchBusy(false);
         }
-    }, [onSessionRefresh]);
+    }, []);
     useFirefoxMobileNavShell({ barRef: firefoxNavBarRef, enabled: firefoxMobileNav });
     const mobileThemeRef = useRef<HTMLDivElement>(null);
     const [mobileThemePos, setMobileThemePos] = useState<{ top: number; right: number } | null>(null);
