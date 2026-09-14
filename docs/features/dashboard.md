@@ -37,6 +37,7 @@ Admin search on Dashboard looks up movies and shows in the library. Pick a title
 
 - Play count, unique watchers, watch time, and last watched
 - Who watched, ranked by plays (10 per page; opens that user’s analytics)
+- Seasons and episodes on TV shows, with play counts, so you can open a season or episode for its own watchers, charts, and history
 - Monthly play chart and platform views
 - Full server watch history in a Tautulli-style table (user, IP, platform, product, player, times, pause, stream, watched)
 

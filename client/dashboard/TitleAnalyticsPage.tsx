@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
     ArrowLeft,
+    ChevronRight,
+    Layers,
+    ListVideo,
     Calendar,
     Clock,
     Play,
@@ -45,6 +48,8 @@ type TitleHistoryRow = {
     transcodeDecision?: string | null;
     ipAddress?: string | null;
     location?: string | null;
+    ratingKey?: string | null;
+    parentRatingKey?: string | null;
 };
 
 type TitleUserRow = {
@@ -52,6 +57,19 @@ type TitleUserRow = {
     userThumb?: string | null;
     plays: number;
     totalSeconds: number;
+    lastWatchedAt?: number | null;
+};
+
+type TitleChildRow = {
+    ratingKey: string;
+    title: string;
+    type?: string;
+    index?: number | null;
+    parentIndex?: number | null;
+    thumb?: string | null;
+    leafCount?: number | null;
+    plays: number;
+    uniqueUsers: number;
     lastWatchedAt?: number | null;
 };
 
@@ -64,8 +82,16 @@ type TitleAnalyticsPayload = {
         thumb?: string | null;
         plexUrl?: string | null;
         summary?: string | null;
+        index?: number | null;
+        parentIndex?: number | null;
+        parentRatingKey?: string | null;
+        parentTitle?: string | null;
+        grandparentRatingKey?: string | null;
+        grandparentTitle?: string | null;
     };
     source?: 'tautulli' | 'plex';
+    childKind?: 'season' | 'episode' | null;
+    children?: TitleChildRow[];
     stats?: {
         plays?: number;
         uniqueUsers?: number;
@@ -132,10 +158,21 @@ const formatMonthLabel = (month: string) => {
     return date.toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
 };
 
-const userThumbSrc = (thumb?: string | null) => {
+const userThumbSrc = (thumb?: string | null) => plexThumbSrc(thumb, 64, 64);
+
+const plexThumbSrc = (thumb?: string | null, width = 300, height = 450) => {
     if (!thumb) return '';
     if (thumb.startsWith('http') || thumb.startsWith('/api/')) return thumb;
-    return portalUrl(`/api/plex/image?path=${encodeURIComponent(thumb)}&width=64&height=64`);
+    return portalUrl(`/api/plex/image?path=${encodeURIComponent(thumb)}&width=${width}&height=${height}`);
+};
+
+const childLabel = (row: TitleChildRow, kind: 'season' | 'episode', parentIndex?: number | null) => {
+    if (kind === 'season') {
+        if (row.index === 0) return row.title && !/^season\s*0$/i.test(row.title) ? row.title : 'Specials';
+        return row.title || (row.index != null ? `Season ${row.index}` : 'Season');
+    }
+    const code = formatSeasonEpisode(row.parentIndex ?? parentIndex, row.index);
+    return code ? `${code}  ${row.title || 'Episode'}` : (row.title || 'Episode');
 };
 
 const chartTooltipStyle = {
@@ -149,14 +186,17 @@ export const TitleAnalyticsPage: React.FC<{
     ratingKey: string;
     onBack: () => void;
     onViewUser?: (username: string) => void;
-}> = ({ ratingKey, onBack, onViewUser }) => {
+    onOpenTitle?: (ratingKey: string) => void;
+}> = ({ ratingKey, onBack, onViewUser, onOpenTitle }) => {
     const [data, setData] = useState<TitleAnalyticsPayload | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [historyPage, setHistoryPage] = useState(1);
     const [usersPage, setUsersPage] = useState(1);
+    const [childrenPage, setChildrenPage] = useState(1);
     const pageSize = 25;
     const usersPageSize = 10;
+    const childrenPageSize = 12;
 
     useEffect(() => {
         let cancelled = false;
@@ -164,6 +204,7 @@ export const TitleAnalyticsPage: React.FC<{
         setError(null);
         setHistoryPage(1);
         setUsersPage(1);
+        setChildrenPage(1);
         apiFetch(`/api/plex/analytics/title/${encodeURIComponent(ratingKey)}`)
             .then((res) => {
                 if (cancelled) return;
@@ -185,8 +226,11 @@ export const TitleAnalyticsPage: React.FC<{
 
     const history = data?.history || [];
     const users = data?.users || [];
+    const children = data?.children || [];
+    const childKind = data?.childKind === 'episode' ? 'episode' : data?.childKind === 'season' ? 'season' : null;
     const stats = data?.stats || {};
     const item = data?.item || {};
+    const itemType = String(item.type || '').toLowerCase();
     const pageCount = Math.max(1, Math.ceil(history.length / pageSize));
     const pageRows = useMemo(() => {
         const start = (historyPage - 1) * pageSize;
@@ -197,6 +241,11 @@ export const TitleAnalyticsPage: React.FC<{
         const start = (usersPage - 1) * usersPageSize;
         return users.slice(start, start + usersPageSize);
     }, [users, usersPage]);
+    const childrenPageCount = Math.max(1, Math.ceil(children.length / childrenPageSize));
+    const pageChildren = useMemo(() => {
+        const start = (childrenPage - 1) * childrenPageSize;
+        return children.slice(start, start + childrenPageSize);
+    }, [children, childrenPage]);
 
     const chartData = (data?.byMonth || []).map((row) => ({
         ...row,
@@ -205,17 +254,28 @@ export const TitleAnalyticsPage: React.FC<{
     const platformChartData = data?.byPlatform || [];
 
     const posterSrc = item.thumb
-        ? portalUrl(`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`)
+        ? plexThumbSrc(item.thumb, 300, 450)
         : '';
+    const showCrumbKey = itemType === 'season' ? item.parentRatingKey : item.grandparentRatingKey;
+    const showCrumbTitle = itemType === 'season' ? item.parentTitle : item.grandparentTitle;
+    const seasonCrumbKey = itemType === 'episode' ? item.parentRatingKey : null;
+    const seasonCrumbTitle = itemType === 'episode'
+        ? (item.parentTitle || (item.parentIndex != null ? `Season ${item.parentIndex}` : 'Season'))
+        : null;
+    const typeLabel = itemType ? itemType.toUpperCase() : null;
+    const openTitle = (key?: string | null) => {
+        const next = String(key || '').trim();
+        if (next && onOpenTitle) onOpenTitle(next);
+    };
 
     return (
         <DashboardPageShell>
             <DashboardHero
                 accent="plex"
-                eyebrow="Library title"
+                eyebrow={showCrumbTitle || 'Library title'}
                 title={item.title || (loading ? 'Loading…' : 'Title')}
                 description={
-                    [item.type ? String(item.type).toUpperCase() : null, item.year, data?.source === 'tautulli' ? 'Tautulli history' : data?.source === 'plex' ? 'Plex history' : null]
+                    [typeLabel, item.year, data?.source === 'tautulli' ? 'Tautulli history' : data?.source === 'plex' ? 'Plex history' : null]
                         .filter(Boolean)
                         .join(' · ')
                     || 'Everyone who watched this title on the server.'
@@ -248,6 +308,45 @@ export const TitleAnalyticsPage: React.FC<{
 
             {error ? (
                 <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">{error}</div>
+            ) : null}
+
+            {showCrumbKey || seasonCrumbKey ? (
+                <nav className="flex flex-wrap items-center gap-1.5 text-sm">
+                    {showCrumbKey ? (
+                        <button
+                            type="button"
+                            onClick={() => openTitle(showCrumbKey)}
+                            className="font-bold text-plex hover:underline"
+                        >
+                            {showCrumbTitle || 'Show'}
+                        </button>
+                    ) : null}
+                    {seasonCrumbKey ? (
+                        <>
+                            <ChevronRight className="h-3.5 w-3.5 text-muted" />
+                            <button
+                                type="button"
+                                onClick={() => openTitle(seasonCrumbKey)}
+                                className="font-bold text-text hover:text-plex hover:underline"
+                            >
+                                {seasonCrumbTitle}
+                            </button>
+                        </>
+                    ) : itemType === 'season' ? (
+                        <>
+                            <ChevronRight className="h-3.5 w-3.5 text-muted" />
+                            <span className="text-muted">{item.title || 'Season'}</span>
+                        </>
+                    ) : null}
+                    {itemType === 'episode' ? (
+                        <>
+                            <ChevronRight className="h-3.5 w-3.5 text-muted" />
+                            <span className="text-muted">
+                                {[formatSeasonEpisode(item.parentIndex, item.index), item.title].filter(Boolean).join(' · ')}
+                            </span>
+                        </>
+                    ) : null}
+                </nav>
             ) : null}
 
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
@@ -294,6 +393,107 @@ export const TitleAnalyticsPage: React.FC<{
                     glow={dashboardGlowClass('sky')}
                 />
             </div>
+
+            {!loading && childKind && children.length ? (
+                <DashboardPanel
+                    title={childKind === 'episode' ? 'Episodes' : 'Seasons'}
+                    subtitle={
+                        childKind === 'episode'
+                            ? `${children.length} ${children.length === 1 ? 'episode' : 'episodes'} in this season`
+                            : `${children.length} ${children.length === 1 ? 'season' : 'seasons'} in this show`
+                    }
+                    badge={(
+                        <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted">
+                            {childKind === 'episode' ? <ListVideo className="h-3 w-3" /> : <Layers className="h-3 w-3" />}
+                            {children.length}
+                        </span>
+                    )}
+                >
+                    <div className="space-y-3">
+                        {childKind === 'season' ? (
+                            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+                                {pageChildren.map((row) => (
+                                    <button
+                                        key={row.ratingKey}
+                                        type="button"
+                                        onClick={() => openTitle(row.ratingKey)}
+                                        className="group min-w-0 text-left"
+                                    >
+                                        <div className="overflow-hidden rounded-xl border border-white/10 bg-black/30">
+                                            {row.thumb ? (
+                                                <img
+                                                    src={plexThumbSrc(row.thumb, 200, 300)}
+                                                    alt=""
+                                                    className="aspect-[2/3] w-full object-cover transition-transform group-hover:scale-[1.03]"
+                                                />
+                                            ) : (
+                                                <div className="flex aspect-[2/3] items-center justify-center text-[10px] font-bold uppercase tracking-widest text-muted">No art</div>
+                                            )}
+                                        </div>
+                                        <div className="mt-2 truncate text-sm font-bold text-text group-hover:text-plex">
+                                            {childLabel(row, 'season')}
+                                        </div>
+                                        <div className="text-[11px] text-muted">
+                                            {row.plays} {row.plays === 1 ? 'play' : 'plays'}
+                                            {row.leafCount ? ` · ${row.leafCount} ep` : ''}
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="divide-y divide-white/5">
+                                {pageChildren.map((row) => (
+                                    <button
+                                        key={row.ratingKey}
+                                        type="button"
+                                        onClick={() => openTitle(row.ratingKey)}
+                                        className="flex w-full min-w-0 items-center gap-3 px-1 py-2.5 text-left transition-colors hover:bg-white/5"
+                                    >
+                                        <div className="h-14 w-24 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-black/30">
+                                            {row.thumb ? (
+                                                <img src={plexThumbSrc(row.thumb, 240, 135)} alt="" className="h-full w-full object-cover" />
+                                            ) : (
+                                                <div className="flex h-full items-center justify-center text-[10px] font-bold uppercase tracking-widest text-muted">—</div>
+                                            )}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="truncate text-sm font-bold text-text">{childLabel(row, 'episode', item.index)}</div>
+                                            <div className="text-[11px] text-muted">
+                                                {row.lastWatchedAt ? formatPortalDateTimeCompact(row.lastWatchedAt) : 'Not watched yet'}
+                                            </div>
+                                        </div>
+                                        <div className="shrink-0 text-right">
+                                            <div className="text-sm font-black tabular-nums text-text">{row.plays}</div>
+                                            <div className="text-[10px] uppercase tracking-wider text-muted">plays</div>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        {childrenPageCount > 1 ? (
+                            <div className="flex items-center justify-between text-xs text-muted">
+                                <button
+                                    type="button"
+                                    disabled={childrenPage <= 1}
+                                    onClick={() => setChildrenPage((page) => Math.max(1, page - 1))}
+                                    className="rounded-lg border border-white/10 px-3 py-1.5 font-bold disabled:opacity-40"
+                                >
+                                    Previous
+                                </button>
+                                <span>Page {childrenPage} of {childrenPageCount}</span>
+                                <button
+                                    type="button"
+                                    disabled={childrenPage >= childrenPageCount}
+                                    onClick={() => setChildrenPage((page) => Math.min(childrenPageCount, page + 1))}
+                                    className="rounded-lg border border-white/10 px-3 py-1.5 font-bold disabled:opacity-40"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        ) : null}
+                    </div>
+                </DashboardPanel>
+            ) : null}
 
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
                 <DashboardPanel title="Who watched" subtitle={`${users.length} ${users.length === 1 ? 'person' : 'people'} on this server`}>
@@ -486,7 +686,18 @@ export const TitleAnalyticsPage: React.FC<{
                                                 <td className="whitespace-nowrap px-3 py-2.5">{row.product || '—'}</td>
                                                 <td className="max-w-[10rem] truncate px-3 py-2.5 text-text/80" title={row.player || undefined}>{row.player || '—'}</td>
                                                 <td className="max-w-[18rem] px-3 py-2.5">
-                                                    <div className="truncate font-medium text-text/90" title={row.title || undefined}>{row.title || '—'}</div>
+                                                    {row.ratingKey && onOpenTitle && String(row.ratingKey) !== String(ratingKey) ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => openTitle(row.ratingKey)}
+                                                            className="block max-w-full truncate text-left font-medium text-text/90 hover:text-plex"
+                                                            title={row.title || undefined}
+                                                        >
+                                                            {row.title || '—'}
+                                                        </button>
+                                                    ) : (
+                                                        <div className="truncate font-medium text-text/90" title={row.title || undefined}>{row.title || '—'}</div>
+                                                    )}
                                                     {seasonEpisode || row.episodeTitle ? (
                                                         <div className="truncate text-[11px] text-muted">
                                                             {seasonEpisode ? <span className="mr-1.5 font-mono text-plex">{seasonEpisode}</span> : null}

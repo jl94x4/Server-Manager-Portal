@@ -230,7 +230,7 @@ import {
     shouldFullRefreshAnalyticsHistory,
     analyticsHistoryItemKey,
 } from './lib/analytics/historyCache.js';
-import { aggregateTitleHistory } from './lib/analytics/titleStats.js';
+import { aggregateTitleHistory, rollupTitleChildren, synthesizeTitleChildren } from './lib/analytics/titleStats.js';
 import { withTautulliExclusive } from './lib/tautulli/exclusiveLock.js';
 import { isTautulliWatchHistorySource, buildAchievementsHomeRankContext, summarizeAchievementsBackfill, levelProgress } from './lib/achievements/index.js';
 import { loadAchievementsState, setLeaderboardOptOut } from './lib/achievements/store.js';
@@ -17373,9 +17373,75 @@ const mapTitleHistoryRow = (row, source) => {
         location: row.location || null,
         year: asInt(row.year),
         mediaType: row.mediaType || row.media_type || null,
+        ratingKey: row.ratingKey != null ? String(row.ratingKey) : (row.rating_key != null ? String(row.rating_key) : null),
+        parentRatingKey: row.parentRatingKey != null ? String(row.parentRatingKey) : (row.parent_rating_key != null ? String(row.parent_rating_key) : null),
+        parentTitle: row.parentTitle || row.parent_title || null,
+        grandparentRatingKey: row.grandparentRatingKey != null ? String(row.grandparentRatingKey) : (row.grandparent_rating_key != null ? String(row.grandparent_rating_key) : null),
+        grandparentTitle: row.grandparentTitle || row.grandparent_title || null,
         source,
     };
 };
+
+const mapTitleAnalyticsItem = (meta, ratingKey, config) => ({
+    ratingKey: String(meta?.ratingKey || ratingKey),
+    title: meta?.title || '',
+    type: meta?.type || '',
+    year: meta?.year || null,
+    thumb: meta?.thumb || meta?.parentThumb || meta?.grandparentThumb || null,
+    summary: meta?.summary || null,
+    index: asInt(meta?.index),
+    parentIndex: asInt(meta?.parentIndex),
+    leafCount: asInt(meta?.leafCount),
+    parentRatingKey: meta?.parentRatingKey ? String(meta.parentRatingKey) : null,
+    parentTitle: meta?.parentTitle || null,
+    grandparentRatingKey: meta?.grandparentRatingKey ? String(meta.grandparentRatingKey) : null,
+    grandparentTitle: meta?.grandparentTitle || null,
+    plexUrl: `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent(meta?.key || `/library/metadata/${ratingKey}`)}`,
+});
+
+const titleHistoryScope = (type) => {
+    const t = String(type || '').toLowerCase();
+    if (t === 'show') return 'show';
+    if (t === 'season') return 'season';
+    return 'item';
+};
+
+const tautulliExtraForTitleScope = (scope, ratingKey, start, pageSize) => {
+    if (scope === 'show') return { grandparent_rating_key: ratingKey, start, length: pageSize };
+    if (scope === 'season') return { parent_rating_key: ratingKey, start, length: pageSize };
+    return { rating_key: ratingKey, start, length: pageSize };
+};
+
+const plexHistoryFilterForTitleScope = (scope) => {
+    if (scope === 'show') return 'grandparentID';
+    if (scope === 'season') return 'parentID';
+    return 'metadataItemID';
+};
+
+const tautulliRowMatchesTitleScope = (row, scope, ratingKey) => {
+    const hasKeys = row.grandparent_rating_key != null || row.parent_rating_key != null || row.rating_key != null;
+    if (!hasKeys) return true;
+    if (scope === 'show') return String(row.grandparent_rating_key || '') === ratingKey;
+    if (scope === 'season') return String(row.parent_rating_key || '') === ratingKey;
+    return String(row.rating_key || '') === ratingKey || String(row.grandparent_rating_key || '') === ratingKey;
+};
+
+const fetchPlexTitleChildren = async (uri, config, ratingKey, { excludeAllLeaves = false } = {}) => {
+    const extra = excludeAllLeaves ? '&excludeAllLeaves=1' : '';
+    const url = `${uri}/library/metadata/${encodeURIComponent(ratingKey)}/children?X-Plex-Container-Start=0&X-Plex-Container-Size=500${extra}&X-Plex-Token=${config.plexToken}`;
+    const data = await fetch(url, { headers: plexClientHeaders(config.plexToken) }).then((r) => r.json()).catch(() => null);
+    return data?.MediaContainer?.Metadata || [];
+};
+
+const mapTitleChildMeta = (meta) => ({
+    ratingKey: String(meta?.ratingKey || ''),
+    title: meta?.title || '',
+    type: meta?.type || '',
+    index: asInt(meta?.index),
+    parentIndex: asInt(meta?.parentIndex),
+    thumb: meta?.thumb || meta?.parentThumb || meta?.grandparentThumb || null,
+    leafCount: asInt(meta?.leafCount),
+});
 
 app.get('/api/plex/analytics/title/:ratingKey', requireAuth, requireAdmin, async (req, res) => {
     try {
@@ -17391,39 +17457,22 @@ app.get('/api/plex/analytics/title/:ratingKey', requireAuth, requireAdmin, async
             return res.status(400).json({ error: 'Invalid title id' });
         }
 
-        let item = {
-            ratingKey,
-            title: '',
-            type: '',
-            year: null,
-            thumb: null,
-            summary: null,
-            plexUrl: `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent(`/library/metadata/${ratingKey}`)}`,
-        };
+        let item = mapTitleAnalyticsItem(null, ratingKey, config);
         try {
             const metaRes = await fetch(
                 `${uri}/library/metadata/${encodeURIComponent(ratingKey)}?X-Plex-Token=${config.plexToken}`,
                 { headers: plexClientHeaders(config.plexToken) },
             ).then((r) => r.json()).catch(() => null);
             const meta = metaRes?.MediaContainer?.Metadata?.[0];
-            if (meta) {
-                item = {
-                    ...item,
-                    title: meta.title || item.title,
-                    type: meta.type || item.type,
-                    year: meta.year || null,
-                    thumb: meta.thumb || null,
-                    summary: meta.summary || null,
-                    plexUrl: `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent(meta.key || `/library/metadata/${ratingKey}`)}`,
-                };
-            }
+            if (meta) item = mapTitleAnalyticsItem(meta, ratingKey, config);
         } catch (e) {
             log(`Title analytics metadata failed for ${ratingKey}: ${e.message}`);
         }
 
         const history = [];
         let source = 'plex';
-        const isShow = String(item.type || '').toLowerCase() === 'show';
+        const scope = titleHistoryScope(item.type);
+        const childKind = scope === 'show' ? 'season' : scope === 'season' ? 'episode' : null;
 
         if (config.tautulliUrl && config.tautulliApiKey) {
             const tUrl = resolveIntegrationUrlForFetch(config.tautulliUrl);
@@ -17431,18 +17480,12 @@ app.get('/api/plex/analytics/title/:ratingKey', requireAuth, requireAdmin, async
                 const pageSize = 100;
                 const maxRows = 500;
                 for (let start = 0; start < maxRows; start += pageSize) {
-                    const extra = isShow
-                        ? { grandparent_rating_key: ratingKey, start, length: pageSize }
-                        : { rating_key: ratingKey, start, length: pageSize };
+                    const extra = tautulliExtraForTitleScope(scope, ratingKey, start, pageSize);
                     const rows = await fetchTautulliHistoryPage(tUrl, config, extra, { throwOnError: false });
                     if (!rows || !rows.length) break;
                     let pageMatches = 0;
                     for (const row of rows) {
-                        const hasKeys = row.grandparent_rating_key != null || row.rating_key != null;
-                        const matches = isShow
-                            ? String(row.grandparent_rating_key || '') === ratingKey
-                            : String(row.rating_key || '') === ratingKey || String(row.grandparent_rating_key || '') === ratingKey;
-                        if (hasKeys && !matches) continue;
+                        if (!tautulliRowMatchesTitleScope(row, scope, ratingKey)) continue;
                         pageMatches += 1;
                         history.push(mapTitleHistoryRow(row, 'tautulli'));
                     }
@@ -17454,7 +17497,7 @@ app.get('/api/plex/analytics/title/:ratingKey', requireAuth, requireAdmin, async
         }
 
         if (!history.length) {
-            const filterKey = isShow ? 'grandparentID' : 'metadataItemID';
+            const filterKey = plexHistoryFilterForTitleScope(scope);
             const fetchUrl = `${uri}/status/sessions/history/all?sort=viewedAt%3Adesc&${filterKey}=${encodeURIComponent(ratingKey)}&X-Plex-Container-Start=0&X-Plex-Container-Size=200&X-Plex-Token=${config.plexToken}`;
             const resData = await fetch(fetchUrl, { headers: plexClientHeaders(config.plexToken) }).then((r) => r.json()).catch(() => null);
             const rows = resData?.MediaContainer?.Metadata || [];
@@ -17471,15 +17514,35 @@ app.get('/api/plex/analytics/title/:ratingKey', requireAuth, requireAdmin, async
                     episodeTitle: row.grandparentTitle ? row.title : null,
                     seasonNumber: row.parentIndex,
                     episodeNumber: row.index,
+                    ratingKey: row.ratingKey,
+                    parentRatingKey: row.parentRatingKey,
+                    parentTitle: row.parentTitle || null,
+                    grandparentRatingKey: row.grandparentRatingKey,
+                    grandparentTitle: row.grandparentTitle || null,
                 }, 'plex'));
             }
             source = 'plex';
+        }
+
+        let children = [];
+        if (childKind) {
+            let childMeta = [];
+            try {
+                childMeta = await fetchPlexTitleChildren(uri, config, ratingKey, { excludeAllLeaves: childKind === 'season' });
+            } catch (e) {
+                log(`Title analytics children failed for ${ratingKey}: ${e.message}`);
+            }
+            const mapped = (childMeta || []).map(mapTitleChildMeta).filter((row) => row.ratingKey);
+            const list = mapped.length ? mapped : synthesizeTitleChildren(history, { kind: childKind });
+            children = rollupTitleChildren(list, history, { kind: childKind });
         }
 
         const aggregated = aggregateTitleHistory(history);
         res.json({
             item,
             source,
+            children,
+            childKind,
             ...aggregated,
             history,
         });
@@ -18112,6 +18175,7 @@ const fetchTautulliHistoryPage = async (tUrl, config, extraParams = {}, { timeou
         ...(extraParams.start_date ? { start_date: String(extraParams.start_date) } : {}),
         ...(extraParams.search ? { search: String(extraParams.search) } : {}),
         ...(extraParams.rating_key ? { rating_key: String(extraParams.rating_key) } : {}),
+        ...(extraParams.parent_rating_key ? { parent_rating_key: String(extraParams.parent_rating_key) } : {}),
         ...(extraParams.grandparent_rating_key ? { grandparent_rating_key: String(extraParams.grandparent_rating_key) } : {}),
     }, { timeoutMs, throwOnError });
     const rows = tautulliHistoryRowsFromPayload(payload);

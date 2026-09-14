@@ -10416,6 +10416,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
             <TitleAnalyticsPage
                 ratingKey={dashboardTitleKey}
                 onBack={() => onNavigate?.('dashboard', { path: '/dashboard' })}
+                onOpenTitle={(key) => onNavigate?.('dashboard', { path: dashboardTitlePath(key) })}
                 onViewUser={(username) => onViewAnalytics?.(`#user=${encodeURIComponent(username)}`)}
             />
         );
