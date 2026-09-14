@@ -40,6 +40,8 @@ export type PosterSetsUrlState = {
     creator: string | null;
     /** Restrict MediUX preview/apply to title_card assets only */
     titleCardsOnly: boolean;
+    /** Bookmarklet / userscript: queue the set after preview */
+    action: 'apply' | null;
 };
 
 const isPrimaryTab = (value: string): value is PosterSetsPrimaryTab =>
@@ -57,6 +59,10 @@ const normalizeCreator = (value: string | null | undefined) => {
     return handle;
 };
 
+const parseImportAction = (params: URLSearchParams): 'apply' | null => (
+    String(params.get('action') || '').trim().toLowerCase() === 'apply' ? 'apply' : null
+);
+
 const emptyState = (): PosterSetsUrlState => ({
     tab: 'library',
     discoverView: 'search',
@@ -64,6 +70,7 @@ const emptyState = (): PosterSetsUrlState => ({
     setUrl: null,
     creator: null,
     titleCardsOnly: false,
+    action: null,
 });
 
 const legacyTabToState = (legacy: PosterSetsInternalTab): Pick<PosterSetsUrlState, 'tab' | 'discoverView'> => {
@@ -114,7 +121,7 @@ export function primaryTabFromInternal(tab: PosterSetsInternalTab): PosterSetsPr
 
 export function urlStateFromInternalTab(
     tab: PosterSetsInternalTab,
-    extras: Partial<Pick<PosterSetsUrlState, 'rail' | 'setUrl' | 'creator' | 'titleCardsOnly'>> = {},
+    extras: Partial<Pick<PosterSetsUrlState, 'rail' | 'setUrl' | 'creator' | 'titleCardsOnly' | 'action'>> = {},
 ): PosterSetsUrlState {
     const base = legacyTabToState(tab);
     return {
@@ -123,6 +130,7 @@ export function urlStateFromInternalTab(
         setUrl: extras.setUrl ?? null,
         creator: extras.creator ?? null,
         titleCardsOnly: Boolean(extras.titleCardsOnly),
+        action: extras.action === 'apply' ? 'apply' : null,
     };
 }
 
@@ -133,13 +141,14 @@ export type PosterLocationInput = PosterSetsUrlState | {
     setUrl?: string | null;
     creator?: string | null;
     titleCardsOnly?: boolean;
+    action?: 'apply' | null;
 };
 
 export function normalizePosterLocation(input: PosterLocationInput): PosterSetsUrlState {
     if ('discoverView' in input && isPrimaryTab(input.tab)) {
         return input as PosterSetsUrlState;
     }
-    const legacy = input as { tab: PosterSetsInternalTab; rail?: string | null; setUrl?: string | null; creator?: string | null; titleCardsOnly?: boolean };
+    const legacy = input as { tab: PosterSetsInternalTab; rail?: string | null; setUrl?: string | null; creator?: string | null; titleCardsOnly?: boolean; action?: 'apply' | null };
     return urlStateFromInternalTab(legacy.tab, legacy);
 }
 
@@ -182,6 +191,7 @@ export function parsePosterSetsUrl(hash = typeof window !== 'undefined' ? window
             setUrl,
             creator,
             titleCardsOnly,
+            action: setUrl ? parseImportAction(params) : null,
         };
     }
 
@@ -198,6 +208,7 @@ export function parsePosterSetsUrl(hash = typeof window !== 'undefined' ? window
             setUrl: null,
             creator: null,
             titleCardsOnly: false,
+            action: null,
         };
     }
 
@@ -210,6 +221,7 @@ export function parsePosterSetsUrl(hash = typeof window !== 'undefined' ? window
             setUrl: null,
             creator: null,
             titleCardsOnly: false,
+            action: null,
         };
     }
 
@@ -230,6 +242,7 @@ export function parsePosterSetsUrl(hash = typeof window !== 'undefined' ? window
             setUrl,
             creator: null,
             titleCardsOnly,
+            action: setUrl ? parseImportAction(params) : null,
         };
     }
 
@@ -264,7 +277,7 @@ export function parsePosterSetsUrl(hash = typeof window !== 'undefined' ? window
             || assets === 'titlecards'
         );
 
-    return { tab, discoverView, rail, setUrl, creator, titleCardsOnly };
+    return { tab, discoverView, rail, setUrl, creator, titleCardsOnly, action: setUrl ? parseImportAction(params) : null };
 }
 
 export function buildPosterSetsHash(state: PosterSetsUrlState): string {
@@ -281,6 +294,7 @@ export function buildPosterSetsHash(state: PosterSetsUrlState): string {
         const params = new URLSearchParams();
         params.set('url', state.setUrl);
         if (state.titleCardsOnly) params.set('assets', 'title_cards');
+        if (state.action === 'apply') params.set('action', 'apply');
         hash += `?${params.toString()}`;
     } else if (state.tab === 'discover' && state.discoverView === 'search' && state.creator) {
         const params = new URLSearchParams();
@@ -332,5 +346,6 @@ export function posterSetsUrlEquals(a: PosterSetsUrlState, b: PosterSetsUrlState
         && (a.rail || null) === (b.rail || null)
         && (a.setUrl || null) === (b.setUrl || null)
         && (a.creator || null) === (b.creator || null)
-        && Boolean(a.titleCardsOnly) === Boolean(b.titleCardsOnly);
+        && Boolean(a.titleCardsOnly) === Boolean(b.titleCardsOnly)
+        && (a.action || null) === (b.action || null);
 }

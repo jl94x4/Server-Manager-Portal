@@ -247,6 +247,7 @@ export function usePosterSetsDashboardState() {
     const syncedSetUrlRef = useRef<string | null>(initialLocation.setUrl);
     const titleCardsOnlyRef = useRef(Boolean(initialLocation.titleCardsOnly));
     const deepLinkHandledRef = useRef(false);
+    const runApplyRef = useRef<(selectedOnly?: boolean, overrideUrl?: string) => Promise<void>>(async () => {});
     const openCreatorCatalogRef = useRef<(username: string, options?: { skipUrl?: boolean; locationTab?: 'paste' | 'apply' }) => void>(() => {});
     const openTpdbRecentCatalogRef = useRef<(options?: { skipUrl?: boolean; locationTab?: 'paste' | 'tpdb'; refresh?: boolean; kind?: 'recent' | 'feed' }) => void>(() => {});
 
@@ -1284,7 +1285,10 @@ export function usePosterSetsDashboardState() {
 
     // Keep /poster-sets#… in sync so refresh and browser Back stay inside Poster Sets.
     useEffect(() => {
-        writePosterSetsUrl(initialUrlState, 'replace');
+        writePosterSetsUrl(
+            initialUrlState.action ? { ...initialUrlState, action: null } : initialUrlState,
+            'replace',
+        );
     }, [initialUrlState]);
 
     useEffect(() => {
@@ -1310,17 +1314,22 @@ export function usePosterSetsDashboardState() {
             });
             return;
         }
-        if (initialLocation.tab !== 'apply') return;
         const target = initialUrlState.setUrl;
-        if (target) {
-            void openSetForApplyRef.current({
-                setId: '',
-                title: '',
-                url: target,
-                setKind: initialUrlState.titleCardsOnly ? 'title_cards' : null,
-            }, { skipUrl: true });
+        if (target && (initialLocation.tab === 'apply' || initialLocation.tab === 'paste')) {
+            void (async () => {
+                await openSetForApplyRef.current({
+                    setId: '',
+                    title: '',
+                    url: target,
+                    setKind: initialUrlState.titleCardsOnly ? 'title_cards' : null,
+                }, { skipUrl: true });
+                if (initialUrlState.action === 'apply') {
+                    await runApplyRef.current(false, target);
+                }
+            })();
             return;
         }
+        if (initialLocation.tab !== 'apply') return;
         if (initialUrlState.creator) {
             void openCreatorCatalogRef.current(initialUrlState.creator, { skipUrl: true });
         }
@@ -1497,6 +1506,8 @@ export function usePosterSetsDashboardState() {
             setBusy(null);
         }
     };
+
+    runApplyRef.current = runApply;
 
     const applyMatched = async () => {
         const assets = preview?.assets || [];

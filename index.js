@@ -29792,6 +29792,7 @@ app.use('/api/poster-sets', createPosterSetsRouter({
     Router: express.Router,
     requireAdmin,
     requirePosterSets,
+    basePath: BASE_PATH,
     loadPortalConfig: async () => loadFile(CONFIG_PATH, {}),
     mediaLibraryDeps: mediaServerLibraryDeps(),
     resetLibraryArtwork: resetPlexLibraryArtwork,

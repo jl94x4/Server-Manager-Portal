@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
     CheckCircle2,
+    Bookmark,
     ChevronDown,
     ChevronLeft,
     ChevronRight,
@@ -28,8 +29,9 @@ import { StickySaveBar } from '../../shared/StickySaveBar';
 import { BetaBadge, PosterSetsBetaBanner } from '../../shared/BetaBadge';
 import { askConfirm } from '../../shared/confirm';
 import { normalizeUpgraderGridSize } from '../../shared/portalLayout';
-import { portalUrl } from '../../shared/basePath';
+import { portalUrl, getPublicOrigin } from '../../shared/basePath';
 import { posterSetsApi } from '../api';
+import { buildTpdbImportBookmarklet } from '../../../lib/poster-sets/tpdbImportTools.js';
 import { MEDIUX_FILTER_OPTIONS, type PosterSetsConfig } from '../types';
 import { formatTpdbEta } from '../shared/tpdbCacheUi';
 import { PosterSetsSetupChecklist } from '../PosterSetsSetupChecklist';
@@ -368,6 +370,12 @@ export const PosterSetsSettingsView: React.FC = () => {
         return `${window.location.origin}${portalUrl('/api/poster-sets/webhook')}?token=${encodeURIComponent(token)}`;
     }, [configDraft.webhookToken]);
 
+    const tpdbBookmarklet = useMemo(
+        () => buildTpdbImportBookmarklet(getPublicOrigin(), { apply: true }),
+        [],
+    );
+    const tpdbUserscriptHref = portalUrl('/api/poster-sets/tpdb-import.user.js');
+
     const [tpdbCacheStatus, setTpdbCacheStatus] = useState<Awaited<ReturnType<typeof posterSetsApi.tpdbCacheStatus>> | null>(null);
     const [tpdbCookiePaste, setTpdbCookiePaste] = useState('');
     const [tpdbCookieUserAgent, setTpdbCookieUserAgent] = useState('');
@@ -582,6 +590,59 @@ export const PosterSetsSettingsView: React.FC = () => {
                             border={false}
                         />
                     </div>
+                    {isTpdbEnabled(configDraft) ? (
+                        <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 space-y-3">
+                            <p className="text-sm font-semibold text-text">Import from ThePosterDB</p>
+                            <p className="text-xs text-muted leading-relaxed">
+                                ThePosterDB blocks iframes, so this cannot live in an applet. Browse TPDB in a normal tab,
+                                then send the set here. Both tools open Poster Sets and queue the set (you must be logged in as admin).
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                <a
+                                    href={tpdbBookmarklet}
+                                    onClick={(event) => event.preventDefault()}
+                                    className={`${buttonClass} no-underline`}
+                                    title="Drag this onto your bookmarks bar"
+                                >
+                                    <Bookmark className="h-4 w-4" />
+                                    Bookmarklet (drag to bookmarks)
+                                </a>
+                                <button
+                                    type="button"
+                                    className={buttonClass}
+                                    onClick={() => {
+                                        void navigator.clipboard.writeText(tpdbBookmarklet).then(
+                                            () => toast('Bookmarklet copied. Paste it as a new bookmark URL.'),
+                                            () => toast('Could not copy bookmarklet.', 'error'),
+                                        );
+                                    }}
+                                >
+                                    Copy bookmarklet
+                                </button>
+                                <a
+                                    href={tpdbUserscriptHref}
+                                    className={`${primaryButtonClass} no-underline`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    <Download className="h-4 w-4" />
+                                    Install Tampermonkey script
+                                </a>
+                                <a
+                                    href="https://theposterdb.com/recent"
+                                    className={`${buttonClass} no-underline`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    <ExternalLink className="h-4 w-4" />
+                                    Open ThePosterDB
+                                </a>
+                            </div>
+                            <p className="text-[11px] text-muted leading-relaxed">
+                                Bookmarklet: open a set page, then click the bookmark. Userscript: adds an Import button on set pages and next to set links in lists.
+                            </p>
+                        </div>
+                    ) : null}
                     <div className="grid gap-4 sm:grid-cols-2">
                         <label className="block sm:col-span-2">
                             <span className="text-xs font-bold uppercase tracking-wide text-muted">base_url</span>
