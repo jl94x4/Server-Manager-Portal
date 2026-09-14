@@ -418,6 +418,10 @@ export const es: DeepPartial<EnCatalog> = {
         biography: 'Biografía',
         noBiography: 'No hay biografía para {name}.',
         knownFor: 'Conocido por',
+        filmography: 'Filmografía',
+        acting: 'Interpretación',
+        crew: 'Equipo',
+        creditCount: '{count} títulos',
     },
     pwa: { install: {
         button: 'Instalar', howTo: 'Cómo hacerlo', dismiss: 'Cerrar el banner de instalación', bannerTitle: 'Instalar {server}', bannerSubtitle: 'Añade el portal a la pantalla de inicio', helpTitle: 'Instalar aplicación', helpSubtitle: 'Portal de {server}', closeHelp: 'Cerrar ayuda de instalación',

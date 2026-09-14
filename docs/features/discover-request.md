@@ -18,6 +18,7 @@ Optional extras under Discover & Request:
 - **My Requests** — member request history and status
 - **My Issues** — report problems with library titles
 - **Watchlist** — Plex watchlist-backed lists when configured
+- **People** — actor/crew pages show full TMDB filmography (acting and crew), not only “known for”
 
 ## Admin Requests queue
 

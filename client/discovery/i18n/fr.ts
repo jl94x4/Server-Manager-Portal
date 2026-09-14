@@ -2020,6 +2020,10 @@ export const fr: DeepPartial<EnCatalog> = {
         noPhoto: 'Pas de photo',
         yearsOld: '{count} ans',
         knownFor: 'Connu pour',
+        filmography: 'Filmographie',
+        acting: 'Interprétation',
+        crew: 'Équipe',
+        creditCount: '{count} titres',
     },
 };
 

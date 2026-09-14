@@ -2780,6 +2780,10 @@ export const en = {
         noPhoto: 'No Photo',
         yearsOld: '{count} years old',
         knownFor: 'Known For',
+        filmography: 'Filmography',
+        acting: 'Acting',
+        crew: 'Crew',
+        creditCount: '{count} titles',
     },
     about: {
         eyebrow: 'About the project',
