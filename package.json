@@ -24,6 +24,7 @@
     "cookie-parser": "^1.4.7",
     "esbuild": "^0.28.1",
     "express": "^4.19.2",
+    "hls.js": "^1.7.3",
     "html2canvas": "^1.4.1",
     "jpeg-js": "^0.4.4",
     "jsonwebtoken": "^9.0.3",

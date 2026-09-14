@@ -32,6 +32,7 @@ export const DEFAULT_NAV_ITEM_ICONS: Record<string, string> = {
     editions: 'Film',
     requests: 'ClipboardList',
     request: 'Sparkles',
+    'media-player': 'PlayCircle',
     about: 'Info',
     profile: 'User',
     preferences: 'SlidersHorizontal',

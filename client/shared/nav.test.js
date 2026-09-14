@@ -70,3 +70,25 @@ test('filterNavOrder hides Cleaner unless experimental is on', async () => {
     });
     assert.equal(members.includes('maintenance'), false);
 });
+
+test('filterNavOrder shows Media Player to members when enabled', async () => {
+    const { filterNavOrder, DEFAULT_NAV_ORDER } = await loadNav();
+    const on = filterNavOrder([...DEFAULT_NAV_ORDER], {
+        isAdmin: false,
+        features: { mediaPlayer: true },
+    });
+    assert.equal(on.includes('media-player'), true);
+
+    const off = filterNavOrder([...DEFAULT_NAV_ORDER], {
+        isAdmin: false,
+        features: { mediaPlayer: false },
+    });
+    assert.equal(off.includes('media-player'), false);
+});
+
+test('DEFAULT_NAV_ORDER places Media Player after Discover & Request', async () => {
+    const { DEFAULT_NAV_ORDER } = await loadNav();
+    const requestIdx = DEFAULT_NAV_ORDER.indexOf('request');
+    const playerIdx = DEFAULT_NAV_ORDER.indexOf('media-player');
+    assert.equal(playerIdx, requestIdx + 1);
+});

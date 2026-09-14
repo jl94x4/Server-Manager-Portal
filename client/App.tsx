@@ -45,6 +45,7 @@ const OpenAppletsHost = lazy(() => import('./custom/CustomExternalTabPage').then
 const PreferencesPage = lazy(() => import('./preferences/PreferencesPage').then(m => ({ default: m.PreferencesPage })));
 const ProfilePage = lazy(() => import('./profile/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const DiscoveryDashboard = lazy(() => import('./discovery/DiscoveryDashboard').then(m => ({ default: m.DiscoveryDashboard })));
+const MediaPlayerDashboard = lazy(() => import('./media-player/MediaPlayerDashboard').then(m => ({ default: m.MediaPlayerDashboard })));
 import {
     updateFavicon,
     Login,
@@ -160,7 +161,7 @@ export const MainApp: React.FC = () => {
         closeConfirm();
     };
 
-    const [currentRoute, setCurrentRoute] = useState<'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'achievements' | 'support' | 'chat' | 'downloads' | 'mediastack' | 'maintenance' | 'upgrader' | 'collexions' | 'spotify-sync' | 'scanner' | 'media-automation' | 'poster-sets' | 'overlays' | 'editions' | 'requests' | 'discovery' | 'about' | 'preferences' | 'profile' | 'invite' | 'onboarding' | 'external' | 'loading'>('loading');
+    const [currentRoute, setCurrentRoute] = useState<'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'achievements' | 'support' | 'chat' | 'downloads' | 'mediastack' | 'maintenance' | 'upgrader' | 'collexions' | 'spotify-sync' | 'scanner' | 'media-automation' | 'poster-sets' | 'overlays' | 'editions' | 'requests' | 'discovery' | 'media-player' | 'about' | 'preferences' | 'profile' | 'invite' | 'onboarding' | 'external' | 'loading'>('loading');
     const [profilePath, setProfilePath] = useState(() => (
         typeof window !== 'undefined' ? stripBasePath(window.location.pathname) : '/profile'
     ));
@@ -367,7 +368,7 @@ export const MainApp: React.FC = () => {
         setShowWhatsNew(false);
     }, [publicConfig?.appVersion]);
 
-    const setRoute = useCallback((route: 'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'achievements' | 'support' | 'chat' | 'downloads' | 'mediastack' | 'maintenance' | 'upgrader' | 'collexions' | 'spotify-sync' | 'scanner' | 'media-automation' | 'poster-sets' | 'overlays' | 'editions' | 'requests' | 'discovery' | 'about' | 'preferences' | 'profile' | 'invite' | 'onboarding' | 'external' | 'loading', options?: { hash?: string; reviewId?: number; path?: string }) => {
+    const setRoute = useCallback((route: 'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'achievements' | 'support' | 'chat' | 'downloads' | 'mediastack' | 'maintenance' | 'upgrader' | 'collexions' | 'spotify-sync' | 'scanner' | 'media-automation' | 'poster-sets' | 'overlays' | 'editions' | 'requests' | 'discovery' | 'media-player' | 'about' | 'preferences' | 'profile' | 'invite' | 'onboarding' | 'external' | 'loading', options?: { hash?: string; reviewId?: number; path?: string }) => {
         const session = sessionInfoRef.current;
         if (session?.needsOnboarding && !session?.session?.isAdmin && route !== 'login' && route !== 'loading' && route !== 'invite' && route !== 'onboarding') {
             route = 'onboarding';
@@ -435,6 +436,10 @@ export const MainApp: React.FC = () => {
                 const custom = String(options?.path || '').trim();
                 path = custom.startsWith('/discovery') ? custom : '/discovery';
             }
+            if (route === 'media-player') {
+                const custom = String(options?.path || '').trim();
+                path = custom.startsWith('/media-player') ? custom : '/media-player';
+            }
             if (route === 'about') path = '/about';
             if (route === 'preferences') path = '/preferences';
             if (route === 'profile') {
@@ -487,6 +492,9 @@ export const MainApp: React.FC = () => {
                         detail: { reviewId },
                     }));
                 }
+            }
+            if (route === 'media-player') {
+                window.dispatchEvent(new Event('portal-media-player-navigate'));
             }
             if (route === 'support') {
                 let ticketId = null;
@@ -628,6 +636,12 @@ export const MainApp: React.FC = () => {
             }
             else if (path.startsWith('/discovery') && expiredMember) bounceExpiredHome();
             else if (path.startsWith('/discovery')) setCurrentRoute('discovery');
+            else if (path.startsWith('/media-player') && expiredMember) bounceExpiredHome();
+            else if (path.startsWith('/media-player') && data.navFeatures?.mediaPlayer !== false) setCurrentRoute('media-player');
+            else if (path.startsWith('/media-player')) {
+                window.history.replaceState({}, '', portalUrl('/portal'));
+                setCurrentRoute('user');
+            }
             else if (path.startsWith('/about') && allowExpiredPath('about')) setCurrentRoute('about');
             else if (path.startsWith('/about')) bounceExpiredHome();
             else if (path.startsWith('/preferences') && allowExpiredPath('preferences')) setCurrentRoute('preferences');
@@ -1013,6 +1027,13 @@ export const MainApp: React.FC = () => {
                         openIssueCount={openIssueCount}
                         onQueueCountsChange={refreshQueueCounts}
                     />
+                </Suspense>
+            );
+        }
+        if (currentRoute === 'media-player' && sessionInfo?.navFeatures?.mediaPlayer !== false) {
+            return (
+                <Suspense fallback={<Loader isLoading={true} isCinematic={!!publicConfig?.useCinematicLoading} />}>
+                    <MediaPlayerDashboard />
                 </Suspense>
             );
         }

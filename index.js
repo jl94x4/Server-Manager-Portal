@@ -79,6 +79,7 @@ import {
     spawnCommand,
 } from './lib/media-automation/index.js';
 import { createPosterSetsRouter, startPosterSetsWatcher, setPosterSetsNotifyDigest, schedulePosterSetsArrHook, startTpdbCacheDailyRefresh } from './lib/poster-sets/index.js';
+import { createMediaPlayerRouter } from './lib/media-player/index.js';
 import { listTpdbCachedCoverageKeys } from './lib/poster-sets/tpdbCache.js';
 import { applyTpdbCacheBrowse } from './lib/poster-sets/tpdbCacheBrowse.js';
 import { createOverlaysRouter } from './lib/overlays/index.js';
@@ -750,9 +751,10 @@ const portalContentSecurityPolicy = (hostname = '', embedProxy = false) => {
         "img-src 'self' data: blob: https:",
         "font-src 'self' data: https://fonts.gstatic.com",
         "connect-src 'self'",
+        "media-src 'self' blob:",
         portalFrameSrcDirective(hostname),
         "manifest-src 'self'",
-        "worker-src 'self'",
+        "worker-src 'self' blob:",
         "frame-ancestors 'none'",
         "object-src 'none'",
         "base-uri 'self'",
@@ -6128,6 +6130,7 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
         request: portalRequestNav || seerrRequestNav,
         requestsQueue: portalRequestNav || requestAppService.isRequestAppConfigured(config),
         downloads: config.downloadsVisibleToMembers !== false,
+        mediaPlayer: isPlexMediaServer && config.mediaPlayerEnabled !== false,
     };
 
     // Non-admin expired members: restrict to support / chat / profile / preferences (#187).
@@ -29999,6 +30002,18 @@ const requireOverlays = async (req, res, next) => {
         return res.status(500).json({ error: 'Failed to check Overlays feature flag.' });
     }
 };
+
+app.use('/api/media-player', createMediaPlayerRouter({
+    Router: express.Router,
+    requireAuth,
+    requireMember,
+    loadPortalConfig: async () => loadFile(CONFIG_PATH, {}),
+    getPlexConnectionUri,
+    plexClientHeaders,
+    fetchImpl: fetch,
+    clientId: CLIENT_ID,
+    appVersion,
+}));
 
 app.use('/api/poster-sets', createPosterSetsRouter({
     Router: express.Router,

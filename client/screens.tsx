@@ -53,7 +53,7 @@ import { activityStreamColumnCount, activityStreamGridClass, DEFAULT_POSTER_GRID
 import { DiscoverGridSizeSelect } from './discovery/DiscoverGridSizeSelect';
 import { useDiscoverGridSize } from './discovery/useDiscoverGridSize';
 import { useDiscoverI18n } from './discovery/i18n';
-import { BetaBadge } from './shared/BetaBadge';
+import { AlphaBadge, BetaBadge } from './shared/BetaBadge';
 import { DiscoverNowPlayingStrip } from './discovery/DiscoverNowPlayingStrip';
 import { useNowPlaying } from './shared/useNowPlaying';
 import { filterNavOrder, ensureCompleteNavOrder, resolveMemberNavOrder, MOBILE_NAV_PRIMARY_SLOTS, type NavFeatureFlags } from './shared/nav';
@@ -12620,8 +12620,8 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
         setAppletsOpen(false);
     }, [currentRoute, externalTabId]);
 
-    const navItemsConfig: Record<string, { label: string; icon: React.FC<any>; route: string; adminOnly: boolean; beta?: boolean; href?: string; onClick?: (e: any) => void; customTabId?: string; logoUrl?: string }> = useMemo(() => {
-        const config: Record<string, { label: string; icon: React.FC<any>; route: string; adminOnly: boolean; beta?: boolean; href?: string; onClick?: (e: any) => void; customTabId?: string; logoUrl?: string }> = {
+    const navItemsConfig: Record<string, { label: string; icon: React.FC<any>; route: string; adminOnly: boolean; beta?: boolean; alpha?: boolean; href?: string; onClick?: (e: any) => void; customTabId?: string; logoUrl?: string }> = useMemo(() => {
+        const config: Record<string, { label: string; icon: React.FC<any>; route: string; adminOnly: boolean; beta?: boolean; alpha?: boolean; href?: string; onClick?: (e: any) => void; customTabId?: string; logoUrl?: string }> = {
         'home': { label: t('navigation.home'), icon: Home, route: 'user', adminOnly: false },
         'users': { label: t('navigation.users'), icon: Users, route: 'users', adminOnly: true },
         'discover': { label: t('navigation.dashboard'), icon: Film, route: 'dashboard', adminOnly: false },
@@ -12644,6 +12644,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
         'editions': { label: t('navigation.editions'), icon: Film, route: 'editions', adminOnly: true },
         'requests': { label: t('navigation.requests'), icon: ClipboardList, route: 'requests', adminOnly: true },
         'request': { label: t('navigation.discoverRequest'), icon: Sparkles, route: 'discovery', adminOnly: false },
+        'media-player': { label: t('navigation.mediaPlayer'), icon: PlayCircle, route: 'media-player', adminOnly: false, alpha: true },
         'about': { label: t('navigation.about'), icon: Info, route: 'about', adminOnly: false },
         'profile': { label: t('navigation.profile'), icon: User, route: 'profile', adminOnly: false },
         'preferences': { label: t('navigation.preferences'), icon: SlidersHorizontal, route: 'preferences', adminOnly: false },
@@ -12908,10 +12909,13 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
         'spotify-sync': 'spotifySyncPage.betaNotice',
         'poster-sets': 'posterSetsPage.betaNotice',
     };
+    const NAV_ALPHA_NOTICE_KEYS: Record<string, string> = {
+        'media-player': 'mediaPlayerPage.alphaNotice',
+    };
 
     const renderNavAction = (
         key: string,
-        item: { label: string; icon: React.FC<any>; route: string; href?: string; onClick?: (e: any) => void; customTabId?: string; beta?: boolean; logoUrl?: string },
+        item: { label: string; icon: React.FC<any>; route: string; href?: string; onClick?: (e: any) => void; customTabId?: string; beta?: boolean; alpha?: boolean; logoUrl?: string },
         options: { compactLabel?: string; mobile?: boolean; isCurrent: boolean; badgeCount?: number },
     ) => {
         const Icon = item.icon;
@@ -12920,6 +12924,14 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
         const betaTitle = item.beta
             ? t(NAV_BETA_NOTICE_KEYS[item.route] || 'spotifySyncPage.betaNotice')
             : '';
+        const alphaTitle = item.alpha
+            ? t(NAV_ALPHA_NOTICE_KEYS[item.route] || 'mediaPlayerPage.alphaNotice')
+            : '';
+        const statusBadge = item.alpha
+            ? <AlphaBadge title={alphaTitle} className={options.mobile ? 'scale-90' : undefined} />
+            : item.beta
+                ? <BetaBadge title={betaTitle} className={options.mobile ? 'scale-90' : undefined} />
+                : null;
         const desktopDensity = options.mobile ? null : desktopNavDensity;
         const iconsOnly = !options.mobile && desktopNavIconsOnly;
         const logoSrc = item.logoUrl ? resolvePortalAssetUrl(item.logoUrl) : '';
@@ -12986,14 +12998,14 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                 {options.mobile ? (
                     <span className="flex items-center gap-1 max-w-full">
                         <span className="truncate">{label}</span>
-                        {item.beta ? <BetaBadge title={betaTitle} className="scale-90" /> : null}
+                        {statusBadge}
                     </span>
                 ) : iconsOnly ? (
                     <span className="sr-only">{label}</span>
                 ) : (
                     <span className="flex items-center gap-2 flex-1 min-w-0">
                         <span className="truncate">{label}</span>
-                        {item.beta ? <BetaBadge title={betaTitle} /> : null}
+                        {statusBadge}
                         {badgeCount > 0 && (
                             <span className="ml-auto min-w-[1.15rem] h-[18px] px-1.5 rounded-full bg-plex text-background text-[10px] font-bold flex items-center justify-center shrink-0">
                                 {badgeCount > 99 ? '99+' : badgeCount}
@@ -13707,11 +13719,19 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                                     const betaTitle = item.beta
                                         ? t(NAV_BETA_NOTICE_KEYS[item.route] || 'spotifySyncPage.betaNotice')
                                         : '';
+                                    const alphaTitle = item.alpha
+                                        ? t(NAV_ALPHA_NOTICE_KEYS[item.route] || 'mediaPlayerPage.alphaNotice')
+                                        : '';
                                     return (
                                         <button key={key} onClick={handleActivate} className="flex flex-col items-center gap-2 relative bg-transparent border-0">
                                             <div className={`relative w-[3.25rem] h-[3.25rem] rounded-full flex items-center justify-center transition-colors ${isCurrent ? 'bg-plex text-background shadow-[0_0_15px_rgba(229,160,13,0.35)]' : 'bg-background/50 text-text hover:bg-white/10 border border-white/5'}`}>
                                                 <item.icon className="w-6 h-6" />
-                                                {item.beta ? (
+                                                {item.alpha ? (
+                                                    <AlphaBadge
+                                                        title={alphaTitle}
+                                                        className="absolute -bottom-1.5 left-1/2 z-[1] -translate-x-1/2 px-1 py-0 text-[7px] leading-none"
+                                                    />
+                                                ) : item.beta ? (
                                                     <BetaBadge
                                                         title={betaTitle}
                                                         className="absolute -bottom-1.5 left-1/2 z-[1] -translate-x-1/2 px-1 py-0 text-[7px] leading-none"

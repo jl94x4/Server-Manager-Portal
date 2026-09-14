@@ -14,7 +14,7 @@ import type { CustomNavDisplay, CustomNavTab } from '../shared/types';
 import { useDiscoverI18n } from '../discovery/i18n';
 import { SettingsToggleRow } from '../shared/ui';
 import { SettingHint } from './SettingHint';
-import { BetaBadge } from '../shared/BetaBadge';
+import { AlphaBadge, BetaBadge } from '../shared/BetaBadge';
 import { AppletNavIconPreview, NavItemIconPanel, NavItemIconTrigger } from './NavItemIconEditor';
 
 type NavFeatureStatus = {
@@ -65,7 +65,8 @@ const FEATURE_OFF_SECTIONS: Record<string, string> = {
 };
 
 const NAV_ITEM_TRANSLATION_KEYS: Record<string, string> = {
-    home: 'navigation.home', discover: 'navigation.dashboard', request: 'navigation.discoverRequest',
+    home: 'navigation.home', discover: 'navigation.dashboard',     request: 'navigation.discoverRequest',
+    'media-player': 'navigation.mediaPlayer',
     analytics: 'navigation.analytics', achievements: 'navigation.achievements', chat: 'navigation.chat', support: 'navigation.support',
     users: 'navigation.users', downloads: 'navigation.downloads', upgrader: 'navigation.upgrader',
     collexions: 'navigation.collexions', scanner: 'navigation.scanner', 'media-automation': 'navigation.mediaAutomation',
@@ -371,6 +372,8 @@ const NavOrderColumn: React.FC<ColumnProps> = ({
                                             <BetaBadge title={translate('posterSetsPage.betaNotice')} className="scale-90" />
                                         ) : key === 'spotify-sync' ? (
                                             <BetaBadge title={translate('spotifySyncPage.betaNotice')} className="scale-90" />
+                                        ) : key === 'media-player' ? (
+                                            <AlphaBadge title={translate('mediaPlayerPage.alphaNotice')} className="scale-90" />
                                         ) : null}
                                     </div>
                                     {isHidden ? (

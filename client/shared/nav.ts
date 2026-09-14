@@ -19,6 +19,8 @@ export type NavFeatureFlags = {
     downloads?: boolean;
     /** Community live chat (Discord-style channels). */
     chat?: boolean;
+    /** In-portal Plex client (Plex-only, default on). */
+    mediaPlayer?: boolean;
 };
 
 /** Default sidebar order matching Settings → Layout → Navigation stock layout. */
@@ -26,6 +28,7 @@ export const DEFAULT_NAV_ORDER = [
     'home',
     'discover',
     'request',
+    'media-player',
     'analytics',
     'users',
     'downloads',
@@ -59,6 +62,7 @@ export const NAV_ITEM_LABELS: Record<string, string> = {
     home: 'Home',
     discover: 'Dashboard',
     request: 'Discover & Request',
+    'media-player': 'Media Player',
     analytics: 'Analytics',
     achievements: 'Achievements',
     chat: 'Chat',
@@ -418,6 +422,7 @@ export const filterNavOrder = (
     const achievementsEnabled = !!features.achievements;
     const supportEnabled = features.support !== false;
     const chatEnabled = !!features.chat;
+    const mediaPlayerEnabled = features.mediaPlayer !== false;
     const requestsQueueEnabled = !!features.requestsQueue;
     const requestEnabled = features.request !== false || requestsQueueEnabled;
     const hidden = new Set(
@@ -464,6 +469,7 @@ export const filterNavOrder = (
         if (key === 'support' && !supportEnabled) return false;
         if (key === 'chat' && !chatEnabled) return false;
         if (key === 'request' && !requestEnabled) return false;
+        if (key === 'media-player' && !mediaPlayerEnabled) return false;
         return true;
     });
 };
