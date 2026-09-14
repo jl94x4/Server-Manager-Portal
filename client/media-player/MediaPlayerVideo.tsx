@@ -14,6 +14,23 @@ type Props = {
     onClose: () => void;
 };
 
+const hlsErrorMessage = (data: { response?: { code?: number; text?: string; data?: unknown } }, fallback: string) => {
+    const raw = String(data?.response?.text || (typeof data?.response?.data === 'string' ? data.response.data : '') || '').trim();
+    if (raw) {
+        try {
+            const parsed = JSON.parse(raw);
+            if (parsed?.error) {
+                return parsed.detail ? `${parsed.error} ${String(parsed.detail).slice(0, 160)}` : String(parsed.error);
+            }
+        } catch {
+            if (!raw.includes('#EXTM3U') && raw.length < 180) return raw;
+        }
+    }
+    const code = Number(data?.response?.code);
+    if (Number.isFinite(code) && code > 0) return `${fallback} (${code})`;
+    return fallback;
+};
+
 export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
     const { t } = useDiscoverI18n();
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -52,8 +69,14 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
 
         if (Hls.isSupported()) {
             const hls = new Hls({
-                enableWorker: true,
+                enableWorker: false,
                 lowLatencyMode: false,
+                manifestLoadingTimeOut: 60_000,
+                levelLoadingTimeOut: 60_000,
+                fragLoadingTimeOut: 60_000,
+                manifestLoadingMaxRetry: 2,
+                levelLoadingMaxRetry: 2,
+                fragLoadingMaxRetry: 3,
                 xhrSetup: (xhr) => {
                     xhr.withCredentials = true;
                     try {
@@ -70,7 +93,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
             hls.on(Hls.Events.ERROR, (_event, data) => {
                 if (!data?.fatal) return;
                 try { hls.destroy(); } catch { /* ignore */ }
-                fail();
+                fail(hlsErrorMessage(data, t('mediaPlayerPage.playError')));
             });
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
             video.src = src;
