@@ -23,9 +23,8 @@ import {
     User,
     X,
 } from 'lucide-react';
-import { CustomSelect, SettingsToggleRow } from '../../shared/ui';
+import { PosterSetsGridSizeSlider } from '../shared';
 import { askConfirm } from '../../shared/confirm';
-import { normalizeUpgraderGridSize } from '../../shared/portalLayout';
 import { posterSetsApi } from '../api';
 import { MEDIUX_FILTER_OPTIONS } from '../types';
 import { PosterSetsSetupChecklist } from '../PosterSetsSetupChecklist';
@@ -39,7 +38,6 @@ import {
     CreatorPill,
     LibraryMediaCard,
     MetaPill,
-    POSTER_SETS_GRID_OPTIONS,
     PreviewAssetGallery,
     ProviderPill,
     RECENT_CATEGORY_ORDER,
@@ -378,12 +376,10 @@ export const PosterSetsBrowseView: React.FC = () => {
                                     ) : null}
                                 </div>
                                 <div className="flex shrink-0 flex-wrap items-center gap-2">
-                                    <CustomSelect
-                                        value={gridSize === 'list' ? 'medium' : gridSize}
-                                        onChange={(value) => setGridSize(normalizeUpgraderGridSize(value))}
-                                        options={POSTER_SETS_GRID_OPTIONS}
+                                    <PosterSetsGridSizeSlider
+                                        value={gridSize}
+                                        onChange={setGridSize}
                                         className="w-full min-w-[140px] sm:w-auto"
-                                        compact
                                     />
                                     <button
                                         type="button"
@@ -438,12 +434,10 @@ export const PosterSetsBrowseView: React.FC = () => {
                                     </p>
                                 </div>
                                 <div className="flex shrink-0 flex-wrap items-center gap-2">
-                                    <CustomSelect
-                                        value={gridSize === 'list' ? 'medium' : gridSize}
-                                        onChange={(value) => setGridSize(normalizeUpgraderGridSize(value))}
-                                        options={POSTER_SETS_GRID_OPTIONS}
+                                    <PosterSetsGridSizeSlider
+                                        value={gridSize}
+                                        onChange={setGridSize}
                                         className="w-full min-w-[140px] sm:w-auto"
-                                        compact
                                     />
                                     <button
                                         type="button"

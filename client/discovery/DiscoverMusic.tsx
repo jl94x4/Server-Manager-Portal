@@ -11,7 +11,7 @@ import { resolveMediaAvailabilityState } from './discoverAvailability';
 import { resolvePortalAssetUrl } from '../shared/basePath';
 import { useDiscoverI18n } from './i18n';
 import { DiscoverSectionHeader } from './DiscoverSectionHeader';
-import { discoverMusicRowCardWidthClass, type UpgraderGridSize } from '../shared/portalLayout';
+import { discoverMusicRowCardWidthClass, posterGridCardWidthStyle, type PosterGridValue } from '../shared/portalLayout';
 
 type ArtistHit = {
     mbid: string;
@@ -144,7 +144,7 @@ export const MusicGenreRail: React.FC<{
     navigate: (path: string) => void;
     viewAllLabel?: string;
     onViewAll?: () => void;
-    density?: UpgraderGridSize;
+    density?: PosterGridValue;
 }> = ({ title, genres, activeGenreId = null, navigate, viewAllLabel, onViewAll }) => {
     if (!genres.length) return null;
     return (
@@ -186,7 +186,7 @@ export const MusicChartRail: React.FC<{
     onPick: (item: MusicChartItem, key: string) => void;
     viewAllLabel?: string;
     onViewAll?: () => void;
-    density?: UpgraderGridSize;
+    density?: PosterGridValue;
 }> = ({ title, items, kind, resolvingKey, onPick, viewAllLabel, onViewAll, density }) => {
     if (!items.length) return null;
     return (
@@ -202,7 +202,8 @@ export const MusicChartRail: React.FC<{
                             type="button"
                             onClick={() => onPick(item, key)}
                             disabled={busy}
-                            className={`group text-left rounded-xl border border-border/60 bg-white/[0.02] overflow-hidden hover:border-plex/40 transition-colors relative shrink-0 ${discoverMusicRowCardWidthClass(density || 'large')} snap-start disabled:opacity-60`}
+                            className={`group text-left rounded-xl border border-border/60 bg-white/[0.02] overflow-hidden hover:border-plex/40 transition-colors relative shrink-0 ${discoverMusicRowCardWidthClass(density || 9.5)} snap-start disabled:opacity-60`}
+                            style={posterGridCardWidthStyle(density || 9.5)}
                         >
                             <div className="aspect-square bg-white/5 relative">
                                 <ArtistArt src={item.posterUrl || item.posterPath} title={item.title} />

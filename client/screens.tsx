@@ -49,7 +49,7 @@ import { WrapUpCardGrid, AchievementsWrapUpSpotlight, periodLabel, formatWrapUpD
 import { SetupWizard } from './setup/SetupWizard';
 import { DiscoveryDashboard } from './discovery/DiscoveryDashboard';
 import { AuthPageBackground, themeClasses, SlideshowBackground } from './shared/theme';
-import { activityStreamColumnCount, activityStreamGridClass, DEFAULT_UPGRADER_GRID_SIZE, upgraderPosterGridClass, upgraderPosterGridStyle, type UpgraderGridSize } from './shared/portalLayout';
+import { activityStreamColumnCount, activityStreamGridClass, DEFAULT_POSTER_GRID_SCALE, upgraderPosterGridClass, upgraderPosterGridStyle, type PosterGridValue } from './shared/portalLayout';
 import { DiscoverGridSizeSelect } from './discovery/DiscoverGridSizeSelect';
 import { useDiscoverGridSize } from './discovery/useDiscoverGridSize';
 import { useDiscoverI18n } from './discovery/i18n';
@@ -7460,7 +7460,7 @@ const DISCOVER_LIMIT_OPTIONS = [
     { value: '250', label: '250' },
 ];
 
-const TrendingDiscoverSection: React.FC<{ title: string; items: any[]; limit: number; showQualityBadges?: boolean; useScrollRevealAnimations?: boolean; onItemClick?: (item: any) => void; gridSize?: UpgraderGridSize }> = ({ title, items, limit, showQualityBadges = true, useScrollRevealAnimations, onItemClick, gridSize = DEFAULT_UPGRADER_GRID_SIZE }) => {
+const TrendingDiscoverSection: React.FC<{ title: string; items: any[]; limit: number; showQualityBadges?: boolean; useScrollRevealAnimations?: boolean; onItemClick?: (item: any) => void; gridSize?: PosterGridValue }> = ({ title, items, limit, showQualityBadges = true, useScrollRevealAnimations, onItemClick, gridSize = DEFAULT_POSTER_GRID_SCALE }) => {
     if (!items?.length) return null;
     return (
         <ScrollReveal enabled={!!useScrollRevealAnimations} className="flex flex-col">
@@ -10854,8 +10854,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
 
                 <div className="flex justify-end gap-2 sm:gap-3 items-end mb-8 flex-wrap">
                     <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted px-0.5">Grid</span>
-                        <DiscoverGridSizeSelect className="w-36" value={gridSize} onChange={setGridSize} />
+                        <DiscoverGridSizeSelect className="self-end" value={gridSize} onChange={setGridSize} />
                     </div>
                     <div className="flex flex-col gap-1">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-muted px-0.5">Per section</span>

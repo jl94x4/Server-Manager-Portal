@@ -2065,6 +2065,8 @@ export const en = {
         gridMedium: 'Grid: Medium',
         gridLarge: 'Grid: Large',
         gridXlarge: 'Grid: Extra large',
+        gridSize: 'Size',
+        gridList: 'List',
         emptyMovies: 'No movies found.',
         emptyMoviesFiltered: 'No movies match your filters.',
         emptySeries: 'No series found.',

@@ -1,10 +1,10 @@
+export { PosterSetsGridSizeSlider } from './PosterSetsGridSizeSlider';
+
 export {
     ALL_MEDIUX_FILTER_IDS,
     LIBRARY_DETAIL_LAYOUT_OPTIONS,
     DEFAULT_POSTER_SETS_GRID_SIZE,
-    POSTER_SETS_GRID_OPTIONS,
     POSTER_SETS_GRID_STORAGE_KEY,
-    migratePosterSetsGridSize,
     posterSetsLandscapeGridStyle,
     posterSetsPosterGridStyle,
     readStoredPosterSetsGridSize,

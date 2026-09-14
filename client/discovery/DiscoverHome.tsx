@@ -33,7 +33,7 @@ import { discoveryTheme } from './discoveryThemeClasses';
 import { useLibraryQueueToggle } from './useLibraryQueueToggle';
 import { DiscoverGridSizeSelect } from './DiscoverGridSizeSelect';
 import { useDiscoverGridSize } from './useDiscoverGridSize';
-import { discoverRowCardWidthClass, type UpgraderGridSize } from '../shared/portalLayout';
+import { discoverRowCardWidthClass, posterGridCardWidthStyle, type PosterGridValue } from '../shared/portalLayout';
 import { useDiscoverI18n } from './i18n';
 import {
     MusicChartItem,
@@ -92,7 +92,7 @@ const EmptyRail: React.FC<{
 const DiscoverHomeRow: React.FC<{
     title?: string;
     items: any[];
-    density: UpgraderGridSize;
+    density: PosterGridValue;
     viewAllLabel: string;
     formatItem: (item: any) => any;
     onSelect: (item: any) => void;
@@ -151,7 +151,10 @@ const DiscoverHomeRow: React.FC<{
                         <div
                             key={itemKey}
                             className={`${discoverRowCardWidthClass(density)} flex-shrink-0 relative group snap-start${animateEnter ? ' discover-poster-enter' : ''}`}
-                            style={animateEnter ? { animationDelay: `${Math.min(idx, 12) * 30}ms` } : undefined}
+                            style={{
+                                ...posterGridCardWidthStyle(density),
+                                ...(animateEnter ? { animationDelay: `${Math.min(idx, 12) * 30}ms` } : {}),
+                            }}
                         >
                             <DiscoverPosterCard
                                 item={formatted}
@@ -177,7 +180,7 @@ const DiscoverGenreSliderRow: React.FC<{
     navigate: (path: string) => void;
     viewAllLabel: string;
     onViewAll?: () => void;
-    density: UpgraderGridSize;
+    density: PosterGridValue;
 }> = ({ title, apiGenres, fallbackGenres, basePath, navigate, viewAllLabel, onViewAll }) => {
     const items = (apiGenres?.length ?? 0)
         ? apiGenres

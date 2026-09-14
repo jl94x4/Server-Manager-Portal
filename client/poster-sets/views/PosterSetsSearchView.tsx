@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 import { CustomSelect, SettingsToggleRow } from '../../shared/ui';
 import { askConfirm } from '../../shared/confirm';
-import { normalizeUpgraderGridSize } from '../../shared/portalLayout';
 import { posterSetsApi } from '../api';
 import { portalUrl } from '../../shared/basePath';
 import { MEDIUX_FILTER_OPTIONS } from '../types';
@@ -31,6 +30,7 @@ import { PosterSetsSetupChecklist } from '../PosterSetsSetupChecklist';
 import { PosterSetsLibraryBrowse } from '../PosterSetsLibraryBrowse';
 import { PosterSetsCreatorsPanel } from '../PosterSetsCreatorsPanel';
 import { SetInspector, SetInspectorThumbStrip } from '../SetInspector';
+import { PosterSetsGridSizeSlider } from '../shared/PosterSetsGridSizeSlider';
 import { inferPreviewMediaType, relatedSetKey } from '../posterSetsDashboardUtils';
 import {
     ALL_MEDIUX_FILTER_IDS,
@@ -38,7 +38,6 @@ import {
     CreatorPill,
     LibraryMediaCard,
     MetaPill,
-    POSTER_SETS_GRID_OPTIONS,
     PreviewAssetGallery,
     ProviderCornerBadge,
     ProviderPill,
@@ -409,12 +408,10 @@ export const PosterSetsSearchView: React.FC = () => {
                                     <ExternalLink className="h-4 w-4" />
                                     Browse site
                                 </a>
-                                <CustomSelect
-                                    value={gridSize === 'list' ? 'medium' : gridSize}
-                                    onChange={(value) => setGridSize(normalizeUpgraderGridSize(value))}
-                                    options={POSTER_SETS_GRID_OPTIONS}
+                                <PosterSetsGridSizeSlider
+                                    value={gridSize}
+                                    onChange={setGridSize}
                                     className="ml-auto w-full min-w-[140px] sm:w-auto"
-                                    compact
                                 />
                             </div>
                             <div className="mt-3 flex flex-col gap-2 sm:flex-row">

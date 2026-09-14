@@ -23,16 +23,17 @@ import {
 } from 'lucide-react';
 import { CustomSelect } from '../../shared/ui';
 import { NoPosterPlaceholder } from '../../shared/NoPosterPlaceholder';
+import { PosterGridSizeSlider } from '../../shared/PosterGridSizeSlider';
 import {
-    DEFAULT_UPGRADER_GRID_SIZE,
-    normalizeUpgraderGridSize,
-    UPGRADER_GRID_SIZE_OPTIONS,
+    parsePosterGridValue,
+    posterGridDensityBand,
+    posterGridImageSize,
     upgraderPosterGridClass,
     upgraderPosterGridStyle,
-    type UpgraderGridSize,
+    type PosterGridValue,
 } from '../../shared/portalLayout';
 
-const LEGACY_GRID_MAP: Record<string, UpgraderGridSize> = {
+const LEGACY_GRID_MAP: Record<string, string> = {
     sm: 'small',
     md: 'medium',
     lg: 'large',
@@ -108,7 +109,7 @@ const Gallery: React.FC = () => {
     const [selectedLibrary, setSelectedLibrary] = useState<string>('All');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
     const [sortMode, setSortMode] = useState<SortMode>('title');
-    const [gridSize, setGridSize] = useState<UpgraderGridSize>(DEFAULT_UPGRADER_GRID_SIZE);
+    const [gridSize, setGridSize] = useState<PosterGridValue>(9.5);
     const [pinningId, setPinningId] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [fixingArtId, setFixingArtId] = useState<string | null>(null);
@@ -139,7 +140,7 @@ const Gallery: React.FC = () => {
                 if (state.sortMode !== undefined) setSortMode(state.sortMode);
                 if (Number(state.gridDefaultVersion) === GALLERY_GRID_DEFAULT_VERSION && state.gridSize !== undefined) {
                     const raw = String(state.gridSize);
-                    setGridSize(normalizeUpgraderGridSize(LEGACY_GRID_MAP[raw] || raw));
+                    setGridSize(parsePosterGridValue(LEGACY_GRID_MAP[raw] || raw, { allowList: true }));
                 }
             } catch (e) {
                 console.error('Failed to parse saved gallery state', e);
@@ -508,18 +509,9 @@ const Gallery: React.FC = () => {
         }
     };
 
-    const isCompact = gridSize === 'small';
+    const isCompact = posterGridDensityBand(gridSize) === 'small';
     const isList = gridSize === 'list';
-    const imageSize = useMemo(() => {
-        switch (gridSize) {
-            case 'small': return { width: 160, height: 240 };
-            case 'medium': return { width: 240, height: 360 };
-            case 'large': return { width: 320, height: 480 };
-            case 'xlarge': return { width: 400, height: 600 };
-            case 'list': return { width: 96, height: 144 };
-            default: return { width: 320, height: 480 };
-        }
-    }, [gridSize]);
+    const imageSize = useMemo(() => posterGridImageSize(gridSize), [gridSize]);
 
     if (loading && collections.length === 0) {
         return (
@@ -816,12 +808,11 @@ const Gallery: React.FC = () => {
                     compact
                 />
 
-                <CustomSelect
+                <PosterGridSizeSlider
                     value={gridSize}
-                    onChange={(value) => setGridSize(normalizeUpgraderGridSize(value))}
-                    options={UPGRADER_GRID_SIZE_OPTIONS}
-                    className="w-full md:w-44"
-                    compact
+                    onChange={setGridSize}
+                    allowList
+                    className="w-full md:w-auto"
                 />
             </div>
 

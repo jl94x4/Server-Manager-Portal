@@ -9,14 +9,13 @@ import {
     Save,
     Sparkles,
 } from 'lucide-react';
+import { PosterSetsGridSizeSlider } from '../shared';
 import { CustomSelect } from '../../shared/ui';
-import { normalizeUpgraderGridSize } from '../../shared/portalLayout';
 import { posterSetsApi } from '../api';
 import { SetInspector, SetInspectorThumbStrip } from '../SetInspector';
 import { inferPreviewMediaType } from '../posterSetsDashboardUtils';
 import {
     BrowseSetCard,
-    POSTER_SETS_GRID_OPTIONS,
     PreviewAssetGallery,
     RelatedSetsRail,
     StatusPill,
@@ -463,12 +462,10 @@ export const PosterSetsPasteView: React.FC = () => {
                                 </p>
                             </div>
                             <div className="flex shrink-0 flex-wrap items-center gap-2">
-                                <CustomSelect
-                                    value={gridSize === 'list' ? 'medium' : gridSize}
-                                    onChange={(value) => setGridSize(normalizeUpgraderGridSize(value))}
-                                    options={POSTER_SETS_GRID_OPTIONS}
+                                <PosterSetsGridSizeSlider
+                                    value={gridSize}
+                                    onChange={setGridSize}
                                     className="w-full min-w-[140px] sm:w-auto"
-                                    compact
                                 />
                                 {pageSizeSelect}
                                 {searchSetsPageCount > 1 ? (
@@ -562,12 +559,10 @@ export const PosterSetsPasteView: React.FC = () => {
                                 <span className="text-[11px] text-muted">{searchSets.length} found</span>
                             </div>
                             <div className="flex shrink-0 flex-wrap items-center gap-2">
-                                <CustomSelect
-                                    value={gridSize === 'list' ? 'medium' : gridSize}
-                                    onChange={(value) => setGridSize(normalizeUpgraderGridSize(value))}
-                                    options={POSTER_SETS_GRID_OPTIONS}
+                                <PosterSetsGridSizeSlider
+                                    value={gridSize}
+                                    onChange={setGridSize}
                                     className="w-full min-w-[140px] sm:w-auto"
-                                    compact
                                 />
                                 {pageSizeSelect}
                             </div>

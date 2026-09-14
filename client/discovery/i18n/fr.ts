@@ -1504,6 +1504,8 @@ export const fr: DeepPartial<EnCatalog> = {
         gridMedium: 'Grille : Moyenne',
         gridLarge: 'Grille : Grande',
         gridXlarge: 'Grille : Très grande',
+        gridSize: 'Taille',
+        gridList: 'Liste',
         emptyMovies: 'Aucun film trouvé.',
         emptyMoviesFiltered: 'Aucun film ne correspond aux filtres.',
         emptySeries: 'Aucune série trouvée.',

@@ -6,7 +6,8 @@ import { askConfirm } from '../shared/confirm';
 import { usePoll } from '../shared/usePoll';
 import { CustomSelect, OverlayCheckbox } from '../shared/ui';
 import { Loader, ToastContainer, pushToast } from '../shared/toast';
-import { DEFAULT_UPGRADER_GRID_SIZE, normalizeUpgraderGridSize, UPGRADER_GRID_SIZE_OPTIONS, UPGRADER_GRID_SIZE_STORAGE_KEY, upgraderPosterGridClass, upgraderPosterGridStyle, type UpgraderGridSize } from '../shared/portalLayout';
+import { parsePosterGridValue, posterGridDensityBand, UPGRADER_GRID_SIZE_STORAGE_KEY, upgraderPosterGridClass, upgraderPosterGridStyle, type PosterGridValue } from '../shared/portalLayout';
+import { PosterGridSizeSlider } from '../shared/PosterGridSizeSlider';
 import { DiscoverPosterCard } from '../screens';
 import type { ToastMessage } from '../shared/types';
 import { mediaAutomationApi } from '../media-automation/api';
@@ -227,13 +228,13 @@ export const UpgraderDashboard: React.FC = () => {
         return () => window.clearTimeout(timer);
     }, [showDrawerItem, loading, restoreListScroll]);
 
-    const [gridSize, setGridSize] = useState<UpgraderGridSize>(() => {
-        if (typeof window === 'undefined') return DEFAULT_UPGRADER_GRID_SIZE;
-        return normalizeUpgraderGridSize(window.localStorage.getItem(UPGRADER_GRID_SIZE_STORAGE_KEY));
+    const [gridSize, setGridSize] = useState<PosterGridValue>(() => {
+        if (typeof window === 'undefined') return 9.5;
+        return parsePosterGridValue(window.localStorage.getItem(UPGRADER_GRID_SIZE_STORAGE_KEY), { allowList: true });
     });
 
     useEffect(() => {
-        window.localStorage.setItem(UPGRADER_GRID_SIZE_STORAGE_KEY, gridSize);
+        window.localStorage.setItem(UPGRADER_GRID_SIZE_STORAGE_KEY, String(gridSize));
         window.localStorage.setItem('upgrader_filters_codecs', JSON.stringify(Array.from(codecs)));
         window.localStorage.setItem('upgrader_filters_resolutions', JSON.stringify(Array.from(resolutions)));
         window.localStorage.setItem('upgrader_filters_features', JSON.stringify(Array.from(features)));
@@ -897,10 +898,10 @@ export const UpgraderDashboard: React.FC = () => {
                                 </div>
                             </div>
                             <div className={`flex flex-col sm:flex-row flex-wrap items-center gap-3 w-full pt-4 border-t border-white/5 ${filtersExpanded ? 'flex' : 'hidden lg:flex'}`}>
-                                <CustomSelect
+                                <PosterGridSizeSlider
                                     value={gridSize}
-                                    onChange={(value) => setGridSize(normalizeUpgraderGridSize(value))}
-                                    options={UPGRADER_GRID_SIZE_OPTIONS}
+                                    onChange={setGridSize}
+                                    allowList
                                     className="flex-1 w-full sm:w-auto min-w-[140px]"
                                 />
                                 <CustomSelect
@@ -1232,7 +1233,7 @@ export const UpgraderDashboard: React.FC = () => {
                                             );
                                         }
 
-                                        const checkboxSize = gridSize === 'small' || gridSize === 'medium' ? 'sm' : 'md';
+                                        const checkboxSize = posterGridDensityBand(gridSize) === 'small' || posterGridDensityBand(gridSize) === 'medium' ? 'sm' : 'md';
                                         return (
                                             <div key={item.ratingKey} className="relative min-w-0">
                                                 {automationReady && (

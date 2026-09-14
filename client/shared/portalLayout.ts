@@ -9,18 +9,74 @@ export const activityStreamGridClass = () => 'discover-activity-grid';
 export const discoverPosterGridClass = 'discover-poster-grid';
 
 export type UpgraderGridSize = 'small' | 'medium' | 'large' | 'xlarge' | 'list';
+export type PosterGridValue = UpgraderGridSize | number;
 
 export const DEFAULT_UPGRADER_GRID_SIZE: UpgraderGridSize = 'large';
+export const POSTER_GRID_SCALE_MIN = 4.5;
+export const POSTER_GRID_SCALE_MAX = 18;
+export const POSTER_GRID_SCALE_STEP = 0.25;
+export const DEFAULT_POSTER_GRID_SCALE = 9.5;
 
-export const UPGRADER_GRID_SIZE_OPTIONS: Array<{ value: UpgraderGridSize; label: string }> = [
-    { value: 'small', label: 'Grid: Small' },
-    { value: 'medium', label: 'Grid: Medium' },
-    { value: 'large', label: 'Grid: Large' },
-    { value: 'xlarge', label: 'Grid: Extra large' },
-    { value: 'list', label: 'List view' },
-];
+export const POSTER_GRID_PRESET_SCALE: Record<Exclude<UpgraderGridSize, 'list'>, number> = {
+    small: 5,
+    medium: 7,
+    large: 9.5,
+    xlarge: 13,
+};
 
-export const upgraderPosterGridClass = (size: UpgraderGridSize) => size === 'list' ? 'flex flex-col gap-3' : `upgrader-poster-grid upgrader-poster-grid--${size}`;
+/** Poster Sets historically sat one step larger than Discover/Upgrader. */
+export const POSTER_SETS_GRID_PRESET_SCALE: Record<Exclude<UpgraderGridSize, 'list'>, number> = {
+    small: 7,
+    medium: 9.5,
+    large: 13,
+    xlarge: 17,
+};
+
+export const clampPosterGridScale = (value: number) => {
+    const stepped = Math.round(Number(value) / POSTER_GRID_SCALE_STEP) * POSTER_GRID_SCALE_STEP;
+    const clamped = Math.min(POSTER_GRID_SCALE_MAX, Math.max(POSTER_GRID_SCALE_MIN, stepped));
+    return Number(clamped.toFixed(2));
+};
+
+export const posterGridScaleRem = (
+    size: PosterGridValue,
+    presets: Record<Exclude<UpgraderGridSize, 'list'>, number> = POSTER_GRID_PRESET_SCALE,
+) => {
+    if (typeof size === 'number') return clampPosterGridScale(size);
+    if (size === 'list') return DEFAULT_POSTER_GRID_SCALE;
+    return presets[size] ?? DEFAULT_POSTER_GRID_SCALE;
+};
+
+export const posterGridDensityBand = (size: PosterGridValue): UpgraderGridSize => {
+    if (size === 'list') return 'list';
+    const rem = posterGridScaleRem(size);
+    if (rem < 6.25) return 'small';
+    if (rem < 8.25) return 'medium';
+    if (rem < 11.5) return 'large';
+    return 'xlarge';
+};
+
+export const parsePosterGridValue = (
+    value: unknown,
+    { allowList = false, presets = POSTER_GRID_PRESET_SCALE }: {
+        allowList?: boolean;
+        presets?: Record<Exclude<UpgraderGridSize, 'list'>, number>;
+    } = {},
+): PosterGridValue => {
+    if (allowList && value === 'list') return 'list';
+    if (typeof value === 'number' && Number.isFinite(value)) return clampPosterGridScale(value);
+    const raw = String(value ?? '').trim();
+    if (allowList && raw === 'list') return 'list';
+    if (raw === 'small' || raw === 'medium' || raw === 'large' || raw === 'xlarge') return presets[raw];
+    const numeric = Number(raw);
+    if (raw !== '' && Number.isFinite(numeric)) return clampPosterGridScale(numeric);
+    return DEFAULT_POSTER_GRID_SCALE;
+};
+
+export const upgraderPosterGridClass = (size: PosterGridValue) => {
+    if (size === 'list') return 'flex flex-col gap-3';
+    return `upgrader-poster-grid upgrader-poster-grid--${posterGridDensityBand(size)}`;
+};
 
 /** Minimum poster column width per density preset (used with auto-fill). */
 export const UPGRADER_GRID_MIN_WIDTH: Record<UpgraderGridSize, string> = {
@@ -72,13 +128,33 @@ export const carouselRowSkeletonCount = (containerWidth = estimatePortalContentW
     return Math.max(4, Math.ceil(containerWidth / (cardWidth + 16)));
 };
 
-export const upgraderPosterGridStyle = (size: UpgraderGridSize): CSSProperties => size === 'list' ? {} : ({
-    gridTemplateColumns: `repeat(auto-fill, minmax(${UPGRADER_GRID_MIN_WIDTH[size]}, 1fr))`,
+export const upgraderPosterGridStyle = (size: PosterGridValue): CSSProperties => {
+    if (size === 'list') return {};
+    const rem = posterGridScaleRem(size);
+    const gap = rem < 6.25 ? 0.375 : rem < 8.25 ? 0.5 : rem < 11.5 ? 0.625 : 0.75;
+    return {
+        gridTemplateColumns: `repeat(auto-fill, minmax(${rem}rem, 1fr))`,
+        gap: `${gap}rem`,
+    };
+};
+
+export const upgraderLandscapeGridStyle = (size: PosterGridValue): CSSProperties => {
+    if (size === 'list') return {};
+    const rem = posterGridScaleRem(size) * 1.85;
+    return {
+        gridTemplateColumns: `repeat(auto-fill, minmax(${rem}rem, 1fr))`,
+    };
+};
+
+export const posterGridCardWidthStyle = (size: PosterGridValue): CSSProperties => ({
+    width: `${posterGridScaleRem(size)}rem`,
 });
 
-export const upgraderLandscapeGridStyle = (size: UpgraderGridSize): CSSProperties => size === 'list' ? {} : ({
-    gridTemplateColumns: `repeat(auto-fill, minmax(${UPGRADER_LANDSCAPE_GRID_MIN_WIDTH[size]}, 1fr))`,
-});
+export const posterGridImageSize = (size: PosterGridValue) => {
+    if (size === 'list') return { width: 96, height: 144 };
+    const width = Math.round(posterGridScaleRem(size) * 16);
+    return { width, height: Math.round(width * 1.5) };
+};
 
 /** Fixed carousel poster widths for Discover home rails (mirrors Movies/Series grid density). */
 export const DISCOVER_ROW_CARD_WIDTH_CLASS: Record<UpgraderGridSize, string> = {
@@ -89,7 +165,10 @@ export const DISCOVER_ROW_CARD_WIDTH_CLASS: Record<UpgraderGridSize, string> = {
     list: 'w-[140px] sm:w-[160px]',
 };
 
-export const discoverRowCardWidthClass = (size: UpgraderGridSize) => DISCOVER_ROW_CARD_WIDTH_CLASS[size] || DISCOVER_ROW_CARD_WIDTH_CLASS[DEFAULT_UPGRADER_GRID_SIZE];
+export const discoverRowCardWidthClass = (size: PosterGridValue) => {
+    if (typeof size === 'number') return '';
+    return DISCOVER_ROW_CARD_WIDTH_CLASS[size] || DISCOVER_ROW_CARD_WIDTH_CLASS[DEFAULT_UPGRADER_GRID_SIZE];
+};
 
 /** Square album/artist card widths for Discover music rails. */
 export const DISCOVER_MUSIC_ROW_CARD_WIDTH_CLASS: Record<UpgraderGridSize, string> = {
@@ -100,13 +179,14 @@ export const DISCOVER_MUSIC_ROW_CARD_WIDTH_CLASS: Record<UpgraderGridSize, strin
     list: 'w-[140px] sm:w-[160px]',
 };
 
-export const discoverMusicRowCardWidthClass = (size: UpgraderGridSize) => (
-    DISCOVER_MUSIC_ROW_CARD_WIDTH_CLASS[size] || DISCOVER_MUSIC_ROW_CARD_WIDTH_CLASS[DEFAULT_UPGRADER_GRID_SIZE]
-);
+export const discoverMusicRowCardWidthClass = (size: PosterGridValue) => {
+    if (typeof size === 'number') return '';
+    return DISCOVER_MUSIC_ROW_CARD_WIDTH_CLASS[size] || DISCOVER_MUSIC_ROW_CARD_WIDTH_CLASS[DEFAULT_UPGRADER_GRID_SIZE];
+};
 
 export const UPGRADER_GRID_SIZE_STORAGE_KEY = 'upgraderGridSize.v2';
 
 export const normalizeUpgraderGridSize = (value: unknown): UpgraderGridSize => {
     if (value === 'small' || value === 'medium' || value === 'large' || value === 'xlarge' || value === 'list') return value;
-    return DEFAULT_UPGRADER_GRID_SIZE;
+    return posterGridDensityBand(parsePosterGridValue(value));
 };

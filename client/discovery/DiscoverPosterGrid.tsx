@@ -1,7 +1,7 @@
 import React, { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import { DiscoverPosterCard } from '../screens';
 import { PosterCardSkeleton } from '../shared/skeletons';
-import { upgraderPosterGridClass, upgraderPosterGridStyle, type UpgraderGridSize } from '../shared/portalLayout';
+import { upgraderPosterGridClass, upgraderPosterGridStyle, type PosterGridValue } from '../shared/portalLayout';
 import { dedupeDiscoverResults, getDiscoverItemKey } from './discoverItemUtils';
 import { discoveryTheme } from './discoveryThemeClasses';
 import { useDiscoverI18n } from './i18n';
@@ -9,7 +9,7 @@ import { apiFetch } from '../shared/api';
 
 type Props = {
     items: any[];
-    gridSize: UpgraderGridSize;
+    gridSize: PosterGridValue;
     formatItem: (item: any) => any;
     onSelect: (item: any) => void;
     getQuickActions?: (item: any) => Array<{

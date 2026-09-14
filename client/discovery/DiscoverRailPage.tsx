@@ -157,7 +157,7 @@ const DiscoverRailShell: React.FC<{
                     <DiscoverGridSizeSelect
                         value={gridSize}
                         onChange={setGridSize}
-                        className="w-44 self-start sm:self-end flex-shrink-0"
+                        className="self-start sm:self-end flex-shrink-0"
                     />
                 </div>
             </div>

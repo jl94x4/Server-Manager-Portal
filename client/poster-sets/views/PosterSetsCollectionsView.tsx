@@ -6,14 +6,12 @@ import {
     Search,
     X,
 } from 'lucide-react';
-import { CustomSelect } from '../../shared/ui';
-import { normalizeUpgraderGridSize } from '../../shared/portalLayout';
+import { PosterSetsGridSizeSlider } from '../shared';
 import { PosterSetsCreatorsPanel } from '../PosterSetsCreatorsPanel';
 import { SetInspector, SetInspectorThumbStrip } from '../SetInspector';
 import { inferPreviewMediaType, relatedSetKey } from '../posterSetsDashboardUtils';
 import {
     BrowseSetCard,
-    POSTER_SETS_GRID_OPTIONS,
     PreviewAssetGallery,
     RelatedSetsRail,
     buttonClass,
@@ -174,12 +172,10 @@ export const PosterSetsCollectionsView: React.FC = () => {
                     ) : null}
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
-                    <CustomSelect
-                        value={gridSize === 'list' ? 'medium' : gridSize}
-                        onChange={(value) => setGridSize(normalizeUpgraderGridSize(value))}
-                        options={POSTER_SETS_GRID_OPTIONS}
+                    <PosterSetsGridSizeSlider
+                        value={gridSize}
+                        onChange={setGridSize}
                         className="w-full min-w-[140px] sm:w-auto"
-                        compact
                     />
                     <button
                         type="button"

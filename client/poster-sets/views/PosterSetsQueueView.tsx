@@ -25,7 +25,6 @@ import {
 } from 'lucide-react';
 import { CustomSelect, SettingsToggleRow } from '../../shared/ui';
 import { askConfirm } from '../../shared/confirm';
-import { normalizeUpgraderGridSize } from '../../shared/portalLayout';
 import { posterSetsApi } from '../api';
 import { MEDIUX_FILTER_OPTIONS } from '../types';
 import { PosterSetsSetupChecklist } from '../PosterSetsSetupChecklist';
@@ -39,7 +38,6 @@ import {
     CreatorPill,
     LibraryMediaCard,
     MetaPill,
-    POSTER_SETS_GRID_OPTIONS,
     PreviewAssetGallery,
     ProviderPill,
     RECENT_CATEGORY_ORDER,

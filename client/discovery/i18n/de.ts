@@ -225,6 +225,8 @@ export const de: DeepPartial<EnCatalog> = {
         gridMedium: 'Raster: Mittel',
         gridLarge: 'Raster: Groß',
         gridXlarge: 'Raster: Sehr groß',
+        gridSize: 'Größe',
+        gridList: 'Liste',
         emptyMovies: 'Keine Filme gefunden.',
         emptyMoviesFiltered: 'Keine Filme passen zu deinen Filtern.',
         emptySeries: 'Keine Serien gefunden.',

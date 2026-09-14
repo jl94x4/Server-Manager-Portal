@@ -13,7 +13,7 @@ import {
 import { useDiscoveryMe } from './useDiscoveryMe';
 import { formatQuotaHint } from './requestSeasonUtils';
 import { translateDiscoverStatus, useDiscoverI18n } from './i18n';
-import { DEFAULT_UPGRADER_GRID_SIZE, discoverRowCardWidthClass, type UpgraderGridSize } from '../shared/portalLayout';
+import { DEFAULT_POSTER_GRID_SCALE, discoverRowCardWidthClass, posterGridCardWidthStyle, type PosterGridValue } from '../shared/portalLayout';
 
 type Props = {
     items: any[];
@@ -26,7 +26,7 @@ type Props = {
     showHeader?: boolean;
     providerLabel?: string;
     rowCardClassName?: string;
-    density?: UpgraderGridSize;
+    density?: PosterGridValue;
 };
 
 export const WatchlistPanel: React.FC<Props> = ({
@@ -121,7 +121,10 @@ export const WatchlistPanel: React.FC<Props> = ({
 
         const cardWidth = variant === 'page'
             ? 'w-full'
-            : `${rowCardClassName || discoverRowCardWidthClass(density || DEFAULT_UPGRADER_GRID_SIZE)} flex-shrink-0 snap-start`;
+            : `${rowCardClassName || discoverRowCardWidthClass(density || DEFAULT_POSTER_GRID_SCALE)} flex-shrink-0 snap-start`;
+        const cardStyle = variant === 'page' || rowCardClassName
+            ? undefined
+            : posterGridCardWidthStyle(density || DEFAULT_POSTER_GRID_SCALE);
         const footer = (
             <div className="flex flex-col gap-1.5 mt-1.5 px-0.5">
                 <div className={`text-xs font-medium line-clamp-2 leading-tight text-text ${variant === 'page' ? 'text-left' : 'text-center'}`}>
@@ -149,7 +152,7 @@ export const WatchlistPanel: React.FC<Props> = ({
         );
 
         return (
-            <div key={`watchlist-${ref?.mediaId || formatted.id || idx}`} className={`${cardWidth} relative group`}>
+            <div key={`watchlist-${ref?.mediaId || formatted.id || idx}`} className={`${cardWidth} relative group`} style={cardStyle}>
                 <DiscoverPosterCard
                     item={formatted}
                     overlay={formatted.overlay}

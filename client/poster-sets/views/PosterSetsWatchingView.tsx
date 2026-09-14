@@ -24,10 +24,10 @@ import {
     User,
     X,
 } from 'lucide-react';
+import { PosterSetsGridSizeSlider } from '../shared';
 import { CustomSelect, SettingsToggleRow } from '../../shared/ui';
 import { askConfirm } from '../../shared/confirm';
 import { ModalPortal } from '../../shared/ModalPortal';
-import { normalizeUpgraderGridSize } from '../../shared/portalLayout';
 import { posterSetsApi } from '../api';
 import { addWatchWithTitleReplaceConfirm } from '../pinWatch';
 import { MEDIUX_FILTER_OPTIONS, type PosterSetsWatch } from '../types';
@@ -43,7 +43,6 @@ import {
     CreatorPill,
     LibraryMediaCard,
     MetaPill,
-    POSTER_SETS_GRID_OPTIONS,
     PosterImageLightbox,
     PosterThumb,
     PreviewAssetGallery,
@@ -857,12 +856,10 @@ export const PosterSetsWatchingView: React.FC = () => {
                                     }}
                                 />
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <CustomSelect
-                                        value={gridSize === 'list' ? 'medium' : gridSize}
-                                        onChange={(value) => setGridSize(normalizeUpgraderGridSize(value))}
-                                        options={POSTER_SETS_GRID_OPTIONS}
+                                    <PosterSetsGridSizeSlider
+                                        value={gridSize}
+                                        onChange={setGridSize}
                                         className="w-full min-w-[140px] sm:w-auto"
-                                        compact
                                     />
                                     {watchesCategoryFilter !== 'all' ? (
                                         <CustomSelect

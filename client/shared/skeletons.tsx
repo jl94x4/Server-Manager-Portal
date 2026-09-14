@@ -1,7 +1,7 @@
 import React from 'react';
 import {
     discoverPosterGridClass,
-    type UpgraderGridSize,
+    type PosterGridValue,
     upgraderPosterGridClass,
     upgraderPosterGridStyle,
 } from './portalLayout';
@@ -152,7 +152,7 @@ export const DiscoverSectionSkeleton: React.FC<{
     count?: number;
     aspect?: '2/3' | 'square';
     rows?: number;
-    gridSize?: UpgraderGridSize;
+    gridSize?: PosterGridValue;
 }> = ({
     title,
     count,
@@ -178,7 +178,7 @@ export const DiscoverSectionSkeleton: React.FC<{
     );
 };
 
-export const DiscoverPageSkeleton: React.FC<{ recentLimit?: number; gridSize?: UpgraderGridSize }> = ({
+export const DiscoverPageSkeleton: React.FC<{ recentLimit?: number; gridSize?: PosterGridValue }> = ({
     recentLimit = 20,
     gridSize = 'large',
 }) => {

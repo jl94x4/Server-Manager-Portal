@@ -2,13 +2,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Loader2, RefreshCw } from 'lucide-react';
 import { CustomSelect } from '../shared/ui';
 import {
-    normalizeUpgraderGridSize,
-    UPGRADER_GRID_SIZE_OPTIONS,
     upgraderPosterGridClass,
-    type UpgraderGridSize,
+    type PosterGridValue,
 } from '../shared/portalLayout';
 import { posterSetsApi } from './api';
 import { LibraryMediaCard } from './shared/posterSetsCards';
+import { PosterSetsGridSizeSlider } from './shared/PosterSetsGridSizeSlider';
 import { posterSetsPosterGridStyle } from './shared/posterSetsUi';
 import { useTpdbCoverageMap } from './shared/useTpdbCoverageMap';
 import {
@@ -40,8 +39,8 @@ const CACHE_STATUS_OPTIONS = [
 
 export type PosterSetsLibraryBrowseProps = {
     disabled?: boolean;
-    gridSize: UpgraderGridSize;
-    onGridSizeChange: (size: UpgraderGridSize) => void;
+    gridSize: PosterGridValue;
+    onGridSizeChange: (size: number) => void;
     onOpenItem: (item: LibraryRecentItem) => void;
     showTpdbCoverage?: boolean;
     showCopyTitle?: boolean;
@@ -195,12 +194,10 @@ export function PosterSetsLibraryBrowse({
                         className="min-w-0 flex-1 basis-[8rem] sm:flex-none sm:w-[10.5rem]"
                         compact
                     />
-                    <CustomSelect
-                        value={gridSize === 'list' ? 'medium' : gridSize}
-                        onChange={(value) => onGridSizeChange(normalizeUpgraderGridSize(value))}
-                        options={UPGRADER_GRID_SIZE_OPTIONS.filter((option) => option.value !== 'list')}
+                    <PosterSetsGridSizeSlider
+                        value={gridSize}
+                        onChange={onGridSizeChange}
                         className="min-w-0 flex-1 basis-[8rem] sm:flex-none sm:w-[10.5rem]"
-                        compact
                     />
                     <button
                         type="button"

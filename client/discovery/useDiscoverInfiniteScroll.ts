@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { UpgraderGridSize } from '../shared/portalLayout';
+import type { PosterGridValue } from '../shared/portalLayout';
 import { mergeDiscoverResults } from './discoverItemUtils';
 import { filterDiscoverBrowseItems } from './discoverAvailability';
 import { enrichDiscoverBrowseRows } from './discoverAvailabilityEnrich';
@@ -15,7 +15,7 @@ type BrowseFilterOptions = {
 
 type Options = {
     resetKey: string;
-    gridSize: UpgraderGridSize;
+    gridSize: PosterGridValue;
     containerRef: React.RefObject<HTMLElement | null>;
     fetchPage: (page: number) => Promise<DiscoverPagePayload>;
     /** Re-applied after live badge enrich so newly-marked available titles drop out. */

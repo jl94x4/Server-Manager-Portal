@@ -23,9 +23,9 @@ import {
     User,
     X,
 } from 'lucide-react';
+import { PosterSetsGridSizeSlider } from '../shared';
 import { CustomSelect, SettingsToggleRow } from '../../shared/ui';
 import { askConfirm } from '../../shared/confirm';
-import { normalizeUpgraderGridSize } from '../../shared/portalLayout';
 import { posterSetsApi } from '../api';
 import { MEDIUX_FILTER_OPTIONS } from '../types';
 import { PosterSetsSetupChecklist } from '../PosterSetsSetupChecklist';
@@ -39,7 +39,6 @@ import {
     CreatorPill,
     LibraryMediaCard,
     MetaPill,
-    POSTER_SETS_GRID_OPTIONS,
     PreviewAssetGallery,
     ProviderPill,
     RECENT_CATEGORY_ORDER,
@@ -400,12 +399,10 @@ export const PosterSetsLibraryView: React.FC = () => {
                                     </div>
                                 </div>
                                 <div className="flex shrink-0 items-center justify-end gap-2 md:justify-self-end">
-                                    <CustomSelect
-                                        value={gridSize === 'list' ? 'medium' : gridSize}
-                                        onChange={(value) => setGridSize(normalizeUpgraderGridSize(value))}
-                                        options={POSTER_SETS_GRID_OPTIONS}
+                                    <PosterSetsGridSizeSlider
+                                        value={gridSize}
+                                        onChange={setGridSize}
                                         className="min-w-[9.5rem]"
-                                        compact
                                     />
                                     <button
                                         type="button"
@@ -430,7 +427,7 @@ export const PosterSetsLibraryView: React.FC = () => {
                         <PosterSetsLibraryBrowse
                             disabled={busy !== null}
                             gridSize={gridSize}
-                            onGridSizeChange={setGridSize}
+                            onGridSizeChange={(size) => setGridSize(size)}
                             onOpenItem={openLibraryItem}
                             showTpdbCoverage={isTpdbEnabled(configDraft)}
                             showCopyTitle={isCopyLibraryTitleEnabled(configDraft)}

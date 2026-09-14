@@ -28,7 +28,6 @@ import { CustomSelect, SettingsToggleRow } from '../../shared/ui';
 import { StickySaveBar } from '../../shared/StickySaveBar';
 import { BetaBadge, PosterSetsBetaBanner } from '../../shared/BetaBadge';
 import { askConfirm } from '../../shared/confirm';
-import { normalizeUpgraderGridSize } from '../../shared/portalLayout';
 import { portalUrl, getPublicOrigin } from '../../shared/basePath';
 import { posterSetsApi } from '../api';
 import { buildTpdbImportBookmarklet } from '../../../lib/poster-sets/tpdbImportTools.js';
@@ -45,7 +44,6 @@ import {
     CreatorPill,
     LibraryMediaCard,
     MetaPill,
-    POSTER_SETS_GRID_OPTIONS,
     LIBRARY_DETAIL_LAYOUT_OPTIONS,
     PreviewAssetGallery,
     ProviderPill,

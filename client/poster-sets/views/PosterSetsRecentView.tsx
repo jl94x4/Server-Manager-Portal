@@ -23,9 +23,9 @@ import {
     User,
     X,
 } from 'lucide-react';
+import { PosterSetsGridSizeSlider } from '../shared';
 import { CustomSelect, SettingsToggleRow } from '../../shared/ui';
 import { askConfirm } from '../../shared/confirm';
-import { normalizeUpgraderGridSize } from '../../shared/portalLayout';
 import { posterSetsApi } from '../api';
 import { MEDIUX_FILTER_OPTIONS } from '../types';
 import { PosterSetsSetupChecklist } from '../PosterSetsSetupChecklist';
@@ -39,7 +39,6 @@ import {
     CreatorPill,
     LibraryMediaCard,
     MetaPill,
-    POSTER_SETS_GRID_OPTIONS,
     PosterThumb,
     PreviewAssetGallery,
     ProviderPill,
@@ -394,12 +393,10 @@ export const PosterSetsRecentView: React.FC = () => {
                                 className="w-full min-w-[140px] sm:w-auto"
                                 compact
                             />
-                            <CustomSelect
-                                value={gridSize === 'list' ? 'medium' : gridSize}
-                                onChange={(value) => setGridSize(normalizeUpgraderGridSize(value))}
-                                options={POSTER_SETS_GRID_OPTIONS}
+                            <PosterSetsGridSizeSlider
+                                value={gridSize}
+                                onChange={setGridSize}
                                 className="w-full min-w-[140px] sm:w-auto"
-                                compact
                             />
                         </div>
                     </div>

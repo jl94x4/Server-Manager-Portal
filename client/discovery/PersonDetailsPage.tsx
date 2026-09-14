@@ -6,6 +6,7 @@ import { filterHiddenAvailableItems, useDiscoveryPreferences } from './useDiscov
 import { enrichDiscoverItemsWithAvailability } from './discoverAvailabilityEnrich';
 import { upgraderPosterGridClass, upgraderPosterGridStyle } from '../shared/portalLayout';
 import { useDiscoverI18n } from './i18n';
+import { useDiscoverGridSize } from './useDiscoverGridSize';
 import {
     PERSON_CREDIT_ENRICH_CHUNK,
     mergeEnrichedPersonCredits,
@@ -37,6 +38,7 @@ export const PersonDetailsPage: React.FC<{
 }> = ({ personId, onBack, onSelect, formatItem }) => {
     const { t, locale } = useDiscoverI18n();
     const { preferences } = useDiscoveryPreferences();
+    const [gridSize] = useDiscoverGridSize();
     const [person, setPerson] = useState<any>(null);
     const [castCredits, setCastCredits] = useState<any[]>([]);
     const [crewCredits, setCrewCredits] = useState<any[]>([]);
@@ -190,6 +192,7 @@ export const PersonDetailsPage: React.FC<{
                             items={visibleCast}
                             formatItem={formatItem}
                             onSelect={onSelect}
+                            gridSize={gridSize}
                             roleOf={(item) => String(item?.character || '').trim()}
                         />
                     )}
@@ -199,6 +202,7 @@ export const PersonDetailsPage: React.FC<{
                             items={visibleCrew}
                             formatItem={formatItem}
                             onSelect={onSelect}
+                            gridSize={gridSize}
                             roleOf={(item) => String(item?.job || item?.department || '').trim()}
                         />
                     )}
@@ -214,10 +218,11 @@ const PersonCreditGrid: React.FC<{
     formatItem: (item: any) => any;
     onSelect: (item: any) => void;
     roleOf: (item: any) => string;
-}> = ({ title, items, formatItem, onSelect, roleOf }) => (
+    gridSize: number;
+}> = ({ title, items, formatItem, onSelect, roleOf, gridSize }) => (
     <div className="flex flex-col gap-4">
         {title ? <h3 className="text-lg font-bold text-text">{title}</h3> : null}
-        <div className={upgraderPosterGridClass('large')} style={upgraderPosterGridStyle('large')}>
+        <div className={upgraderPosterGridClass(gridSize)} style={upgraderPosterGridStyle(gridSize)}>
             {items.map((rawItem, idx) => {
                 const formatted = formatItem(rawItem);
                 const year = personCreditYear(rawItem) || formatted.year;
