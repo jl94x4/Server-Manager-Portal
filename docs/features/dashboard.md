@@ -4,7 +4,7 @@ The **Dashboard** nav item (`/dashboard`) shows live server activity and communi
 
 ## Live activity
 
-- Stream summary cards: total streams, direct play, transcoding, and bandwidth
+- Now-playing show, movie, and episode titles open that title’s analytics page
 - Now-playing cards with poster art, quality badges, player info, progress, and ETA
 - Layout stretches to three cards by default, up to four on ultra-wide displays when enough streams are active
 - Activity refreshes about once per second while the page is open

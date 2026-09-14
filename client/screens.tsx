@@ -9744,7 +9744,31 @@ const StreamSpecCard: React.FC<{ label: string; children: React.ReactNode }> = (
     </div>
 );
 
-const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?: boolean, onKilled?: () => void, providerLabel?: string, onOpenProfile?: (accountId: string) => void }> = ({ session, onClose, isAdmin, onKilled, providerLabel = 'Plex', onOpenProfile }) => {
+const DashboardTitleLink: React.FC<{
+    ratingKey?: string | null;
+    onOpen?: (ratingKey: string) => void;
+    className?: string;
+    children: React.ReactNode;
+}> = ({ ratingKey, onOpen, className = '', children }) => {
+    const key = String(ratingKey || '').trim();
+    if (!key || !onOpen) {
+        return <span className={className}>{children}</span>;
+    }
+    return (
+        <button
+            type="button"
+            onClick={(event) => {
+                event.stopPropagation();
+                onOpen(key);
+            }}
+            className={`block max-w-full text-left ${className} hover:text-plex`.trim()}
+        >
+            {children}
+        </button>
+    );
+};
+
+const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?: boolean, onKilled?: () => void, providerLabel?: string, onOpenProfile?: (accountId: string) => void, onOpenTitle?: (ratingKey: string) => void }> = ({ session, onClose, isAdmin, onKilled, providerLabel = 'Plex', onOpenProfile, onOpenTitle }) => {
     const [killReason, setKillReason] = useState('');
     const [isKilling, setIsKilling] = useState(false);
     const [showKillConfirm, setShowKillConfirm] = useState(false);
@@ -9910,10 +9934,20 @@ const StreamDetailsModal: React.FC<{ session: any, onClose: () => void, isAdmin?
                             )
                         )}
                         <h2 id="stream-details-title" className="text-xl sm:text-2xl font-black text-text leading-tight tracking-tight">
-                            {showTitle}
+                            <DashboardTitleLink
+                                ratingKey={session.grandparentTitle ? session.grandparentRatingKey : session.ratingKey}
+                                onOpen={onOpenTitle}
+                                className="text-left"
+                            >
+                                {showTitle}
+                            </DashboardTitleLink>
                         </h2>
                         {episodeLine ? (
-                            <p className="text-sm text-muted mt-1 leading-snug">{episodeLine}</p>
+                            <p className="text-sm text-muted mt-1 leading-snug">
+                                <DashboardTitleLink ratingKey={session.ratingKey} onOpen={onOpenTitle} className="text-left">
+                                    {episodeLine}
+                                </DashboardTitleLink>
+                            </p>
                         ) : null}
 
                         <div className="flex flex-wrap gap-1.5 mt-3">
@@ -10170,6 +10204,12 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
     const libraryMediaServerType = String(publicConfig?.mediaServerType || mediaServerType || 'plex').toLowerCase();
     const isJellyfinPortal = libraryMediaServerType === 'jellyfin' || libraryMediaServerType === 'emby';
     const libraryProviderLabel = libraryMediaServerType === 'emby' ? 'Emby' : libraryMediaServerType === 'jellyfin' ? 'Jellyfin' : 'Plex';
+    const canOpenDashboardTitle = Boolean(isAdmin && onNavigate && !isJellyfinPortal);
+    const openDashboardTitle = useCallback((ratingKey: string) => {
+        const key = String(ratingKey || '').trim();
+        if (!key || !onNavigate) return;
+        onNavigate('dashboard', { path: dashboardTitlePath(key) });
+    }, [onNavigate]);
     const hasLoadedDashboard = useRef(false);
     const hasLoadedTrending = useRef(false);
 
@@ -10686,13 +10726,31 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                                                 <div className="p-2.5 md:p-3 flex flex-col min-w-0 h-full">
                                                     <div className="activity-header mb-1.5 min-w-0">
                                                         <div className="activity-title-group min-w-0">
-                                                            <div className="text-sm md:text-base font-bold text-text line-clamp-2 leading-tight">{session.grandparentTitle ? session.grandparentTitle : session.title}</div>
+                                                            <DashboardTitleLink
+                                                                ratingKey={session.grandparentTitle ? session.grandparentRatingKey : session.ratingKey}
+                                                                onOpen={canOpenDashboardTitle ? openDashboardTitle : undefined}
+                                                                className="text-sm md:text-base font-bold text-text line-clamp-2 leading-tight"
+                                                            >
+                                                                {session.grandparentTitle ? session.grandparentTitle : session.title}
+                                                            </DashboardTitleLink>
                                                             {session.type === 'episode' && session.season !== undefined && session.episode !== undefined ? (
-                                                                <div className="text-[10px] md:text-xs text-muted line-clamp-2 leading-snug mt-0.5">
+                                                                <DashboardTitleLink
+                                                                    ratingKey={session.ratingKey}
+                                                                    onOpen={canOpenDashboardTitle ? openDashboardTitle : undefined}
+                                                                    className="text-[10px] md:text-xs text-muted line-clamp-2 leading-snug mt-0.5"
+                                                                >
                                                                     {session.title} | S{String(session.season).padStart(2, '0')}E{String(session.episode).padStart(2, '0')}
-                                                                </div>
+                                                                </DashboardTitleLink>
                                                             ) : (
-                                                                session.grandparentTitle && <div className="text-[10px] md:text-xs text-muted line-clamp-2 leading-snug mt-0.5">{session.title}</div>
+                                                                session.grandparentTitle ? (
+                                                                    <DashboardTitleLink
+                                                                        ratingKey={session.ratingKey}
+                                                                        onOpen={canOpenDashboardTitle ? openDashboardTitle : undefined}
+                                                                        className="text-[10px] md:text-xs text-muted line-clamp-2 leading-snug mt-0.5"
+                                                                    >
+                                                                        {session.title}
+                                                                    </DashboardTitleLink>
+                                                                ) : null
                                                             )}
                                                         </div>
                                                     </div>
@@ -10883,6 +10941,10 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                         setSelectedSession(null);
                         onNavigate?.('profile', { path: `/profile/${encodeURIComponent(id)}` });
                     }}
+                    onOpenTitle={canOpenDashboardTitle ? (key) => {
+                        setSelectedSession(null);
+                        openDashboardTitle(key);
+                    } : undefined}
                 />
             )}
         </div>
