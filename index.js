@@ -231,6 +231,7 @@ import {
     analyticsHistoryItemKey,
 } from './lib/analytics/historyCache.js';
 import { aggregateTitleHistory, rollupTitleChildren, synthesizeTitleChildren } from './lib/analytics/titleStats.js';
+import { mapTautulliStreamData } from './lib/analytics/streamInfo.js';
 import { withTautulliExclusive } from './lib/tautulli/exclusiveLock.js';
 import { isTautulliWatchHistorySource, buildAchievementsHomeRankContext, summarizeAchievementsBackfill, levelProgress } from './lib/achievements/index.js';
 import { loadAchievementsState, setLeaderboardOptOut } from './lib/achievements/store.js';
@@ -17351,6 +17352,7 @@ const mapTitleHistoryRow = (row, source) => {
         ?? (source === 'tautulli' ? asInt(row.duration) : null);
     const plexDuration = source === 'plex' ? asInt(row.duration) : null;
     return {
+        id: row.id != null ? String(row.id) : (row.row_id != null ? String(row.row_id) : null),
         user: row.user || 'Unknown',
         userThumb: row.userThumb || row.user_thumb || null,
         date: asInt(row.date) || asInt(row.startedAt) || asInt(row.started) || 0,
@@ -17552,6 +17554,36 @@ app.get('/api/plex/analytics/title/:ratingKey', requireAuth, requireAdmin, async
     } catch (e) {
         log(`Error fetching title analytics: ${e.message}`);
         res.status(500).json({ error: 'Failed to load title analytics' });
+    }
+});
+
+app.get('/api/plex/analytics/history/:rowId/stream', requireAuth, requireAdmin, async (req, res) => {
+    try {
+        const rowId = String(req.params.rowId || '').trim();
+        if (!rowId || !/^\d+$/.test(rowId)) {
+            return res.status(400).json({ error: 'Invalid history id' });
+        }
+
+        const config = await loadFile(CONFIG_PATH, null);
+        if (!config?.tautulliUrl || !config?.tautulliApiKey) {
+            return res.status(503).json({ error: 'Tautulli is not configured' });
+        }
+        const tUrl = resolveIntegrationUrlForFetch(config.tautulliUrl);
+        if (!tUrl) return res.status(503).json({ error: 'Tautulli is not configured' });
+
+        const payload = await fetchTautulliApi(tUrl, {
+            apikey: config.tautulliApiKey,
+            cmd: 'get_stream_data',
+            row_id: rowId,
+        });
+        const raw = payload?.response?.data;
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw) || !Object.keys(raw).length) {
+            return res.status(404).json({ error: 'Stream details not found for this play' });
+        }
+        res.json(mapTautulliStreamData(raw));
+    } catch (e) {
+        log(`Error fetching history stream details: ${e.message}`);
+        res.status(502).json({ error: e.message || 'Failed to load stream details' });
     }
 });
 

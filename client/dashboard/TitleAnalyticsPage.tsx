@@ -25,8 +25,10 @@ import {
     DashboardStatCard,
     dashboardGlowClass,
 } from '../shared/dashboard/DashboardChrome';
+import { HistoryStreamInfoModal } from './HistoryStreamInfoModal';
 
 type TitleHistoryRow = {
+    id?: string | null;
     user?: string;
     userThumb?: string | null;
     date?: number;
@@ -194,6 +196,7 @@ export const TitleAnalyticsPage: React.FC<{
     const [historyPage, setHistoryPage] = useState(1);
     const [usersPage, setUsersPage] = useState(1);
     const [childrenPage, setChildrenPage] = useState(1);
+    const [streamRow, setStreamRow] = useState<TitleHistoryRow | null>(null);
     const pageSize = 25;
     const usersPageSize = 10;
     const childrenPageSize = 12;
@@ -205,6 +208,7 @@ export const TitleAnalyticsPage: React.FC<{
         setHistoryPage(1);
         setUsersPage(1);
         setChildrenPage(1);
+        setStreamRow(null);
         apiFetch(`/api/plex/analytics/title/${encodeURIComponent(ratingKey)}`)
             .then((res) => {
                 if (cancelled) return;
@@ -624,7 +628,9 @@ export const TitleAnalyticsPage: React.FC<{
 
             <DashboardPanel
                 title="Watch history"
-                subtitle={`${history.length} ${history.length === 1 ? 'play' : 'plays'} across the server`}
+                subtitle={data?.source === 'tautulli'
+                    ? `${history.length} ${history.length === 1 ? 'play' : 'plays'} across the server · click a player for stream info`
+                    : `${history.length} ${history.length === 1 ? 'play' : 'plays'} across the server`}
                 badge={(
                     <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-200">
                         <History className="h-3 w-3" />
@@ -689,7 +695,16 @@ export const TitleAnalyticsPage: React.FC<{
                                                 </td>
                                                 <td className="whitespace-nowrap px-3 py-2.5 text-text/80">{row.platform || '—'}</td>
                                                 <td className="whitespace-nowrap px-3 py-2.5">{row.product || '—'}</td>
-                                                <td className="max-w-[10rem] truncate px-3 py-2.5 text-text/80" title={row.player || undefined}>{row.player || '—'}</td>
+                                                <td className="max-w-[10rem] truncate px-3 py-2.5 text-text/80">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setStreamRow(row)}
+                                                        className="max-w-full truncate text-left hover:text-plex"
+                                                        title={row.player ? `Stream info · ${row.player}` : 'Stream info'}
+                                                    >
+                                                        {row.player || '—'}
+                                                    </button>
+                                                </td>
                                                 <td className="max-w-[18rem] px-3 py-2.5">
                                                     {row.ratingKey && onOpenTitle && String(row.ratingKey) !== String(ratingKey) ? (
                                                         <button
@@ -728,9 +743,14 @@ export const TitleAnalyticsPage: React.FC<{
                                                 </td>
                                                 <td className="whitespace-nowrap px-3 py-2.5">
                                                     {stream ? (
-                                                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${streamBadgeClass(row.transcodeDecision)}`}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setStreamRow(row)}
+                                                            className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider hover:border-plex/50 ${streamBadgeClass(row.transcodeDecision)}`}
+                                                            title="Stream info"
+                                                        >
                                                             {stream}
-                                                        </span>
+                                                        </button>
                                                     ) : '—'}
                                                 </td>
                                                 <td className="px-3 py-2.5 text-center">
@@ -770,6 +790,7 @@ export const TitleAnalyticsPage: React.FC<{
                     </div>
                 )}
             </DashboardPanel>
+            <HistoryStreamInfoModal row={streamRow} onClose={() => setStreamRow(null)} />
         </DashboardPageShell>
     );
 };
