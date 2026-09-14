@@ -91,3 +91,13 @@ export const reportMediaPlayerTimeline = (payload: {
         keepalive: true,
     }).catch(() => undefined)
 );
+
+export const stopMediaPlayerTranscode = (sessionId?: string | null) => {
+    const id = String(sessionId || '').trim();
+    if (!id) return Promise.resolve();
+    return apiFetch('/api/media-player/stop', {
+        method: 'POST',
+        body: JSON.stringify({ sessionId: id }),
+        keepalive: true,
+    }).catch(() => undefined);
+};

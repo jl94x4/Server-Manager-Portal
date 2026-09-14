@@ -1,13 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Loader2, Pause, Play, X } from 'lucide-react';
+import { Loader2, Maximize, Minimize, Pause, Play, X } from 'lucide-react';
 import Hls from 'hls.js';
 import { portalUrl } from '../shared/basePath';
 import { lockBackgroundScroll } from '../shared/lockBackgroundScroll';
 import { PORTAL_CSRF_HEADER, PORTAL_CSRF_VALUE } from '../shared/api';
 import { useDiscoverI18n } from '../discovery/i18n';
-import { formatClock, withPlayerStreamQuery } from './playerUtils';
-import { reportMediaPlayerTimeline } from './api';
+import { formatClock, newPlaySessionId, playSessionIdFromSrc, withPlayerStreamQuery } from './playerUtils';
+import { reportMediaPlayerTimeline, stopMediaPlayerTranscode } from './api';
 import type { PlayerPlaySession } from './types';
 
 type Props = {
@@ -18,6 +18,45 @@ type Props = {
 };
 
 type PickerOption = { id: string; label: string };
+
+type FullscreenDocument = Document & {
+    webkitFullscreenElement?: Element | null;
+    webkitExitFullscreen?: () => Promise<void> | void;
+};
+
+type FullscreenElement = HTMLElement & {
+    webkitRequestFullscreen?: () => Promise<void> | void;
+};
+
+type IosVideo = HTMLVideoElement & {
+    webkitEnterFullscreen?: () => void;
+    webkitDisplayingFullscreen?: boolean;
+};
+
+const fullscreenElement = () => {
+    const doc = document as FullscreenDocument;
+    return doc.fullscreenElement || doc.webkitFullscreenElement || null;
+};
+
+const requestPlayerFullscreen = async (shell: HTMLElement | null, video: HTMLVideoElement | null) => {
+    if (shell) {
+        const el = shell as FullscreenElement;
+        const request = el.requestFullscreen || el.webkitRequestFullscreen;
+        if (request) {
+            await request.call(el);
+            return;
+        }
+    }
+    const ios = video as IosVideo | null;
+    if (ios?.webkitEnterFullscreen) ios.webkitEnterFullscreen();
+};
+
+const exitPlayerFullscreen = async () => {
+    if (!fullscreenElement()) return;
+    const doc = document as FullscreenDocument;
+    const exit = doc.exitFullscreen || doc.webkitExitFullscreen;
+    if (exit) await exit.call(doc);
+};
 
 const hlsErrorMessage = (data: { response?: { code?: number; text?: string; data?: unknown } }, fallback: string) => {
     const raw = String(data?.response?.text || (typeof data?.response?.data === 'string' ? data.response.data : '') || '').trim();
@@ -89,10 +128,12 @@ const TrackPicker: React.FC<{
 export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNext = false, onPlayNext }) => {
     const { t } = useDiscoverI18n();
     const videoRef = useRef<HTMLVideoElement>(null);
+    const overlayRef = useRef<HTMLDivElement>(null);
     const hlsRef = useRef<Hls | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [paused, setPaused] = useState(true);
     const [ready, setReady] = useState(false);
+    const [fullscreen, setFullscreen] = useState(false);
     const [currentMs, setCurrentMs] = useState(0);
     const [durationMs, setDurationMs] = useState(session.item.durationMs || 0);
     const [playbackSrc, setPlaybackSrc] = useState(session.src);
@@ -126,6 +167,25 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
     }, [session.sessionId]);
 
     useEffect(() => lockBackgroundScroll(), []);
+
+    useEffect(() => {
+        const sync = () => {
+            const ios = videoRef.current as IosVideo | null;
+            setFullscreen(!!fullscreenElement() || !!ios?.webkitDisplayingFullscreen);
+        };
+        document.addEventListener('fullscreenchange', sync);
+        document.addEventListener('webkitfullscreenchange', sync);
+        videoRef.current?.addEventListener('webkitbeginfullscreen', sync);
+        videoRef.current?.addEventListener('webkitendfullscreen', sync);
+        sync();
+        return () => {
+            document.removeEventListener('fullscreenchange', sync);
+            document.removeEventListener('webkitfullscreenchange', sync);
+            videoRef.current?.removeEventListener('webkitbeginfullscreen', sync);
+            videoRef.current?.removeEventListener('webkitendfullscreen', sync);
+            void exitPlayerFullscreen();
+        };
+    }, []);
 
     useEffect(() => {
         if (!openMenu) return undefined;
@@ -204,6 +264,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
             hlsRef.current = null;
             video.removeAttribute('src');
             video.load();
+            void stopMediaPlayerTranscode(playSessionIdFromSrc(playbackSrc));
         };
     }, [playbackSrc, t]);
 
@@ -241,6 +302,16 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
         };
     }, [session.item.ratingKey, session.sessionId]);
 
+    const toggleFullscreen = () => {
+        if (fullscreenElement()) return exitPlayerFullscreen();
+        return requestPlayerFullscreen(overlayRef.current, videoRef.current);
+    };
+
+    const closePlayer = () => {
+        void exitPlayerFullscreen();
+        onClose();
+    };
+
     useEffect(() => {
         const onKey = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
@@ -248,7 +319,8 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
                     setOpenMenu(null);
                     return;
                 }
-                onClose();
+                if (fullscreenElement()) return;
+                closePlayer();
             }
             if (event.key === ' ') {
                 event.preventDefault();
@@ -256,6 +328,10 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
                 if (!video) return;
                 if (video.paused) void video.play();
                 else video.pause();
+            }
+            if ((event.key === 'f' || event.key === 'F') && !event.metaKey && !event.ctrlKey && !event.altKey) {
+                event.preventDefault();
+                void toggleFullscreen();
             }
         };
         window.addEventListener('keydown', onKey);
@@ -278,8 +354,13 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
         if (patch.audioStreamId != null) setAudioStreamId(patch.audioStreamId);
         if (patch.subtitleStreamId !== undefined) setSubtitleStreamId(nextSub);
         setOpenMenu(null);
+        const offset = Math.max(
+            0,
+            Math.floor(((videoRef.current?.currentTime || 0) * 1000) || currentMsRef.current || 0),
+        );
         setPlaybackSrc(withPlayerStreamQuery(session.src, {
-            offset: Math.floor(currentMsRef.current || 0),
+            session: newPlaySessionId(),
+            offset,
             quality: nextQuality || null,
             audioStreamID: nextAudio || null,
             subtitleStreamID: nextSub || null,
@@ -301,7 +382,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
     const duration = durationMs || 1;
     const progress = Math.min(100, (currentMs / duration) * 100);
     const overlay = (
-        <div className="fixed inset-0 z-[4000] bg-black flex flex-col" role="dialog" aria-modal="true" aria-label={session.item.title}>
+        <div ref={overlayRef} className="fixed inset-0 z-[4000] flex h-full w-full flex-col bg-black" role="dialog" aria-modal="true" aria-label={session.item.title}>
             <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-3 p-4 bg-gradient-to-b from-black/80 to-transparent">
                 <div className="min-w-0">
                     <p className="truncate text-sm font-bold text-white">{session.item.title}</p>
@@ -311,7 +392,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
                 </div>
                 <button
                     type="button"
-                    onClick={onClose}
+                    onClick={closePlayer}
                     className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-2 text-sm font-bold text-white hover:bg-white/20"
                     aria-label={t('mediaPlayerPage.closePlayer')}
                 >
@@ -350,7 +431,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
                 <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-6 text-center">
                     <div>
                         <p className="font-bold text-white">{error}</p>
-                        <button type="button" onClick={onClose} className="mt-4 rounded-lg bg-plex px-4 py-2 text-sm font-black text-black">
+                        <button type="button" onClick={closePlayer} className="mt-4 rounded-lg bg-plex px-4 py-2 text-sm font-black text-black">
                             {t('common.close')}
                         </button>
                     </div>
@@ -421,7 +502,18 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
                             />
                         ) : null}
                     </div>
-                    <span className="shrink-0">{formatClock(currentMs)} / {formatClock(durationMs)}</span>
+                    <div className="flex shrink-0 items-center gap-2">
+                        <span>{formatClock(currentMs)} / {formatClock(durationMs)}</span>
+                        <button
+                            type="button"
+                            onClick={() => { void toggleFullscreen(); }}
+                            className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-white hover:bg-white/20"
+                            aria-label={fullscreen ? t('mediaPlayerPage.exitFullscreen') : t('mediaPlayerPage.fullscreen')}
+                        >
+                            {fullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+                            <span className="hidden sm:inline">{fullscreen ? t('mediaPlayerPage.exitFullscreen') : t('mediaPlayerPage.fullscreen')}</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

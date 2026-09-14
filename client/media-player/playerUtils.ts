@@ -93,3 +93,20 @@ export const withPlayerStreamQuery = (src: string, updates: Record<string, strin
     const query = qs.toString();
     return query ? `${path}?${query}` : path;
 };
+
+const PLAY_SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const newPlaySessionId = () => (
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+            const n = Math.floor(Math.random() * 16);
+            const value = char === 'x' ? n : ((n & 0x3) | 0x8);
+            return value.toString(16);
+        })
+);
+
+export const playSessionIdFromSrc = (src?: string | null) => {
+    const id = new URLSearchParams(String(src || '').split('?')[1] || '').get('session') || '';
+    return PLAY_SESSION_ID.test(id) ? id : '';
+};

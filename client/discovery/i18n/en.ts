@@ -112,6 +112,8 @@ export const en = {
         play: 'Play',
         resume: 'Resume',
         closePlayer: 'Close player',
+        fullscreen: 'Full screen',
+        exitFullscreen: 'Exit full screen',
         back: 'Back',
         seasons: 'Seasons',
         episodes: 'Episodes',
