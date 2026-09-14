@@ -600,8 +600,9 @@ html[data-theme="light"] .media-details-hero-scrim-left {
 /* Sidebar nav: hide scrollbar; compress items instead of showing a track */
 .sidebar-nav-scroll {
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: clip;
   scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 .sidebar-nav-scroll::-webkit-scrollbar {
   display: none;

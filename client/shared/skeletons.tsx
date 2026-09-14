@@ -185,8 +185,8 @@ export const DiscoverPageSkeleton: React.FC<{ recentLimit?: number; gridSize?: U
     const sectionCount = Math.max(6, Math.min(40, Number(recentLimit) || 20));
 
     return (
-        <div className="w-full flex flex-col min-h-screen" aria-busy="true" aria-label="Loading dashboard">
-            <main className="discover-layout-container w-full pb-8 mt-4 md:mt-0">
+        <div className="w-full min-w-0 flex flex-col shrink-0" aria-busy="true" aria-label="Loading dashboard">
+            <main className="w-full min-w-0 pb-8 mt-4 md:mt-0">
                 <section className="mb-12 w-full">
                     <h2 className="text-plex text-sm uppercase tracking-[2px] mb-6 font-bold border-b border-white/10 pb-2">ACTIVITY</h2>
                     <ActivityGridSkeleton count={3} />

@@ -10416,8 +10416,8 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
     );
 
     return (
-        <div className="w-full flex flex-col min-h-screen overflow-x-hidden">
-            <main className="discover-layout-container w-full min-w-0 overflow-x-hidden pb-8 mt-4 md:mt-0">
+        <div className="w-full min-w-0 flex flex-col shrink-0">
+            <main className="w-full min-w-0 pb-8 mt-4 md:mt-0">
                 {error && <div className="toast error show">{error}</div>}
                 {pollError && !error && <div className="toast error show">{pollError}</div>}
 
@@ -10448,7 +10448,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                         </form>
 
                         {searchActive && (
-                            <div className="mt-3 flex w-full max-w-full min-w-0 flex-col gap-3 sm:gap-4">
+                            <div className="mt-3 flex w-full max-w-full min-w-0 max-h-[min(70vh,40rem)] flex-col gap-3 overflow-x-clip overflow-y-auto overscroll-contain custom-scrollbar sm:gap-4">
                                 {isDiscoverSearching ? (
                                     <p className="text-muted text-sm text-center py-4">Searching...</p>
                                 ) : discoverSearchResults?.length === 0 ? (
@@ -10479,7 +10479,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
                                                             <span className="text-xs font-bold uppercase tracking-widest text-status-active">Watch History <span className="bg-status-active/20 px-1.5 py-0.5 rounded-full text-[10px] ml-1">{item.history.length}</span></span>
                                                         </div>
                                                         <div className="bg-black/40 border border-white/5 rounded-xl overflow-hidden shadow-inner">
-                                                            <div className="max-h-48 overflow-x-hidden overflow-y-auto custom-scrollbar">
+                                                            <div className="max-h-48 overflow-x-clip overflow-y-auto custom-scrollbar">
                                                                 {item.history.map((h: any, i: number) => (
                                                                     <div key={i} className="flex min-w-0 flex-col gap-2 text-xs p-2.5 sm:p-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0 sm:flex-row sm:items-center sm:gap-4">
                                                                         <button 
