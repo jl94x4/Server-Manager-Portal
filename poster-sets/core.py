@@ -14,6 +14,7 @@ import tempfile
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 from typing import Any, Callable, Iterable, List, Optional, Sequence, Set, Tuple
 
 from urllib.parse import quote, unquote
@@ -22,6 +23,11 @@ import plexapi.exceptions
 import requests
 from bs4 import BeautifulSoup
 from plexapi.server import PlexServer
+
+try:
+    from PIL import Image
+except ImportError:  # pragma: no cover - Docker installs overlays/Pillow into this venv
+    Image = None
 
 try:
     from plex_identity import configure_plex_identity
@@ -344,6 +350,175 @@ def cleanup_temp_file(path: Optional[str]) -> None:
         pass
 
 
+# Plex hard-rejects POST /posters and /arts above 10MB with a generic HTTP 500
+# ("Content-Length exceeds the maximum allowed limit of 10MB" in the PMS log).
+PLEX_ARTWORK_MAX_BYTES = int(9.5 * 1024 * 1024)
+
+
+def _unlock_plex_artwork(item, *, art: bool = False) -> None:
+    """Plex often 500s on /posters when the thumb/art field is locked."""
+    field = "art.locked" if art else "thumb.locked"
+    try:
+        item.edit(**{field: 0})
+    except Exception:
+        pass
+
+
+def _is_retryable_plex_artwork_error(exc: BaseException) -> bool:
+    text = str(exc or "").lower()
+    return any(
+        token in text
+        for token in (
+            "500",
+            "502",
+            "503",
+            "504",
+            "internal_server_error",
+            "internal server error",
+            "timeout",
+            "timed out",
+            "connection reset",
+            "connection aborted",
+            "10mb",
+            "content-length",
+            "exceeds the maximum",
+        )
+    )
+
+
+def _flatten_artwork_rgb(img: "Image.Image") -> "Image.Image":
+    rgba = img.convert("RGBA")
+    flat = Image.new("RGB", rgba.size, (0, 0, 0))
+    flat.paste(rgba, mask=rgba.split()[3])
+    return flat
+
+
+def compress_artwork_for_plex(
+    src: str | Path,
+    dest: str | Path,
+    *,
+    max_bytes: int = PLEX_ARTWORK_MAX_BYTES,
+) -> Path:
+    """Re-encode/resize until the file is under Plex's ~10MB upload cap."""
+    if Image is None:
+        raise RuntimeError(
+            "Pillow is required to compress artwork over Plex's 10MB upload limit"
+        )
+    src_path = Path(src)
+    dest_path = Path(dest)
+    img = _flatten_artwork_rgb(Image.open(src_path))
+    dest_path.parent.mkdir(parents=True, exist_ok=True)
+
+    plans: list[tuple[int, int, int]] = [
+        (2000, 3000, 92),
+        (1600, 2400, 88),
+        (1400, 2100, 85),
+        (1200, 1800, 82),
+        (1000, 1500, 80),
+        (1000, 1500, 72),
+        (800, 1200, 70),
+    ]
+    last_size = 0
+    resample = getattr(Image, "Resampling", Image).LANCZOS
+    for max_w, max_h, quality in plans:
+        frame = img.copy()
+        if frame.width > max_w or frame.height > max_h:
+            frame.thumbnail((max_w, max_h), resample)
+        frame.save(dest_path, format="JPEG", quality=quality, optimize=True)
+        last_size = dest_path.stat().st_size
+        if last_size <= max_bytes:
+            return dest_path
+    raise RuntimeError(
+        f"Could not compress artwork under Plex 10MB limit "
+        f"(still {last_size} bytes after re-encode)"
+    )
+
+
+def upload_artwork_to_plex(
+    item,
+    filepath: str | Path,
+    *,
+    art: bool = False,
+    progress: ProgressFn = None,
+    title: str | None = None,
+    retries: int = 3,
+) -> None:
+    """Upload a poster or background, compressing when over Plex's 10MB cap."""
+    path = Path(filepath)
+    label = title or getattr(item, "title", None) or str(getattr(item, "ratingKey", "") or path.name)
+    upload_path = path
+    compressed: Path | None = None
+    size = 0
+
+    def _upload(target: Path) -> None:
+        if art:
+            item.uploadArt(filepath=str(target))
+        else:
+            item.uploadPoster(filepath=str(target))
+
+    try:
+        try:
+            size = path.stat().st_size
+        except Exception:
+            size = 0
+
+        if size > PLEX_ARTWORK_MAX_BYTES:
+            compressed = path.with_name(f"{path.stem}_plex.jpg")
+            compress_artwork_for_plex(path, compressed)
+            upload_path = compressed
+            emit(
+                progress,
+                f"Compressed artwork for {label}: {size} → {compressed.stat().st_size} bytes "
+                f"(Plex 10MB upload limit)",
+            )
+
+        _unlock_plex_artwork(item, art=art)
+        last_exc: BaseException | None = None
+        for attempt in range(max(1, int(retries))):
+            try:
+                _upload(upload_path)
+                return
+            except Exception as exc:
+                last_exc = exc
+                if not _is_retryable_plex_artwork_error(exc):
+                    raise
+                emit(
+                    progress,
+                    f"Plex artwork upload failed for {label} "
+                    f"(attempt {attempt + 1}/{retries}): {exc}",
+                )
+                if compressed is None:
+                    try:
+                        compressed = path.with_name(f"{path.stem}_plex.jpg")
+                        compress_artwork_for_plex(path, compressed)
+                        upload_path = compressed
+                        emit(
+                            progress,
+                            f"Retrying {label} with compressed JPEG "
+                            f"({compressed.stat().st_size} bytes)",
+                        )
+                    except Exception as compress_exc:
+                        emit(progress, f"Artwork compress failed for {label}: {compress_exc}")
+                _unlock_plex_artwork(item, art=art)
+                try:
+                    if hasattr(item, "reload") and callable(item.reload):
+                        item.reload()
+                except Exception:
+                    pass
+                time.sleep(min(3.0, 0.5 * (attempt + 1)))
+
+        if last_exc is not None:
+            raise last_exc
+        raise RuntimeError(f"Plex artwork upload failed for {label}")
+    finally:
+        if compressed is not None:
+            try:
+                if compressed.exists():
+                    compressed.unlink()
+            except Exception:
+                pass
+
+
 def apply_poster_or_art(upload_target, poster: dict, *, art: bool = False, progress: ProgressFn = None) -> None:
     """
     Upload artwork to Plex and/or write beside media on disk when local mode is enabled.
@@ -372,10 +547,13 @@ def apply_poster_or_art(upload_target, poster: dict, *, art: bool = False, progr
                 emit(progress, f"Local art failed (continuing with Plex): {exc}")
         if should_upload_plex(config):
             if path:
-                if art:
-                    upload_target.uploadArt(filepath=path)
-                else:
-                    upload_target.uploadPoster(filepath=path)
+                upload_artwork_to_plex(
+                    upload_target,
+                    path,
+                    art=art,
+                    progress=progress,
+                    title=poster.get("title"),
+                )
             elif art:
                 upload_target.uploadArt(url=url)
             else:
