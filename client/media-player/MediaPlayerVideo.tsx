@@ -6,7 +6,7 @@ import { portalUrl } from '../shared/basePath';
 import { lockBackgroundScroll } from '../shared/lockBackgroundScroll';
 import { PORTAL_CSRF_HEADER, PORTAL_CSRF_VALUE } from '../shared/api';
 import { useDiscoverI18n } from '../discovery/i18n';
-import { formatClock } from './playerUtils';
+import { formatClock, withPlayerStreamQuery } from './playerUtils';
 import { reportMediaPlayerTimeline } from './api';
 import type { PlayerPlaySession } from './types';
 
@@ -14,6 +14,8 @@ type Props = {
     session: PlayerPlaySession;
     onClose: () => void;
 };
+
+type PickerOption = { id: string; label: string };
 
 const hlsErrorMessage = (data: { response?: { code?: number; text?: string; data?: unknown } }, fallback: string) => {
     const raw = String(data?.response?.text || (typeof data?.response?.data === 'string' ? data.response.data : '') || '').trim();
@@ -32,6 +34,56 @@ const hlsErrorMessage = (data: { response?: { code?: number; text?: string; data
     return fallback;
 };
 
+const TrackPicker: React.FC<{
+    label: string;
+    value: string;
+    options: PickerOption[];
+    open: boolean;
+    onToggle: () => void;
+    onChange: (id: string) => void;
+}> = ({ label, value, options, open, onToggle, onChange }) => {
+    if (!options.length) return null;
+    const selected = options.find((row) => row.id === value)?.label || label;
+    return (
+        <div className="relative" onClick={(event) => event.stopPropagation()}>
+            <button
+                type="button"
+                onClick={(event) => {
+                    event.stopPropagation();
+                    onToggle();
+                }}
+                className="inline-flex max-w-[9.5rem] items-center truncate rounded-full bg-white/10 px-3 py-1.5 text-white hover:bg-white/20"
+                aria-haspopup="listbox"
+                aria-expanded={open}
+                aria-label={label}
+            >
+                <span className="truncate">{selected}</span>
+            </button>
+            {open ? (
+                <div
+                    className="absolute bottom-full left-0 z-20 mb-2 max-h-56 min-w-[13rem] overflow-y-auto rounded-xl border border-white/15 bg-black/95 py-1 shadow-2xl"
+                    role="listbox"
+                    aria-label={label}
+                >
+                    <p className="px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white/45">{label}</p>
+                    {options.map((row) => (
+                        <button
+                            key={row.id || 'off'}
+                            type="button"
+                            role="option"
+                            aria-selected={row.id === value}
+                            onClick={() => onChange(row.id)}
+                            className={`block w-full px-3 py-2 text-left text-xs font-bold hover:bg-white/10 ${row.id === value ? 'text-plex' : 'text-white'}`}
+                        >
+                            {row.label}
+                        </button>
+                    ))}
+                </div>
+            ) : null}
+        </div>
+    );
+};
+
 export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
     const { t } = useDiscoverI18n();
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -41,9 +93,18 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
     const [ready, setReady] = useState(false);
     const [currentMs, setCurrentMs] = useState(0);
     const [durationMs, setDurationMs] = useState(session.item.durationMs || 0);
+    const [playbackSrc, setPlaybackSrc] = useState(session.src);
+    const [qualityId, setQualityId] = useState(session.qualityId || '');
+    const [audioStreamId, setAudioStreamId] = useState(session.audioStreamId || '');
+    const [subtitleStreamId, setSubtitleStreamId] = useState(session.subtitleStreamId || '');
+    const [openMenu, setOpenMenu] = useState<'quality' | 'audio' | 'subtitles' | null>(null);
     const currentMsRef = useRef(0);
     const durationMsRef = useRef(session.item.durationMs || 0);
     const sendTimelineRef = useRef<(state: 'playing' | 'paused' | 'buffering' | 'stopped') => void>(() => {});
+
+    const qualities = session.qualities || [];
+    const audioTracks = session.audioTracks || [];
+    const subtitles = session.subtitles || [];
 
     useEffect(() => {
         currentMsRef.current = currentMs;
@@ -52,12 +113,32 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
         durationMsRef.current = durationMs;
     }, [durationMs]);
 
+    useEffect(() => {
+        setPlaybackSrc(session.src);
+        setQualityId(session.qualityId || '');
+        setAudioStreamId(session.audioStreamId || '');
+        setSubtitleStreamId(session.subtitleStreamId || '');
+        setOpenMenu(null);
+        setCurrentMs(session.offsetMs || 0);
+        setDurationMs(session.item.durationMs || 0);
+    }, [session.sessionId]);
+
     useEffect(() => lockBackgroundScroll(), []);
+
+    useEffect(() => {
+        if (!openMenu) return undefined;
+        const close = () => setOpenMenu(null);
+        const timer = window.setTimeout(() => window.addEventListener('click', close), 0);
+        return () => {
+            window.clearTimeout(timer);
+            window.removeEventListener('click', close);
+        };
+    }, [openMenu]);
 
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return undefined;
-        const src = portalUrl(session.src);
+        const src = portalUrl(playbackSrc);
         let cancelled = false;
         setError(null);
         setReady(false);
@@ -122,7 +203,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
             video.removeAttribute('src');
             video.load();
         };
-    }, [session.src, t]);
+    }, [playbackSrc, t]);
 
     useEffect(() => {
         const ratingKey = session.item.ratingKey;
@@ -160,7 +241,13 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
 
     useEffect(() => {
         const onKey = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') onClose();
+            if (event.key === 'Escape') {
+                if (openMenu) {
+                    setOpenMenu(null);
+                    return;
+                }
+                onClose();
+            }
             if (event.key === ' ') {
                 event.preventDefault();
                 const video = videoRef.current;
@@ -171,7 +258,31 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
-    }, [onClose]);
+    }, [onClose, openMenu]);
+
+    const applyStreamChange = (patch: {
+        qualityId?: string;
+        audioStreamId?: string;
+        subtitleStreamId?: string | null;
+    }) => {
+        const nextQuality = patch.qualityId ?? qualityId;
+        const nextAudio = patch.audioStreamId ?? audioStreamId;
+        const nextSub = patch.subtitleStreamId !== undefined ? (patch.subtitleStreamId || '') : subtitleStreamId;
+        if (nextQuality === qualityId && nextAudio === audioStreamId && nextSub === subtitleStreamId) {
+            setOpenMenu(null);
+            return;
+        }
+        if (patch.qualityId != null) setQualityId(patch.qualityId);
+        if (patch.audioStreamId != null) setAudioStreamId(patch.audioStreamId);
+        if (patch.subtitleStreamId !== undefined) setSubtitleStreamId(nextSub);
+        setOpenMenu(null);
+        setPlaybackSrc(withPlayerStreamQuery(session.src, {
+            offset: Math.floor(currentMsRef.current || 0),
+            quality: nextQuality || null,
+            audioStreamID: nextAudio || null,
+            subtitleStreamID: nextSub || null,
+        }));
+    };
 
     const togglePlayback = () => {
         const video = videoRef.current;
@@ -240,7 +351,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
                 </div>
             ) : null}
 
-            {!error && (!ready || paused) && currentMs < 800 ? (
+            {!error && !ready ? (
                 <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3">
                     <Loader2 className="h-10 w-10 animate-spin text-white/80" />
                     <p className="text-xs font-bold uppercase tracking-widest text-white/70">{t('mediaPlayerPage.buffering')}</p>
@@ -264,16 +375,47 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
                     className="w-full accent-plex"
                     aria-label={session.item.title}
                 />
-                <div className="mt-2 flex items-center justify-between text-xs font-bold text-white/80">
-                    <button
-                        type="button"
-                        onClick={togglePlayback}
-                        className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-white hover:bg-white/20"
-                    >
-                        {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-                        {paused ? t('mediaPlayerPage.play') : t('mediaPlayerPage.pause')}
-                    </button>
-                    <span>{formatClock(currentMs)} / {formatClock(durationMs)}</span>
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-3 text-xs font-bold text-white/80">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={togglePlayback}
+                            className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-white hover:bg-white/20"
+                        >
+                            {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+                            {paused ? t('mediaPlayerPage.play') : t('mediaPlayerPage.pause')}
+                        </button>
+                        <TrackPicker
+                            label={t('mediaPlayerPage.quality')}
+                            value={qualityId}
+                            options={qualities}
+                            open={openMenu === 'quality'}
+                            onToggle={() => setOpenMenu((current) => current === 'quality' ? null : 'quality')}
+                            onChange={(id) => applyStreamChange({ qualityId: id })}
+                        />
+                        <TrackPicker
+                            label={t('mediaPlayerPage.audio')}
+                            value={audioStreamId}
+                            options={audioTracks}
+                            open={openMenu === 'audio'}
+                            onToggle={() => setOpenMenu((current) => current === 'audio' ? null : 'audio')}
+                            onChange={(id) => applyStreamChange({ audioStreamId: id })}
+                        />
+                        {subtitles.length ? (
+                            <TrackPicker
+                                label={t('mediaPlayerPage.subtitles')}
+                                value={subtitleStreamId}
+                                options={[
+                                    { id: '', label: t('mediaPlayerPage.subtitlesOff') },
+                                    ...subtitles,
+                                ]}
+                                open={openMenu === 'subtitles'}
+                                onToggle={() => setOpenMenu((current) => current === 'subtitles' ? null : 'subtitles')}
+                                onChange={(id) => applyStreamChange({ subtitleStreamId: id })}
+                            />
+                        ) : null}
+                    </div>
+                    <span className="shrink-0">{formatClock(currentMs)} / {formatClock(durationMs)}</span>
                 </div>
             </div>
         </div>

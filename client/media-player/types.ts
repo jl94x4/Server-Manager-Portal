@@ -64,9 +64,41 @@ export type PlayerItemPage = {
     children: PlayerItem[];
 };
 
+export type PlayerQualityOption = {
+    id: string;
+    label: string;
+    videoResolution: string;
+    maxVideoBitrate: number;
+    videoQuality: number;
+};
+
+export type PlayerAudioTrack = {
+    id: string;
+    label: string;
+    language?: string | null;
+    codec?: string | null;
+    channels?: number | null;
+    selected?: boolean;
+};
+
+export type PlayerSubtitleTrack = {
+    id: string;
+    label: string;
+    language?: string | null;
+    codec?: string | null;
+    forced?: boolean;
+    selected?: boolean;
+};
+
 export type PlayerPlaySession = {
     sessionId: string;
     item: PlayerItem;
     src: string;
     offsetMs: number;
+    qualities?: PlayerQualityOption[];
+    qualityId?: string;
+    audioTracks?: PlayerAudioTrack[];
+    audioStreamId?: string | null;
+    subtitles?: PlayerSubtitleTrack[];
+    subtitleStreamId?: string | null;
 };

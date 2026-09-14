@@ -102,7 +102,7 @@ export const en = {
     },
     mediaPlayerPage: {
         alphaTitle: 'Alpha feature',
-        alphaNotice: 'Media Player is in ALPHA. Libraries, details, and playback work, but this is not a full Plex client yet — subtitles, live TV, and mobile apps are still ahead.',
+        alphaNotice: 'Media Player is in ALPHA. Libraries, details, and playback work, but this is not a full Plex client yet — live TV and mobile apps are still ahead.',
         continueWatching: 'Continue Watching',
         recentlyAddedMovies: 'Recently Added Movies',
         recentlyAddedShows: 'Recently Added Shows',
@@ -132,6 +132,10 @@ export const en = {
         buffering: 'Starting stream…',
         onThisServer: 'On this server',
         emptyPerson: 'Nothing with {name} on this server yet.',
+        quality: 'Quality',
+        audio: 'Audio',
+        subtitles: 'Subtitles',
+        subtitlesOff: 'Off',
     },
     profilePage: {
         eyebrow: 'Member profile',

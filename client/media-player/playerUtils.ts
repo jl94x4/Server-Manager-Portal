@@ -39,3 +39,16 @@ export const toPosterCardItem = (item: PlayerItem) => ({
     year: item.year || undefined,
     parentTitle: item.showTitle || item.seasonTitle || undefined,
 });
+
+export const withPlayerStreamQuery = (src: string, updates: Record<string, string | number | null | undefined>) => {
+    const qIndex = src.indexOf('?');
+    const path = qIndex >= 0 ? src.slice(0, qIndex) : src;
+    const qs = new URLSearchParams(qIndex >= 0 ? src.slice(qIndex + 1) : '');
+    qs.delete('resume');
+    for (const [key, value] of Object.entries(updates)) {
+        if (value == null || value === '') qs.delete(key);
+        else qs.set(key, String(value));
+    }
+    const query = qs.toString();
+    return query ? `${path}?${query}` : path;
+};
