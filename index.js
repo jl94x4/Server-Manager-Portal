@@ -12144,7 +12144,16 @@ app.get('/api/discovery/my-requests', requireAuth, requireMember, async (req, re
         if (!gate.ready) return res.status(400).json({ error: 'Request app not configured' });
 
         const payload = await requestAppService.listMemberRequests(config, req.user, { filter, take, skip });
-        res.json({ configured: true, ...payload });
+        return res.json({
+            configured: true,
+            ...payload,
+            pending: payload.counts?.pending,
+            approved: payload.counts?.approved,
+            available: payload.counts?.available,
+            declined: payload.counts?.declined,
+            failed: payload.counts?.failed,
+            total: payload.counts?.total,
+        });
     } catch (e) {
         log(`Discovery my-requests error: ${e.message}`);
         res.status(500).json({ error: e.message });
