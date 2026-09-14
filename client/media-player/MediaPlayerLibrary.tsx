@@ -7,19 +7,21 @@ import { discoveryTheme } from '../discovery/discoveryThemeClasses';
 import { useDiscoverI18n } from '../discovery/i18n';
 import { PosterGridSkeleton } from '../shared/skeletons';
 import { upgraderPosterGridClass, upgraderPosterGridStyle } from '../shared/portalLayout';
-import { fetchMediaPlayerLibrary } from './api';
+import { fetchMediaPlayerLibraries, fetchMediaPlayerLibrary } from './api';
+import { MediaPlayerLibrariesPanel } from './MediaPlayerLibrariesPanel';
 import { toPosterCardItem } from './playerUtils';
-import type { PlayerItem } from './types';
+import type { PlayerItem, PlayerSection } from './types';
 
 type Props = {
     sectionKey: string;
     onBack: () => void;
     onOpenItem: (item: PlayerItem) => void;
+    onOpenLibrary: (section: PlayerSection) => void;
 };
 
 const PAGE_SIZE = 50;
 
-export const MediaPlayerLibrary: React.FC<Props> = ({ sectionKey, onBack, onOpenItem }) => {
+export const MediaPlayerLibrary: React.FC<Props> = ({ sectionKey, onBack, onOpenItem, onOpenLibrary }) => {
     const { t } = useDiscoverI18n();
     const [gridSize, setGridSize] = useDiscoverGridSize();
     const [title, setTitle] = useState(t('mediaPlayerPage.libraries'));
@@ -28,6 +30,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({ sectionKey, onBack, onOpen
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [libraries, setLibraries] = useState<PlayerSection[]>([]);
 
     const load = useCallback(async (start: number, append: boolean) => {
         if (append) setLoadingMore(true);
@@ -51,6 +54,18 @@ export const MediaPlayerLibrary: React.FC<Props> = ({ sectionKey, onBack, onOpen
         void load(0, false);
     }, [load]);
 
+    useEffect(() => {
+        let cancelled = false;
+        fetchMediaPlayerLibraries()
+            .then((data) => {
+                if (!cancelled) setLibraries(data.libraries || []);
+            })
+            .catch(() => {
+                if (!cancelled) setLibraries([]);
+            });
+        return () => { cancelled = true; };
+    }, []);
+
     return (
         <div className="flex flex-col gap-5 pb-8">
             <div className="flex flex-wrap items-end justify-between gap-3">
@@ -67,6 +82,14 @@ export const MediaPlayerLibrary: React.FC<Props> = ({ sectionKey, onBack, onOpen
                 </div>
                 <DiscoverGridSizeSelect value={gridSize} onChange={setGridSize} />
             </div>
+
+            {libraries.length ? (
+                <MediaPlayerLibrariesPanel
+                    libraries={libraries}
+                    onOpenLibrary={onOpenLibrary}
+                    activeKey={sectionKey}
+                />
+            ) : null}
 
             {loading ? (
                 <PosterGridSkeleton />

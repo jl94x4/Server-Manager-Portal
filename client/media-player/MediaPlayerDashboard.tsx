@@ -87,6 +87,7 @@ export const MediaPlayerDashboard: React.FC = () => {
                     sectionKey={view.sectionKey}
                     onBack={goHome}
                     onOpenItem={openItem}
+                    onOpenLibrary={openLibrary}
                 />
             ) : null}
             {view.kind === 'item' ? (

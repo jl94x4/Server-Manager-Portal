@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Film, Music, Search, Tv } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { DiscoverPosterCard } from '../screens';
 import { Carousel } from '../discovery/Carousel';
 import { DiscoverSectionHeader } from '../discovery/DiscoverSectionHeader';
@@ -11,18 +11,13 @@ import { DiscoverHomeSkeleton } from '../shared/skeletons';
 import { MediaPlayerAlphaBanner } from '../shared/BetaBadge';
 import { discoverRowCardWidthClass, posterGridCardWidthStyle } from '../shared/portalLayout';
 import { fetchMediaPlayerHome, searchMediaPlayer } from './api';
+import { MediaPlayerLibrariesPanel } from './MediaPlayerLibrariesPanel';
 import { progressPercent, toPosterCardItem } from './playerUtils';
 import type { PlayerHome, PlayerItem, PlayerSection } from './types';
 
 type Props = {
     onOpenItem: (item: PlayerItem) => void;
     onOpenLibrary: (section: PlayerSection) => void;
-};
-
-const libraryIcon = (type: string) => {
-    if (type === 'show') return Tv;
-    if (type === 'artist') return Music;
-    return Film;
 };
 
 const PlayerRail: React.FC<{
@@ -180,30 +175,10 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary }) 
             ) : null}
 
             {!query.trim() && home?.libraries?.length ? (
-                <section className="flex flex-col gap-3">
-                    <DiscoverSectionHeader title={t('mediaPlayerPage.libraries')} />
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                        {home.libraries.map((section) => {
-                            const Icon = libraryIcon(section.type);
-                            return (
-                                <button
-                                    key={section.key}
-                                    type="button"
-                                    onClick={() => onOpenLibrary(section)}
-                                    className="flex items-center gap-3 rounded-xl border border-border bg-white/[0.03] px-4 py-3 text-left hover:border-plex/50 hover:bg-white/[0.06]"
-                                >
-                                    <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-plex/15 text-plex">
-                                        <Icon className="h-5 w-5" />
-                                    </span>
-                                    <span className="min-w-0">
-                                        <span className="block truncate font-bold text-text">{section.title}</span>
-                                        <span className="block text-[11px] uppercase tracking-wider text-muted">{section.type}</span>
-                                    </span>
-                                </button>
-                            );
-                        })}
-                    </div>
-                </section>
+                <MediaPlayerLibrariesPanel
+                    libraries={home.libraries}
+                    onOpenLibrary={onOpenLibrary}
+                />
             ) : null}
 
             {!query.trim() && home ? (
