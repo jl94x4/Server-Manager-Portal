@@ -61,6 +61,7 @@ import {
     fieldClass,
     formatSetLabel,
     formatTime,
+    isCopyLibraryTitleEnabled,
     isMediuxEnabled,
     isTitleCardRail,
     isTitleCardSet,
@@ -612,6 +613,28 @@ export const PosterSetsSettingsView: React.FC = () => {
                             description="Search, Browse rails, title cards, and MediUX labels."
                             checked={isMediuxEnabled(configDraft)}
                             onChange={(next) => void applySourceEnabled('mediux', next)}
+                            border={false}
+                        />
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 space-y-1">
+                        <p className="text-sm font-semibold text-text">Library</p>
+                        <SettingsToggleRow
+                            title="Copy title on poster hover"
+                            description="Shows a copy button on library movie/TV posters so you can paste the name into ThePosterDB. On phones the button stays visible on the poster. Off keeps the grid unchanged."
+                            checked={isCopyLibraryTitleEnabled(configDraft)}
+                            onChange={(next) => {
+                                void (async () => {
+                                    setBusy('save');
+                                    try {
+                                        await persistConfig({ copyLibraryTitleEnabled: next });
+                                        toast(next ? 'Copy title on poster hover on' : 'Copy title on poster hover off');
+                                    } catch (error) {
+                                        toast(error instanceof Error ? error.message : 'Failed to update copy title', 'error');
+                                    } finally {
+                                        setBusy(null);
+                                    }
+                                })();
+                            }}
                             border={false}
                         />
                     </div>

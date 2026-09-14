@@ -46,6 +46,8 @@ export type PosterSetsConfig = {
      * Off keeps watches and the import script working (default on).
      */
     tpdbSearchEnabled?: boolean;
+    /** Show a copy-title control on library posters (hover on desktop; always on touch). Default on. */
+    copyLibraryTitleEnabled?: boolean;
     /** Include MediUX in search, Browse, and UI copy (default on). */
     mediuxEnabled?: boolean;
     /** Soft disk budget for tpdb-image-cache (bytes). */
@@ -496,6 +498,7 @@ export const DEFAULT_POSTER_SETS_CONFIG: PosterSetsConfig = {
     tpdbUseLogin: true,
     tpdbEnabled: true,
     tpdbSearchEnabled: true,
+    copyLibraryTitleEnabled: true,
     mediuxEnabled: true,
     tpdbCacheMaxBytes: 2 * 1024 * 1024 * 1024,
     tpdbCacheRefreshHour: 3,

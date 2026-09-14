@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ExternalLink, Image as ImageIcon, Loader2, X } from 'lucide-react';
+import { Check, Copy, ExternalLink, Image as ImageIcon, Loader2, X } from 'lucide-react';
 import { ModalPortal } from '../../shared/ModalPortal';
 import { posterSetsApi } from '../api';
 import { libraryItemPosterSrc, type LibraryRecentItem } from '../libraryRecent';
@@ -152,6 +152,41 @@ export const bulkEntryFromSet = (set: PosterSetsSearchSet): BulkSetSelection => 
     setKind: set.setKind || (isTitleCardSet(set) ? 'title_cards' : null),
 });
 
+/** Copy a library title for pasting into ThePosterDB. Overlay this on the poster. */
+export function CopyTitleButton({
+    title,
+    className = '',
+}: {
+    title: string;
+    className?: string;
+}) {
+    const [copied, setCopied] = useState(false);
+    const text = String(title || '').trim();
+    if (!text) return null;
+
+    return (
+        <button
+            type="button"
+            className={`inline-flex h-7 w-7 items-center justify-center rounded-md border border-white/20 bg-black/70 text-white shadow-lg backdrop-blur-sm transition hover:bg-black/90 hover:text-plex ${className}`}
+            aria-label={copied ? 'Copied title' : `Copy title ${text}`}
+            title={copied ? 'Copied' : 'Copy title'}
+            onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                void navigator.clipboard.writeText(text).then(
+                    () => {
+                        setCopied(true);
+                        window.setTimeout(() => setCopied(false), 1500);
+                    },
+                    () => undefined,
+                );
+            }}
+        >
+            {copied ? <Check className="h-3.5 w-3.5 text-emerald-300" /> : <Copy className="h-3.5 w-3.5" />}
+        </button>
+    );
+}
+
 export function BrowseSetCard({
     set,
     onOpen,
@@ -227,55 +262,71 @@ export function LibraryMediaCard({
     disabled,
     onOpen,
     cacheLevel = null,
+    showCopyTitle = false,
 }: {
     item: LibraryRecentItem;
     disabled?: boolean;
     onOpen: (item: LibraryRecentItem) => void;
     cacheLevel?: TpdbCoverageLevel | string | null;
+    showCopyTitle?: boolean;
 }) {
     const label = item.year ? `${item.title} (${item.year})` : item.title;
     const cacheLabel = coverageBadgeLabel(cacheLevel);
     return (
-        <button
-            type="button"
-            disabled={disabled}
-            onClick={() => onOpen(item)}
-            className="group flex w-full min-w-0 flex-col overflow-hidden rounded-md border border-white/10 bg-black/20 text-left transition hover:border-plex/40 disabled:opacity-50"
-        >
-            <div className="relative aspect-[2/3] w-full shrink-0 overflow-hidden bg-black text-center">
-                <PosterThumb
-                    src={libraryItemPosterSrc(item)}
-                    alt={item.title}
-                    className="absolute inset-0 h-full w-full"
-                    imgClassName="absolute inset-0 h-full w-full object-cover"
-                />
-                <span className="absolute bottom-2 left-2 rounded-full border border-white/15 bg-black/55 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">
-                    {item.mediaType === 'movie' ? 'Movie' : 'TV'}
-                </span>
-                {cacheLabel ? (
-                    <span
-                        className={`absolute right-1.5 top-1.5 rounded-full border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${coverageBadgeClass(cacheLevel)}`}
-                        title={
-                            cacheLevel === 'images'
-                                ? 'Title, set pages, and images cached'
-                                : cacheLevel === 'sets'
-                                    ? 'Title + set pages cached'
-                                    : 'Title set list cached'
-                        }
-                    >
-                        {cacheLabel}
+        <div className="flex w-full min-w-0 flex-col overflow-hidden rounded-md border border-white/10 bg-black/20 text-left transition hover:border-plex/40">
+            <div className="group/poster relative aspect-[2/3] w-full shrink-0 overflow-hidden bg-black text-center">
+                <button
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => onOpen(item)}
+                    className="absolute inset-0 disabled:opacity-50"
+                    aria-label={label}
+                >
+                    <PosterThumb
+                        src={libraryItemPosterSrc(item)}
+                        alt={item.title}
+                        className="absolute inset-0 h-full w-full"
+                        imgClassName="absolute inset-0 h-full w-full object-cover"
+                    />
+                    <span className="absolute bottom-2 left-2 rounded-full border border-white/15 bg-black/55 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">
+                        {item.mediaType === 'movie' ? 'Movie' : 'TV'}
                     </span>
+                    {cacheLabel ? (
+                        <span
+                            className={`absolute right-1.5 top-1.5 rounded-full border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${coverageBadgeClass(cacheLevel)}`}
+                            title={
+                                cacheLevel === 'images'
+                                    ? 'Title, set pages, and images cached'
+                                    : cacheLevel === 'sets'
+                                        ? 'Title + set pages cached'
+                                        : 'Title set list cached'
+                            }
+                        >
+                            {cacheLabel}
+                        </span>
+                    ) : null}
+                </button>
+                {showCopyTitle ? (
+                    <CopyTitleButton
+                        title={item.title}
+                        className="absolute left-1.5 top-1.5 z-10 opacity-0 pointer-events-none transition-opacity group-hover/poster:pointer-events-auto group-hover/poster:opacity-100 group-focus-within/poster:pointer-events-auto group-focus-within/poster:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
+                    />
                 ) : null}
             </div>
-            <div className="min-w-0 px-2 py-2 text-left">
+            <button
+                type="button"
+                disabled={disabled}
+                onClick={() => onOpen(item)}
+                className="min-w-0 px-2 py-2 text-left disabled:opacity-50"
+            >
                 <p className="line-clamp-2 text-[11px] font-semibold leading-snug text-text sm:text-xs" title={label}>
                     {item.title}
                 </p>
                 {item.year ? (
                     <p className="mt-0.5 text-[10px] text-muted">{item.year}</p>
                 ) : null}
-            </div>
-        </button>
+            </button>
+        </div>
     );
 }
 

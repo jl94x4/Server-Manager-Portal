@@ -44,6 +44,7 @@ export type PosterSetsLibraryBrowseProps = {
     onGridSizeChange: (size: UpgraderGridSize) => void;
     onOpenItem: (item: LibraryRecentItem) => void;
     showTpdbCoverage?: boolean;
+    showCopyTitle?: boolean;
 };
 
 export function PosterSetsLibraryBrowse({
@@ -52,6 +53,7 @@ export function PosterSetsLibraryBrowse({
     onGridSizeChange,
     onOpenItem,
     showTpdbCoverage = true,
+    showCopyTitle = false,
 }: PosterSetsLibraryBrowseProps) {
     const [sections, setSections] = useState<LibrarySection[]>([]);
     const [sectionKey, setSectionKey] = useState('');
@@ -249,6 +251,7 @@ export function PosterSetsLibraryBrowse({
                                     disabled={disabled}
                                     onOpen={onOpenItem}
                                     cacheLevel={levelFor(item)}
+                                    showCopyTitle={showCopyTitle}
                                 />
                             ))}
                         </div>

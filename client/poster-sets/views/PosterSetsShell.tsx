@@ -29,8 +29,9 @@ import {
     buttonClass,
     discoverSubNavForConfig,
     isDiscoverInternalTab,
-    isTpdbSearchEnabled,
     isMediuxEnabled,
+    isCopyLibraryTitleEnabled,
+    isTpdbSearchEnabled,
     posterSetsHeroTitle,
     primaryButtonClass,
 } from '../shared';
@@ -353,6 +354,7 @@ export const PosterSetsShell: React.FC = () => {
                     tpdbConfigured={Boolean(configDraft.hasTpdbPassword && String(configDraft.tpdb_username || '').trim())}
                     tpdbEnabled={isTpdbSearchEnabled(configDraft)}
                     mediuxEnabled={isMediuxEnabled(configDraft)}
+                    showCopyTitle={isCopyLibraryTitleEnabled(configDraft)}
                     onOpenTpdbSettings={() => goToPrimaryTab('settings')}
                     onApplied={() => {
                         void loadQueue();

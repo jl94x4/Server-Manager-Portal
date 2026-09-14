@@ -37,6 +37,7 @@ export {
     enabledSearchProviders,
     isDiscoverInternalTab,
     isMediuxEnabled,
+    isCopyLibraryTitleEnabled,
     isTpdbEnabled,
     isTpdbSearchEnabled,
     posterSetsHeroTitle,
@@ -107,6 +108,7 @@ export {
 
 export {
     BrowseSetCard,
+    CopyTitleButton,
     LibraryMediaCard,
     PosterImageLightbox,
     PosterThumb,

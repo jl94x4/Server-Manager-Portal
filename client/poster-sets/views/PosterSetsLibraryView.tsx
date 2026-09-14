@@ -57,6 +57,7 @@ import {
     formatTime,
     isTitleCardRail,
     isTitleCardSet,
+    isCopyLibraryTitleEnabled,
     isTpdbEnabled,
     jobCardTone,
     jobSetMeta,
@@ -432,6 +433,7 @@ export const PosterSetsLibraryView: React.FC = () => {
                             onGridSizeChange={setGridSize}
                             onOpenItem={openLibraryItem}
                             showTpdbCoverage={isTpdbEnabled(configDraft)}
+                            showCopyTitle={isCopyLibraryTitleEnabled(configDraft)}
                         />
                     ) : null}
         
@@ -466,6 +468,7 @@ export const PosterSetsLibraryView: React.FC = () => {
                                             disabled={busy !== null}
                                             onOpen={openLibraryItem}
                                             cacheLevel={levelFor(item)}
+                                            showCopyTitle={isCopyLibraryTitleEnabled(configDraft)}
                                         />
                                     ))}
                                 </div>
@@ -500,6 +503,7 @@ export const PosterSetsLibraryView: React.FC = () => {
                                         disabled={busy !== null}
                                         onOpen={openLibraryItem}
                                         cacheLevel={levelFor(item)}
+                                        showCopyTitle={isCopyLibraryTitleEnabled(configDraft)}
                                     />
                                 ))}
                             </div>
@@ -520,6 +524,7 @@ export const PosterSetsLibraryView: React.FC = () => {
                                         disabled={busy !== null}
                                         onOpen={openLibraryItem}
                                         cacheLevel={levelFor(item)}
+                                        showCopyTitle={isCopyLibraryTitleEnabled(configDraft)}
                                     />
                                 ))}
                             </div>

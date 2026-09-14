@@ -35,6 +35,7 @@ import {
     type PosterSetsWatch,
 } from './types';
 import { ProviderCornerBadge } from './shared/posterSetsPills';
+import { CopyTitleButton } from './shared/posterSetsCards';
 import {
     inferRecentSetKindFromAssets,
     inferRecentSetKindFromFilters,
@@ -115,6 +116,7 @@ export type LibraryTitleDetailPanelProps = {
     tpdbEnabled?: boolean;
     mediuxEnabled?: boolean;
     onOpenTpdbSettings?: () => void;
+    showCopyTitle?: boolean;
 };
 
 export function LibraryTitleDetailPanel({
@@ -138,6 +140,7 @@ export function LibraryTitleDetailPanel({
     tpdbEnabled = true,
     mediuxEnabled = true,
     onOpenTpdbSettings,
+    showCopyTitle = false,
 }: LibraryTitleDetailPanelProps) {
     const [busy, setBusy] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
@@ -990,7 +993,7 @@ export function LibraryTitleDetailPanel({
                 className={panelShellClass}
             >
                 <div className={`flex shrink-0 items-start gap-3 border-b border-white/10 bg-black/20 p-4 sm:p-5 ${isModalLayout ? 'rounded-t-2xl' : 'md:rounded-t-2xl'}`}>
-                    <div className={`relative shrink-0 overflow-hidden rounded-md border border-white/10 bg-black ${
+                    <div className={`group/poster relative shrink-0 overflow-hidden rounded-md border border-white/10 bg-black ${
                         isModalLayout ? 'h-28 w-20 sm:h-36 sm:w-24' : 'h-20 w-14'
                     }`}>
                         <PosterThumb
@@ -999,6 +1002,12 @@ export function LibraryTitleDetailPanel({
                             className="absolute inset-0 h-full w-full"
                             imgClassName="absolute inset-0 h-full w-full object-cover"
                         />
+                        {showCopyTitle ? (
+                            <CopyTitleButton
+                                title={item.title}
+                                className="absolute left-1 top-1 z-10 h-6 w-6 opacity-0 pointer-events-none transition-opacity group-hover/poster:pointer-events-auto group-hover/poster:opacity-100 group-focus-within/poster:pointer-events-auto group-focus-within/poster:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
+                            />
+                        ) : null}
                     </div>
                     <div className="min-w-0 flex-1">
                         <p className="text-[10px] font-bold uppercase tracking-wide text-plex">

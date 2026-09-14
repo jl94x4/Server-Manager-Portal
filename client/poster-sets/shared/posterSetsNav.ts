@@ -23,6 +23,9 @@ export const isTpdbSearchEnabled = (config?: Partial<PosterSetsConfig> | null) =
     isTpdbEnabled(config) && config?.tpdbSearchEnabled !== false
 );
 export const isMediuxEnabled = (config?: Partial<PosterSetsConfig> | null) => config?.mediuxEnabled !== false;
+export const isCopyLibraryTitleEnabled = (config?: Partial<PosterSetsConfig> | null) => (
+    config?.copyLibraryTitleEnabled !== false
+);
 
 export const enabledSearchProviders = (config?: Partial<PosterSetsConfig> | null): SetProvider[] => {
     const out: SetProvider[] = [];
