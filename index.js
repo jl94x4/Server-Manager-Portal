@@ -17336,16 +17336,46 @@ app.get('/api/plex/discover-search', requireAuth, requireAdmin, async (req, res)
     }
 });
 
-const mapTitleHistoryRow = (row, source) => ({
-    user: row.user || 'Unknown',
-    userThumb: row.userThumb || null,
-    date: Number(row.date) || 0,
-    duration: Math.max(0, Number(row.duration) || 0),
-    player: row.player || null,
-    platform: row.platform || null,
-    title: row.title || null,
-    source,
-});
+const asInt = (value) => {
+    if (value == null || value === '') return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+};
+
+const mapTitleHistoryRow = (row, source) => {
+    const playDuration = asInt(row.playDuration ?? row.play_duration);
+    const mediaDuration = asInt(row.mediaDuration)
+        ?? (source === 'tautulli' ? asInt(row.duration) : null);
+    const plexDuration = source === 'plex' ? asInt(row.duration) : null;
+    return {
+        user: row.user || 'Unknown',
+        userThumb: row.userThumb || row.user_thumb || null,
+        date: asInt(row.date) || asInt(row.startedAt) || asInt(row.started) || 0,
+        duration: Math.max(0, playDuration ?? plexDuration ?? 0),
+        playDuration,
+        mediaDuration,
+        player: row.player || null,
+        platform: row.platform || null,
+        product: row.product || null,
+        title: row.full_title || row.title || null,
+        episodeTitle: row.episodeTitle || (String(row.media_type || row.mediaType || '') === 'episode' ? row.title : null),
+        seasonNumber: asInt(row.seasonNumber ?? row.parent_media_index),
+        episodeNumber: asInt(row.episodeNumber ?? row.media_index),
+        startedAt: asInt(row.startedAt ?? row.started),
+        stoppedAt: asInt(row.stoppedAt ?? row.stopped),
+        pausedSeconds: asInt(row.pausedSeconds ?? row.paused_counter) || 0,
+        percentComplete: asInt(row.percentComplete ?? row.percent_complete),
+        watchedStatus: asInt(row.watchedStatus ?? row.watched_status),
+        transcodeDecision: row.transcodeDecision || row.transcode_decision || null,
+        videoDecision: row.videoDecision || row.video_decision || null,
+        audioDecision: row.audioDecision || row.audio_decision || null,
+        ipAddress: row.ipAddress || row.ip_address || null,
+        location: row.location || null,
+        year: asInt(row.year),
+        mediaType: row.mediaType || row.media_type || null,
+        source,
+    };
+};
 
 app.get('/api/plex/analytics/title/:ratingKey', requireAuth, requireAdmin, async (req, res) => {
     try {
@@ -17414,15 +17444,7 @@ app.get('/api/plex/analytics/title/:ratingKey', requireAuth, requireAdmin, async
                             : String(row.rating_key || '') === ratingKey || String(row.grandparent_rating_key || '') === ratingKey;
                         if (hasKeys && !matches) continue;
                         pageMatches += 1;
-                        history.push(mapTitleHistoryRow({
-                            user: row.user,
-                            userThumb: row.user_thumb || null,
-                            date: row.date,
-                            duration: row.play_duration != null ? Number(row.play_duration) : Number(row.duration) || 0,
-                            player: row.player,
-                            platform: row.platform,
-                            title: row.full_title || row.title,
-                        }, 'tautulli'));
+                        history.push(mapTitleHistoryRow(row, 'tautulli'));
                     }
                     if (start === 0 && pageMatches === 0) break;
                     if (rows.length < pageSize) break;
@@ -17443,8 +17465,12 @@ app.get('/api/plex/analytics/title/:ratingKey', requireAuth, requireAdmin, async
                     date: row.viewedAt,
                     duration: row.duration ? Math.round(row.duration / 1000) : 0,
                     player: row.Player?.title || null,
-                    platform: row.Player?.platform || row.Player?.product || null,
+                    platform: row.Player?.platform || null,
+                    product: row.Player?.product || null,
                     title: row.grandparentTitle ? `${row.grandparentTitle} - ${row.title}` : row.title,
+                    episodeTitle: row.grandparentTitle ? row.title : null,
+                    seasonNumber: row.parentIndex,
+                    episodeNumber: row.index,
                 }, 'plex'));
             }
             source = 'plex';

@@ -3,16 +3,18 @@ import {
     ArrowLeft,
     Calendar,
     Clock,
-    Monitor,
     Play,
     Users,
     BarChart3,
     History,
+    Pause,
+    CheckCircle2,
+    Circle,
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from 'recharts';
 import { apiFetch } from '../shared/api';
 import { portalUrl } from '../shared/basePath';
-import { formatPortalDateTimeCompact } from '../shared/format';
+import { formatPortalDateTimeCompact, formatTime, toPortalDate } from '../shared/format';
 import {
     DashboardHero,
     DashboardPageShell,
@@ -26,9 +28,23 @@ type TitleHistoryRow = {
     userThumb?: string | null;
     date?: number;
     duration?: number;
+    playDuration?: number | null;
+    mediaDuration?: number | null;
     player?: string | null;
     platform?: string | null;
+    product?: string | null;
     title?: string | null;
+    episodeTitle?: string | null;
+    seasonNumber?: number | null;
+    episodeNumber?: number | null;
+    startedAt?: number | null;
+    stoppedAt?: number | null;
+    pausedSeconds?: number | null;
+    percentComplete?: number | null;
+    watchedStatus?: number | null;
+    transcodeDecision?: string | null;
+    ipAddress?: string | null;
+    location?: string | null;
 };
 
 type TitleUserRow = {
@@ -69,6 +85,44 @@ const formatHours = (seconds = 0) => {
     if (hrs >= 1) return hrs.toFixed(1);
     const mins = Math.round((Number(seconds) || 0) / 60);
     return mins ? `${mins}m` : '0';
+};
+
+const formatHm = (seconds?: number | null) => {
+    const total = Math.max(0, Math.round(Number(seconds) || 0));
+    if (!total) return '0m';
+    const hrs = Math.floor(total / 3600);
+    const mins = Math.floor((total % 3600) / 60);
+    if (hrs > 0) return `${hrs}h ${mins}m`;
+    if (mins > 0) return `${mins}m`;
+    return `${total}s`;
+};
+
+const formatClock = (value?: number | string | null) => {
+    const date = toPortalDate(value);
+    return date ? formatTime(date) : '—';
+};
+
+const formatSeasonEpisode = (season?: number | null, episode?: number | null) => {
+    const s = season != null && Number.isFinite(Number(season)) ? Number(season) : null;
+    const e = episode != null && Number.isFinite(Number(episode)) ? Number(episode) : null;
+    if (s == null && e == null) return null;
+    if (s != null && e != null) return `S${String(s).padStart(2, '0')}E${String(e).padStart(2, '0')}`;
+    if (s != null) return `S${String(s).padStart(2, '0')}`;
+    return `E${String(e).padStart(2, '0')}`;
+};
+
+const prettyStream = (value?: string | null) => {
+    const raw = String(value || '').replace(/[_-]+/g, ' ').trim();
+    if (!raw) return null;
+    return raw.replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const streamBadgeClass = (value?: string | null) => {
+    const raw = String(value || '').toLowerCase();
+    if (raw.includes('transcode')) return 'border-amber-400/30 bg-amber-500/15 text-amber-200';
+    if (raw.includes('direct stream') || raw === 'copy') return 'border-sky-400/30 bg-sky-500/15 text-sky-200';
+    if (raw.includes('direct')) return 'border-emerald-400/30 bg-emerald-500/15 text-emerald-200';
+    return 'border-white/10 bg-white/5 text-muted';
 };
 
 const formatMonthLabel = (month: string) => {
@@ -337,42 +391,102 @@ export const TitleAnalyticsPage: React.FC<{
                     <p className="py-6 text-center text-sm text-muted">Nobody has watched this title on the server yet.</p>
                 ) : (
                     <div className="space-y-3">
-                        <div className="divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10">
-                            {pageRows.map((row, index) => (
-                                <div key={`${row.user}-${row.date}-${index}`} className="flex min-w-0 flex-col gap-2 p-3 sm:flex-row sm:items-center sm:gap-4">
-                                    <button
-                                        type="button"
-                                        onClick={() => row.user && onViewUser?.(row.user)}
-                                        className="flex min-w-0 items-center gap-3 text-left sm:w-1/3"
-                                    >
-                                        {row.userThumb ? (
-                                            <img src={userThumbSrc(row.userThumb)} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />
-                                        ) : (
-                                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/10 text-[10px] font-bold uppercase text-muted">
-                                                {(row.user || '?').slice(0, 2)}
-                                            </div>
-                                        )}
-                                        <span className="truncate text-sm font-bold text-text hover:text-plex">{row.user || 'Unknown'}</span>
-                                    </button>
-                                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted sm:justify-end sm:text-xs">
-                                        {row.title ? <span className="min-w-0 truncate font-medium text-text/80">{row.title}</span> : null}
-                                        <span className="inline-flex items-center gap-1.5">
-                                            <Calendar size={12} className="shrink-0 opacity-50" />
-                                            {row.date ? formatPortalDateTimeCompact(row.date) : '—'}
-                                        </span>
-                                        <span className="inline-flex items-center gap-1.5">
-                                            <Clock size={12} className="shrink-0 opacity-50" />
-                                            {Math.round((Number(row.duration) || 0) / 60)}m
-                                        </span>
-                                        {row.player ? (
-                                            <span className="inline-flex min-w-0 items-center gap-1.5">
-                                                <Monitor size={12} className="shrink-0 opacity-50" />
-                                                <span className="truncate">{row.player}</span>
-                                            </span>
-                                        ) : null}
-                                    </div>
-                                </div>
-                            ))}
+                        <div className="overflow-x-auto rounded-xl border border-white/10 custom-scrollbar">
+                            <table className="w-full min-w-[1180px] border-collapse text-left">
+                                <thead>
+                                    <tr className="border-b border-white/10 bg-black/30 text-[10px] font-bold uppercase tracking-[0.16em] text-muted">
+                                        <th className="whitespace-nowrap px-3 py-2.5 font-bold">Date</th>
+                                        <th className="whitespace-nowrap px-3 py-2.5 font-bold">User</th>
+                                        <th className="whitespace-nowrap px-3 py-2.5 font-bold">IP Address</th>
+                                        <th className="whitespace-nowrap px-3 py-2.5 font-bold">Platform</th>
+                                        <th className="whitespace-nowrap px-3 py-2.5 font-bold">Product</th>
+                                        <th className="whitespace-nowrap px-3 py-2.5 font-bold">Player</th>
+                                        <th className="px-3 py-2.5 font-bold">Title</th>
+                                        <th className="whitespace-nowrap px-3 py-2.5 font-bold">Started</th>
+                                        <th className="whitespace-nowrap px-3 py-2.5 font-bold">Paused</th>
+                                        <th className="whitespace-nowrap px-3 py-2.5 font-bold">Stopped</th>
+                                        <th className="whitespace-nowrap px-3 py-2.5 font-bold">Duration</th>
+                                        <th className="whitespace-nowrap px-3 py-2.5 font-bold">Stream</th>
+                                        <th className="w-10 px-3 py-2.5 font-bold"></th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    {pageRows.map((row, index) => {
+                                        const seasonEpisode = formatSeasonEpisode(row.seasonNumber, row.episodeNumber);
+                                        const stream = prettyStream(row.transcodeDecision);
+                                        const watched = row.watchedStatus === 1;
+                                        const partial = row.watchedStatus === 0 || (row.percentComplete != null && row.percentComplete < 100 && !watched);
+                                        return (
+                                            <tr key={`${row.user}-${row.date}-${index}`} className="bg-black/10 text-xs text-muted hover:bg-white/5">
+                                                <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[11px] text-text/80">
+                                                    {row.date ? formatPortalDateTimeCompact(row.date) : '—'}
+                                                </td>
+                                                <td className="px-3 py-2.5">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => row.user && onViewUser?.(row.user)}
+                                                        className="flex min-w-0 max-w-[11rem] items-center gap-2 text-left"
+                                                    >
+                                                        {row.userThumb ? (
+                                                            <img src={userThumbSrc(row.userThumb)} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />
+                                                        ) : (
+                                                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/10 text-[10px] font-bold uppercase text-muted">
+                                                                {(row.user || '?').slice(0, 2)}
+                                                            </div>
+                                                        )}
+                                                        <span className="truncate text-sm font-bold text-text hover:text-plex">{row.user || 'Unknown'}</span>
+                                                    </button>
+                                                </td>
+                                                <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[11px]" title={row.location || undefined}>
+                                                    {row.ipAddress || '—'}
+                                                </td>
+                                                <td className="whitespace-nowrap px-3 py-2.5 text-text/80">{row.platform || '—'}</td>
+                                                <td className="whitespace-nowrap px-3 py-2.5">{row.product || '—'}</td>
+                                                <td className="max-w-[10rem] truncate px-3 py-2.5 text-text/80" title={row.player || undefined}>{row.player || '—'}</td>
+                                                <td className="max-w-[18rem] px-3 py-2.5">
+                                                    <div className="truncate font-medium text-text/90" title={row.title || undefined}>{row.title || '—'}</div>
+                                                    {seasonEpisode || row.episodeTitle ? (
+                                                        <div className="truncate text-[11px] text-muted">
+                                                            {seasonEpisode ? <span className="mr-1.5 font-mono text-plex">{seasonEpisode}</span> : null}
+                                                            {row.episodeTitle && row.episodeTitle !== row.title ? row.episodeTitle : null}
+                                                        </div>
+                                                    ) : null}
+                                                </td>
+                                                <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[11px]">{formatClock(row.startedAt)}</td>
+                                                <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[11px]">
+                                                    {row.pausedSeconds ? (
+                                                        <span className="inline-flex items-center gap-1 text-amber-200">
+                                                            <Pause className="h-3 w-3" />
+                                                            {formatHm(row.pausedSeconds)}
+                                                        </span>
+                                                    ) : '0m'}
+                                                </td>
+                                                <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[11px]">{formatClock(row.stoppedAt)}</td>
+                                                <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[11px] text-text/80">
+                                                    {formatHm(row.playDuration ?? row.duration)}
+                                                    {row.percentComplete != null && row.percentComplete < 100 ? (
+                                                        <span className="ml-1.5 text-amber-300">{row.percentComplete}%</span>
+                                                    ) : null}
+                                                </td>
+                                                <td className="whitespace-nowrap px-3 py-2.5">
+                                                    {stream ? (
+                                                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${streamBadgeClass(row.transcodeDecision)}`}>
+                                                            {stream}
+                                                        </span>
+                                                    ) : '—'}
+                                                </td>
+                                                <td className="px-3 py-2.5 text-center">
+                                                    {watched ? (
+                                                        <CheckCircle2 className="mx-auto h-4 w-4 text-emerald-300" aria-label="Watched" />
+                                                    ) : (
+                                                        <Circle className={`mx-auto h-4 w-4 ${partial ? 'text-amber-300' : 'text-muted/50'}`} aria-label={partial ? 'Partial' : 'Not watched'} />
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
                         </div>
                         {pageCount > 1 ? (
                             <div className="flex items-center justify-between text-xs text-muted">
