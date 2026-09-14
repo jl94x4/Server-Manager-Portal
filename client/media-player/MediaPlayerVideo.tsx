@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Loader2, Pause, Play, X } from 'lucide-react';
 import Hls from 'hls.js';
 import { portalUrl } from '../shared/basePath';
 import { lockBackgroundScroll } from '../shared/lockBackgroundScroll';
+import { PORTAL_CSRF_HEADER, PORTAL_CSRF_VALUE } from '../shared/api';
 import { useDiscoverI18n } from '../discovery/i18n';
 import { formatClock } from './playerUtils';
 import type { PlayerPlaySession } from './types';
@@ -12,17 +14,14 @@ type Props = {
     onClose: () => void;
 };
 
-const canPlayNativeHls = (video: HTMLVideoElement) => (
-    video.canPlayType('application/vnd.apple.mpegurl') !== ''
-);
-
 export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
     const { t } = useDiscoverI18n();
     const videoRef = useRef<HTMLVideoElement>(null);
     const hlsRef = useRef<Hls | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [paused, setPaused] = useState(false);
-    const [currentMs, setCurrentMs] = useState(session.offsetMs || 0);
+    const [paused, setPaused] = useState(true);
+    const [ready, setReady] = useState(false);
+    const [currentMs, setCurrentMs] = useState(0);
     const [durationMs, setDurationMs] = useState(session.item.durationMs || 0);
 
     useEffect(() => lockBackgroundScroll(), []);
@@ -33,24 +32,35 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
         const src = portalUrl(session.src);
         let cancelled = false;
         setError(null);
+        setReady(false);
+        setPaused(true);
 
-        const startAt = Math.max(0, Number(session.offsetMs || 0) / 1000);
         const onReady = () => {
             if (cancelled) return;
-            if (startAt > 0 && Number.isFinite(startAt)) {
-                try { video.currentTime = startAt; } catch { /* ignore */ }
-            }
-            void video.play().catch(() => setPaused(true));
+            setReady(true);
+            void video.play().then(() => {
+                if (!cancelled) setPaused(false);
+            }).catch(() => {
+                if (!cancelled) setPaused(true);
+            });
         };
 
-        if (canPlayNativeHls(video)) {
-            video.src = src;
-            video.addEventListener('loadedmetadata', onReady, { once: true });
-        } else if (Hls.isSupported()) {
+        const fail = (message?: string) => {
+            if (cancelled) return;
+            setError(message || t('mediaPlayerPage.playError'));
+        };
+
+        if (Hls.isSupported()) {
             const hls = new Hls({
                 enableWorker: true,
+                lowLatencyMode: false,
                 xhrSetup: (xhr) => {
                     xhr.withCredentials = true;
+                    try {
+                        xhr.setRequestHeader(PORTAL_CSRF_HEADER, PORTAL_CSRF_VALUE);
+                    } catch {
+                        /* ignore forbidden header environments */
+                    }
                 },
             });
             hlsRef.current = hls;
@@ -59,10 +69,15 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
             hls.on(Hls.Events.MANIFEST_PARSED, onReady);
             hls.on(Hls.Events.ERROR, (_event, data) => {
                 if (!data?.fatal) return;
-                setError(t('mediaPlayerPage.playError'));
+                try { hls.destroy(); } catch { /* ignore */ }
+                fail();
             });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            video.src = src;
+            video.addEventListener('loadedmetadata', onReady, { once: true });
+            video.addEventListener('error', () => fail(), { once: true });
         } else {
-            setError(t('mediaPlayerPage.playError'));
+            fail();
         }
 
         return () => {
@@ -73,7 +88,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
             video.removeAttribute('src');
             video.load();
         };
-    }, [session.src, session.offsetMs, t]);
+    }, [session.src, t]);
 
     useEffect(() => {
         const onKey = (event: KeyboardEvent) => {
@@ -104,9 +119,8 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
 
     const duration = durationMs || 1;
     const progress = Math.min(100, (currentMs / duration) * 100);
-
-    return (
-        <div className="fixed inset-0 z-[240] bg-black flex flex-col" role="dialog" aria-modal="true" aria-label={session.item.title}>
+    const overlay = (
+        <div className="fixed inset-0 z-[4000] bg-black flex flex-col" role="dialog" aria-modal="true" aria-label={session.item.title}>
             <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-3 p-4 bg-gradient-to-b from-black/80 to-transparent">
                 <div className="min-w-0">
                     <p className="truncate text-sm font-bold text-white">{session.item.title}</p>
@@ -142,7 +156,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
             />
 
             {error ? (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/70 p-6 text-center">
+                <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-6 text-center">
                     <div>
                         <p className="font-bold text-white">{error}</p>
                         <button type="button" onClick={onClose} className="mt-4 rounded-lg bg-plex px-4 py-2 text-sm font-black text-black">
@@ -152,9 +166,10 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
                 </div>
             ) : null}
 
-            {!error && paused && currentMs < 400 ? (
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            {!error && (!ready || paused) && currentMs < 800 ? (
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3">
                     <Loader2 className="h-10 w-10 animate-spin text-white/80" />
+                    <p className="text-xs font-bold uppercase tracking-widest text-white/70">{t('mediaPlayerPage.buffering')}</p>
                 </div>
             ) : null}
 
@@ -188,4 +203,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
             </div>
         </div>
     );
+
+    if (typeof document === 'undefined') return null;
+    return createPortal(overlay, document.body);
 };

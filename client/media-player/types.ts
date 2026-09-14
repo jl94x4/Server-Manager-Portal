@@ -19,10 +19,16 @@ export type PlayerItem = {
     contentRating?: string | null;
     audienceRating?: number | null;
     originallyAvailableAt?: string | null;
+    tmdbId?: number | null;
     genres?: string[];
     addedAt?: number | null;
     plexUrl?: string | null;
     canPlay?: boolean;
+    tagline?: string;
+    studio?: string;
+    directors?: string[];
+    writers?: string[];
+    cast?: Array<{ id: string; name: string; role: string; thumb?: string | null }>;
 };
 
 export type PlayerSection = {

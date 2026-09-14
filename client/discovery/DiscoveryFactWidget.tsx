@@ -61,7 +61,8 @@ function cleanWikiText(raw: string): string {
 export const DiscoveryFactWidget: React.FC<{
     mediaType: 'movie' | 'tv';
     mediaId: number;
-}> = ({ mediaType, mediaId }) => {
+    title?: string;
+}> = ({ mediaType, mediaId, title }) => {
     const { t } = useDiscoverI18n();
     const [facts, setFacts] = useState<string[]>([]);
     const [index, setIndex] = useState(0);
@@ -79,9 +80,13 @@ export const DiscoveryFactWidget: React.FC<{
         const load = async () => {
             setLoading(true);
             try {
-                const res: FactResponse = await apiFetch(
-                    `/api/discovery/fact?mediaType=${encodeURIComponent(mediaType)}&mediaId=${mediaId}`,
-                );
+                const params = new URLSearchParams({
+                    mediaType,
+                    mediaId: String(mediaId),
+                });
+                const expectedTitle = String(title || '').trim();
+                if (expectedTitle) params.set('title', expectedTitle);
+                const res: FactResponse = await apiFetch(`/api/discovery/fact?${params.toString()}`);
                 if (cancelled) return;
                 const pool = Array.isArray(res?.facts) && res.facts.length
                     ? res.facts
@@ -96,7 +101,7 @@ export const DiscoveryFactWidget: React.FC<{
         };
         load();
         return () => { cancelled = true; };
-    }, [mediaType, mediaId]);
+    }, [mediaType, mediaId, title]);
 
     const showAnother = useCallback(() => {
         if (facts.length <= 1) return;

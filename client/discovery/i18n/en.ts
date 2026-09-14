@@ -126,6 +126,10 @@ export const en = {
         loadMore: 'Load more',
         pause: 'Pause',
         unknownTitle: 'Untitled',
+        directedBy: 'Directed by',
+        writtenBy: 'Written by',
+        aired: 'Aired',
+        buffering: 'Starting stream…',
     },
     profilePage: {
         eyebrow: 'Member profile',
