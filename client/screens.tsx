@@ -10417,7 +10417,7 @@ export const LibraryDashboard: React.FC<{ onBack: () => void, isAdmin?: boolean,
 
     return (
         <div className="w-full min-w-0 flex flex-col shrink-0">
-            <main className="w-full min-w-0 pb-8 mt-4 md:mt-0">
+            <main className="discover-layout-container w-full min-w-0 pb-8 mt-4 md:mt-0">
                 {error && <div className="toast error show">{error}</div>}
                 {pollError && !error && <div className="toast error show">{pollError}</div>}
 
