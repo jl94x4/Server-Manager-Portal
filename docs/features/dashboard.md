@@ -36,7 +36,7 @@ Items show server artwork, play counts, and quality badges (4K, HDR, AV1/HEVC, A
 Admin search on Dashboard looks up movies and shows in the library. Pick a title to open its page (`/dashboard/title/:ratingKey`) with:
 
 - Play count, unique watchers, watch time, and last watched
-- Who watched, ranked by plays (opens that user’s analytics)
+- Who watched, ranked by plays (10 per page; opens that user’s analytics)
 - Monthly play chart and platform views
 - Full server watch history in a Tautulli-style table (user, IP, platform, product, player, times, pause, stream, watched)
 

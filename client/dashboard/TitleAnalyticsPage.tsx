@@ -138,6 +138,13 @@ const userThumbSrc = (thumb?: string | null) => {
     return portalUrl(`/api/plex/image?path=${encodeURIComponent(thumb)}&width=64&height=64`);
 };
 
+const chartTooltipStyle = {
+    background: '#111',
+    border: '1px solid rgba(255,255,255,0.1)',
+    borderRadius: 12,
+};
+const chartTooltipCursor = { fill: 'rgba(255,255,255,0.05)' };
+
 export const TitleAnalyticsPage: React.FC<{
     ratingKey: string;
     onBack: () => void;
@@ -147,13 +154,16 @@ export const TitleAnalyticsPage: React.FC<{
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [historyPage, setHistoryPage] = useState(1);
+    const [usersPage, setUsersPage] = useState(1);
     const pageSize = 25;
+    const usersPageSize = 10;
 
     useEffect(() => {
         let cancelled = false;
         setLoading(true);
         setError(null);
         setHistoryPage(1);
+        setUsersPage(1);
         apiFetch(`/api/plex/analytics/title/${encodeURIComponent(ratingKey)}`)
             .then((res) => {
                 if (cancelled) return;
@@ -182,6 +192,11 @@ export const TitleAnalyticsPage: React.FC<{
         const start = (historyPage - 1) * pageSize;
         return history.slice(start, start + pageSize);
     }, [history, historyPage]);
+    const usersPageCount = Math.max(1, Math.ceil(users.length / usersPageSize));
+    const pageUsers = useMemo(() => {
+        const start = (usersPage - 1) * usersPageSize;
+        return users.slice(start, start + usersPageSize);
+    }, [users, usersPage]);
 
     const chartData = (data?.byMonth || []).map((row) => ({
         ...row,
@@ -287,33 +302,56 @@ export const TitleAnalyticsPage: React.FC<{
                     ) : users.length === 0 ? (
                         <p className="py-6 text-center text-sm text-muted">No watch history for this title yet.</p>
                     ) : (
-                        <div className="divide-y divide-white/5">
-                            {users.map((row) => (
-                                <button
-                                    key={row.user}
-                                    type="button"
-                                    onClick={() => onViewUser?.(row.user)}
-                                    className="flex w-full min-w-0 items-center gap-3 px-1 py-2.5 text-left transition-colors hover:bg-white/5"
-                                >
-                                    {row.userThumb ? (
-                                        <img src={userThumbSrc(row.userThumb)} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
-                                    ) : (
-                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-plex/20 text-[10px] font-bold uppercase text-plex">
-                                            {row.user.slice(0, 2)}
+                        <div className="space-y-3">
+                            <div className="divide-y divide-white/5">
+                                {pageUsers.map((row) => (
+                                    <button
+                                        key={row.user}
+                                        type="button"
+                                        onClick={() => onViewUser?.(row.user)}
+                                        className="flex w-full min-w-0 items-center gap-3 px-1 py-2.5 text-left transition-colors hover:bg-white/5"
+                                    >
+                                        {row.userThumb ? (
+                                            <img src={userThumbSrc(row.userThumb)} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+                                        ) : (
+                                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-plex/20 text-[10px] font-bold uppercase text-plex">
+                                                {row.user.slice(0, 2)}
+                                            </div>
+                                        )}
+                                        <div className="min-w-0 flex-1">
+                                            <div className="truncate text-sm font-bold text-text">{row.user}</div>
+                                            <div className="text-[11px] text-muted">
+                                                {row.lastWatchedAt ? formatPortalDateTimeCompact(row.lastWatchedAt) : '—'}
+                                            </div>
                                         </div>
-                                    )}
-                                    <div className="min-w-0 flex-1">
-                                        <div className="truncate text-sm font-bold text-text">{row.user}</div>
-                                        <div className="text-[11px] text-muted">
-                                            {row.lastWatchedAt ? formatPortalDateTimeCompact(row.lastWatchedAt) : '—'}
+                                        <div className="shrink-0 text-right">
+                                            <div className="text-sm font-black tabular-nums text-text">{row.plays}</div>
+                                            <div className="text-[10px] uppercase tracking-wider text-muted">plays</div>
                                         </div>
-                                    </div>
-                                    <div className="shrink-0 text-right">
-                                        <div className="text-sm font-black tabular-nums text-text">{row.plays}</div>
-                                        <div className="text-[10px] uppercase tracking-wider text-muted">plays</div>
-                                    </div>
-                                </button>
-                            ))}
+                                    </button>
+                                ))}
+                            </div>
+                            {usersPageCount > 1 ? (
+                                <div className="flex items-center justify-between text-xs text-muted">
+                                    <button
+                                        type="button"
+                                        disabled={usersPage <= 1}
+                                        onClick={() => setUsersPage((page) => Math.max(1, page - 1))}
+                                        className="rounded-lg border border-white/10 px-3 py-1.5 font-bold disabled:opacity-40"
+                                    >
+                                        Previous
+                                    </button>
+                                    <span>Page {usersPage} of {usersPageCount}</span>
+                                    <button
+                                        type="button"
+                                        disabled={usersPage >= usersPageCount}
+                                        onClick={() => setUsersPage((page) => Math.min(usersPageCount, page + 1))}
+                                        className="rounded-lg border border-white/10 px-3 py-1.5 font-bold disabled:opacity-40"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            ) : null}
                         </div>
                     )}
                 </DashboardPanel>
@@ -335,8 +373,10 @@ export const TitleAnalyticsPage: React.FC<{
                                                 <XAxis dataKey="label" tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false} />
                                                 <YAxis allowDecimals={false} tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false} />
                                                 <RechartsTooltip
-                                                    contentStyle={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }}
+                                                    cursor={chartTooltipCursor}
+                                                    contentStyle={chartTooltipStyle}
                                                     labelStyle={{ color: '#fff' }}
+                                                    itemStyle={{ color: '#fff' }}
                                                 />
                                                 <Bar dataKey="plays" fill="rgb(var(--color-plex))" radius={[6, 6, 0, 0]} />
                                             </BarChart>
@@ -361,8 +401,10 @@ export const TitleAnalyticsPage: React.FC<{
                                                 />
                                                 <YAxis allowDecimals={false} tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false} />
                                                 <RechartsTooltip
-                                                    contentStyle={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }}
+                                                    cursor={chartTooltipCursor}
+                                                    contentStyle={chartTooltipStyle}
                                                     labelStyle={{ color: '#fff' }}
+                                                    itemStyle={{ color: '#fff' }}
                                                 />
                                                 <Bar dataKey="plays" fill="rgb(56 189 248)" radius={[6, 6, 0, 0]} />
                                             </BarChart>
