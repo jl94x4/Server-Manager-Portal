@@ -7,6 +7,47 @@ export const plexImageUrl = (path?: string | null, width = 300, height = 450) =>
     return portalUrl(`/api/plex/image?path=${encodeURIComponent(path)}&width=${width}&height=${height}`);
 };
 
+export const formatBitrateMbps = (bitrate?: number | null) => {
+    const n = Number(bitrate);
+    if (!Number.isFinite(n) || n <= 0) return '';
+    const mbps = n >= 100000 ? n / 1e6 : n / 1000;
+    return `${mbps.toFixed(1)} Mbps`;
+};
+
+export const formatBytes = (bytes?: number | null) => {
+    const n = Number(bytes);
+    if (!Number.isFinite(n) || n <= 0) return '';
+    if (n >= 1e9) return `${(n / 1e9).toFixed(2)} GB`;
+    if (n >= 1e6) return `${Math.round(n / 1e6)} MB`;
+    if (n >= 1e3) return `${Math.round(n / 1e3)} KB`;
+    return `${n} B`;
+};
+
+export const formatPlayerResolution = (height?: number | null, videoResolution?: string | null) => {
+    const res = String(videoResolution || '').toLowerCase();
+    const h = Number(height) || 0;
+    if (res.includes('4k') || res.includes('2160') || h >= 2160) return '4K';
+    if (res.includes('1080') || h >= 1080) return '1080p';
+    if (res.includes('720') || h >= 720) return '720p';
+    if (res.includes('480') || h >= 480) return '480p';
+    if (res.includes('576') || h >= 576) return '576p';
+    if (videoResolution) return String(videoResolution);
+    if (h) return `${h}p`;
+    return '';
+};
+
+export const titleCaseProfile = (value?: string | null) => {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    return raw.replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+export const isPlayerTrailer = (item?: PlayerItem | null) => {
+    const extra = String(item?.extraType || '').toLowerCase();
+    const subtype = String(item?.extraSubtype || '').toLowerCase();
+    return extra === '1' || extra === 'trailer' || subtype.includes('trailer');
+};
+
 export const formatPlayerDuration = (ms?: number | null) => {
     const totalMin = Math.round(Number(ms || 0) / 60000);
     if (!Number.isFinite(totalMin) || totalMin <= 0) return '';

@@ -13,6 +13,8 @@ import type { PlayerPlaySession } from './types';
 type Props = {
     session: PlayerPlaySession;
     onClose: () => void;
+    autoplayNext?: boolean;
+    onPlayNext?: (item: PlayerPlaySession['item']) => void;
 };
 
 type PickerOption = { id: string; label: string };
@@ -84,7 +86,7 @@ const TrackPicker: React.FC<{
     );
 };
 
-export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
+export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNext = false, onPlayNext }) => {
     const { t } = useDiscoverI18n();
     const videoRef = useRef<HTMLVideoElement>(null);
     const hlsRef = useRef<Hls | null>(null);
@@ -337,6 +339,10 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
                 onDurationChange={(event) => {
                     const next = event.currentTarget.duration;
                     if (Number.isFinite(next) && next > 0) setDurationMs(next * 1000);
+                }}
+                onEnded={() => {
+                    sendTimelineRef.current('stopped');
+                    if (autoplayNext) void onPlayNext?.(session.item);
                 }}
             />
 

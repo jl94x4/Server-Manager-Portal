@@ -1,7 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
-import { DiscoverPosterCard } from '../screens';
-import { Carousel } from '../discovery/Carousel';
+import { Search, Settings } from 'lucide-react';
 import { DiscoverSectionHeader } from '../discovery/DiscoverSectionHeader';
 import { discoveryTheme } from '../discovery/discoveryThemeClasses';
 import { useDiscoverI18n } from '../discovery/i18n';
@@ -9,56 +7,33 @@ import { DiscoverGridSizeSelect } from '../discovery/DiscoverGridSizeSelect';
 import { useDiscoverGridSize } from '../discovery/useDiscoverGridSize';
 import { DiscoverHomeSkeleton } from '../shared/skeletons';
 import { MediaPlayerAlphaBanner } from '../shared/BetaBadge';
-import { discoverRowCardWidthClass, posterGridCardWidthStyle } from '../shared/portalLayout';
 import { fetchMediaPlayerHome, searchMediaPlayer } from './api';
 import { MediaPlayerLibrariesPanel } from './MediaPlayerLibrariesPanel';
-import { progressPercent, toPosterCardItem } from './playerUtils';
+import { MediaPlayerSettings } from './MediaPlayerSettings';
+import { PlayerPosterCard } from './PlayerPosterCard';
+import { PlayerRail } from './PlayerRail';
+import { usePlayerSettings } from './usePlayerSettings';
 import type { PlayerHome, PlayerItem, PlayerSection } from './types';
 
 type Props = {
     onOpenItem: (item: PlayerItem) => void;
     onOpenLibrary: (section: PlayerSection) => void;
+    onPlay: (item: PlayerItem) => void;
 };
 
-const PlayerRail: React.FC<{
-    title: string;
-    items: PlayerItem[];
-    density: number;
-    onSelect: (item: PlayerItem) => void;
-    showProgress?: boolean;
-}> = ({ title, items, density, onSelect, showProgress = false }) => {
-    const { t } = useDiscoverI18n();
-    if (!items.length) return null;
-    return (
-        <div className="flex flex-col gap-2">
-            <DiscoverSectionHeader title={title} />
-            <Carousel>
-                {items.map((item, idx) => (
-                    <div
-                        key={item.ratingKey || `${title}-${idx}`}
-                        className={`${discoverRowCardWidthClass(density)} flex-shrink-0 relative group snap-start`}
-                        style={posterGridCardWidthStyle(density)}
-                    >
-                        <DiscoverPosterCard
-                            item={toPosterCardItem(item)}
-                            aspect={item.type === 'artist' || item.type === 'album' ? 'square' : '2/3'}
-                            showQualityBadges={false}
-                            onPosterClick={() => onSelect(item)}
-                            overlay={showProgress && progressPercent(item) > 0 ? (
-                                <div className="absolute inset-x-0 bottom-0 h-1 bg-black/50">
-                                    <div className="h-full bg-plex" style={{ width: `${progressPercent(item)}%` }} />
-                                </div>
-                            ) : null}
-                        />
-                    </div>
-                ))}
-            </Carousel>
-        </div>
-    );
+const dedupeItems = (list: PlayerItem[]) => {
+    const seen = new Set<string>();
+    return list.filter((row) => {
+        const key = row.ratingKey || row.title;
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    }).slice(0, 24);
 };
 
-export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary }) => {
+export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary, onPlay }) => {
     const { t } = useDiscoverI18n();
+    const [settings, updateSettings] = usePlayerSettings();
     const [gridSize, setGridSize] = useDiscoverGridSize();
     const [home, setHome] = useState<PlayerHome | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -66,6 +41,7 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary }) 
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<PlayerItem[]>([]);
     const [searching, setSearching] = useState(false);
+    const [settingsOpen, setSettingsOpen] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -113,15 +89,33 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary }) 
         };
     }, [query]);
 
+    const recentRails = useMemo(() => {
+        const rows = home?.recentByLibrary || [];
+        if (!settings.mixLibraries) {
+            return rows.map((row) => ({ title: row.library.title, items: row.items }));
+        }
+        const movies: PlayerItem[] = [];
+        const shows: PlayerItem[] = [];
+        const music: PlayerItem[] = [];
+        for (const row of rows) {
+            if (row.library.type === 'show') shows.push(...row.items);
+            else if (row.library.type === 'artist') music.push(...row.items);
+            else movies.push(...row.items);
+        }
+        return [
+            { title: t('mediaPlayerPage.recentlyAddedMovies'), items: dedupeItems(movies) },
+            { title: t('mediaPlayerPage.recentlyAddedShows'), items: dedupeItems(shows) },
+            { title: t('mediaPlayerPage.recentlyAddedMusic'), items: dedupeItems(music) },
+        ];
+    }, [home, settings.mixLibraries, t]);
+
     const hasRails = useMemo(() => (
         !!home && (
             home.continueWatching.length
-            || home.recentMovies.length
-            || home.recentShows.length
-            || home.recentMusic.length
+            || recentRails.some((row) => row.items.length)
             || home.libraries.length
         )
-    ), [home]);
+    ), [home, recentRails]);
 
     if (loading) return <DiscoverHomeSkeleton />;
 
@@ -133,7 +127,17 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary }) 
                     <p className={discoveryTheme.personalEyebrow}>{t('navigation.mediaPlayer')}</p>
                     <h1 className={discoveryTheme.heading}>{t('navigation.mediaPlayer')}</h1>
                 </div>
-                <DiscoverGridSizeSelect value={gridSize} onChange={setGridSize} />
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setSettingsOpen(true)}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white/5 px-3 py-2 text-xs font-bold text-muted hover:text-text"
+                    >
+                        <Settings className="h-4 w-4" />
+                        {t('mediaPlayerPage.settings')}
+                    </button>
+                    <DiscoverGridSizeSelect value={gridSize} onChange={setGridSize} />
+                </div>
             </div>
 
             <div className="relative">
@@ -152,11 +156,11 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary }) 
                     {results.length ? (
                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
                             {results.map((item) => (
-                                <DiscoverPosterCard
+                                <PlayerPosterCard
                                     key={item.ratingKey}
-                                    item={toPosterCardItem(item)}
-                                    showQualityBadges={false}
-                                    onPosterClick={() => onOpenItem(item)}
+                                    item={item}
+                                    onOpenItem={onOpenItem}
+                                    onPlay={onPlay}
                                 />
                             ))}
                         </div>
@@ -183,31 +187,26 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary }) 
 
             {!query.trim() && home ? (
                 <>
-                    <PlayerRail
-                        title={t('mediaPlayerPage.continueWatching')}
-                        items={home.continueWatching}
-                        density={gridSize}
-                        onSelect={onOpenItem}
-                        showProgress
-                    />
-                    <PlayerRail
-                        title={t('mediaPlayerPage.recentlyAddedMovies')}
-                        items={home.recentMovies}
-                        density={gridSize}
-                        onSelect={onOpenItem}
-                    />
-                    <PlayerRail
-                        title={t('mediaPlayerPage.recentlyAddedShows')}
-                        items={home.recentShows}
-                        density={gridSize}
-                        onSelect={onOpenItem}
-                    />
-                    <PlayerRail
-                        title={t('mediaPlayerPage.recentlyAddedMusic')}
-                        items={home.recentMusic}
-                        density={gridSize}
-                        onSelect={onOpenItem}
-                    />
+                    {settings.showContinueWatching ? (
+                        <PlayerRail
+                            title={t('mediaPlayerPage.continueWatching')}
+                            items={home.continueWatching}
+                            density={gridSize}
+                            onOpenItem={onOpenItem}
+                            onPlay={onPlay}
+                            showProgress
+                        />
+                    ) : null}
+                    {recentRails.map((row) => (
+                        <PlayerRail
+                            key={row.title}
+                            title={row.title}
+                            items={row.items}
+                            density={gridSize}
+                            onOpenItem={onOpenItem}
+                            onPlay={onPlay}
+                        />
+                    ))}
                 </>
             ) : null}
 
@@ -215,6 +214,14 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary }) 
                 <div className={discoveryTheme.emptyState}>
                     <p className={discoveryTheme.emptyTitle}>{t('mediaPlayerPage.emptyHome')}</p>
                 </div>
+            ) : null}
+
+            {settingsOpen ? (
+                <MediaPlayerSettings
+                    settings={settings}
+                    onChange={updateSettings}
+                    onClose={() => setSettingsOpen(false)}
+                />
             ) : null}
         </div>
     );

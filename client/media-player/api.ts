@@ -1,7 +1,10 @@
 import { apiFetch } from '../shared/api';
 import type {
     PlayerHome,
+    PlayerItem,
     PlayerItemPage,
+    PlayerLibraryFilters,
+    PlayerLibraryHome,
     PlayerLibraryPage,
     PlayerPlaySession,
     PlayerPersonPage,
@@ -14,8 +17,40 @@ export const fetchMediaPlayerLibraries = () => (
     apiFetch('/api/media-player/libraries') as Promise<{ libraries: PlayerSection[] }>
 );
 
-export const fetchMediaPlayerLibrary = (sectionKey: string, start = 0, size = 50) => (
-    apiFetch(`/api/media-player/libraries/${encodeURIComponent(sectionKey)}?start=${start}&size=${size}`) as Promise<PlayerLibraryPage>
+export const fetchMediaPlayerLibrary = (
+    sectionKey: string,
+    start = 0,
+    size = 50,
+    opts: { sort?: string; genre?: string; unwatched?: boolean } = {},
+) => {
+    const qs = new URLSearchParams({
+        start: String(start),
+        size: String(size),
+    });
+    if (opts.sort) qs.set('sort', opts.sort);
+    if (opts.genre) qs.set('genre', opts.genre);
+    if (opts.unwatched) qs.set('unwatched', '1');
+    return apiFetch(`/api/media-player/libraries/${encodeURIComponent(sectionKey)}?${qs}`) as Promise<PlayerLibraryPage>;
+};
+
+export const fetchMediaPlayerLibraryHome = (sectionKey: string) => (
+    apiFetch(`/api/media-player/libraries/${encodeURIComponent(sectionKey)}/home`) as Promise<PlayerLibraryHome>
+);
+
+export const fetchMediaPlayerLibraryFilters = (sectionKey: string) => (
+    apiFetch(`/api/media-player/libraries/${encodeURIComponent(sectionKey)}/filters`) as Promise<PlayerLibraryFilters>
+);
+
+export const fetchMediaPlayerCollections = (sectionKey: string) => (
+    apiFetch(`/api/media-player/libraries/${encodeURIComponent(sectionKey)}/collections`) as Promise<{ title: string; items: PlayerItem[] }>
+);
+
+export const fetchMediaPlayerCollection = (ratingKey: string) => (
+    apiFetch(`/api/media-player/collection/${encodeURIComponent(ratingKey)}`) as Promise<PlayerItemPage>
+);
+
+export const fetchMediaPlayerNext = (ratingKey: string) => (
+    apiFetch(`/api/media-player/next/${encodeURIComponent(ratingKey)}`) as Promise<{ item: PlayerItem | null }>
 );
 
 export const fetchMediaPlayerItem = (ratingKey: string) => (
@@ -33,10 +68,13 @@ export const searchMediaPlayer = (query: string) => (
     apiFetch(`/api/media-player/search?q=${encodeURIComponent(query)}`) as Promise<{ results: PlayerItemPage['item'][] }>
 );
 
-export const startMediaPlayerPlayback = (ratingKey: string, offsetMs?: number) => (
+export const startMediaPlayerPlayback = (ratingKey: string, offsetMs?: number, qualityId?: string) => (
     apiFetch(`/api/media-player/play/${encodeURIComponent(ratingKey)}`, {
         method: 'POST',
-        body: JSON.stringify({ offsetMs: offsetMs || 0 }),
+        body: JSON.stringify({
+            offsetMs: offsetMs || 0,
+            qualityId: qualityId && qualityId !== 'auto' ? qualityId : undefined,
+        }),
     }) as Promise<PlayerPlaySession>
 );
 

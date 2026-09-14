@@ -1,12 +1,25 @@
-import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Calendar, Clock, Film, Loader2, Play, Star, Tv, Users } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, Calendar, Clock, Film, Info, Loader2, Play, Star, Tv, Users } from 'lucide-react';
 import { NoPosterPlaceholder } from '../shared/NoPosterPlaceholder';
 import { Carousel } from '../discovery/Carousel';
 import { DiscoveryFactWidget } from '../discovery/DiscoveryFactWidget';
+import { MediaRatingPills } from '../discovery/MediaRatingPills';
+import type { CombinedRatings } from '../discovery/mediaDetailUtils';
 import { useDiscoverI18n } from '../discovery/i18n';
+import { useDiscoverGridSize } from '../discovery/useDiscoverGridSize';
 import { fetchMediaPlayerItem } from './api';
-import { formatPlayerDuration, plexImageUrl, progressPercent } from './playerUtils';
-import type { PlayerItem } from './types';
+import { MediaPlayerMediaInfo } from './MediaPlayerMediaInfo';
+import { PlayerRail } from './PlayerRail';
+import {
+    formatBitrateMbps,
+    formatPlayerDuration,
+    formatPlayerResolution,
+    isPlayerTrailer,
+    plexImageUrl,
+    progressPercent,
+    titleCaseProfile,
+} from './playerUtils';
+import type { PlayerItem, PlayerLibraryHub, PlayerRatings } from './types';
 
 type Props = {
     ratingKey: string;
@@ -32,25 +45,52 @@ const typeLabel = (type: string) => {
     return type;
 };
 
+const toCombinedRatings = (ratings?: PlayerRatings | null): CombinedRatings | null => {
+    if (!ratings) return null;
+    return {
+        rt: (ratings.rottenTomatoes || ratings.popcorn) ? {
+            criticsScore: ratings.rottenTomatoes?.percent ?? undefined,
+            audienceScore: ratings.popcorn?.percent ?? undefined,
+            criticsRating: ratings.rottenTomatoes?.fresh === false ? 'Rotten' : 'Fresh',
+            audienceRating: ratings.popcorn?.fresh === false ? 'Spilled' : 'Upright',
+        } : undefined,
+        imdb: ratings.imdb ? {
+            criticsScore: ratings.imdb.value > 10 ? ratings.imdb.value / 10 : ratings.imdb.value,
+            url: ratings.imdb.url,
+        } : undefined,
+    };
+};
+
+const ratingsHavePills = (ratings?: PlayerRatings | null) => (
+    !!(ratings?.imdb || ratings?.rottenTomatoes || ratings?.popcorn || ratings?.tmdb)
+);
+
 export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenItem, onOpenPerson, onPlay, playing = false }) => {
     const { t, locale } = useDiscoverI18n();
+    const [gridSize] = useDiscoverGridSize();
     const [item, setItem] = useState<PlayerItem | null>(null);
     const [children, setChildren] = useState<PlayerItem[]>([]);
+    const [extras, setExtras] = useState<PlayerItem[]>([]);
+    const [related, setRelated] = useState<PlayerLibraryHub[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [posterFailed, setPosterFailed] = useState(false);
     const [backdropFailed, setBackdropFailed] = useState(false);
+    const [mediaInfoOpen, setMediaInfoOpen] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
         setLoading(true);
         setPosterFailed(false);
         setBackdropFailed(false);
+        setMediaInfoOpen(false);
         fetchMediaPlayerItem(ratingKey)
             .then((data) => {
                 if (cancelled) return;
                 setItem(data.item);
                 setChildren(data.children || []);
+                setExtras(data.extras || []);
+                setRelated(data.related || []);
                 setError(null);
             })
             .catch((err) => {
@@ -62,6 +102,27 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
             });
         return () => { cancelled = true; };
     }, [ratingKey, t]);
+
+    const trailer = useMemo(() => extras.find(isPlayerTrailer) || extras[0] || null, [extras]);
+    const mediaSummary = useMemo(() => {
+        const mediaInfo = item?.mediaInfo || [];
+        const first = mediaInfo[0];
+        const part = first?.parts?.[0];
+        if (!first && !part) return null;
+        const resolution = formatPlayerResolution(part?.video?.height || first?.height, part?.video?.resolution || first?.videoResolution);
+        const bitrate = formatBitrateMbps(part?.video?.bitrate || first?.bitrate);
+        const codec = String(part?.video?.codec || first?.videoCodec || '').toUpperCase();
+        const profile = titleCaseProfile(part?.video?.profile);
+        const videoBits = [codec, profile].filter(Boolean).join(' ');
+        const versions = [bitrate, resolution].filter(Boolean).join(', ');
+        const selectedSub = part?.subtitles?.find((row) => row.selected);
+        return {
+            versions: versions ? `${versions}${mediaInfo.length > 1 ? `, ${t('mediaPlayerPage.andMore')}` : ''}` : '',
+            video: [resolution, videoBits ? `(${videoBits})` : ''].filter(Boolean).join(' '),
+            audio: part?.audio?.[0]?.displayTitle || first?.audioCodec || '',
+            subtitles: selectedSub?.displayTitle || '',
+        };
+    }, [item, t]);
 
     if (loading && !item) {
         return (
@@ -87,25 +148,37 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
     const backdropUrl = plexImageUrl(item.art || item.thumb, 1280, 720);
     const isEpisodeGrid = children.some((row) => row.type === 'episode');
     const canPlay = !!item.canPlay;
-    const playLabel = item.viewOffsetMs && item.viewOffsetMs > 15000
-        ? t('mediaPlayerPage.resume')
-        : t('mediaPlayerPage.play');
+    const playLabel = item.type === 'show' || item.type === 'season'
+        ? (Number(item.viewedLeafCount) > 0 ? t('mediaPlayerPage.resume') : t('mediaPlayerPage.play'))
+        : (item.viewOffsetMs && item.viewOffsetMs > 15000
+            ? t('mediaPlayerPage.resume')
+            : t('mediaPlayerPage.play'));
     const airedDate = item.originallyAvailableAt ? new Date(item.originallyAvailableAt) : null;
     const aired = airedDate && !Number.isNaN(airedDate.getTime())
         ? airedDate.toLocaleDateString(locale || 'en', { day: 'numeric', month: 'short', year: 'numeric' })
         : '';
+    const genres = item.genres || [];
+    const genreLine = genres.length > 2
+        ? `${genres.slice(0, 2).join(', ')}, ${t('mediaPlayerPage.andMore')}`
+        : genres.join(', ');
     const metaChips = [
+        item.contentRating ? { icon: null, label: String(item.contentRating) } : null,
         item.year ? { icon: <Calendar className="h-3 w-3" />, label: String(item.year) } : null,
-        item.contentRating ? { icon: null, label: item.contentRating } : null,
         item.durationMs ? { icon: <Clock className="h-3 w-3" />, label: formatPlayerDuration(item.durationMs) } : null,
-        item.audienceRating ? { icon: <Star className="h-3 w-3 text-plex" />, label: String(item.audienceRating) } : null,
+        genreLine ? { icon: null, label: genreLine } : null,
+        !ratingsHavePills(item.ratings) && item.audienceRating ? { icon: <Star className="h-3 w-3 text-plex" />, label: String(item.audienceRating) } : null,
     ].filter(Boolean) as Array<{ icon: React.ReactNode; label: string }>;
     const factRows = [
         item.studio ? { label: t('media.studio'), value: item.studio } : null,
-        item.directors?.length ? { label: t('mediaPlayerPage.directedBy'), value: item.directors.join(', ') } : null,
         item.writers?.length ? { label: t('mediaPlayerPage.writtenBy'), value: item.writers.join(', ') } : null,
         aired ? { label: t('mediaPlayerPage.aired'), value: aired } : null,
     ].filter(Boolean) as Array<{ label: string; value: string }>;
+    const streamRows = mediaSummary ? [
+        mediaSummary.versions ? { label: t('mediaPlayerPage.versions'), value: mediaSummary.versions } : null,
+        mediaSummary.video ? { label: t('mediaPlayerPage.video'), value: mediaSummary.video } : null,
+        mediaSummary.audio ? { label: t('mediaPlayerPage.audio'), value: mediaSummary.audio } : null,
+        { label: t('mediaPlayerPage.subtitles'), value: mediaSummary.subtitles || t('mediaPlayerPage.subtitlesOff') },
+    ].filter(Boolean) as Array<{ label: string; value: string }> : [];
     const cast = item.cast || [];
     const factMediaType = item.type === 'movie'
         ? 'movie'
@@ -118,10 +191,11 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
     const seasonKey = item.type === 'episode' ? item.parentRatingKey : (item.type === 'season' ? item.ratingKey : null);
     const showName = item.type === 'season' || item.type === 'episode' ? item.showTitle : null;
     const seasonName = item.type === 'episode' ? item.seasonTitle : null;
-    const openCrumb = (ratingKey?: string | null) => {
-        if (!ratingKey || ratingKey === item.ratingKey) return;
-        onOpenItem({ ratingKey, title: '', type: 'show' });
+    const openCrumb = (nextKey?: string | null) => {
+        if (!nextKey || nextKey === item.ratingKey) return;
+        onOpenItem({ ratingKey: nextKey, title: '', type: 'show' });
     };
+    const tmdbScore = item.ratings?.tmdb?.percent != null ? `${item.ratings.tmdb.percent}%` : null;
 
     const titleBlock = (
         <>
@@ -155,6 +229,9 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
             {item.tagline ? (
                 <p className="text-sm sm:text-base text-white/55 italic max-w-4xl">{item.tagline}</p>
             ) : null}
+            {item.directors?.length ? (
+                <p className="text-sm text-white/70">{t('mediaPlayerPage.directedBy')} {item.directors.join(', ')}</p>
+            ) : null}
             <div className="flex flex-wrap items-center gap-1.5">
                 {metaChips.map((chip) => (
                     <div key={chip.label} className="flex items-center gap-1 bg-black/45 px-2 py-1 rounded-md backdrop-blur-md border border-white/10 text-[11px] text-white/85 font-semibold">
@@ -163,15 +240,11 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                     </div>
                 ))}
             </div>
-            {item.genres?.length ? (
-                <div className="flex flex-wrap gap-2">
-                    {item.genres.map((genre) => (
-                        <span key={genre} className="px-2.5 py-1 bg-white/[0.06] border border-white/10 rounded-lg text-xs font-semibold text-white/75 backdrop-blur-sm">
-                            {genre}
-                        </span>
-                    ))}
-                </div>
-            ) : null}
+            <MediaRatingPills
+                ratings={toCombinedRatings(item.ratings)}
+                tmdbScore={tmdbScore}
+                tmdbUrl={item.ratings?.tmdb?.url}
+            />
         </>
     );
 
@@ -205,7 +278,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                     </button>
 
                     <div className="flex flex-col md:flex-row gap-5 md:gap-6 lg:gap-10">
-                        <div className={`w-full flex-shrink-0 flex flex-col gap-4 ${item.type === 'episode' ? 'md:w-80 lg:w-96' : 'md:w-52 lg:w-60'}`}>
+                        <div className={`w-full flex-shrink-0 flex flex-col gap-3 ${item.type === 'episode' ? 'md:w-80 lg:w-96' : 'md:w-52 lg:w-60'}`}>
                             <div className="flex flex-row md:flex-col gap-4 items-stretch">
                                 <div className={`relative w-[38%] max-w-[10.5rem] sm:max-w-[12rem] md:w-full md:max-w-none rounded-xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.55)] border border-white/15 bg-black/50 ring-1 ring-white/10 flex-shrink-0 ${item.type === 'episode' ? 'aspect-video max-w-[14rem] sm:max-w-[16rem]' : 'aspect-[2/3]'}`}>
                                     <div className="absolute -inset-4 bg-plex/10 blur-3xl opacity-40 pointer-events-none" />
@@ -230,6 +303,31 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                     {playLabel}
                                 </button>
                             ) : null}
+                            {trailer || item.mediaInfo?.length ? (
+                                <div className={`grid gap-2 ${trailer && item.mediaInfo?.length ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                                    {trailer ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => onPlay(trailer)}
+                                            disabled={playing}
+                                            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-2 py-2.5 text-xs font-bold text-white hover:bg-white/10 disabled:opacity-50"
+                                        >
+                                            <Play className="h-3.5 w-3.5 fill-current" />
+                                            {t('mediaPlayerPage.trailer')}
+                                        </button>
+                                    ) : null}
+                                    {item.mediaInfo?.length ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => setMediaInfoOpen(true)}
+                                            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-2 py-2.5 text-xs font-bold text-white hover:bg-white/10"
+                                        >
+                                            <Info className="h-3.5 w-3.5" />
+                                            {t('mediaPlayerPage.mediaInfo')}
+                                        </button>
+                                    ) : null}
+                                </div>
+                            ) : null}
                         </div>
 
                         <div className="flex-1 min-w-0 flex flex-col gap-4 pb-2">
@@ -240,6 +338,22 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                 <p className="text-sm sm:text-base lg:text-[17px] text-text leading-relaxed">
                                     {item.summary || t('media.noDescription')}
                                 </p>
+                                {streamRows.length ? (
+                                    <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 max-w-xl">
+                                        {streamRows.map((row) => (
+                                            <React.Fragment key={row.label}>
+                                                <span className="text-xs font-bold uppercase tracking-wider text-muted pt-0.5">{row.label}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => item.mediaInfo?.length && setMediaInfoOpen(true)}
+                                                    className="text-left text-sm font-semibold text-text hover:text-plex"
+                                                >
+                                                    {row.value}
+                                                </button>
+                                            </React.Fragment>
+                                        ))}
+                                    </div>
+                                ) : null}
                                 {factRows.length ? (
                                     <div className="flex flex-col gap-3">
                                         <SectionHeading>{t('media.details')}</SectionHeading>
@@ -340,7 +454,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                 ) : null}
 
                 {cast.length ? (
-                    <section className="border-t border-border pt-8 pb-4">
+                    <section className="border-t border-border pt-8">
                         <SectionHeading>{t('media.topCast')}</SectionHeading>
                         <Carousel>
                             {cast.slice(0, 15).map((actor) => (
@@ -378,7 +492,65 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                         </Carousel>
                     </section>
                 ) : null}
+
+                {extras.length ? (
+                    <section className="border-t border-border pt-8">
+                        <SectionHeading>{t('mediaPlayerPage.extras')}</SectionHeading>
+                        <Carousel>
+                            {extras.map((extra) => (
+                                <button
+                                    key={extra.ratingKey}
+                                    type="button"
+                                    onClick={() => extra.canPlay ? onPlay(extra) : onOpenItem(extra)}
+                                    className="group w-64 sm:w-72 flex-shrink-0 snap-start text-left"
+                                >
+                                    <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black/30">
+                                        {extra.thumb ? (
+                                            <img
+                                                src={plexImageUrl(extra.thumb, 640, 360)}
+                                                alt=""
+                                                className="aspect-video w-full object-cover transition-transform group-hover:scale-[1.03]"
+                                            />
+                                        ) : (
+                                            <div className="flex aspect-video items-center justify-center bg-white/5">
+                                                <Play className="h-8 w-8 text-white/70" />
+                                            </div>
+                                        )}
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 transition-opacity group-hover:opacity-100">
+                                            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-plex text-white shadow-lg">
+                                                <Play className="h-5 w-5 fill-current" />
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="mt-2 truncate text-sm font-bold text-text group-hover:text-plex">{extra.title}</div>
+                                    <div className="text-[11px] text-muted">
+                                        {isPlayerTrailer(extra) ? t('mediaPlayerPage.trailer') : (extra.extraSubtype || extra.type)}
+                                        {extra.durationMs ? ` · ${formatPlayerDuration(extra.durationMs)}` : ''}
+                                    </div>
+                                </button>
+                            ))}
+                        </Carousel>
+                    </section>
+                ) : null}
+
+                {related.length ? (
+                    <section className="border-t border-border pt-8 pb-4 flex flex-col gap-8">
+                        {related.map((hub) => (
+                            <PlayerRail
+                                key={hub.identifier || hub.title}
+                                title={hub.title}
+                                items={hub.items}
+                                density={gridSize}
+                                onOpenItem={onOpenItem}
+                                onPlay={onPlay}
+                            />
+                        ))}
+                    </section>
+                ) : null}
             </div>
+            {mediaInfoOpen ? (
+                <MediaPlayerMediaInfo item={item} onClose={() => setMediaInfoOpen(false)} />
+            ) : null}
         </div>
     );
 };
