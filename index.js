@@ -230,6 +230,7 @@ import {
     shouldFullRefreshAnalyticsHistory,
     analyticsHistoryItemKey,
 } from './lib/analytics/historyCache.js';
+import { aggregateTitleHistory } from './lib/analytics/titleStats.js';
 import { withTautulliExclusive } from './lib/tautulli/exclusiveLock.js';
 import { isTautulliWatchHistorySource, buildAchievementsHomeRankContext, summarizeAchievementsBackfill, levelProgress } from './lib/achievements/index.js';
 import { loadAchievementsState, setLeaderboardOptOut } from './lib/achievements/store.js';
@@ -17325,61 +17326,137 @@ app.get('/api/plex/discover-search', requireAuth, requireAdmin, async (req, res)
             });
         }
 
-        // Limit to top 8 results to prevent heavy network usage
-        searchResults = searchResults.slice(0, 8);
-
-        // Fetch Watch History in parallel
-        await Promise.all(searchResults.map(async (item) => {
-            item.history = [];
-            try {
-                if (config.tautulliUrl && config.tautulliApiKey) {
-                    const tUrl = resolveIntegrationUrlForFetch(config.tautulliUrl);
-                    if (!tUrl) return;
-                    const resData = await fetchTautulliApi(tUrl, {
-                        apikey: config.tautulliApiKey,
-                        cmd: 'get_history',
-                        search: item.title,
-                        length: '50',
-                    }, { throwOnError: false });
-                    if (resData && resData.response && resData.response.data && resData.response.data.data) {
-                        const historyData = resData.response.data.data;
-                        item.history = historyData
-                            .filter(h => String(h.rating_key) === String(item.ratingKey) || String(h.grandparent_rating_key) === String(item.ratingKey))
-                            .map(h => ({
-                                user: h.user,
-                                userThumb: h.user_thumb || null,
-                                date: h.date,
-                                duration: h.duration,
-                                player: h.player,
-                                title: h.full_title || h.title,
-                                source: 'Tautulli'
-                            }));
-                    }
-                } else {
-                    const filterKey = item.type === 'show' ? 'grandparentID' : 'metadataItemID';
-                    const fetchUrl = `${uri}/status/sessions/history/all?sort=viewedAt%3Adesc&${filterKey}=${item.ratingKey}&X-Plex-Token=${config.plexToken}`;
-                    const resData = await fetch(fetchUrl, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json());
-                    if (resData && resData.MediaContainer && resData.MediaContainer.Metadata) {
-                        item.history = resData.MediaContainer.Metadata.map(h => ({
-                            user: (h.User && h.User.title) ? h.User.title : 'Unknown User',
-                            userThumb: (h.User && h.User.thumb) ? h.User.thumb : null,
-                            date: h.viewedAt, // Unix timestamp in seconds
-                            duration: h.duration ? Math.round(h.duration / 1000) : 0, // Convert ms to seconds
-                            player: (h.Player && h.Player.title) ? h.Player.title : 'Unknown Player',
-                            title: h.title,
-                            source: 'Plex'
-                        }));
-                    }
-                }
-            } catch (e) {
-                log(`Error fetching history for ${item.title}: ${e.message}`);
-            }
-        }));
+        // Titles only — watch history loads on the title page so search stays fast.
+        searchResults = searchResults.slice(0, 12);
 
         res.json({ results: searchResults });
     } catch (e) {
         log(`Error fetching discover search: ${e.message}`);
         res.status(500).json({ error: 'Failed to fetch search results' });
+    }
+});
+
+const mapTitleHistoryRow = (row, source) => ({
+    user: row.user || 'Unknown',
+    userThumb: row.userThumb || null,
+    date: Number(row.date) || 0,
+    duration: Math.max(0, Number(row.duration) || 0),
+    player: row.player || null,
+    title: row.title || null,
+    source,
+});
+
+app.get('/api/plex/analytics/title/:ratingKey', requireAuth, requireAdmin, async (req, res) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, null);
+        if (!config || !config.plexToken || !config.serverIdentifier) {
+            return res.status(503).json({ error: 'Plex not configured' });
+        }
+        const uri = await getPlexConnectionUri(config);
+        if (!uri) return res.status(503).json({ error: 'Cannot connect to Plex' });
+
+        const ratingKey = String(req.params.ratingKey || '').trim();
+        if (!ratingKey || !/^\d+$/.test(ratingKey)) {
+            return res.status(400).json({ error: 'Invalid title id' });
+        }
+
+        let item = {
+            ratingKey,
+            title: '',
+            type: '',
+            year: null,
+            thumb: null,
+            summary: null,
+            plexUrl: `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent(`/library/metadata/${ratingKey}`)}`,
+        };
+        try {
+            const metaRes = await fetch(
+                `${uri}/library/metadata/${encodeURIComponent(ratingKey)}?X-Plex-Token=${config.plexToken}`,
+                { headers: plexClientHeaders(config.plexToken) },
+            ).then((r) => r.json()).catch(() => null);
+            const meta = metaRes?.MediaContainer?.Metadata?.[0];
+            if (meta) {
+                item = {
+                    ...item,
+                    title: meta.title || item.title,
+                    type: meta.type || item.type,
+                    year: meta.year || null,
+                    thumb: meta.thumb || null,
+                    summary: meta.summary || null,
+                    plexUrl: `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent(meta.key || `/library/metadata/${ratingKey}`)}`,
+                };
+            }
+        } catch (e) {
+            log(`Title analytics metadata failed for ${ratingKey}: ${e.message}`);
+        }
+
+        const history = [];
+        let source = 'plex';
+        const isShow = String(item.type || '').toLowerCase() === 'show';
+
+        if (config.tautulliUrl && config.tautulliApiKey) {
+            const tUrl = resolveIntegrationUrlForFetch(config.tautulliUrl);
+            if (tUrl) {
+                const pageSize = 100;
+                const maxRows = 500;
+                for (let start = 0; start < maxRows; start += pageSize) {
+                    const extra = isShow
+                        ? { grandparent_rating_key: ratingKey, start, length: pageSize }
+                        : { rating_key: ratingKey, start, length: pageSize };
+                    const rows = await fetchTautulliHistoryPage(tUrl, config, extra, { throwOnError: false });
+                    if (!rows || !rows.length) break;
+                    let pageMatches = 0;
+                    for (const row of rows) {
+                        const hasKeys = row.grandparent_rating_key != null || row.rating_key != null;
+                        const matches = isShow
+                            ? String(row.grandparent_rating_key || '') === ratingKey
+                            : String(row.rating_key || '') === ratingKey || String(row.grandparent_rating_key || '') === ratingKey;
+                        if (hasKeys && !matches) continue;
+                        pageMatches += 1;
+                        history.push(mapTitleHistoryRow({
+                            user: row.user,
+                            userThumb: row.user_thumb || null,
+                            date: row.date,
+                            duration: row.play_duration != null ? Number(row.play_duration) : Number(row.duration) || 0,
+                            player: row.player,
+                            title: row.full_title || row.title,
+                        }, 'tautulli'));
+                    }
+                    if (start === 0 && pageMatches === 0) break;
+                    if (rows.length < pageSize) break;
+                }
+                if (history.length) source = 'tautulli';
+            }
+        }
+
+        if (!history.length) {
+            const filterKey = isShow ? 'grandparentID' : 'metadataItemID';
+            const fetchUrl = `${uri}/status/sessions/history/all?sort=viewedAt%3Adesc&${filterKey}=${encodeURIComponent(ratingKey)}&X-Plex-Container-Start=0&X-Plex-Container-Size=200&X-Plex-Token=${config.plexToken}`;
+            const resData = await fetch(fetchUrl, { headers: plexClientHeaders(config.plexToken) }).then((r) => r.json()).catch(() => null);
+            const rows = resData?.MediaContainer?.Metadata || [];
+            for (const row of rows) {
+                history.push(mapTitleHistoryRow({
+                    user: row.User?.title || 'Unknown User',
+                    userThumb: row.User?.thumb || null,
+                    date: row.viewedAt,
+                    duration: row.duration ? Math.round(row.duration / 1000) : 0,
+                    player: row.Player?.title || null,
+                    title: row.grandparentTitle ? `${row.grandparentTitle} - ${row.title}` : row.title,
+                }, 'plex'));
+            }
+            source = 'plex';
+        }
+
+        const aggregated = aggregateTitleHistory(history);
+        res.json({
+            item,
+            source,
+            ...aggregated,
+            history,
+        });
+    } catch (e) {
+        log(`Error fetching title analytics: ${e.message}`);
+        res.status(500).json({ error: 'Failed to load title analytics' });
     }
 });
 
@@ -18005,6 +18082,8 @@ const fetchTautulliHistoryPage = async (tUrl, config, extraParams = {}, { timeou
         ...(extraParams.user_id ? { user_id: String(extraParams.user_id) } : {}),
         ...(extraParams.start_date ? { start_date: String(extraParams.start_date) } : {}),
         ...(extraParams.search ? { search: String(extraParams.search) } : {}),
+        ...(extraParams.rating_key ? { rating_key: String(extraParams.rating_key) } : {}),
+        ...(extraParams.grandparent_rating_key ? { grandparent_rating_key: String(extraParams.grandparent_rating_key) } : {}),
     }, { timeoutMs, throwOnError });
     const rows = tautulliHistoryRowsFromPayload(payload);
     if (rows == null) {

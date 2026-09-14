@@ -392,7 +392,10 @@ export const MainApp: React.FC = () => {
             if (route === 'user') path = '/portal';
             if (route === 'onboarding') path = '/onboarding';
             if (route === 'status') path = '/status';
-            if (route === 'dashboard') path = '/dashboard';
+            if (route === 'dashboard') {
+                const custom = String(options?.path || '').trim();
+                path = custom.startsWith('/dashboard') ? custom : '/dashboard';
+            }
             if (route === 'settings') path = '/settings#branding';
             if (route === 'analytics') path = '/analytics';
             if (route === 'achievements') path = '/achievements';
@@ -466,6 +469,9 @@ export const MainApp: React.FC = () => {
             if (options?.hash) path += options.hash;
             window.history.pushState({}, '', portalUrl(path));
             if (route === 'profile') setProfilePath(stripBasePath(path.split('#')[0] || path));
+            if (route === 'dashboard') {
+                window.dispatchEvent(new Event('portal-dashboard-navigate'));
+            }
             if (route === 'discovery') {
                 window.dispatchEvent(new Event('portal-discovery-navigate'));
                 if (String(path).includes('/discovery/queue')) {

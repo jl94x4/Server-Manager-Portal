@@ -31,6 +31,17 @@ Sections are powered by server-wide watch history:
 
 Items show server artwork, play counts, and quality badges (4K, HDR, AV1/HEVC, Atmos, and more). Analytics caches are reused when still fresh so the page stays quick after restarts.
 
+## Library title search
+
+Admin search on Dashboard looks up movies and shows in the library. Pick a title to open its page (`/dashboard/title/:ratingKey`) with:
+
+- Play count, unique watchers, watch time, and last watched
+- Who watched, ranked by plays (opens that user’s analytics)
+- Monthly play chart
+- Full server watch history (Tautulli when configured, otherwise Plex)
+
+Search results stay a compact title list so they no longer stack over live activity cards.
+
 ## Related
 
 - [Discover & Request](/features/discover-request) — browse TMDB and submit requests
