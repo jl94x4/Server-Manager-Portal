@@ -1116,6 +1116,8 @@ export function usePosterSetsDashboardState() {
                 creator: null,
                 titleCardsOnly: restrictTitleCards,
             }, 'push');
+        } else {
+            syncedSetUrlRef.current = target;
         }
 
         await runPreview(target, {
@@ -1130,8 +1132,12 @@ export function usePosterSetsDashboardState() {
     };
 
     /** Deep links / Recent / Queue reopen — Apply with set expanded (keeps any existing search). */
-    const openSetForApply = async (set: PosterSetsSearchSet, options?: { skipUrl?: boolean }) => {
-        await expandSetInline(set, { skipUrl: options?.skipUrl, stayOnTab: false, toggle: false });
+    const openSetForApply = async (set: PosterSetsSearchSet, options?: { skipUrl?: boolean; stayOnTab?: boolean }) => {
+        await expandSetInline(set, {
+            skipUrl: options?.skipUrl,
+            stayOnTab: Boolean(options?.stayOnTab),
+            toggle: false,
+        });
     };
     const openSetForApplyRef = useRef(openSetForApply);
     openSetForApplyRef.current = openSetForApply;
@@ -1322,7 +1328,7 @@ export function usePosterSetsDashboardState() {
                     title: '',
                     url: target,
                     setKind: initialUrlState.titleCardsOnly ? 'title_cards' : null,
-                }, { skipUrl: true });
+                }, { skipUrl: true, stayOnTab: initialLocation.tab === 'paste' });
                 if (initialUrlState.action === 'apply') {
                     await runApplyRef.current(false, target);
                 }
@@ -1336,7 +1342,11 @@ export function usePosterSetsDashboardState() {
     }, [initialLocation.tab, initialUrlState]);
 
     useEffect(() => {
-        const onPopState = () => {
+        let lastHash = window.location.hash || '';
+        const onLocationChange = () => {
+            const hash = window.location.hash || '';
+            if (hash === lastHash) return;
+            lastHash = hash;
             const parsed = parsePosterSetsUrl();
             const internalTab = internalTabFromUrl(parsed);
             setTab(internalTab);
@@ -1401,6 +1411,21 @@ export function usePosterSetsDashboardState() {
                     void openCreatorCatalogRef.current(handleFromUrl, { skipUrl: true, locationTab: 'paste' });
                     return;
                 }
+                const changed = syncedSetUrlRef.current !== parsed.setUrl
+                    || titleCardsOnlyRef.current !== nextTitleCards;
+                syncedSetUrlRef.current = parsed.setUrl;
+                titleCardsOnlyRef.current = nextTitleCards;
+                setTitleCardsOnly(nextTitleCards);
+                setUrl(parsed.setUrl);
+                if (changed) {
+                    void openSetForApplyRef.current({
+                        setId: '',
+                        title: '',
+                        url: parsed.setUrl,
+                        setKind: nextTitleCards ? 'title_cards' : null,
+                    }, { skipUrl: true, stayOnTab: true });
+                }
+                return;
             }
 
             if (internalTab === 'apply' && parsed.creator) {
@@ -1428,8 +1453,12 @@ export function usePosterSetsDashboardState() {
                 setTitleCardsOnly(false);
             }
         };
-        window.addEventListener('popstate', onPopState);
-        return () => window.removeEventListener('popstate', onPopState);
+        window.addEventListener('popstate', onLocationChange);
+        window.addEventListener('hashchange', onLocationChange);
+        return () => {
+            window.removeEventListener('popstate', onLocationChange);
+            window.removeEventListener('hashchange', onLocationChange);
+        };
     }, []);
 
     const filtersForSelectedIds = (ids: string[]) => {

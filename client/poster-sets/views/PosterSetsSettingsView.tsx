@@ -371,7 +371,7 @@ export const PosterSetsSettingsView: React.FC = () => {
     }, [configDraft.webhookToken]);
 
     const tpdbBookmarklet = useMemo(
-        () => buildTpdbImportBookmarklet(getPublicOrigin(), { apply: true }),
+        () => buildTpdbImportBookmarklet(getPublicOrigin(), { apply: false }),
         [],
     );
     const tpdbUserscriptHref = portalUrl('/api/poster-sets/tpdb-import.user.js');
@@ -595,7 +595,8 @@ export const PosterSetsSettingsView: React.FC = () => {
                             <p className="text-sm font-semibold text-text">Import from ThePosterDB</p>
                             <p className="text-xs text-muted leading-relaxed">
                                 ThePosterDB blocks iframes, so this cannot live in an applet. Browse TPDB in a normal tab,
-                                then send the set here. Both tools open Poster Sets and queue the set (you must be logged in as admin).
+                                then send the set here. Both tools open Paste / Import so you can preview and queue
+                                (you must be logged in as admin). Repeat imports reuse the same portal tab.
                             </p>
                             <div className="flex flex-wrap gap-2">
                                 <a
@@ -639,7 +640,7 @@ export const PosterSetsSettingsView: React.FC = () => {
                                 </a>
                             </div>
                             <p className="text-[11px] text-muted leading-relaxed">
-                                Bookmarklet: open a set page, then click the bookmark. Userscript: adds an Import button on set pages and next to set links in lists.
+                                Bookmarklet: open a set page, then click the bookmark. Userscript: adds a TPDB-styled import icon next to download/share on set pages and on poster cards.
                             </p>
                         </div>
                     ) : null}
