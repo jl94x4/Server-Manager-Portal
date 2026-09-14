@@ -253,8 +253,9 @@ export const TitleAnalyticsPage: React.FC<{
     }));
     const platformChartData = data?.byPlatform || [];
 
+    const isEpisode = itemType === 'episode';
     const posterSrc = item.thumb
-        ? plexThumbSrc(item.thumb, 300, 450)
+        ? plexThumbSrc(item.thumb, isEpisode ? 640 : 600, isEpisode ? 360 : 900)
         : '';
     const showCrumbKey = itemType === 'season' ? item.parentRatingKey : item.grandparentRatingKey;
     const showCrumbTitle = itemType === 'season' ? item.parentTitle : item.grandparentTitle;
@@ -350,11 +351,15 @@ export const TitleAnalyticsPage: React.FC<{
             ) : null}
 
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-                <div className="w-36 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-black/30 shadow-xl sm:w-44">
+                <div className={`shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-black/30 shadow-xl ${isEpisode ? 'w-full max-w-xl lg:w-[28rem]' : 'w-36 sm:w-44'}`}>
                     {posterSrc ? (
-                        <img src={posterSrc} alt={item.title || 'Poster'} className="aspect-[2/3] w-full object-cover" />
+                        <img
+                            src={posterSrc}
+                            alt={item.title || (isEpisode ? 'Episode still' : 'Poster')}
+                            className={`${isEpisode ? 'aspect-video' : 'aspect-[2/3]'} w-full object-cover`}
+                        />
                     ) : (
-                        <div className="flex aspect-[2/3] items-center justify-center text-xs font-bold uppercase tracking-widest text-muted">No art</div>
+                        <div className={`flex ${isEpisode ? 'aspect-video' : 'aspect-[2/3]'} items-center justify-center text-xs font-bold uppercase tracking-widest text-muted`}>No art</div>
                     )}
                 </div>
                 {item.summary ? (
@@ -411,7 +416,7 @@ export const TitleAnalyticsPage: React.FC<{
                 >
                     <div className="space-y-3">
                         {childKind === 'season' ? (
-                            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+                            <div className="grid grid-cols-[repeat(auto-fill,minmax(9.5rem,11rem))] justify-start gap-3">
                                 {pageChildren.map((row) => (
                                     <button
                                         key={row.ratingKey}
@@ -422,7 +427,7 @@ export const TitleAnalyticsPage: React.FC<{
                                         <div className="overflow-hidden rounded-xl border border-white/10 bg-black/30">
                                             {row.thumb ? (
                                                 <img
-                                                    src={plexThumbSrc(row.thumb, 200, 300)}
+                                                    src={plexThumbSrc(row.thumb, 600, 900)}
                                                     alt=""
                                                     className="aspect-[2/3] w-full object-cover transition-transform group-hover:scale-[1.03]"
                                                 />
@@ -451,7 +456,7 @@ export const TitleAnalyticsPage: React.FC<{
                                     >
                                         <div className="h-14 w-24 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-black/30">
                                             {row.thumb ? (
-                                                <img src={plexThumbSrc(row.thumb, 240, 135)} alt="" className="h-full w-full object-cover" />
+                                                <img src={plexThumbSrc(row.thumb, 320, 180)} alt="" className="h-full w-full object-cover" />
                                             ) : (
                                                 <div className="flex h-full items-center justify-center text-[10px] font-bold uppercase tracking-widest text-muted">—</div>
                                             )}
