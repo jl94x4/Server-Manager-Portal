@@ -168,13 +168,9 @@ const plexThumbSrc = (thumb?: string | null, width = 300, height = 450) => {
     return portalUrl(`/api/plex/image?path=${encodeURIComponent(thumb)}&width=${width}&height=${height}`);
 };
 
-const childLabel = (row: TitleChildRow, kind: 'season' | 'episode', parentIndex?: number | null) => {
-    if (kind === 'season') {
-        if (row.index === 0) return row.title && !/^season\s*0$/i.test(row.title) ? row.title : 'Specials';
-        return row.title || (row.index != null ? `Season ${row.index}` : 'Season');
-    }
-    const code = formatSeasonEpisode(row.parentIndex ?? parentIndex, row.index);
-    return code ? `${code}  ${row.title || 'Episode'}` : (row.title || 'Episode');
+const childLabel = (row: TitleChildRow) => {
+    if (row.index === 0) return row.title && !/^season\s*0$/i.test(row.title) ? row.title : 'Specials';
+    return row.title || (row.index != null ? `Season ${row.index}` : 'Season');
 };
 
 const chartTooltipStyle = {
@@ -199,7 +195,6 @@ export const TitleAnalyticsPage: React.FC<{
     const [streamRow, setStreamRow] = useState<TitleHistoryRow | null>(null);
     const pageSize = 25;
     const usersPageSize = 10;
-    const childrenPageSize = 12;
 
     useEffect(() => {
         let cancelled = false;
@@ -232,6 +227,7 @@ export const TitleAnalyticsPage: React.FC<{
     const users = data?.users || [];
     const children = data?.children || [];
     const childKind = data?.childKind === 'episode' ? 'episode' : data?.childKind === 'season' ? 'season' : null;
+    const childrenPageSize = childKind === 'episode' ? 24 : 12;
     const stats = data?.stats || {};
     const item = data?.item || {};
     const itemType = String(item.type || '').toLowerCase();
@@ -249,7 +245,7 @@ export const TitleAnalyticsPage: React.FC<{
     const pageChildren = useMemo(() => {
         const start = (childrenPage - 1) * childrenPageSize;
         return children.slice(start, start + childrenPageSize);
-    }, [children, childrenPage]);
+    }, [children, childrenPage, childrenPageSize]);
 
     const chartData = (data?.byMonth || []).map((row) => ({
         ...row,
@@ -440,7 +436,7 @@ export const TitleAnalyticsPage: React.FC<{
                                             )}
                                         </div>
                                         <div className="mt-2 truncate text-sm font-bold text-text group-hover:text-plex">
-                                            {childLabel(row, 'season')}
+                                            {childLabel(row)}
                                         </div>
                                         <div className="text-[11px] text-muted">
                                             {row.plays} {row.plays === 1 ? 'play' : 'plays'}
@@ -450,33 +446,39 @@ export const TitleAnalyticsPage: React.FC<{
                                 ))}
                             </div>
                         ) : (
-                            <div className="divide-y divide-white/5">
-                                {pageChildren.map((row) => (
-                                    <button
-                                        key={row.ratingKey}
-                                        type="button"
-                                        onClick={() => openTitle(row.ratingKey)}
-                                        className="flex w-full min-w-0 items-center gap-3 px-1 py-2.5 text-left transition-colors hover:bg-white/5"
-                                    >
-                                        <div className="h-14 w-24 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-black/30">
-                                            {row.thumb ? (
-                                                <img src={plexThumbSrc(row.thumb, 320, 180)} alt="" className="h-full w-full object-cover" />
-                                            ) : (
-                                                <div className="flex h-full items-center justify-center text-[10px] font-bold uppercase tracking-widest text-muted">—</div>
-                                            )}
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <div className="truncate text-sm font-bold text-text">{childLabel(row, 'episode', item.index)}</div>
-                                            <div className="text-[11px] text-muted">
-                                                {row.lastWatchedAt ? formatPortalDateTimeCompact(row.lastWatchedAt) : 'Not watched yet'}
+                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+                                {pageChildren.map((row) => {
+                                    const code = formatSeasonEpisode(row.parentIndex ?? item.index, row.index);
+                                    const episodeNumber = row.index != null && Number.isFinite(Number(row.index))
+                                        ? `Episode ${Number(row.index)}`
+                                        : code;
+                                    return (
+                                        <button
+                                            key={row.ratingKey}
+                                            type="button"
+                                            onClick={() => openTitle(row.ratingKey)}
+                                            className="group min-w-0 text-left"
+                                        >
+                                            <div className="overflow-hidden rounded-xl border border-white/10 bg-black/30">
+                                                {row.thumb ? (
+                                                    <img
+                                                        src={plexThumbSrc(row.thumb, 640, 360)}
+                                                        alt=""
+                                                        className="aspect-video w-full object-cover transition-transform group-hover:scale-[1.03]"
+                                                    />
+                                                ) : (
+                                                    <div className="flex aspect-video items-center justify-center text-[10px] font-bold uppercase tracking-widest text-muted">No art</div>
+                                                )}
                                             </div>
-                                        </div>
-                                        <div className="shrink-0 text-right">
-                                            <div className="text-sm font-black tabular-nums text-text">{row.plays}</div>
-                                            <div className="text-[10px] uppercase tracking-wider text-muted">plays</div>
-                                        </div>
-                                    </button>
-                                ))}
+                                            <div className="mt-2 truncate text-sm font-bold text-text group-hover:text-plex">
+                                                {row.title || episodeNumber || 'Episode'}
+                                            </div>
+                                            <div className="truncate text-[11px] text-muted">
+                                                {[episodeNumber, `${row.plays} ${row.plays === 1 ? 'play' : 'plays'}`].filter(Boolean).join(' · ')}
+                                            </div>
+                                        </button>
+                                    );
+                                })}
                             </div>
                         )}
                         {childrenPageCount > 1 ? (
