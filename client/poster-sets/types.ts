@@ -41,6 +41,11 @@ export type PosterSetsConfig = {
     tpdbUseLogin?: boolean;
     /** Include ThePosterDB in search, Browse, cache, and UI copy (default on). */
     tpdbEnabled?: boolean;
+    /**
+     * Include ThePosterDB in Discover search, Browse, TPDB New, and library set lookup.
+     * Off keeps watches and the import script working (default on).
+     */
+    tpdbSearchEnabled?: boolean;
     /** Include MediUX in search, Browse, and UI copy (default on). */
     mediuxEnabled?: boolean;
     /** Soft disk budget for tpdb-image-cache (bytes). */
@@ -490,6 +495,7 @@ export const DEFAULT_POSTER_SETS_CONFIG: PosterSetsConfig = {
     tpdbCacheFollowedCreatorsOnly: false,
     tpdbUseLogin: true,
     tpdbEnabled: true,
+    tpdbSearchEnabled: true,
     mediuxEnabled: true,
     tpdbCacheMaxBytes: 2 * 1024 * 1024 * 1024,
     tpdbCacheRefreshHour: 3,

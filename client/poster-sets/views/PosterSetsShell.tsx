@@ -29,7 +29,7 @@ import {
     buttonClass,
     discoverSubNavForConfig,
     isDiscoverInternalTab,
-    isTpdbEnabled,
+    isTpdbSearchEnabled,
     isMediuxEnabled,
     posterSetsHeroTitle,
     primaryButtonClass,
@@ -335,7 +335,7 @@ export const PosterSetsShell: React.FC = () => {
                     pageVisible={tab === 'library'}
                     onClose={closeLibraryItem}
                     dupePreference={
-                        !isTpdbEnabled(configDraft)
+                        !isTpdbSearchEnabled(configDraft)
                             ? 'mediux'
                             : !isMediuxEnabled(configDraft)
                                 ? 'posterdb'
@@ -351,7 +351,7 @@ export const PosterSetsShell: React.FC = () => {
                     onLayoutModeChange={setLibraryDetailLayout}
                     toast={toast}
                     tpdbConfigured={Boolean(configDraft.hasTpdbPassword && String(configDraft.tpdb_username || '').trim())}
-                    tpdbEnabled={isTpdbEnabled(configDraft)}
+                    tpdbEnabled={isTpdbSearchEnabled(configDraft)}
                     mediuxEnabled={isMediuxEnabled(configDraft)}
                     onOpenTpdbSettings={() => goToPrimaryTab('settings')}
                     onApplied={() => {

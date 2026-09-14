@@ -515,7 +515,9 @@ export const PosterSetsSettingsView: React.FC = () => {
             return;
         }
         const ok = await askConfirm(
-            `Turn off ${label}? Search, Browse, and other ${label} labels will be hidden until you turn it back on.`,
+            `Turn off ${label}? ${source === 'tpdb'
+                ? 'Watches, Paste / Import, search, and cache for ThePosterDB will stop until you turn it back on.'
+                : 'Search, Browse, and other MediUX labels will be hidden until you turn it back on.'}`,
             { title: `Disable ${label}?`, confirmLabel: 'Turn off' },
         );
         if (!ok) return;
@@ -573,15 +575,38 @@ export const PosterSetsSettingsView: React.FC = () => {
                     <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 space-y-1">
                         <p className="text-sm font-semibold text-text">Artwork sources</p>
                         <p className="text-xs text-muted">
-                            Both are on by default. Turn one off to hide it everywhere in Poster Sets.
+                            Both are on by default. Turn ThePosterDB search off to use MediUX only in Discover while watches and the import script keep using ThePosterDB.
                         </p>
                         <SettingsToggleRow
                             title="ThePosterDB"
-                            description="Search, Browse, TPDB New, local cache, and ThePosterDB labels."
+                            description="Watches, Paste / Import, credentials, and local cache."
                             checked={isTpdbEnabled(configDraft)}
                             onChange={(next) => void applySourceEnabled('tpdb', next)}
                             border={false}
                         />
+                        {isTpdbEnabled(configDraft) ? (
+                            <SettingsToggleRow
+                                title="ThePosterDB in search"
+                                description="Discover search, Browse, TPDB New, and library set lookup. Off = MediUX only, no TPDB rate limits. Watches and the import script still work."
+                                checked={configDraft.tpdbSearchEnabled !== false}
+                                onChange={(next) => {
+                                    void (async () => {
+                                        setBusy('save');
+                                        try {
+                                            await persistConfig({ tpdbSearchEnabled: next });
+                                            toast(next
+                                                ? 'ThePosterDB search on'
+                                                : 'ThePosterDB search off — watches and the import script still work');
+                                        } catch (error) {
+                                            toast(error instanceof Error ? error.message : 'Failed to update search', 'error');
+                                        } finally {
+                                            setBusy(null);
+                                        }
+                                    })();
+                                }}
+                                border={false}
+                            />
+                        ) : null}
                         <SettingsToggleRow
                             title="MediUX"
                             description="Search, Browse rails, title cards, and MediUX labels."
@@ -1754,7 +1779,7 @@ export const PosterSetsSettingsView: React.FC = () => {
                             />
                         </div>
                     </div>
-                    {isTpdbEnabled(configDraft) && isMediuxEnabled(configDraft) ? (
+                    {isTpdbEnabled(configDraft) && isMediuxEnabled(configDraft) && configDraft.tpdbSearchEnabled !== false ? (
                     <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
                         <p className="text-sm font-semibold text-text">Fallback for duplicates</p>
                         <p className="mt-1 text-xs text-muted">

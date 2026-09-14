@@ -19,12 +19,15 @@ export type SetProvider = 'mediux' | 'posterdb';
 export type SearchProvider = 'both' | SetProvider;
 
 export const isTpdbEnabled = (config?: Partial<PosterSetsConfig> | null) => config?.tpdbEnabled !== false;
+export const isTpdbSearchEnabled = (config?: Partial<PosterSetsConfig> | null) => (
+    isTpdbEnabled(config) && config?.tpdbSearchEnabled !== false
+);
 export const isMediuxEnabled = (config?: Partial<PosterSetsConfig> | null) => config?.mediuxEnabled !== false;
 
 export const enabledSearchProviders = (config?: Partial<PosterSetsConfig> | null): SetProvider[] => {
     const out: SetProvider[] = [];
     if (isMediuxEnabled(config)) out.push('mediux');
-    if (isTpdbEnabled(config)) out.push('posterdb');
+    if (isTpdbSearchEnabled(config)) out.push('posterdb');
     return out;
 };
 
@@ -35,11 +38,11 @@ export const defaultSearchProvider = (config?: Partial<PosterSetsConfig> | null)
 };
 
 export const discoverSubNavForConfig = (config?: Partial<PosterSetsConfig> | null) => (
-    DISCOVER_SUB_NAV.filter((item) => item.id !== 'tpdb' || isTpdbEnabled(config))
+    DISCOVER_SUB_NAV.filter((item) => item.id !== 'tpdb' || isTpdbSearchEnabled(config))
 );
 
 export const posterSetsHeroTitle = (config?: Partial<PosterSetsConfig> | null) => {
-    const tpdb = isTpdbEnabled(config);
+    const tpdb = isTpdbSearchEnabled(config);
     const mediux = isMediuxEnabled(config);
     if (tpdb && mediux) return 'Artwork from MediUX & ThePosterDB';
     if (tpdb) return 'Artwork from ThePosterDB';

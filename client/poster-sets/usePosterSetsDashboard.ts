@@ -54,6 +54,7 @@ import {
     defaultSearchProvider,
     isMediuxEnabled,
     isTpdbEnabled,
+    isTpdbSearchEnabled,
 } from './shared/posterSetsNav';
 import {
     clearLibraryRecentCache,
@@ -681,16 +682,16 @@ export function usePosterSetsDashboardState() {
     }, [loadHistory, toast]);
 
     useEffect(() => {
-        const tpdb = isTpdbEnabled(configDraft);
+        const tpdbSearch = isTpdbSearchEnabled(configDraft);
         const mediux = isMediuxEnabled(configDraft);
         const nextSearch = defaultSearchProvider(configDraft);
-        if (searchProvider === 'both' && (!tpdb || !mediux)) setSearchProvider(nextSearch);
-        else if (searchProvider === 'posterdb' && !tpdb) setSearchProvider(nextSearch);
+        if (searchProvider === 'both' && (!tpdbSearch || !mediux)) setSearchProvider(nextSearch);
+        else if (searchProvider === 'posterdb' && !tpdbSearch) setSearchProvider(nextSearch);
         else if (searchProvider === 'mediux' && !mediux) setSearchProvider(nextSearch);
-        if (findProvider === 'posterdb' && !tpdb && mediux) setFindProvider('mediux');
-        if (findProvider === 'mediux' && !mediux && tpdb) setFindProvider('posterdb');
-        if (tab === 'tpdb' && !tpdb) setTab('apply');
-    }, [configDraft.tpdbEnabled, configDraft.mediuxEnabled, findProvider, searchProvider, tab]);
+        if (findProvider === 'posterdb' && !isTpdbEnabled(configDraft) && mediux) setFindProvider('mediux');
+        if (findProvider === 'mediux' && !mediux && isTpdbEnabled(configDraft)) setFindProvider('posterdb');
+        if (tab === 'tpdb' && !tpdbSearch) setTab('apply');
+    }, [configDraft.tpdbEnabled, configDraft.tpdbSearchEnabled, configDraft.mediuxEnabled, findProvider, searchProvider, tab]);
 
     useEffect(() => { void load(); }, [load]);
     useEffect(() => { void loadQueue(); }, [loadQueue]);
@@ -1173,6 +1174,7 @@ export function usePosterSetsDashboardState() {
         );
         const mediaType = inferPreviewMediaType(preview);
         const wantYear = (preview.assets || []).map((asset) => asset.year).find((year) => year != null) ?? null;
+        const relatedProvider = defaultSearchProvider(configDraft);
         const dupePreference = configDraft.dupePreference === 'mediux' ? 'mediux' : 'posterdb';
         const controller = new AbortController();
         relatedSetsAbortRef.current = controller;
@@ -1222,7 +1224,7 @@ export function usePosterSetsDashboardState() {
                 if (title && !/^set\s+\d+$/i.test(title) && title.toLowerCase() !== 'poster set') {
                     try {
                         const titleSearch = await posterSetsApi.search({
-                            provider: 'both',
+                            provider: relatedProvider,
                             query: title,
                             mode: 'title',
                             limit: 12,
@@ -1238,11 +1240,17 @@ export function usePosterSetsDashboardState() {
                                     id: best.id,
                                     url: best.url,
                                     mediaType: best.mediaType,
-                                }]).filter((source) => source?.id || source?.url);
-
+                                }]).filter((source) => {
+                                    if (!(source?.id || source?.url)) return false;
+                                    const provider = String(source?.provider || '').toLowerCase() === 'mediux' ? 'mediux' : 'posterdb';
+                                    if (relatedProvider === 'mediux') return provider === 'mediux';
+                                    if (relatedProvider === 'posterdb') return provider === 'posterdb';
+                                    return true;
+                                });
+                            if (sources.length) {
                             const setsResponse = sources.length > 1
                                 ? await posterSetsApi.search({
-                                    provider: 'both',
+                                    provider: relatedProvider,
                                     query: best.title,
                                     title: best.title,
                                     titleSources: sources,
@@ -1263,6 +1271,7 @@ export function usePosterSetsDashboardState() {
                                     }));
                             if (!stillCurrent()) return;
                             pushUnique(collected, setsResponse.sets || []);
+                            }
                         }
                     } catch {
                         // Soft-fail: related rail is optional QoL.
@@ -1287,6 +1296,9 @@ export function usePosterSetsDashboardState() {
     }, [
         preview,
         configDraft.dupePreference,
+        configDraft.tpdbEnabled,
+        configDraft.tpdbSearchEnabled,
+        configDraft.mediuxEnabled,
     ]);
 
     // Keep /poster-sets#… in sync so refresh and browser Back stay inside Poster Sets.
@@ -2250,7 +2262,7 @@ export function usePosterSetsDashboardState() {
         setSearchTitles([]);
         const hasLinkedTmdb = String(title.provider || '').toLowerCase() === 'mediux' && Boolean(title.id);
         const tpdbConfigured = Boolean(configDraft.hasTpdbPassword && String(configDraft.tpdb_username || '').trim());
-        const waitForTpdb = hasLinkedTmdb && tpdbConfigured;
+        const waitForTpdb = hasLinkedTmdb && tpdbConfigured && isTpdbSearchEnabled(configDraft);
         try {
             const response = await fetchPosterSetsForTitle(title, {
                 dupePreference: configDraft.dupePreference === 'mediux' ? 'mediux' : 'posterdb',
@@ -2259,7 +2271,7 @@ export function usePosterSetsDashboardState() {
                 preferredCreators: configDraft.creatorWhitelist,
                 blockedCreators: configDraft.creatorBlocklist,
                 tpdbConfigured,
-                tpdbEnabled: isTpdbEnabled(configDraft),
+                tpdbEnabled: isTpdbSearchEnabled(configDraft),
                 mediuxEnabled: isMediuxEnabled(configDraft),
                 searchProvider,
                 onPartial: (partial) => {
@@ -2369,7 +2381,7 @@ export function usePosterSetsDashboardState() {
 
             for (const query of queries) {
                 response = await posterSetsApi.search({
-                    provider: 'both',
+                    provider: defaultSearchProvider(configDraft),
                     query,
                     mode: 'title',
                     dupePreference,

@@ -38,6 +38,7 @@ export {
     isDiscoverInternalTab,
     isMediuxEnabled,
     isTpdbEnabled,
+    isTpdbSearchEnabled,
     posterSetsHeroTitle,
     posterSetsSearchScopeLabel,
     type HistoryFilter,
