@@ -30013,6 +30013,23 @@ app.use('/api/media-player', createMediaPlayerRouter({
     fetchImpl: fetch,
     clientId: CLIENT_ID,
     appVersion,
+    resolveMemberPlexToken: async (req) => {
+        const sessionUser = req?.user;
+        if (!sessionUser) return null;
+        const users = await loadFile(USERS_PATH, []);
+        const local = findLocalUserForSession(users, sessionUser);
+        const fromLocal = decryptPlexAuthToken(local?.plexAuthToken);
+        if (fromLocal) return fromLocal;
+        if (isImpersonatingSession(sessionUser) || sessionUser?.impersonatingUserId) return null;
+        const fromSession = decryptPlexAuthToken(sessionUser?.plexAuthToken);
+        if (fromSession) return fromSession;
+        if (sessionUser?.isAdmin) {
+            const config = await loadFile(CONFIG_PATH, {});
+            const adminToken = String(config?.plexToken || '').trim();
+            if (adminToken && adminToken !== SECRET_MASK) return adminToken;
+        }
+        return null;
+    },
 }));
 
 app.use('/api/poster-sets', createPosterSetsRouter({

@@ -130,6 +130,8 @@ export const en = {
         writtenBy: 'Written by',
         aired: 'Aired',
         buffering: 'Starting stream…',
+        onThisServer: 'On this server',
+        emptyPerson: 'Nothing with {name} on this server yet.',
     },
     profilePage: {
         eyebrow: 'Member profile',

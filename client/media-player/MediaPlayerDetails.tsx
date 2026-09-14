@@ -12,6 +12,7 @@ type Props = {
     ratingKey: string;
     onBack: () => void;
     onOpenItem: (item: PlayerItem) => void;
+    onOpenPerson: (person: { id: string; name: string; thumb?: string | null }) => void;
     onPlay: (item: PlayerItem) => void;
     playing?: boolean;
 };
@@ -31,7 +32,7 @@ const typeLabel = (type: string) => {
     return type;
 };
 
-export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenItem, onPlay, playing = false }) => {
+export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenItem, onOpenPerson, onPlay, playing = false }) => {
     const { t, locale } = useDiscoverI18n();
     const [item, setItem] = useState<PlayerItem | null>(null);
     const [children, setChildren] = useState<PlayerItem[]>([]);
@@ -82,7 +83,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
         );
     }
 
-    const posterUrl = plexImageUrl(item.thumb, 400, 600);
+    const posterUrl = plexImageUrl(item.thumb, item.type === 'episode' ? 640 : 400, item.type === 'episode' ? 360 : 600);
     const backdropUrl = plexImageUrl(item.art || item.thumb, 1280, 720);
     const isEpisodeGrid = children.some((row) => row.type === 'episode');
     const canPlay = !!item.canPlay;
@@ -113,6 +114,14 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
     const factTitle = item.type === 'episode' || item.type === 'season'
         ? (item.showTitle || item.title)
         : item.title;
+    const showKey = item.type === 'season' ? item.parentRatingKey : item.grandparentRatingKey;
+    const seasonKey = item.type === 'episode' ? item.parentRatingKey : (item.type === 'season' ? item.ratingKey : null);
+    const showName = item.type === 'season' || item.type === 'episode' ? item.showTitle : null;
+    const seasonName = item.type === 'episode' ? item.seasonTitle : null;
+    const openCrumb = (ratingKey?: string | null) => {
+        if (!ratingKey || ratingKey === item.ratingKey) return;
+        onOpenItem({ ratingKey, title: '', type: 'show' });
+    };
 
     const titleBlock = (
         <>
@@ -120,12 +129,29 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                 {item.type === 'movie' ? <Film className="w-3.5 h-3.5 text-plex" /> : <Tv className="w-3.5 h-3.5 text-plex" />}
                 <span className="text-[10px] font-bold uppercase tracking-widest text-plex">{typeLabel(item.type)}</span>
             </div>
+            {showName ? (
+                <button
+                    type="button"
+                    onClick={() => openCrumb(showKey)}
+                    disabled={!showKey}
+                    className="text-sm sm:text-lg font-black text-white/80 hover:text-plex transition-colors text-left disabled:hover:text-white/80 disabled:cursor-default"
+                >
+                    {showName}
+                </button>
+            ) : null}
+            {seasonName ? (
+                <button
+                    type="button"
+                    onClick={() => openCrumb(seasonKey)}
+                    disabled={!seasonKey}
+                    className="text-sm font-bold text-white/70 hover:text-plex transition-colors text-left disabled:hover:text-white/70 disabled:cursor-default"
+                >
+                    {seasonName}
+                </button>
+            ) : null}
             <h1 className="text-2xl sm:text-3xl lg:text-5xl font-black text-white leading-[1.08] tracking-tight drop-shadow-lg">
                 {item.title}
             </h1>
-            {item.showTitle ? (
-                <p className="text-sm font-bold text-white/70">{item.showTitle}{item.seasonTitle ? ` · ${item.seasonTitle}` : ''}</p>
-            ) : null}
             {item.tagline ? (
                 <p className="text-sm sm:text-base text-white/55 italic max-w-4xl">{item.tagline}</p>
             ) : null}
@@ -179,9 +205,9 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                     </button>
 
                     <div className="flex flex-col md:flex-row gap-5 md:gap-6 lg:gap-10">
-                        <div className="w-full md:w-52 lg:w-60 flex-shrink-0 flex flex-col gap-4">
+                        <div className={`w-full flex-shrink-0 flex flex-col gap-4 ${item.type === 'episode' ? 'md:w-80 lg:w-96' : 'md:w-52 lg:w-60'}`}>
                             <div className="flex flex-row md:flex-col gap-4 items-stretch">
-                                <div className="relative w-[38%] max-w-[10.5rem] sm:max-w-[12rem] md:w-full md:max-w-none aspect-[2/3] rounded-xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.55)] border border-white/15 bg-black/50 ring-1 ring-white/10 flex-shrink-0">
+                                <div className={`relative w-[38%] max-w-[10.5rem] sm:max-w-[12rem] md:w-full md:max-w-none rounded-xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.55)] border border-white/15 bg-black/50 ring-1 ring-white/10 flex-shrink-0 ${item.type === 'episode' ? 'aspect-video max-w-[14rem] sm:max-w-[16rem]' : 'aspect-[2/3]'}`}>
                                     <div className="absolute -inset-4 bg-plex/10 blur-3xl opacity-40 pointer-events-none" />
                                     {posterUrl && !posterFailed ? (
                                         <img src={posterUrl} alt="" className="relative w-full h-full object-cover" onError={() => setPosterFailed(true)} />
@@ -241,16 +267,94 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
             </div>
 
             <div className="relative z-10 w-full max-w-[1600px] mx-auto page-x sm:px-8 xl:px-12 mt-2 md:mt-4 flex flex-col gap-8 md:gap-10 bg-card">
-                {cast.length ? (
+                {children.length && !isEpisodeGrid ? (
                     <section className="border-t border-border pt-8">
+                        <SectionHeading>{t('mediaPlayerPage.seasons')}</SectionHeading>
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+                            {children.map((row) => (
+                                <button
+                                    key={row.ratingKey}
+                                    type="button"
+                                    onClick={() => onOpenItem(row)}
+                                    className="group min-w-0 text-left"
+                                >
+                                    <div className="overflow-hidden rounded-xl border border-white/10 bg-black/30">
+                                        {row.thumb ? (
+                                            <img
+                                                src={plexImageUrl(row.thumb, 400, 600)}
+                                                alt=""
+                                                className="aspect-[2/3] w-full object-cover transition-transform group-hover:scale-[1.03]"
+                                            />
+                                        ) : (
+                                            <NoPosterPlaceholder />
+                                        )}
+                                    </div>
+                                    <div className="mt-2 truncate text-sm font-bold text-text group-hover:text-plex">{row.title}</div>
+                                    {row.leafCount ? (
+                                        <div className="text-[11px] text-muted">{t('common.episodeCount', { count: row.leafCount })}</div>
+                                    ) : null}
+                                </button>
+                            ))}
+                        </div>
+                    </section>
+                ) : null}
+
+                {children.length && isEpisodeGrid ? (
+                    <section className="border-t border-border pt-8">
+                        <SectionHeading>{t('mediaPlayerPage.episodes')}</SectionHeading>
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                            {children.map((row) => (
+                                <button
+                                    key={row.ratingKey}
+                                    type="button"
+                                    onClick={() => onOpenItem(row)}
+                                    className="group min-w-0 text-left"
+                                >
+                                    <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black/30">
+                                        {row.thumb ? (
+                                            <img
+                                                src={plexImageUrl(row.thumb, 640, 360)}
+                                                alt=""
+                                                className="aspect-video w-full object-cover transition-transform group-hover:scale-[1.03]"
+                                            />
+                                        ) : (
+                                            <div className="flex aspect-video items-center justify-center text-[10px] font-bold uppercase tracking-widest text-muted">
+                                                {t('mediaPlayerPage.episodes')}
+                                            </div>
+                                        )}
+                                        {progressPercent(row) > 0 ? (
+                                            <div className="absolute inset-x-0 bottom-0 h-1 bg-black/50">
+                                                <div className="h-full bg-plex" style={{ width: `${progressPercent(row)}%` }} />
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                    <div className="mt-2 truncate text-sm font-bold text-text group-hover:text-plex">{row.title}</div>
+                                    <div className="text-[11px] text-muted">
+                                        {row.index != null ? `Episode ${row.index}` : ''}
+                                        {row.durationMs ? ` · ${formatPlayerDuration(row.durationMs)}` : ''}
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </section>
+                ) : null}
+
+                {cast.length ? (
+                    <section className="border-t border-border pt-8 pb-4">
                         <SectionHeading>{t('media.topCast')}</SectionHeading>
                         <Carousel>
                             {cast.slice(0, 15).map((actor) => (
-                                <div
+                                <button
                                     key={`${actor.id}-${actor.name}`}
-                                    className="group flex flex-col items-center gap-3 w-36 sm:w-40 flex-shrink-0 snap-start"
+                                    type="button"
+                                    onClick={() => onOpenPerson({
+                                        id: actor.id || actor.name,
+                                        name: actor.name,
+                                        thumb: actor.thumb,
+                                    })}
+                                    className="group flex flex-col items-center gap-3 w-36 sm:w-40 flex-shrink-0 snap-start text-center"
                                 >
-                                    <div className="w-32 h-32 rounded-full bg-white/5 border-2 border-border overflow-hidden">
+                                    <div className="w-32 h-32 rounded-full bg-white/5 border-2 border-border overflow-hidden transition-transform group-hover:scale-[1.03] group-hover:border-plex">
                                         {actor.thumb ? (
                                             <img
                                                 src={plexImageUrl(actor.thumb, 300, 300)}
@@ -263,84 +367,15 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                             </div>
                                         )}
                                     </div>
-                                    <div className="text-center w-full px-1">
-                                        <div className="text-sm font-bold text-text leading-tight line-clamp-2">{actor.name}</div>
+                                    <div className="w-full px-1">
+                                        <div className="text-sm font-bold text-text leading-tight line-clamp-2 group-hover:text-plex">{actor.name}</div>
                                         {actor.role ? (
                                             <div className="text-xs text-muted mt-1 leading-snug line-clamp-2">{actor.role}</div>
                                         ) : null}
                                     </div>
-                                </div>
+                                </button>
                             ))}
                         </Carousel>
-                    </section>
-                ) : null}
-
-                {children.length ? (
-                    <section className="border-t border-border pt-8 pb-4">
-                        <SectionHeading>
-                            {isEpisodeGrid ? t('mediaPlayerPage.episodes') : t('mediaPlayerPage.seasons')}
-                        </SectionHeading>
-                        {isEpisodeGrid ? (
-                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                                {children.map((row) => (
-                                    <button
-                                        key={row.ratingKey}
-                                        type="button"
-                                        onClick={() => (row.canPlay ? onPlay(row) : onOpenItem(row))}
-                                        className="group min-w-0 text-left"
-                                    >
-                                        <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black/30">
-                                            {row.thumb ? (
-                                                <img
-                                                    src={plexImageUrl(row.thumb, 640, 360)}
-                                                    alt=""
-                                                    className="aspect-video w-full object-cover transition-transform group-hover:scale-[1.03]"
-                                                />
-                                            ) : (
-                                                <div className="flex aspect-video items-center justify-center text-[10px] font-bold uppercase tracking-widest text-muted">
-                                                    {t('mediaPlayerPage.episodes')}
-                                                </div>
-                                            )}
-                                            {progressPercent(row) > 0 ? (
-                                                <div className="absolute inset-x-0 bottom-0 h-1 bg-black/50">
-                                                    <div className="h-full bg-plex" style={{ width: `${progressPercent(row)}%` }} />
-                                                </div>
-                                            ) : null}
-                                        </div>
-                                        <div className="mt-2 truncate text-sm font-bold text-text group-hover:text-plex">{row.title}</div>
-                                        <div className="text-[11px] text-muted">
-                                            {row.index != null ? `Episode ${row.index}` : ''}
-                                            {row.durationMs ? ` · ${formatPlayerDuration(row.durationMs)}` : ''}
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                                {children.map((row) => (
-                                    <button
-                                        key={row.ratingKey}
-                                        type="button"
-                                        onClick={() => onOpenItem(row)}
-                                        className="bg-white/5 border border-border rounded-xl p-3 flex gap-3 items-center min-w-0 text-left hover:bg-white/10 hover:border-plex/30 transition-colors"
-                                    >
-                                        <div className="w-11 h-16 rounded-md overflow-hidden flex-shrink-0 bg-white/5 border border-border">
-                                            {row.thumb ? (
-                                                <img src={plexImageUrl(row.thumb, 120, 180)} className="w-full h-full object-cover" alt="" />
-                                            ) : (
-                                                <NoPosterPlaceholder compact />
-                                            )}
-                                        </div>
-                                        <div className="flex flex-col min-w-0 gap-1">
-                                            <span className="font-bold text-text text-sm truncate">{row.title}</span>
-                                            {row.leafCount ? (
-                                                <span className="text-xs text-muted">{t('common.episodeCount', { count: row.leafCount })}</span>
-                                            ) : null}
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
                     </section>
                 ) : null}
             </div>

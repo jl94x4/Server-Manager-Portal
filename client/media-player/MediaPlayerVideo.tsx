@@ -7,6 +7,7 @@ import { lockBackgroundScroll } from '../shared/lockBackgroundScroll';
 import { PORTAL_CSRF_HEADER, PORTAL_CSRF_VALUE } from '../shared/api';
 import { useDiscoverI18n } from '../discovery/i18n';
 import { formatClock } from './playerUtils';
+import { reportMediaPlayerTimeline } from './api';
 import type { PlayerPlaySession } from './types';
 
 type Props = {
@@ -40,6 +41,16 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
     const [ready, setReady] = useState(false);
     const [currentMs, setCurrentMs] = useState(0);
     const [durationMs, setDurationMs] = useState(session.item.durationMs || 0);
+    const currentMsRef = useRef(0);
+    const durationMsRef = useRef(session.item.durationMs || 0);
+    const sendTimelineRef = useRef<(state: 'playing' | 'paused' | 'buffering' | 'stopped') => void>(() => {});
+
+    useEffect(() => {
+        currentMsRef.current = currentMs;
+    }, [currentMs]);
+    useEffect(() => {
+        durationMsRef.current = durationMs;
+    }, [durationMs]);
 
     useEffect(() => lockBackgroundScroll(), []);
 
@@ -114,6 +125,40 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
     }, [session.src, t]);
 
     useEffect(() => {
+        const ratingKey = session.item.ratingKey;
+        const sessionId = session.sessionId;
+        if (!ratingKey || !sessionId) return undefined;
+        const send = (state: 'playing' | 'paused' | 'buffering' | 'stopped') => {
+            const video = videoRef.current;
+            const timeMs = Math.max(0, Math.floor((video ? video.currentTime * 1000 : currentMsRef.current) || 0));
+            const nextDuration = Math.max(
+                0,
+                Math.floor((video && Number.isFinite(video.duration) && video.duration > 0
+                    ? video.duration * 1000
+                    : durationMsRef.current) || 0),
+            );
+            void reportMediaPlayerTimeline({
+                ratingKey,
+                sessionId,
+                state,
+                timeMs,
+                durationMs: nextDuration,
+            });
+        };
+        sendTimelineRef.current = send;
+        send('playing');
+        const timer = window.setInterval(() => {
+            const video = videoRef.current;
+            send(video && !video.paused ? 'playing' : 'paused');
+        }, 5000);
+        return () => {
+            window.clearInterval(timer);
+            sendTimelineRef.current = () => {};
+            send('stopped');
+        };
+    }, [session.item.ratingKey, session.sessionId]);
+
+    useEffect(() => {
         const onKey = (event: KeyboardEvent) => {
             if (event.key === 'Escape') onClose();
             if (event.key === ' ') {
@@ -169,8 +214,14 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
                 playsInline
                 autoPlay
                 onClick={togglePlayback}
-                onPlay={() => setPaused(false)}
-                onPause={() => setPaused(true)}
+                onPlay={() => {
+                    setPaused(false);
+                    sendTimelineRef.current('playing');
+                }}
+                onPause={() => {
+                    setPaused(true);
+                    sendTimelineRef.current('paused');
+                }}
                 onTimeUpdate={(event) => setCurrentMs(event.currentTarget.currentTime * 1000)}
                 onDurationChange={(event) => {
                     const next = event.currentTarget.duration;
@@ -208,6 +259,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose }) => {
                         const next = (Number(event.target.value) / 100) * durationMs;
                         video.currentTime = next / 1000;
                         setCurrentMs(next);
+                        sendTimelineRef.current('playing');
                     }}
                     className="w-full accent-plex"
                     aria-label={session.item.title}

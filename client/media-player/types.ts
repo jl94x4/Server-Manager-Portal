@@ -31,6 +31,11 @@ export type PlayerItem = {
     cast?: Array<{ id: string; name: string; role: string; thumb?: string | null }>;
 };
 
+export type PlayerPersonPage = {
+    person: { id: string; name: string; thumb?: string | null };
+    items: PlayerItem[];
+};
+
 export type PlayerSection = {
     key: string;
     title: string;
