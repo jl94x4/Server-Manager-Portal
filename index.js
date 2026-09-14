@@ -17342,6 +17342,7 @@ const mapTitleHistoryRow = (row, source) => ({
     date: Number(row.date) || 0,
     duration: Math.max(0, Number(row.duration) || 0),
     player: row.player || null,
+    platform: row.platform || null,
     title: row.title || null,
     source,
 });
@@ -17419,6 +17420,7 @@ app.get('/api/plex/analytics/title/:ratingKey', requireAuth, requireAdmin, async
                             date: row.date,
                             duration: row.play_duration != null ? Number(row.play_duration) : Number(row.duration) || 0,
                             player: row.player,
+                            platform: row.platform,
                             title: row.full_title || row.title,
                         }, 'tautulli'));
                     }
@@ -17441,6 +17443,7 @@ app.get('/api/plex/analytics/title/:ratingKey', requireAuth, requireAdmin, async
                     date: row.viewedAt,
                     duration: row.duration ? Math.round(row.duration / 1000) : 0,
                     player: row.Player?.title || null,
+                    platform: row.Player?.platform || row.Player?.product || null,
                     title: row.grandparentTitle ? `${row.grandparentTitle} - ${row.title}` : row.title,
                 }, 'plex'));
             }

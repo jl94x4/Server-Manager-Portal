@@ -37,7 +37,7 @@ Admin search on Dashboard looks up movies and shows in the library. Pick a title
 
 - Play count, unique watchers, watch time, and last watched
 - Who watched, ranked by plays (opens that user’s analytics)
-- Monthly play chart
+- Monthly play chart and platform views
 - Full server watch history (Tautulli when configured, otherwise Plex)
 
 Search results stay a compact title list so they no longer stack over live activity cards.

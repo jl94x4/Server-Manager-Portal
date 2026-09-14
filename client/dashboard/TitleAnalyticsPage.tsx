@@ -27,6 +27,7 @@ type TitleHistoryRow = {
     date?: number;
     duration?: number;
     player?: string | null;
+    platform?: string | null;
     title?: string | null;
 };
 
@@ -58,6 +59,7 @@ type TitleAnalyticsPayload = {
     users?: TitleUserRow[];
     history?: TitleHistoryRow[];
     byMonth?: Array<{ month: string; plays: number }>;
+    byPlatform?: Array<{ platform: string; plays: number }>;
     error?: string;
 };
 
@@ -131,6 +133,7 @@ export const TitleAnalyticsPage: React.FC<{
         ...row,
         label: formatMonthLabel(row.month),
     }));
+    const platformChartData = data?.byPlatform || [];
 
     const posterSrc = item.thumb
         ? portalUrl(`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=300&height=450`)
@@ -261,25 +264,58 @@ export const TitleAnalyticsPage: React.FC<{
                     )}
                 </DashboardPanel>
 
-                <DashboardPanel title="Plays over time" subtitle="Monthly plays from server history">
+                <DashboardPanel title="Plays over time" subtitle="Monthly plays and platform views from server history">
                     {loading ? (
                         <p className="py-6 text-center text-sm text-muted">Loading chart…</p>
-                    ) : chartData.length === 0 ? (
+                    ) : chartData.length === 0 && platformChartData.length === 0 ? (
                         <p className="py-6 text-center text-sm text-muted">Not enough history to chart yet.</p>
                     ) : (
-                        <div className="h-64 pt-2">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                                    <XAxis dataKey="label" tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false} />
-                                    <YAxis allowDecimals={false} tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false} />
-                                    <RechartsTooltip
-                                        contentStyle={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }}
-                                        labelStyle={{ color: '#fff' }}
-                                    />
-                                    <Bar dataKey="plays" fill="rgb(var(--color-plex))" radius={[6, 6, 0, 0]} />
-                                </BarChart>
-                            </ResponsiveContainer>
+                        <div className="space-y-6">
+                            {chartData.length ? (
+                                <div>
+                                    <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Monthly plays</p>
+                                    <div className="h-56 pt-1">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                                                <XAxis dataKey="label" tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false} />
+                                                <YAxis allowDecimals={false} tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false} />
+                                                <RechartsTooltip
+                                                    contentStyle={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }}
+                                                    labelStyle={{ color: '#fff' }}
+                                                />
+                                                <Bar dataKey="plays" fill="rgb(var(--color-plex))" radius={[6, 6, 0, 0]} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+                            ) : null}
+                            {platformChartData.length ? (
+                                <div>
+                                    <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Platform views</p>
+                                    <div className="h-56 pt-1">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={platformChartData} margin={{ top: 8, right: 8, left: -16, bottom: 8 }}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                                                <XAxis
+                                                    dataKey="platform"
+                                                    interval={0}
+                                                    tick={{ fill: '#9ca3af', fontSize: 10 }}
+                                                    axisLine={false}
+                                                    tickLine={false}
+                                                    tickFormatter={(value: string) => (String(value).length > 10 ? `${String(value).slice(0, 9)}…` : String(value))}
+                                                />
+                                                <YAxis allowDecimals={false} tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false} />
+                                                <RechartsTooltip
+                                                    contentStyle={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }}
+                                                    labelStyle={{ color: '#fff' }}
+                                                />
+                                                <Bar dataKey="plays" fill="rgb(56 189 248)" radius={[6, 6, 0, 0]} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+                            ) : null}
                         </div>
                     )}
                 </DashboardPanel>
