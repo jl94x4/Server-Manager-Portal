@@ -3032,6 +3032,17 @@ const ensurePortalUserForNotifications = async (sessionUser, { config: configArg
     return { users, localUser: created, created: true };
 };
 
+const notificationUserIdsFor = (localUser, sessionUser) => (
+    [...new Set([
+        localUser?.id,
+        localUser?.plexId,
+        localUser?.jellyfinId,
+        sessionUser?.id,
+        sessionUser?.plexId,
+        sessionUser?.jellyfinId,
+    ].map((value) => String(value || '').trim()).filter(Boolean))]
+);
+
 /** Owner-authenticated Plex Home profiles are already on the server — provision as members. */
 const ensurePortalUserForPlexHomeProfile = async (sessionUser) => {
     await updateUsers((users) => {
@@ -5563,12 +5574,13 @@ app.get('/api/notifications', requireAuth, requireMember, async (req, res) => {
         if (!localUser?.id) {
             return res.status(404).json({ error: 'User not found' });
         }
+        const userIds = notificationUserIdsFor(localUser, req.user);
         const limit = Math.max(1, Math.min(100, Number(req.query?.limit) || 30));
         const unreadOnly = ['1', 'true', 'yes'].includes(String(req.query?.unreadOnly || req.query?.unread || '').toLowerCase());
         const type = String(req.query?.type || '').trim();
         const includeAdminTypes = !!req.user?.isAdmin;
-        const items = await listInAppNotificationsForUser(localUser.id, { limit, unreadOnly, type, includeAdminTypes });
-        const { unread, total } = await summarizeInAppNotificationsForUser(localUser.id, { includeAdminTypes });
+        const items = await listInAppNotificationsForUser(userIds, { limit, unreadOnly, type, includeAdminTypes });
+        const { unread, total } = await summarizeInAppNotificationsForUser(userIds, { includeAdminTypes });
         let enriched = items;
         try {
             const store = createRequestStore({ dataDir: REQUESTS_DIR });
@@ -5592,6 +5604,7 @@ app.get('/api/notifications', requireAuth, requireMember, async (req, res) => {
         } catch (enrichError) {
             log(`[notifications] enrich failed: ${enrichError?.message || enrichError}`);
         }
+        res.set('Cache-Control', 'no-store');
         res.json({ items: enriched, unread, total });
     } catch (e) {
         log(`Error listing notifications: ${e.message}`);
@@ -5606,10 +5619,14 @@ app.post('/api/notifications/read', requireAuth, requireMember, async (req, res)
         if (!localUser?.id) {
             return res.status(404).json({ error: 'User not found' });
         }
+        const userIds = notificationUserIdsFor(localUser, req.user);
+        const includeAdminTypes = !!req.user?.isAdmin;
         const markAll = !!req.body?.all;
         const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(String).filter(Boolean) : null;
-        const result = await markInAppNotificationsRead(localUser.id, markAll ? null : ids);
-        res.json({ success: true, ...result });
+        const result = await markInAppNotificationsRead(userIds, markAll ? null : ids);
+        const summary = await summarizeInAppNotificationsForUser(userIds, { includeAdminTypes });
+        res.set('Cache-Control', 'no-store');
+        res.json({ success: true, ...result, ...summary });
     } catch (e) {
         log(`Error marking notifications read: ${e.message}`);
         res.status(500).json({ error: 'Failed to update notifications' });
@@ -5623,13 +5640,17 @@ app.post('/api/notifications/clear', requireAuth, requireMember, async (req, res
         if (!localUser?.id) {
             return res.status(404).json({ error: 'User not found' });
         }
+        const userIds = notificationUserIdsFor(localUser, req.user);
+        const includeAdminTypes = !!req.user?.isAdmin;
         const clearAll = !!req.body?.all;
         const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(String).filter(Boolean) : null;
         if (!clearAll && !(ids && ids.length)) {
             return res.status(400).json({ error: 'Specify all or ids' });
         }
-        const result = await clearInAppNotificationsForUser(localUser.id, clearAll ? null : ids);
-        res.json({ success: true, ...result });
+        const result = await clearInAppNotificationsForUser(userIds, clearAll ? null : ids);
+        const summary = await summarizeInAppNotificationsForUser(userIds, { includeAdminTypes });
+        res.set('Cache-Control', 'no-store');
+        res.json({ success: true, ...result, ...summary });
     } catch (e) {
         log(`Error clearing notifications: ${e.message}`);
         res.status(500).json({ error: 'Failed to clear notifications' });

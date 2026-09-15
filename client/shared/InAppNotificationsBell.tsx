@@ -596,20 +596,25 @@ export const InAppNotificationsBell: React.FC<Props> = ({
     const [unread, setUnread] = useState(0);
     const [loading, setLoading] = useState(false);
     const [clearing, setClearing] = useState(false);
+    const [actionError, setActionError] = useState<string | null>(null);
     const [panelBox, setPanelBox] = useState<PanelBox | null>(null);
     const [expandedStacks, setExpandedStacks] = useState<Set<string>>(() => new Set());
     const [expandedRepeats, setExpandedRepeats] = useState<Set<string>>(() => new Set());
+    const ignoreRefreshUntil = useRef(0);
     const buttonRef = useRef<HTMLButtonElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
 
-    const refresh = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    const refresh = useCallback(async ({ silent = false, force = false }: { silent?: boolean; force?: boolean } = {}) => {
+        if (!force && Date.now() < ignoreRefreshUntil.current) return;
         try {
             if (!silent) setLoading(true);
             const params = new URLSearchParams({ limit: '50' });
             if (filterMode === 'unread') params.set('unreadOnly', '1');
             const data = await apiFetch(`/api/notifications?${params.toString()}`);
+            if (!force && Date.now() < ignoreRefreshUntil.current) return;
             setItems(Array.isArray(data?.items) ? data.items : []);
             setUnread(Number(data?.unread) || 0);
+            setActionError(null);
         } catch {
             // ignore — bell stays quiet if API unavailable
         } finally {
@@ -753,8 +758,11 @@ export const InAppNotificationsBell: React.FC<Props> = ({
     };
 
     const markAllRead = async () => {
+        if (unread <= 0) return;
         try {
-            await apiFetch('/api/notifications/read', {
+            setActionError(null);
+            ignoreRefreshUntil.current = Date.now() + 2000;
+            const data = await apiFetch('/api/notifications/read', {
                 method: 'POST',
                 body: JSON.stringify({ all: true }),
             });
@@ -763,26 +771,30 @@ export const InAppNotificationsBell: React.FC<Props> = ({
                     ? []
                     : prev.map((item) => ({ ...item, readAt: item.readAt || new Date().toISOString() }))
             ));
-            setUnread(0);
+            setUnread(Number.isFinite(Number(data?.unread)) ? Number(data.unread) : 0);
             notifyInAppNotificationsChanged();
-        } catch {
-            // ignore
+        } catch (error: any) {
+            ignoreRefreshUntil.current = 0;
+            setActionError(String(error?.message || t('notifications.markAllReadFailed')));
         }
     };
 
     const clearAll = async () => {
-        if (clearing || !items.length) return;
+        if (clearing) return;
         try {
             setClearing(true);
-            await apiFetch('/api/notifications/clear', {
+            setActionError(null);
+            ignoreRefreshUntil.current = Date.now() + 2000;
+            const data = await apiFetch('/api/notifications/clear', {
                 method: 'POST',
                 body: JSON.stringify({ all: true }),
             });
             setItems([]);
-            setUnread(0);
+            setUnread(Number.isFinite(Number(data?.unread)) ? Number(data.unread) : 0);
             notifyInAppNotificationsChanged();
-        } catch {
-            // ignore
+        } catch (error: any) {
+            ignoreRefreshUntil.current = 0;
+            setActionError(String(error?.message || t('notifications.clearAllFailed')));
         } finally {
             setClearing(false);
         }
@@ -794,15 +806,19 @@ export const InAppNotificationsBell: React.FC<Props> = ({
         const idSet = new Set(unique);
         const unreadRemoved = items.filter((item) => idSet.has(item.id) && !item.readAt).length;
         try {
-            await apiFetch('/api/notifications/clear', {
+            setActionError(null);
+            ignoreRefreshUntil.current = Date.now() + 2000;
+            const data = await apiFetch('/api/notifications/clear', {
                 method: 'POST',
                 body: JSON.stringify({ ids: unique }),
             });
             setItems((prev) => prev.filter((item) => !idSet.has(item.id)));
-            if (unreadRemoved) setUnread((n) => Math.max(0, n - unreadRemoved));
+            if (Number.isFinite(Number(data?.unread))) setUnread(Number(data.unread));
+            else if (unreadRemoved) setUnread((n) => Math.max(0, n - unreadRemoved));
             notifyInAppNotificationsChanged();
-        } catch {
-            // ignore
+        } catch (error: any) {
+            ignoreRefreshUntil.current = 0;
+            setActionError(String(error?.message || t('notifications.removeFailed')));
         }
     };
 
@@ -925,7 +941,7 @@ export const InAppNotificationsBell: React.FC<Props> = ({
                                 <div className="ml-auto flex items-center gap-1.5">
                                     <button
                                         type="button"
-                                        onClick={markAllRead}
+                                        onClick={() => { void markAllRead(); }}
                                         disabled={unread <= 0}
                                         className="notif-mark-read inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-plex/30 bg-plex/10 px-3 py-1.5 text-xs font-semibold text-plex transition-all duration-200 hover:bg-plex/20 hover:border-plex/50 active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none"
                                     >
@@ -934,7 +950,7 @@ export const InAppNotificationsBell: React.FC<Props> = ({
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={clearAll}
+                                        onClick={() => { void clearAll(); }}
                                         disabled={clearing}
                                         className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border/80 bg-white/5 px-3 py-1.5 text-xs font-semibold text-muted transition-all duration-200 hover:text-text hover:border-border hover:bg-white/10 active:scale-[0.97] disabled:opacity-50"
                                     >
@@ -944,6 +960,9 @@ export const InAppNotificationsBell: React.FC<Props> = ({
                                 </div>
                             </div>
                         )}
+                        {actionError ? (
+                            <p className="text-xs font-semibold text-rose-300">{actionError}</p>
+                        ) : null}
                     </div>
                 </div>
 

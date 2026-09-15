@@ -37,6 +37,7 @@ export const apiFetch = async (url: string, options: RequestInit = {}) => {
     const response = await fetch(portalUrl(url), {
         credentials: 'same-origin',
         ...options,
+        cache: 'no-store',
         headers: portalRequestHeaders({
             ...discoverLocaleHeaders(url),
             ...(options.headers || {}),

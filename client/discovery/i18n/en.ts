@@ -680,8 +680,11 @@ export const en = {
     notifications: {
         title: 'Notifications',
         markAllRead: 'Mark all read',
+        markAllReadFailed: 'Could not mark notifications read.',
         clearAll: 'Clear all',
+        clearAllFailed: 'Could not clear notifications.',
         remove: 'Remove',
+        removeFailed: 'Could not remove notification.',
         removeAria: 'Remove notification',
         removeStackAria: 'Remove {count} notifications',
         filterAll: 'All',
