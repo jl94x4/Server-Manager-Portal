@@ -263,12 +263,14 @@ export function LibraryMediaCard({
     onOpen,
     cacheLevel = null,
     showCopyTitle = false,
+    watching = false,
 }: {
     item: LibraryRecentItem;
     disabled?: boolean;
     onOpen: (item: LibraryRecentItem) => void;
     cacheLevel?: TpdbCoverageLevel | string | null;
     showCopyTitle?: boolean;
+    watching?: boolean;
 }) {
     const label = item.year ? `${item.title} (${item.year})` : item.title;
     const cacheLabel = coverageBadgeLabel(cacheLevel);
@@ -291,6 +293,14 @@ export function LibraryMediaCard({
                     <span className="absolute bottom-2 left-2 rounded-full border border-white/15 bg-black/55 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">
                         {item.mediaType === 'movie' ? 'Movie' : 'TV'}
                     </span>
+                    {watching ? (
+                        <span
+                            className="absolute bottom-2 right-2 rounded-full border border-plex/35 bg-plex/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-plex"
+                            title="Already watching a poster set for this title"
+                        >
+                            Watching
+                        </span>
+                    ) : null}
                     {cacheLabel ? (
                         <span
                             className={`absolute right-1.5 top-1.5 rounded-full border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${coverageBadgeClass(cacheLevel)}`}

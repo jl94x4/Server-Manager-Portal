@@ -450,6 +450,7 @@ export function LibraryTitleDetailPanel({
                 title: item.title,
                 mediaType: item.mediaType,
                 ratingKey: item.id,
+                tmdbId: item.tmdbId ? String(item.tmdbId) : undefined,
             });
             setTitleStatus(response);
         } catch {
@@ -619,6 +620,7 @@ export function LibraryTitleDetailPanel({
                 setUrl: titleWatchSetUrl || undefined,
                 enabled: nextEnabled,
                 setMeta: nextEnabled ? currentSetMeta() : undefined,
+                tmdbId: item.tmdbId ? String(item.tmdbId) : undefined,
             });
             toast(nextEnabled
                 ? (replacedTitleWatch ? 'Replaced the watched set for this title.' : 'Watching this title for poster updates.')

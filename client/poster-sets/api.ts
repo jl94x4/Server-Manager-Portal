@@ -684,12 +684,19 @@ export const posterSetsApi = {
             cacheStatus?: string;
         }>;
     },
-    titleStatus: (payload: { title: string; mediaType?: string; ratingKey?: string }) => {
+    titleStatus: (payload: { title: string; mediaType?: string; ratingKey?: string; tmdbId?: string }) => {
         const params = new URLSearchParams({ title: payload.title });
         if (payload.mediaType) params.set('mediaType', payload.mediaType);
         if (payload.ratingKey) params.set('ratingKey', payload.ratingKey);
+        if (payload.tmdbId) params.set('tmdbId', payload.tmdbId);
         return apiFetch(`${ROOT}/title-status?${params.toString()}`) as Promise<PosterSetsTitleStatus & { ok?: boolean }>;
     },
+    watchingIndex: () => apiFetch(`${ROOT}/watching-index`) as Promise<{
+        ok?: boolean;
+        ratingKeys?: string[];
+        titleKeys?: string[];
+        tmdbIds?: string[];
+    }>,
     titleWatch: (payload: {
         title: string;
         mediaType?: string;
@@ -697,6 +704,7 @@ export const posterSetsApi = {
         setUrl?: string;
         enabled?: boolean;
         setMeta?: PosterSetsSetMeta | null;
+        tmdbId?: string;
     }) => apiFetch(`${ROOT}/title-watch`, json(payload)) as Promise<{
         ok: boolean;
         enabled: boolean;

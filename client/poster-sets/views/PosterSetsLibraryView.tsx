@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     CheckCircle2,
     ChevronDown,
@@ -71,6 +71,7 @@ import {
 import { usePosterSetsDashboard } from '../PosterSetsDashboardContext';
 import { useTpdbCoverageMap } from '../shared/useTpdbCoverageMap';
 import { coverageKeyForItem } from '../shared/tpdbCacheUi';
+import { libraryItemIsWatching, type PosterSetsWatchingIndex } from '../watchingIndex';
 
 export const PosterSetsLibraryView: React.FC = () => {
     const {
@@ -306,6 +307,25 @@ export const PosterSetsLibraryView: React.FC = () => {
         return rows.filter((item) => coverageKeyForItem(item));
     }, [libraryViewMode, librarySearchQuery, librarySearchResults, libraryMovies, libraryShows]);
     const { levelFor } = useTpdbCoverageMap(coverageItems, tab === 'library' && isTpdbEnabled(configDraft));
+    const [watchingIndex, setWatchingIndex] = useState<PosterSetsWatchingIndex | null>(null);
+
+    useEffect(() => {
+        if (tab !== 'library') return undefined;
+        let cancelled = false;
+        void posterSetsApi.watchingIndex()
+            .then((data) => {
+                if (cancelled) return;
+                setWatchingIndex({
+                    ratingKeys: data.ratingKeys || [],
+                    titleKeys: data.titleKeys || [],
+                    tmdbIds: data.tmdbIds || [],
+                });
+            })
+            .catch(() => {
+                if (!cancelled) setWatchingIndex(null);
+            });
+        return () => { cancelled = true; };
+    }, [tab, watches]);
 
     if (tab !== 'library') return null;
     return (
@@ -431,6 +451,7 @@ export const PosterSetsLibraryView: React.FC = () => {
                             onOpenItem={openLibraryItem}
                             showTpdbCoverage={isTpdbEnabled(configDraft)}
                             showCopyTitle={isCopyLibraryTitleEnabled(configDraft)}
+                            watchingIndex={watchingIndex}
                         />
                     ) : null}
         
@@ -466,6 +487,7 @@ export const PosterSetsLibraryView: React.FC = () => {
                                             onOpen={openLibraryItem}
                                             cacheLevel={levelFor(item)}
                                             showCopyTitle={isCopyLibraryTitleEnabled(configDraft)}
+                                            watching={libraryItemIsWatching(item, watchingIndex)}
                                         />
                                     ))}
                                 </div>
@@ -501,6 +523,7 @@ export const PosterSetsLibraryView: React.FC = () => {
                                         onOpen={openLibraryItem}
                                         cacheLevel={levelFor(item)}
                                         showCopyTitle={isCopyLibraryTitleEnabled(configDraft)}
+                                        watching={libraryItemIsWatching(item, watchingIndex)}
                                     />
                                 ))}
                             </div>
@@ -522,6 +545,7 @@ export const PosterSetsLibraryView: React.FC = () => {
                                         onOpen={openLibraryItem}
                                         cacheLevel={levelFor(item)}
                                         showCopyTitle={isCopyLibraryTitleEnabled(configDraft)}
+                                        watching={libraryItemIsWatching(item, watchingIndex)}
                                     />
                                 ))}
                             </div>
