@@ -4,6 +4,8 @@ import {
     dedupePersonCredits,
     mergeEnrichedPersonCredits,
     personCreditYear,
+    pickTmdbPersonMatch,
+    splitBiography,
     splitPersonCredits,
 } from './personCredits.js';
 
@@ -42,4 +44,28 @@ test('mergeEnrichedPersonCredits patches availability onto matching titles', () 
     ]);
     assert.equal(merged[0].mediaInfo, undefined);
     assert.equal(merged[1].mediaInfo.status, 5);
+});
+
+test('pickTmdbPersonMatch prefers exact names and overlapping on-server titles', () => {
+    const picked = pickTmdbPersonMatch([
+        { id: 1, mediaType: 'movie', title: 'Avatar' },
+        { id: 9, mediaType: 'person', name: 'James Jordan', popularity: 80, knownFor: [{ title: 'Unrelated' }] },
+        { id: 11, mediaType: 'person', name: 'James Jordan', popularity: 12, knownFor: [{ title: 'Lioness' }] },
+        { id: 22, mediaType: 'person', name: 'Zoe Saldana', popularity: 90, knownFor: [{ title: 'Avatar' }] },
+    ], { name: 'James Jordan', knownTitles: ['Lioness'] });
+    assert.equal(picked.id, 11);
+
+    const accent = pickTmdbPersonMatch([
+        { id: 22, mediaType: 'person', name: 'Zoe Saldana', popularity: 40 },
+        { id: 23, mediaType: 'person', name: 'Someone Else', popularity: 99 },
+    ], { name: 'Zoe Saldaña' });
+    assert.equal(accent.id, 22);
+});
+
+test('splitBiography keeps the first paragraph until Read more', () => {
+    const split = splitBiography('First paragraph.\n\nSecond paragraph.\n\nThird.');
+    assert.equal(split.first, 'First paragraph.');
+    assert.equal(split.hasMore, true);
+    assert.equal(split.rest.includes('Second'), true);
+    assert.equal(splitBiography('Just one line.').hasMore, false);
 });

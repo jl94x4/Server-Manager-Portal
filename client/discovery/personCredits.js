@@ -63,3 +63,55 @@ export const mergeEnrichedPersonCredits = (current = [], enrichedChunk = []) => 
     if (!byKey.size) return current;
     return current.map((item) => byKey.get(personCreditKey(item)) || item);
 };
+
+const foldPersonName = (value) => String(value || '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+const isPersonSearchResult = (row) => {
+    const type = String(row?.mediaType || row?.media_type || '').toLowerCase();
+    return type === 'person' || (!type && !!(row?.profilePath || row?.profile_path));
+};
+
+/** Prefer an exact name match, then overlap with titles already on the server. */
+export const pickTmdbPersonMatch = (results = [], { name = '', knownTitles = [] } = {}) => {
+    const want = foldPersonName(name);
+    const titles = new Set((Array.isArray(knownTitles) ? knownTitles : [])
+        .map((row) => foldPersonName(row))
+        .filter(Boolean));
+    const people = (Array.isArray(results) ? results : []).filter(isPersonSearchResult);
+    const named = want
+        ? people.filter((row) => foldPersonName(row?.name) === want)
+        : people;
+    const pool = named.length ? named : people;
+    let best = null;
+    let bestScore = -1;
+    for (const row of pool) {
+        const known = [].concat(row?.knownFor || row?.known_for || []);
+        const overlap = known.filter((item) => titles.has(foldPersonName(item?.title || item?.name))).length;
+        const popularity = Number(row?.popularity) || 0;
+        const score = (overlap * 1000) + popularity;
+        if (score > bestScore) {
+            best = row;
+            bestScore = score;
+        }
+    }
+    return best;
+};
+
+export const splitBiography = (bio = '') => {
+    const trimmed = String(bio || '').trim();
+    if (!trimmed) return { first: '', rest: '', hasMore: false };
+    const paragraphs = trimmed.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean);
+    if (paragraphs.length <= 1) {
+        return { first: paragraphs[0] || trimmed, rest: '', hasMore: false };
+    }
+    return {
+        first: paragraphs[0],
+        rest: paragraphs.slice(1).join('\n\n'),
+        hasMore: true,
+    };
+};
