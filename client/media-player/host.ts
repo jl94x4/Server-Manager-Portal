@@ -1,0 +1,31 @@
+/**
+ * Portal chrome used by Media Player screens.
+ * Import host UI from here — not from ../screens, ../discovery, or ../shared.
+ * Replace this file when Media Player becomes a standalone app.
+ */
+
+export { useDiscoverI18n } from '../discovery/i18n';
+export { discoveryTheme } from '../discovery/discoveryThemeClasses';
+export { DiscoverGridSizeSelect } from '../discovery/DiscoverGridSizeSelect';
+export { useDiscoverGridSize } from '../discovery/useDiscoverGridSize';
+export { DiscoverSectionHeader } from '../discovery/DiscoverSectionHeader';
+export { Carousel } from '../discovery/Carousel';
+export { DiscoveryFactWidget } from '../discovery/DiscoveryFactWidget';
+export { MediaRatingPills } from '../discovery/MediaRatingPills';
+export type { CombinedRatings } from '../discovery/mediaDetailUtils';
+export { PersonProfileHeader } from '../discovery/PersonProfileHeader';
+export { DiscoverPosterCard } from '../screens';
+export { DiscoverHomeSkeleton, DiscoverHomeRowSkeleton, PosterGridSkeleton } from '../shared/skeletons';
+export { MediaPlayerAlphaBanner } from '../shared/BetaBadge';
+export { NoPosterPlaceholder } from '../shared/NoPosterPlaceholder';
+export {
+    discoverRowCardWidthClass,
+    posterGridCardWidthStyle,
+    upgraderPosterGridClass,
+    upgraderPosterGridStyle,
+} from '../shared/portalLayout';
+export { SettingsToggleRow } from '../shared/ui';
+export { portalUrl, stripBasePath } from '../shared/basePath';
+export { lockBackgroundScroll } from '../shared/lockBackgroundScroll';
+export { PORTAL_CSRF_HEADER, PORTAL_CSRF_VALUE } from '../shared/api';
+export { ToastContainer, pushToast, type ToastMessage } from '../shared/toast';

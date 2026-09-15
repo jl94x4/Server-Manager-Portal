@@ -1,11 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
-import { DiscoverGridSizeSelect } from '../discovery/DiscoverGridSizeSelect';
-import { useDiscoverGridSize } from '../discovery/useDiscoverGridSize';
-import { discoveryTheme } from '../discovery/discoveryThemeClasses';
-import { useDiscoverI18n } from '../discovery/i18n';
-import { DiscoverHomeRowSkeleton, PosterGridSkeleton } from '../shared/skeletons';
-import { upgraderPosterGridClass, upgraderPosterGridStyle } from '../shared/portalLayout';
+import {
+    DiscoverGridSizeSelect,
+    DiscoverHomeRowSkeleton,
+    discoveryTheme,
+    PosterGridSkeleton,
+    upgraderPosterGridClass,
+    upgraderPosterGridStyle,
+    useDiscoverGridSize,
+    useDiscoverI18n,
+} from './host';
 import {
     fetchMediaPlayerCollections,
     fetchMediaPlayerLibraries,

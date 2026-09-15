@@ -1,10 +1,11 @@
 import { portalUrl } from '../shared/basePath';
+import { PLAYER_API_ROOT, PLAYER_IMAGE_PATH } from './paths';
 import type { PlayerItem } from './types';
 
 export const plexImageUrl = (path?: string | null, width = 300, height = 450) => {
     if (!path) return '';
     if (path.startsWith('http') || path.startsWith('/api/')) return path;
-    return portalUrl(`/api/plex/image?path=${encodeURIComponent(path)}&width=${width}&height=${height}`);
+    return portalUrl(`${PLAYER_IMAGE_PATH}?path=${encodeURIComponent(path)}&width=${width}&height=${height}`);
 };
 
 export const formatBitrateMbps = (bitrate?: number | null) => {
@@ -123,7 +124,9 @@ export const playSessionIdFromSrc = (src?: string | null) => {
 
 export const isHlsPlaybackSrc = (src?: string | null) => /\.m3u8(\?|$)/i.test(String(src || ''));
 
-export const isFilePlaybackSrc = (src?: string | null) => /\/api\/media-player\/file\//i.test(String(src || ''));
+export const isFilePlaybackSrc = (src?: string | null) => (
+    String(src || '').includes(`${PLAYER_API_ROOT}/file/`)
+);
 
 export const playbackModeFromSrc = (
     src?: string | null,
@@ -182,7 +185,7 @@ export const buildFilePlaybackSrc = (ratingKey: string, {
     if (allowHevc) qs.set('hevc', '1');
     if (allowAc3) qs.set('ac3', '1');
     if (Number(mediaIndex) > 0) qs.set('mediaIndex', String(Math.floor(Number(mediaIndex))));
-    return `/api/media-player/file/${encodeURIComponent(ratingKey)}?${qs}`;
+    return `${PLAYER_API_ROOT}/file/${encodeURIComponent(ratingKey)}?${qs}`;
 };
 
 export const buildPlaybackSrc = (ratingKey: string, {
@@ -224,5 +227,5 @@ export const buildPlaybackSrc = (ratingKey: string, {
     if (Number(mediaIndex) > 0) qs.set('mediaIndex', String(Math.floor(Number(mediaIndex))));
     if (String(audioStreamId || '').replace(/\D/g, '')) qs.set('audioStreamID', String(audioStreamId).replace(/\D/g, ''));
     if (String(subtitleStreamId || '').replace(/\D/g, '')) qs.set('subtitleStreamID', String(subtitleStreamId).replace(/\D/g, ''));
-    return `/api/media-player/hls/${encodeURIComponent(ratingKey)}/master.m3u8?${qs}`;
+    return `${PLAYER_API_ROOT}/hls/${encodeURIComponent(ratingKey)}/master.m3u8?${qs}`;
 };

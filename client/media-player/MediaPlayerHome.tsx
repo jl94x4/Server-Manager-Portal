@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Settings } from 'lucide-react';
-import { DiscoverSectionHeader } from '../discovery/DiscoverSectionHeader';
-import { discoveryTheme } from '../discovery/discoveryThemeClasses';
-import { useDiscoverI18n } from '../discovery/i18n';
-import { DiscoverGridSizeSelect } from '../discovery/DiscoverGridSizeSelect';
-import { useDiscoverGridSize } from '../discovery/useDiscoverGridSize';
-import { DiscoverHomeSkeleton } from '../shared/skeletons';
-import { MediaPlayerAlphaBanner } from '../shared/BetaBadge';
+import {
+    DiscoverGridSizeSelect,
+    DiscoverHomeSkeleton,
+    DiscoverSectionHeader,
+    discoveryTheme,
+    MediaPlayerAlphaBanner,
+    useDiscoverGridSize,
+    useDiscoverI18n,
+} from './host';
 import { fetchMediaPlayerHome, searchMediaPlayer, setMediaPlayerWatched } from './api';
 import { MediaPlayerLibrariesPanel } from './MediaPlayerLibrariesPanel';
 import { PlayerPosterCard } from './PlayerPosterCard';

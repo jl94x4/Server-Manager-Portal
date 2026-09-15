@@ -1,9 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
-import { SettingsToggleRow } from '../shared/ui';
-import { discoveryTheme } from '../discovery/discoveryThemeClasses';
-import { useDiscoverI18n } from '../discovery/i18n';
-import { MediaPlayerAlphaBanner } from '../shared/BetaBadge';
+import { discoveryTheme, MediaPlayerAlphaBanner, SettingsToggleRow, useDiscoverI18n } from './host';
 import { fetchMediaPlayerLibraries } from './api';
 import {
     PLAYER_AUDIO_LANGUAGES,

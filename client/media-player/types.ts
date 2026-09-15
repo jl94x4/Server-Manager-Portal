@@ -128,6 +128,21 @@ export type PlayerPersonPage = {
     items: PlayerItem[];
 };
 
+export type PlayerPersonProfile = {
+    name?: string | null;
+    biography?: string | null;
+    birthday?: string | null;
+    knownForDepartment?: string | null;
+    placeOfBirth?: string | null;
+    profilePath?: string | null;
+};
+
+export type PlayerPersonBundle = {
+    person: { name: string; thumb?: string | null };
+    items: PlayerItem[];
+    profile: PlayerPersonProfile | null;
+};
+
 export type PlayerSection = {
     key: string;
     title: string;
@@ -237,6 +252,7 @@ export type PlayerPlaySession = {
     markers?: PlayerMarkers;
     playbackMode?: PlayerPlaybackMode;
     source?: PlayerPlaybackSource;
+    client?: 'web' | 'android' | 'ios';
 };
 
 export type PlayerPlayOptions = {

@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Calendar, Clock, Eye, EyeOff, Film, Info, ListPlus, Loader2, Play, Star, Tv, Users } from 'lucide-react';
-import { NoPosterPlaceholder } from '../shared/NoPosterPlaceholder';
-import { Carousel } from '../discovery/Carousel';
-import { DiscoveryFactWidget } from '../discovery/DiscoveryFactWidget';
-import { MediaRatingPills } from '../discovery/MediaRatingPills';
-import type { CombinedRatings } from '../discovery/mediaDetailUtils';
-import { useDiscoverI18n } from '../discovery/i18n';
-import { useDiscoverGridSize } from '../discovery/useDiscoverGridSize';
+import {
+    Carousel,
+    DiscoveryFactWidget,
+    MediaRatingPills,
+    NoPosterPlaceholder,
+    useDiscoverGridSize,
+    useDiscoverI18n,
+    type CombinedRatings,
+} from './host';
 import { addMediaPlayerPlaylistItem, createMediaPlayerPlaylist, fetchMediaPlayerItem, fetchMediaPlayerPlaylists, setMediaPlayerWatched } from './api';
 import { MediaPlayerMediaInfo } from './MediaPlayerMediaInfo';
 import { PlayerRail } from './PlayerRail';

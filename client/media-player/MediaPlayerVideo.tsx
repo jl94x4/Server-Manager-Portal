@@ -15,10 +15,13 @@ import {
     X,
 } from 'lucide-react';
 import Hls from 'hls.js';
-import { portalUrl } from '../shared/basePath';
-import { lockBackgroundScroll } from '../shared/lockBackgroundScroll';
-import { PORTAL_CSRF_HEADER, PORTAL_CSRF_VALUE } from '../shared/api';
-import { useDiscoverI18n } from '../discovery/i18n';
+import {
+    lockBackgroundScroll,
+    PORTAL_CSRF_HEADER,
+    PORTAL_CSRF_VALUE,
+    portalUrl,
+    useDiscoverI18n,
+} from './host';
 import {
     formatClock,
     formatPlayerResolution,

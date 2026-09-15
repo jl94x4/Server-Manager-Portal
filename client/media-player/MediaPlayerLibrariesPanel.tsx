@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp, Film, Music, Tv } from 'lucide-react';
-import { discoveryTheme } from '../discovery/discoveryThemeClasses';
-import { useDiscoverI18n } from '../discovery/i18n';
+import { discoveryTheme, useDiscoverI18n } from './host';
 import type { PlayerSection } from './types';
 
 type Props = {

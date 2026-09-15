@@ -1,18 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Film } from 'lucide-react';
-import { DiscoverGridSizeSelect } from '../discovery/DiscoverGridSizeSelect';
-import { useDiscoverGridSize } from '../discovery/useDiscoverGridSize';
-import { discoveryTheme } from '../discovery/discoveryThemeClasses';
-import { useDiscoverI18n } from '../discovery/i18n';
-import { PersonProfileHeader } from '../discovery/PersonProfileHeader';
-import { pickTmdbPersonMatch } from '../discovery/personCredits';
-import { PosterGridSkeleton } from '../shared/skeletons';
-import { apiFetch } from '../shared/api';
-import { upgraderPosterGridClass, upgraderPosterGridStyle } from '../shared/portalLayout';
-import { fetchMediaPlayerPerson, setMediaPlayerWatched } from './api';
+import {
+    DiscoverGridSizeSelect,
+    discoveryTheme,
+    PersonProfileHeader,
+    PosterGridSkeleton,
+    upgraderPosterGridClass,
+    upgraderPosterGridStyle,
+    useDiscoverGridSize,
+    useDiscoverI18n,
+} from './host';
+import { fetchPlayerPersonBundle, setMediaPlayerWatched } from './api';
 import { plexImageUrl } from './playerUtils';
 import { PlayerPosterCard } from './PlayerPosterCard';
-import type { PlayerItem, PlayerPlayOptions } from './types';
+import type { PlayerItem, PlayerPersonProfile, PlayerPlayOptions } from './types';
 
 type Props = {
     actorId: string;
@@ -23,32 +24,12 @@ type Props = {
     onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
 };
 
-type TmdbPerson = {
-    name?: string | null;
-    biography?: string | null;
-    birthday?: string | null;
-    knownForDepartment?: string | null;
-    placeOfBirth?: string | null;
-    profilePath?: string | null;
-};
-
-const searchDiscoveryPeople = async (query: string) => {
-    const q = String(query || '').trim();
-    if (q.length < 2) return [];
-    const fromSearch = await apiFetch(`/api/discovery/search?query=${encodeURIComponent(q)}`).catch(() => null);
-    const searchRows = Array.isArray(fromSearch?.results) ? fromSearch.results : [];
-    if (pickTmdbPersonMatch(searchRows, { name: q })) return searchRows;
-    const proxy = await apiFetch(`/api/discovery/proxy/search?query=${encodeURIComponent(q)}`).catch(() => null);
-    const proxyRows = Array.isArray(proxy?.results) ? proxy.results : [];
-    return proxyRows.length ? proxyRows : searchRows;
-};
-
 export const MediaPlayerPerson: React.FC<Props> = ({ actorId, name, thumb, onBack, onOpenItem, onPlay }) => {
     const { t } = useDiscoverI18n();
     const [gridSize, setGridSize] = useDiscoverGridSize();
     const [title, setTitle] = useState(name || t('navigation.person'));
     const [photo, setPhoto] = useState(thumb || null);
-    const [profile, setProfile] = useState<TmdbPerson | null>(null);
+    const [profile, setProfile] = useState<PlayerPersonProfile | null>(null);
     const [items, setItems] = useState<PlayerItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -58,34 +39,14 @@ export const MediaPlayerPerson: React.FC<Props> = ({ actorId, name, thumb, onBac
         setLoading(true);
         setProfile(null);
 
-        const queryName = String(name || '').trim();
-        const plexPromise = fetchMediaPlayerPerson(actorId, queryName);
-        const searchPromise = searchDiscoveryPeople(queryName);
-
-        Promise.all([plexPromise, searchPromise])
-            .then(async ([data, searchResults]) => {
+        fetchPlayerPersonBundle(actorId, name, thumb)
+            .then((data) => {
                 if (cancelled) return;
-                const resolvedName = String(data.person?.name || queryName || t('navigation.person')).trim();
-                const nextItems = data.items || [];
-                setTitle(resolvedName);
-                setPhoto(thumb || data.person?.thumb || null);
-                setItems(nextItems);
+                setTitle(data.person.name || t('navigation.person'));
+                setPhoto(data.person.thumb || null);
+                setItems(data.items || []);
+                setProfile(data.profile);
                 setError(null);
-
-                let rows = searchResults;
-                if (resolvedName && resolvedName.toLowerCase() !== queryName.toLowerCase()) {
-                    const extra = await searchDiscoveryPeople(resolvedName);
-                    if (extra.length) rows = extra;
-                }
-                const match = pickTmdbPersonMatch(rows, {
-                    name: resolvedName,
-                    knownTitles: nextItems.map((row) => row.title),
-                });
-                const tmdbId = Number(match?.id);
-                const details = Number.isFinite(tmdbId) && tmdbId > 0
-                    ? await apiFetch(`/api/discovery/proxy/person/${tmdbId}`).catch(() => null)
-                    : null;
-                if (!cancelled) setProfile(details);
             })
             .catch((err) => {
                 if (cancelled) return;

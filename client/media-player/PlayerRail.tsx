@@ -1,7 +1,5 @@
 import React from 'react';
-import { Carousel } from '../discovery/Carousel';
-import { DiscoverSectionHeader } from '../discovery/DiscoverSectionHeader';
-import { discoverRowCardWidthClass, posterGridCardWidthStyle } from '../shared/portalLayout';
+import { Carousel, DiscoverSectionHeader, discoverRowCardWidthClass, posterGridCardWidthStyle } from './host';
 import { PlayerPosterCard } from './PlayerPosterCard';
 import type { PlayerItem, PlayerPlayOptions } from './types';
 

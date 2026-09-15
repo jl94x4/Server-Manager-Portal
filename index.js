@@ -81,6 +81,7 @@ import {
 import { createPosterSetsRouter, startPosterSetsWatcher, setPosterSetsNotifyDigest, schedulePosterSetsArrHook, startTpdbCacheDailyRefresh } from './lib/poster-sets/index.js';
 import { createMediaPlayerRouter } from './lib/media-player/index.js';
 import { normalizePlayerSettings } from './lib/media-player/mapItem.js';
+import { isBearerOnlyRequest, readSessionToken } from './lib/session-token.js';
 import { listTpdbCachedCoverageKeys } from './lib/poster-sets/tpdbCache.js';
 import { applyTpdbCacheBrowse } from './lib/poster-sets/tpdbCacheBrowse.js';
 import { createOverlaysRouter } from './lib/overlays/index.js';
@@ -1329,6 +1330,7 @@ app.use(cookieParser()); // Middleware to parse cookies
 
 // CSRF defense for cookie-authenticated API mutations: require same-origin
 // Origin/Referer or the portal's custom X-Requested-With header (sent by apiFetch).
+// Bearer-only requests are not cookie CSRF (the token is not sent automatically).
 const PORTAL_CSRF_HEADER = 'x-requested-with';
 const PORTAL_CSRF_VALUE = 'ServerManagerPortal';
 const collectAllowedOrigins = (req) => {
@@ -1369,8 +1371,7 @@ const portalCsrfMiddleware = (req, res, next) => {
     if (String(req.path || '').startsWith('/api/editions/webhook')) return next();
     if (String(req.path || '').startsWith('/api/poster-sets/webhook')) return next();
     if (String(req.path || '').startsWith('/api/overlays/collexions-collection-updated')) return next();
-    const headerOk = String(req.get(PORTAL_CSRF_HEADER) || '') === PORTAL_CSRF_VALUE;
-    if (headerOk || isSameOriginApiRequest(req)) return next();
+    if (headerOk || isSameOriginApiRequest(req) || isBearerOnlyRequest(req)) return next();
     return res.status(403).json({ error: 'CSRF validation failed.' });
 };
 
@@ -3275,7 +3276,7 @@ const normalizeBrandingAssetForMediaServer = (value = '', mediaServerType = 'ple
 };
 
 const requireAuth = (req, res, next) => {
-    const token = req.cookies.session;
+    const token = readSessionToken(req);
     if (!token) return res.status(401).json({ error: 'Unauthorized' });
     try {
         req.user = jwt.verify(token, JWT_SECRET);
@@ -3322,7 +3323,7 @@ const requireMember = async (req, res, next) => {
 };
 
 const requireAdmin = async (req, res, next) => {
-    const token = req.cookies.session;
+    const token = readSessionToken(req);
     if (!token) return res.status(401).json({ error: 'Unauthorized' });
     try {
         req.user = jwt.verify(token, JWT_SECRET);
@@ -4469,7 +4470,7 @@ const completeJellyfinPortalLogin = async (req, res, config, authData, source = 
     setSessionCookie(req, res, token);
     await appendAuditLog('user_login', sessionUser, sessionUser);
     log(`Jellyfin ${source} login success for ${sessionUser.username} (admin=${isAdmin}, secureCookie=${FORCE_SECURE_COOKIES}, token=${accessToken ? 'received' : 'missing'})`);
-    return res.json({ success: true, user: { username: sessionUser.username, jellyfinId: sessionUser.jellyfinId, isAdmin } });
+    return res.json({ success: true, sessionToken: token, user: { username: sessionUser.username, jellyfinId: sessionUser.jellyfinId, isAdmin } });
 };
 
 app.post('/api/auth/jellyfin/login', authRateLimit, async (req, res) => {
@@ -4898,7 +4899,7 @@ const completePlexPortalLogin = async (req, res, {
     if (redirectOnSuccess) {
         return res.redirect(withBasePath('/portal'));
     }
-    return res.json({ message: 'Logged in successfully', user: sessionUser });
+    return res.json({ message: 'Logged in successfully', sessionToken: token, user: sessionUser });
 };
 
 const resolvePlexHomeSwitchIdentity = async ({
@@ -5069,7 +5070,7 @@ app.get('/api/auth/diagnostics', publicReadRateLimit, async (req, res) => {
 });
 
 app.get('/api/auth/session', publicReadRateLimit, async (req, res) => {
-    const token = req.cookies?.session;
+    const token = readSessionToken(req);
     if (!token) return res.json({ authenticated: false });
     try {
         const user = jwt.verify(token, JWT_SECRET);
@@ -5088,6 +5089,12 @@ app.get('/api/auth/session', publicReadRateLimit, async (req, res) => {
     } catch {
         return res.json({ authenticated: false, reason: 'invalid_token' });
     }
+});
+
+app.post('/api/auth/session/token', requireAuth, (req, res) => {
+    const token = readSessionToken(req);
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+    return res.json({ sessionToken: token });
 });
 
 app.post('/api/auth/plex/callback', authCallbackRateLimit, async (req, res) => {
@@ -14785,7 +14792,7 @@ app.post('/api/invites/:code/claim', authRateLimit, async (req, res) => {
         const token = jwt.sign(sessionUser, JWT_SECRET, { expiresIn: '7d' });
         setSessionCookie(req, res, token);
 
-        res.json({ success: true, user: sanitizeUserForApi(newUser) });
+        res.json({ success: true, sessionToken: token, user: sanitizeUserForApi(newUser) });
     } catch (e) {
         log(`Error claiming invite: ${e.message}`);
         res.status(500).json({ error: 'Failed to claim invite. Please try again later.' });

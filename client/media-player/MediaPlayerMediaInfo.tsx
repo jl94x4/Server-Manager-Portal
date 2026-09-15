@@ -1,7 +1,7 @@
 import React from 'react';
 import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { useDiscoverI18n } from '../discovery/i18n';
+import { useDiscoverI18n } from './host';
 import { formatBitrateMbps, formatBytes, formatClock, formatPlayerDuration } from './playerUtils';
 import type { PlayerItem, PlayerMediaInfo, PlayerMediaPartInfo } from './types';
 

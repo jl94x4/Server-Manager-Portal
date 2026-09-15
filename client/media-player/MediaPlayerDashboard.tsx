@@ -1,7 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { portalUrl, stripBasePath } from '../shared/basePath';
-import { ToastContainer, pushToast as appendToast, type ToastMessage } from '../shared/toast';
-import { useDiscoverI18n } from '../discovery/i18n';
+import {
+    portalUrl,
+    pushToast as appendToast,
+    stripBasePath,
+    ToastContainer,
+    useDiscoverI18n,
+    type ToastMessage,
+} from './host';
+import { PLAYER_APP_BASE, PLAYER_NAVIGATE_EVENT } from './paths';
 import { startMediaPlayerPlayback } from './api';
 import { MediaPlayerHome } from './MediaPlayerHome';
 import { MediaPlayerLibrary } from './MediaPlayerLibrary';
@@ -34,7 +40,7 @@ type PendingResume = {
 };
 
 const readPlayerView = (): PlayerView => {
-    const href = typeof window !== 'undefined' ? window.location : { pathname: '/media-player', search: '' };
+    const href = typeof window !== 'undefined' ? window.location : { pathname: PLAYER_APP_BASE, search: '' };
     const parts = stripBasePath(href.pathname)
         .split('/')
         .filter(Boolean);
@@ -67,8 +73,8 @@ const readPlayerView = (): PlayerView => {
 
 const libraryPath = (sectionKey: string, tab: LibraryTab = 'home') => (
     tab === 'home'
-        ? `/media-player/library/${encodeURIComponent(sectionKey)}`
-        : `/media-player/library/${encodeURIComponent(sectionKey)}/${tab}`
+        ? `${PLAYER_APP_BASE}/library/${encodeURIComponent(sectionKey)}`
+        : `${PLAYER_APP_BASE}/library/${encodeURIComponent(sectionKey)}/${tab}`
 );
 
 export const MediaPlayerDashboard: React.FC = () => {
@@ -86,30 +92,30 @@ export const MediaPlayerDashboard: React.FC = () => {
 
     useEffect(() => {
         window.addEventListener('popstate', syncFromLocation);
-        window.addEventListener('portal-media-player-navigate', syncFromLocation);
+        window.addEventListener(PLAYER_NAVIGATE_EVENT, syncFromLocation);
         return () => {
             window.removeEventListener('popstate', syncFromLocation);
-            window.removeEventListener('portal-media-player-navigate', syncFromLocation);
+            window.removeEventListener(PLAYER_NAVIGATE_EVENT, syncFromLocation);
         };
     }, [syncFromLocation]);
 
     const navigate = useCallback((path: string) => {
         window.history.pushState({}, '', portalUrl(path));
         setView(readPlayerView());
-        window.dispatchEvent(new Event('portal-media-player-navigate'));
+        window.dispatchEvent(new Event(PLAYER_NAVIGATE_EVENT));
     }, []);
 
     const openItem = useCallback((item: PlayerItem) => {
         if (!item?.ratingKey) return;
         if (item.type === 'collection') {
-            navigate(`/media-player/collection/${encodeURIComponent(item.ratingKey)}`);
+            navigate(`${PLAYER_APP_BASE}/collection/${encodeURIComponent(item.ratingKey)}`);
             return;
         }
         if (item.type === 'playlist') {
-            navigate(`/media-player/playlist/${encodeURIComponent(item.ratingKey)}`);
+            navigate(`${PLAYER_APP_BASE}/playlist/${encodeURIComponent(item.ratingKey)}`);
             return;
         }
-        navigate(`/media-player/item/${encodeURIComponent(item.ratingKey)}`);
+        navigate(`${PLAYER_APP_BASE}/item/${encodeURIComponent(item.ratingKey)}`);
     }, [navigate]);
 
     const openLibrary = useCallback((section: PlayerSection, tab: LibraryTab = 'home') => {
@@ -119,7 +125,7 @@ export const MediaPlayerDashboard: React.FC = () => {
 
     const openCollection = useCallback((sectionKey: string, item: PlayerItem) => {
         if (!item?.ratingKey) return;
-        navigate(`/media-player/library/${encodeURIComponent(sectionKey)}/collection/${encodeURIComponent(item.ratingKey)}`);
+        navigate(`${PLAYER_APP_BASE}/library/${encodeURIComponent(sectionKey)}/collection/${encodeURIComponent(item.ratingKey)}`);
     }, [navigate]);
 
     const openPerson = useCallback((person: PlayerPersonRef) => {
@@ -129,10 +135,10 @@ export const MediaPlayerDashboard: React.FC = () => {
         if (person.name) qs.set('name', person.name);
         if (person.thumb) qs.set('thumb', person.thumb);
         const suffix = qs.toString() ? `?${qs}` : '';
-        navigate(`/media-player/person/${encodeURIComponent(actorId)}${suffix}`);
+        navigate(`${PLAYER_APP_BASE}/person/${encodeURIComponent(actorId)}${suffix}`);
     }, [navigate]);
 
-    const goHome = useCallback(() => navigate('/media-player'), [navigate]);
+    const goHome = useCallback(() => navigate(PLAYER_APP_BASE), [navigate]);
 
     const goBack = useCallback(() => {
         if (window.history.length > 1) window.history.back();
@@ -160,7 +166,7 @@ export const MediaPlayerDashboard: React.FC = () => {
 
     const playItem = useCallback(async (item: PlayerItem, opts: PlayerPlayOptions = {}) => {
         if (item?.type === 'playlist' && item.ratingKey) {
-            navigate(`/media-player/playlist/${encodeURIComponent(item.ratingKey)}`);
+            navigate(`${PLAYER_APP_BASE}/playlist/${encodeURIComponent(item.ratingKey)}`);
             return;
         }
         if (!item?.canPlay || !item.ratingKey) {
@@ -179,7 +185,7 @@ export const MediaPlayerDashboard: React.FC = () => {
         await startPlayback(item, opts);
     }, [navigate, startPlayback, t]);
 
-    const openSettings = useCallback(() => navigate('/media-player/settings'), [navigate]);
+    const openSettings = useCallback(() => navigate(`${PLAYER_APP_BASE}/settings`), [navigate]);
 
     return (
         <div className={`flex flex-col gap-4 ${playSession ? 'pb-36' : ''}`}>

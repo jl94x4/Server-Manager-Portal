@@ -22,6 +22,7 @@ import {
     type ReleaseNotes,
 } from './shared/releaseNotes';
 
+import { PLAYER_APP_BASE, PLAYER_NAVIGATE_EVENT } from './media-player/paths';
 import { usePendingRequestCount } from './requests/usePendingRequestCount';
 import { useWatchingCount } from './shared/useWatchingCount';
 import { useDownloadCount } from './shared/useDownloadCount';
@@ -45,7 +46,7 @@ const OpenAppletsHost = lazy(() => import('./custom/CustomExternalTabPage').then
 const PreferencesPage = lazy(() => import('./preferences/PreferencesPage').then(m => ({ default: m.PreferencesPage })));
 const ProfilePage = lazy(() => import('./profile/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const DiscoveryDashboard = lazy(() => import('./discovery/DiscoveryDashboard').then(m => ({ default: m.DiscoveryDashboard })));
-const MediaPlayerDashboard = lazy(() => import('./media-player/MediaPlayerDashboard').then(m => ({ default: m.MediaPlayerDashboard })));
+const MediaPlayerDashboard = lazy(() => import('./media-player').then(m => ({ default: m.MediaPlayerDashboard })));
 import {
     updateFavicon,
     Login,
@@ -438,7 +439,7 @@ export const MainApp: React.FC = () => {
             }
             if (route === 'media-player') {
                 const custom = String(options?.path || '').trim();
-                path = custom.startsWith('/media-player') ? custom : '/media-player';
+                path = custom.startsWith(PLAYER_APP_BASE) ? custom : PLAYER_APP_BASE;
             }
             if (route === 'about') path = '/about';
             if (route === 'preferences') path = '/preferences';
@@ -494,7 +495,7 @@ export const MainApp: React.FC = () => {
                 }
             }
             if (route === 'media-player') {
-                window.dispatchEvent(new Event('portal-media-player-navigate'));
+                window.dispatchEvent(new Event(PLAYER_NAVIGATE_EVENT));
             }
             if (route === 'support') {
                 let ticketId = null;
@@ -636,9 +637,9 @@ export const MainApp: React.FC = () => {
             }
             else if (path.startsWith('/discovery') && expiredMember) bounceExpiredHome();
             else if (path.startsWith('/discovery')) setCurrentRoute('discovery');
-            else if (path.startsWith('/media-player') && expiredMember) bounceExpiredHome();
-            else if (path.startsWith('/media-player') && data.navFeatures?.mediaPlayer !== false) setCurrentRoute('media-player');
-            else if (path.startsWith('/media-player')) {
+            else if (path.startsWith(PLAYER_APP_BASE) && expiredMember) bounceExpiredHome();
+            else if (path.startsWith(PLAYER_APP_BASE) && data.navFeatures?.mediaPlayer !== false) setCurrentRoute('media-player');
+            else if (path.startsWith(PLAYER_APP_BASE)) {
                 window.history.replaceState({}, '', portalUrl('/portal'));
                 setCurrentRoute('user');
             }

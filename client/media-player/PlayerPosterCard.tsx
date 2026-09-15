@@ -1,7 +1,6 @@
 import React from 'react';
 import { Check, Eye, EyeOff, Play } from 'lucide-react';
-import { DiscoverPosterCard } from '../screens';
-import { useDiscoverI18n } from '../discovery/i18n';
+import { DiscoverPosterCard, useDiscoverI18n } from './host';
 import { progressPercent, toPosterCardItem } from './playerUtils';
 import type { PlayerItem, PlayerPlayOptions } from './types';
 
