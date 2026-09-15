@@ -113,9 +113,39 @@ export const playSessionIdFromSrc = (src?: string | null) => {
 
 export const isHlsPlaybackSrc = (src?: string | null) => /\.m3u8(\?|$)/i.test(String(src || ''));
 
+export const isFilePlaybackSrc = (src?: string | null) => /\/api\/media-player\/file\//i.test(String(src || ''));
+
+export const browserPlaybackCaps = () => {
+    if (typeof document === 'undefined') return { hevc: false, ac3: false, hls: false };
+    const video = document.createElement('video');
+    const can = (type: string) => {
+        const result = video.canPlayType(type);
+        return result === 'probably' || result === 'maybe';
+    };
+    return {
+        hevc: can('video/mp4; codecs="hvc1.1.6.L93.B0"') || can('video/mp4; codecs="hev1.1.6.L93.B0"'),
+        ac3: can('audio/mp4; codecs="ac-3"') || can('audio/mp4; codecs="ec-3"'),
+        hls: can('application/vnd.apple.mpegurl'),
+    };
+};
+
 export const offsetMsFromSrc = (src?: string | null) => (
     Math.max(0, Math.floor(Number(new URLSearchParams(String(src || '').split('?')[1] || '').get('offset') || 0)))
 );
+
+export const buildFilePlaybackSrc = (ratingKey: string, {
+    sessionId = '',
+    offsetMs = 0,
+    allowHevc = false,
+    allowAc3 = false,
+} = {}) => {
+    const qs = new URLSearchParams();
+    if (PLAY_SESSION_ID.test(String(sessionId || ''))) qs.set('session', String(sessionId));
+    if (Number(offsetMs) > 0) qs.set('offset', String(Math.floor(Number(offsetMs))));
+    if (allowHevc) qs.set('hevc', '1');
+    if (allowAc3) qs.set('ac3', '1');
+    return `/api/media-player/file/${encodeURIComponent(ratingKey)}?${qs}`;
+};
 
 export const buildPlaybackSrc = (ratingKey: string, {
     sessionId = '',
@@ -123,17 +153,33 @@ export const buildPlaybackSrc = (ratingKey: string, {
     qualityId = '',
     audioStreamId = '',
     subtitleStreamId = '',
+    directFile = false,
+    copy = true,
 }: {
     sessionId?: string;
     offsetMs?: number;
     qualityId?: string;
     audioStreamId?: string | null;
     subtitleStreamId?: string | null;
+    directFile?: boolean;
+    copy?: boolean;
 } = {}) => {
+    const original = !qualityId || qualityId === 'original';
+    const noSubs = !String(subtitleStreamId || '').replace(/\D/g, '');
+    if (directFile && original && noSubs) {
+        const caps = browserPlaybackCaps();
+        return buildFilePlaybackSrc(ratingKey, {
+            sessionId,
+            offsetMs,
+            allowHevc: caps.hevc,
+            allowAc3: caps.ac3,
+        });
+    }
     const qs = new URLSearchParams();
     if (PLAY_SESSION_ID.test(String(sessionId || ''))) qs.set('session', String(sessionId));
     if (Number(offsetMs) > 0) qs.set('offset', String(Math.floor(Number(offsetMs))));
     if (qualityId) qs.set('quality', String(qualityId));
+    if (copy === false) qs.set('copy', '0');
     if (String(audioStreamId || '').replace(/\D/g, '')) qs.set('audioStreamID', String(audioStreamId).replace(/\D/g, ''));
     if (String(subtitleStreamId || '').replace(/\D/g, '')) qs.set('subtitleStreamID', String(subtitleStreamId).replace(/\D/g, ''));
     return `/api/media-player/hls/${encodeURIComponent(ratingKey)}/master.m3u8?${qs}`;

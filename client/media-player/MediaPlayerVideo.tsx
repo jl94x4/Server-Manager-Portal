@@ -225,7 +225,12 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
             setError(message || t('mediaPlayerPage.playError'));
         };
 
-        if (Hls.isSupported() && isHlsPlaybackSrc(playbackSrc)) {
+        const nativeHls = !!video.canPlayType('application/vnd.apple.mpegurl');
+        if (isHlsPlaybackSrc(playbackSrc) && nativeHls) {
+            video.src = src;
+            video.addEventListener('loadedmetadata', onReady, { once: true });
+            video.addEventListener('error', () => fail(), { once: true });
+        } else if (Hls.isSupported() && isHlsPlaybackSrc(playbackSrc)) {
             const hls = new Hls({
                 enableWorker: false,
                 lowLatencyMode: false,
@@ -253,10 +258,6 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
                 try { hls.destroy(); } catch { /* ignore */ }
                 fail(hlsErrorMessage(data, t('mediaPlayerPage.playError')));
             });
-        } else if (isHlsPlaybackSrc(playbackSrc) && video.canPlayType('application/vnd.apple.mpegurl')) {
-            video.src = src;
-            video.addEventListener('loadedmetadata', onReady, { once: true });
-            video.addEventListener('error', () => fail(), { once: true });
         } else {
             video.src = src;
             video.addEventListener('loadedmetadata', onReady, { once: true });
@@ -370,6 +371,8 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
             qualityId: nextQuality,
             audioStreamId: nextAudio,
             subtitleStreamId: nextSub,
+            directFile: !!session.canDirectPlay,
+            copy: nextQuality !== 'original' || session.canCopyOriginal !== false,
         }));
     };
 

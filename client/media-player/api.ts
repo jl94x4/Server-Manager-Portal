@@ -1,4 +1,5 @@
 import { apiFetch } from '../shared/api';
+import { browserPlaybackCaps } from './playerUtils';
 import type {
     PlayerHome,
     PlayerItem,
@@ -68,15 +69,19 @@ export const searchMediaPlayer = (query: string) => (
     apiFetch(`/api/media-player/search?q=${encodeURIComponent(query)}`) as Promise<{ results: PlayerItemPage['item'][] }>
 );
 
-export const startMediaPlayerPlayback = (ratingKey: string, offsetMs?: number, qualityId?: string) => (
-    apiFetch(`/api/media-player/play/${encodeURIComponent(ratingKey)}`, {
+export const startMediaPlayerPlayback = (ratingKey: string, offsetMs?: number, qualityId?: string) => {
+    const caps = browserPlaybackCaps();
+    return apiFetch(`/api/media-player/play/${encodeURIComponent(ratingKey)}`, {
         method: 'POST',
         body: JSON.stringify({
             offsetMs: offsetMs || 0,
             qualityId: qualityId && qualityId !== 'auto' ? qualityId : undefined,
+            canPlayHevc: caps.hevc,
+            canPlayAc3: caps.ac3,
+            canPlayNativeHls: caps.hls,
         }),
-    }) as Promise<PlayerPlaySession>
-);
+    }) as Promise<PlayerPlaySession>;
+};
 
 export const reportMediaPlayerTimeline = (payload: {
     ratingKey: string;

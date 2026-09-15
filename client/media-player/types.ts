@@ -181,6 +181,8 @@ export type PlayerPlaySession = {
     offsetMs: number;
     qualities?: PlayerQualityOption[];
     qualityId?: string;
+    canDirectPlay?: boolean;
+    canCopyOriginal?: boolean;
     audioTracks?: PlayerAudioTrack[];
     audioStreamId?: string | null;
     subtitles?: PlayerSubtitleTrack[];
