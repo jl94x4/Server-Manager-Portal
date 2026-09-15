@@ -1,5 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+    ChevronLeft,
+    ChevronRight,
     Film,
     Home,
     LogOut,
@@ -21,6 +23,8 @@ type Props = {
     libraryOrder: string[];
     page: NavPage;
     activeLibraryKey?: string;
+    expanded: boolean;
+    onToggleExpanded: () => void;
     onHome: () => void;
     onSearch: () => void;
     onOpenLibrary: (section: PlayerSection) => void;
@@ -52,6 +56,8 @@ export const MediaPlayerNav: React.FC<Props> = ({
     libraryOrder,
     page,
     activeLibraryKey,
+    expanded,
+    onToggleExpanded,
     onHome,
     onSearch,
     onOpenLibrary,
@@ -59,17 +65,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
 }) => {
     const { t } = useDiscoverI18n();
     const [mobileOpen, setMobileOpen] = useState(false);
-    const [hovered, setHovered] = useState(false);
-    const leaveTimer = useRef<number>(0);
     const orderedLibraries = applyLibraryNavOrder(libraries, libraryOrder);
-    const defaultExpanded = page === 'home' || page === 'settings';
-    const expanded = defaultExpanded || hovered;
-
-    useEffect(() => {
-        setHovered(false);
-    }, [page]);
-
-    useEffect(() => () => window.clearTimeout(leaveTimer.current), []);
 
     useEffect(() => {
         if (!mobileOpen) return undefined;
@@ -89,18 +85,6 @@ export const MediaPlayerNav: React.FC<Props> = ({
     const go = (action: () => void) => {
         action();
         closeMobile();
-    };
-
-    const keepOpen = () => {
-        window.clearTimeout(leaveTimer.current);
-        setHovered(true);
-    };
-
-    const scheduleClose = () => {
-        window.clearTimeout(leaveTimer.current);
-        leaveTimer.current = window.setTimeout(() => {
-            setHovered(false);
-        }, 160);
     };
 
     const renderNav = (showLabels: boolean) => (
@@ -207,19 +191,24 @@ export const MediaPlayerNav: React.FC<Props> = ({
                 </button>
             </div>
 
-            <aside className="pointer-events-none absolute inset-y-0 left-0 z-40 hidden md:block">
+            <aside className="pointer-events-none absolute inset-y-0 left-0 z-40 hidden md:flex items-center pl-3">
                 <div
-                    className={`pointer-events-auto m-3 flex max-h-[calc(100%-1.5rem)] flex-col overflow-hidden rounded-[28px] bg-[#0b1018]/80 shadow-[0_18px_50px_rgba(0,0,0,0.45)] ring-1 ring-white/10 backdrop-blur-2xl transition-[width] duration-200 ${
+                    className={`pointer-events-auto relative flex max-h-[calc(100%-3rem)] flex-col transition-[width] duration-200 ${
                         expanded ? 'w-[16.25rem]' : 'w-[4.25rem]'
                     }`}
-                    onMouseEnter={keepOpen}
-                    onMouseLeave={scheduleClose}
-                    onFocusCapture={keepOpen}
-                    onBlurCapture={(event) => {
-                        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) scheduleClose();
-                    }}
                 >
-                    {renderNav(expanded)}
+                    <div className="flex min-h-0 max-h-full flex-col overflow-hidden rounded-[28px] bg-[#0b1018]/80 shadow-[0_18px_50px_rgba(0,0,0,0.45)] ring-1 ring-white/10 backdrop-blur-2xl">
+                        {renderNav(expanded)}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={onToggleExpanded}
+                        className="absolute top-1/2 -right-3 z-10 flex h-11 w-6 -translate-y-1/2 items-center justify-center rounded-r-xl bg-[#0b1018]/85 text-white/80 shadow-lg ring-1 ring-white/10 backdrop-blur-xl hover:bg-white/10 hover:text-white"
+                        title={expanded ? t('mediaPlayerPage.collapseNav') : t('mediaPlayerPage.expandNav')}
+                        aria-label={expanded ? t('mediaPlayerPage.collapseNav') : t('mediaPlayerPage.expandNav')}
+                    >
+                        {expanded ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    </button>
                 </div>
             </aside>
 

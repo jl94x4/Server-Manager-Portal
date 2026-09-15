@@ -23,9 +23,11 @@ import { formatClock, shouldOfferResume } from './playerUtils';
 import {
     consumePlayerSearchFocus,
     focusPlayerSearchInput,
+    readPlayerNavExpanded,
     requestPlayerSearchFocus,
     restorePlayerHomeScrollWhenReady,
     stashPlayerHomeScroll,
+    writePlayerNavExpanded,
 } from './playerMemory';
 import type { PlayerItem, PlayerPlayOptions, PlayerPlaySession, PlayerSection } from './types';
 
@@ -94,6 +96,7 @@ export const MediaPlayerDashboard: React.FC = () => {
     const [playSession, setPlaySession] = useState<PlayerPlaySession | null>(null);
     const [startingPlay, setStartingPlay] = useState(false);
     const [pendingResume, setPendingResume] = useState<PendingResume | null>(null);
+    const [navExpanded, setNavExpanded] = useState(() => readPlayerNavExpanded());
     const viewKindRef = useRef(view.kind);
 
     const syncFromLocation = useCallback(() => {
@@ -236,6 +239,13 @@ export const MediaPlayerDashboard: React.FC = () => {
     }, [navigate, startPlayback, t]);
 
     const openSettings = useCallback(() => navigate(`${PLAYER_APP_BASE}/settings`), [navigate]);
+    const toggleNavExpanded = useCallback(() => {
+        setNavExpanded((current) => {
+            const next = !current;
+            writePlayerNavExpanded(next);
+            return next;
+        });
+    }, []);
     const navPage = view.kind === 'home'
         ? 'home'
         : view.kind === 'settings'
@@ -252,6 +262,8 @@ export const MediaPlayerDashboard: React.FC = () => {
                 libraryOrder={settings.libraryNavOrder}
                 page={navPage}
                 activeLibraryKey={activeLibraryKey}
+                expanded={navExpanded}
+                onToggleExpanded={toggleNavExpanded}
                 onHome={goHome}
                 onSearch={openSearch}
                 onOpenLibrary={openLibrary}
@@ -260,7 +272,7 @@ export const MediaPlayerDashboard: React.FC = () => {
             <div
                 id={PLAYER_SCROLL_ID}
                 className={`min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-clip custom-scrollbar px-4 py-4 md:py-6 md:pr-8 ${
-                    navPage === 'settings' ? 'md:pl-[18.25rem]' : 'md:pl-[6.25rem]'
+                    navExpanded ? 'md:pl-[19rem]' : 'md:pl-[7rem]'
                 } ${playSession ? 'pb-36' : ''}`}
             >
                 <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4">

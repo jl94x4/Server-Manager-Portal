@@ -6,6 +6,7 @@ export const PLAYER_HOME_SCROLL_KEY = 'portal-media-player-home-scroll';
 export const PLAYER_LOCAL_PLAYBACK_KEY = 'portal-media-player-local-playback';
 export const PLAYER_LIBRARY_STATE_KEY = 'portal-media-player-library-state';
 export const PLAYER_MINI_WIDTH_KEY = 'portal-media-player-mini-width';
+export const PLAYER_NAV_EXPANDED_KEY = 'portal-media-player-nav-expanded';
 
 export type LocalPlaybackPrefs = {
     volume: number;
@@ -91,6 +92,17 @@ export const readMiniPlayerWidth = () => {
 export const writeMiniPlayerWidth = (width: number) => {
     if (typeof window === 'undefined') return;
     writeJson(window.localStorage, PLAYER_MINI_WIDTH_KEY, clampMiniPlayerWidth(width));
+};
+
+export const readPlayerNavExpanded = () => {
+    const raw = readJson(PLAYER_NAV_EXPANDED_KEY);
+    if (raw === false || raw === 0 || raw === '0' || raw === 'false') return false;
+    return true;
+};
+
+export const writePlayerNavExpanded = (expanded: boolean) => {
+    if (typeof window === 'undefined') return;
+    writeJson(window.localStorage, PLAYER_NAV_EXPANDED_KEY, expanded !== false);
 };
 
 export const readLibraryBrowseState = (sectionKey: string): LibraryBrowseState => {
