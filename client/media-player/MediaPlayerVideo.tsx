@@ -23,6 +23,7 @@ import {
     newPlaySessionId,
     playSessionIdFromSrc,
     buildPlaybackSrc,
+    canUseNativeHls,
     isHlsPlaybackSrc,
     offsetMsFromSrc,
     playbackModeFromSrc,
@@ -187,6 +188,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
     const sendTimelineRef = useRef<(state: 'playing' | 'paused' | 'buffering' | 'stopped') => void>(() => {});
     const onPlayItemRef = useRef(onPlayItem);
     const nextItemRef = useRef<PlayerItem | null>(null);
+    const fallbackUsedRef = useRef(false);
 
     const qualities = session.qualities || [];
     const audioTracks = session.audioTracks || [];
@@ -230,6 +232,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
         setSkippedCredits(false);
         setDismissedUpNext(false);
         setUpNextIn(10);
+        fallbackUsedRef.current = false;
     }, [session.sessionId]);
 
     useEffect(() => {
@@ -310,15 +313,32 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
 
         const fail = (message?: string) => {
             if (cancelled) return;
+            if (!fallbackUsedRef.current) {
+                fallbackUsedRef.current = true;
+                const offset = Math.max(
+                    0,
+                    Math.floor(((video.currentTime || 0) * 1000) || currentMsRef.current || session.offsetMs || 0),
+                );
+                const nextSrc = buildPlaybackSrc(session.item.ratingKey, {
+                    sessionId: newPlaySessionId(),
+                    offsetMs: offset,
+                    qualityId: qualityId || session.qualityId || 'original',
+                    audioStreamId,
+                    subtitleStreamId,
+                    directFile: false,
+                    copy: false,
+                    mediaIndex: session.mediaIndex || 0,
+                });
+                if (nextSrc !== playbackSrc) {
+                    setPlaybackMode('transcode');
+                    setPlaybackSrc(nextSrc);
+                    return;
+                }
+            }
             setError(message || t('mediaPlayerPage.playError'));
         };
 
-        const nativeHls = !!video.canPlayType('application/vnd.apple.mpegurl');
-        if (isHlsPlaybackSrc(playbackSrc) && nativeHls) {
-            video.src = src;
-            video.addEventListener('loadedmetadata', onReady, { once: true });
-            video.addEventListener('error', () => fail(), { once: true });
-        } else if (Hls.isSupported() && isHlsPlaybackSrc(playbackSrc)) {
+        const startHlsJs = () => {
             const hls = new Hls({
                 enableWorker: false,
                 lowLatencyMode: false,
@@ -344,8 +364,23 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
             hls.on(Hls.Events.ERROR, (_event, data) => {
                 if (!data?.fatal) return;
                 try { hls.destroy(); } catch { /* ignore */ }
+                hlsRef.current = null;
                 fail(hlsErrorMessage(data, t('mediaPlayerPage.playError')));
             });
+        };
+
+        const nativeHls = canUseNativeHls();
+        if (isHlsPlaybackSrc(playbackSrc) && nativeHls) {
+            video.src = src;
+            video.addEventListener('loadedmetadata', onReady, { once: true });
+            video.addEventListener('error', () => {
+                if (cancelled) return;
+                video.removeAttribute('src');
+                if (Hls.isSupported()) startHlsJs();
+                else fail();
+            }, { once: true });
+        } else if (Hls.isSupported() && isHlsPlaybackSrc(playbackSrc)) {
+            startHlsJs();
         } else {
             video.src = src;
             video.addEventListener('loadedmetadata', onReady, { once: true });

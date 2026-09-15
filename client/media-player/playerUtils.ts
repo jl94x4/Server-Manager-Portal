@@ -135,6 +135,21 @@ export const playbackModeFromSrc = (
     return 'transcode' as const;
 };
 
+export const isApplePlayback = () => {
+    if (typeof navigator === 'undefined') return false;
+    const ua = navigator.userAgent || '';
+    if (/iPad|iPhone|iPod/.test(ua)) return true;
+    if (navigator.platform === 'MacIntel' && Number(navigator.maxTouchPoints || 0) > 1) return true;
+    return /Safari/i.test(ua) && !/Chrome|Chromium|Edg|OPR|Android|Firefox/i.test(ua);
+};
+
+export const canUseNativeHls = () => {
+    if (typeof document === 'undefined' || !isApplePlayback()) return false;
+    const video = document.createElement('video');
+    const result = video.canPlayType('application/vnd.apple.mpegurl');
+    return result === 'probably' || result === 'maybe';
+};
+
 export const browserPlaybackCaps = () => {
     if (typeof document === 'undefined') return { hevc: false, ac3: false, hls: false };
     const video = document.createElement('video');
@@ -142,10 +157,11 @@ export const browserPlaybackCaps = () => {
         const result = video.canPlayType(type);
         return result === 'probably' || result === 'maybe';
     };
+    const apple = isApplePlayback();
     return {
-        hevc: can('video/mp4; codecs="hvc1.1.6.L93.B0"') || can('video/mp4; codecs="hev1.1.6.L93.B0"'),
-        ac3: can('audio/mp4; codecs="ac-3"') || can('audio/mp4; codecs="ec-3"'),
-        hls: can('application/vnd.apple.mpegurl'),
+        hevc: apple && (can('video/mp4; codecs="hvc1.1.6.L93.B0"') || can('video/mp4; codecs="hev1.1.6.L93.B0"')),
+        ac3: apple && (can('audio/mp4; codecs="ac-3"') || can('audio/mp4; codecs="ec-3"')),
+        hls: canUseNativeHls(),
     };
 };
 
