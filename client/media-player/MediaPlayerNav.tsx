@@ -1,12 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     Film,
     Home,
     LogOut,
     Menu,
     Music,
-    PanelLeftClose,
-    PanelLeftOpen,
     Search,
     Settings,
     Tv,
@@ -14,7 +12,6 @@ import {
 } from 'lucide-react';
 import { exitToPortal, lockBackgroundScroll, useDiscoverI18n } from './host';
 import { applyLibraryNavOrder } from './playerSettings';
-import { readPlayerNavCollapsed, writePlayerNavCollapsed } from './playerMemory';
 import type { PlayerSection } from './types';
 
 type NavPage = 'home' | 'library' | 'settings' | 'other';
@@ -36,12 +33,16 @@ const libraryIcon = (type: string) => {
     return Film;
 };
 
-const navButtonClass = (active: boolean, collapsed: boolean) => (
-    `flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition-colors ${
-        collapsed ? 'justify-center px-0' : ''
+const navButtonClass = (active: boolean, expanded: boolean) => (
+    `flex items-center text-left text-sm font-semibold transition-colors ${
+        expanded
+            ? 'w-full gap-3 rounded-full px-3.5 py-2.5'
+            : 'h-10 w-10 justify-center rounded-full'
     } ${
         active
-            ? 'bg-white text-zinc-900 shadow-lg shadow-black/20'
+            ? expanded
+                ? 'bg-white text-zinc-900 shadow-lg shadow-black/25'
+                : 'bg-white text-zinc-900'
             : 'text-white/80 hover:bg-white/10 hover:text-white'
     }`
 );
@@ -57,13 +58,18 @@ export const MediaPlayerNav: React.FC<Props> = ({
     onOpenSettings,
 }) => {
     const { t } = useDiscoverI18n();
-    const [collapsed, setCollapsed] = useState(() => readPlayerNavCollapsed());
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [hovered, setHovered] = useState(false);
+    const leaveTimer = useRef<number>(0);
     const orderedLibraries = applyLibraryNavOrder(libraries, libraryOrder);
+    const defaultExpanded = page === 'home' || page === 'settings';
+    const expanded = defaultExpanded || hovered;
 
     useEffect(() => {
-        writePlayerNavCollapsed(collapsed);
-    }, [collapsed]);
+        setHovered(false);
+    }, [page]);
+
+    useEffect(() => () => window.clearTimeout(leaveTimer.current), []);
 
     useEffect(() => {
         if (!mobileOpen) return undefined;
@@ -85,56 +91,54 @@ export const MediaPlayerNav: React.FC<Props> = ({
         closeMobile();
     };
 
-    const renderNav = (collapsedRail: boolean) => (
-        <div className="flex h-full min-h-0 flex-col">
-            <div className={`flex items-center ${collapsedRail ? 'justify-center px-2 pt-4' : 'justify-between gap-2 px-3 pt-4'}`}>
-                {collapsedRail ? null : (
-                    <p className="truncate text-[11px] font-black uppercase tracking-[0.22em] text-white/45">
-                        {t('navigation.mediaPlayer')}
-                    </p>
-                )}
+    const keepOpen = () => {
+        window.clearTimeout(leaveTimer.current);
+        setHovered(true);
+    };
+
+    const scheduleClose = () => {
+        window.clearTimeout(leaveTimer.current);
+        leaveTimer.current = window.setTimeout(() => {
+            setHovered(false);
+        }, 160);
+    };
+
+    const renderNav = (showLabels: boolean) => (
+        <nav className={`flex max-h-full min-h-0 flex-col ${showLabels ? 'gap-3 px-2.5 py-3' : 'items-center gap-1.5 px-1.5 py-2.5'}`}>
+            <div className={`flex shrink-0 flex-col ${showLabels ? 'gap-1' : 'items-center gap-1'}`}>
                 <button
                     type="button"
-                    className="hidden rounded-lg p-2 text-white/50 hover:bg-white/10 hover:text-white md:inline-flex"
-                    onClick={() => setCollapsed((prev) => !prev)}
-                    aria-label={collapsedRail ? t('mediaPlayerPage.expandNav') : t('mediaPlayerPage.collapseNav')}
-                    title={collapsedRail ? t('mediaPlayerPage.expandNav') : t('mediaPlayerPage.collapseNav')}
+                    className={navButtonClass(page === 'home', showLabels)}
+                    onClick={() => go(onHome)}
+                    title={t('mediaPlayerPage.navHome')}
                 >
-                    {collapsedRail ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+                    <Home className="h-4 w-4 shrink-0" />
+                    {showLabels ? t('mediaPlayerPage.navHome') : null}
+                </button>
+                <button
+                    type="button"
+                    className={navButtonClass(false, showLabels)}
+                    onClick={() => go(onSearch)}
+                    title={t('mediaPlayerPage.navSearch')}
+                >
+                    <Search className="h-4 w-4 shrink-0" />
+                    {showLabels ? t('mediaPlayerPage.navSearch') : null}
                 </button>
             </div>
 
-            <nav className="mt-4 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-2 pb-3 custom-scrollbar">
-                <div className="flex flex-col gap-1">
-                    <button
-                        type="button"
-                        className={navButtonClass(page === 'home', collapsedRail)}
-                        onClick={() => go(onHome)}
-                        title={t('mediaPlayerPage.navHome')}
-                    >
-                        <Home className="h-4 w-4 shrink-0" />
-                        {collapsedRail ? null : t('mediaPlayerPage.navHome')}
-                    </button>
-                    <button
-                        type="button"
-                        className={navButtonClass(false, collapsedRail)}
-                        onClick={() => go(onSearch)}
-                        title={t('mediaPlayerPage.navSearch')}
-                    >
-                        <Search className="h-4 w-4 shrink-0" />
-                        {collapsedRail ? null : t('mediaPlayerPage.navSearch')}
-                    </button>
-                </div>
-
-                {orderedLibraries.length ? (
-                    <div className="flex min-h-0 flex-col gap-1">
-                        {collapsedRail ? (
-                            <div className="mx-3 my-1 h-px bg-white/10" />
-                        ) : (
-                            <p className="px-3 pb-1 text-[10px] font-black uppercase tracking-[0.2em] text-white/35">
+            {orderedLibraries.length ? (
+                <div className={`flex min-h-0 flex-col overflow-hidden ${showLabels ? 'gap-1' : 'items-center gap-1'}`}>
+                    {showLabels ? (
+                        <div className="flex shrink-0 items-center gap-2 px-3 pb-1 pt-1">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">
                                 {t('mediaPlayerPage.navLibraries')}
                             </p>
-                        )}
+                            <div className="h-px min-w-0 flex-1 bg-white/10" />
+                        </div>
+                    ) : (
+                        <div className="my-1 h-px w-6 shrink-0 bg-white/15" />
+                    )}
+                    <div className={`min-h-0 overflow-y-auto custom-scrollbar ${showLabels ? 'flex flex-col gap-1' : 'flex flex-col items-center gap-1'}`}>
                         {orderedLibraries.map((section) => {
                             const Icon = libraryIcon(section.type);
                             const active = page === 'library' && String(activeLibraryKey) === String(section.key);
@@ -142,40 +146,41 @@ export const MediaPlayerNav: React.FC<Props> = ({
                                 <button
                                     key={section.key}
                                     type="button"
-                                    className={navButtonClass(active, collapsedRail)}
+                                    className={navButtonClass(active, showLabels)}
                                     onClick={() => go(() => onOpenLibrary(section))}
                                     title={section.title}
                                 >
                                     <Icon className="h-4 w-4 shrink-0" />
-                                    {collapsedRail ? null : <span className="truncate">{section.title}</span>}
+                                    {showLabels ? <span className="min-w-0 truncate">{section.title}</span> : null}
                                 </button>
                             );
                         })}
                     </div>
-                ) : null}
-            </nav>
+                </div>
+            ) : null}
 
-            <div className="mt-auto flex flex-col gap-1 border-t border-white/10 px-2 py-3">
+            <div className={`flex shrink-0 flex-col ${showLabels ? 'gap-1 border-t border-white/10 pt-3' : 'items-center gap-1 pt-1'}`}>
+                {!showLabels ? <div className="mb-1 h-px w-6 bg-white/15" /> : null}
                 <button
                     type="button"
-                    className={navButtonClass(page === 'settings', collapsedRail)}
+                    className={navButtonClass(page === 'settings', showLabels)}
                     onClick={() => go(onOpenSettings)}
                     title={t('mediaPlayerPage.navSettings')}
                 >
                     <Settings className="h-4 w-4 shrink-0" />
-                    {collapsedRail ? null : t('mediaPlayerPage.navSettings')}
+                    {showLabels ? t('mediaPlayerPage.navSettings') : null}
                 </button>
                 <button
                     type="button"
-                    className={navButtonClass(false, collapsedRail)}
+                    className={navButtonClass(false, showLabels)}
                     onClick={() => go(exitToPortal)}
                     title={t('mediaPlayerPage.exitToPortal')}
                 >
                     <LogOut className="h-4 w-4 shrink-0" />
-                    {collapsedRail ? null : t('mediaPlayerPage.exitToPortal')}
+                    {showLabels ? t('mediaPlayerPage.exitToPortal') : null}
                 </button>
             </div>
-        </div>
+        </nav>
     );
 
     return (
@@ -202,12 +207,20 @@ export const MediaPlayerNav: React.FC<Props> = ({
                 </button>
             </div>
 
-            <aside
-                className={`relative z-30 hidden h-full shrink-0 border-r border-white/10 bg-[#0b1018]/92 backdrop-blur-xl md:flex md:flex-col ${
-                    collapsed ? 'w-[72px]' : 'w-[260px]'
-                }`}
-            >
-                {renderNav(collapsed)}
+            <aside className="pointer-events-none absolute inset-y-0 left-0 z-40 hidden md:block">
+                <div
+                    className={`pointer-events-auto m-3 flex max-h-[calc(100%-1.5rem)] flex-col overflow-hidden rounded-[28px] bg-[#0b1018]/80 shadow-[0_18px_50px_rgba(0,0,0,0.45)] ring-1 ring-white/10 backdrop-blur-2xl transition-[width] duration-200 ${
+                        expanded ? 'w-[16.25rem]' : 'w-[4.25rem]'
+                    }`}
+                    onMouseEnter={keepOpen}
+                    onMouseLeave={scheduleClose}
+                    onFocusCapture={keepOpen}
+                    onBlurCapture={(event) => {
+                        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) scheduleClose();
+                    }}
+                >
+                    {renderNav(expanded)}
+                </div>
             </aside>
 
             {mobileOpen ? (
@@ -218,16 +231,16 @@ export const MediaPlayerNav: React.FC<Props> = ({
                         aria-label={t('mediaPlayerPage.closeNav')}
                         onClick={closeMobile}
                     />
-                    <aside className="relative flex h-full w-[min(20rem,86vw)] flex-col bg-[#0b1018] shadow-2xl">
+                    <aside className="relative m-3 flex max-h-[calc(100%-1.5rem)] w-[min(20rem,86vw)] flex-col overflow-hidden rounded-[28px] bg-[#0b1018]/95 shadow-2xl ring-1 ring-white/10">
                         <button
                             type="button"
                             onClick={closeMobile}
-                            className="absolute right-2 top-3 rounded-lg p-2 text-white/60 hover:bg-white/10 hover:text-white"
+                            className="absolute right-2 top-3 z-10 rounded-lg p-2 text-white/60 hover:bg-white/10 hover:text-white"
                             aria-label={t('mediaPlayerPage.closeNav')}
                         >
                             <X className="h-4 w-4" />
                         </button>
-                        {renderNav(false)}
+                        {renderNav(true)}
                     </aside>
                 </div>
             ) : null}

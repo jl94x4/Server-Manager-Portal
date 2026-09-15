@@ -5,7 +5,6 @@ export const PLAYER_FOCUS_SEARCH_KEY = 'portal-media-player-focus-search';
 export const PLAYER_HOME_SCROLL_KEY = 'portal-media-player-home-scroll';
 export const PLAYER_LOCAL_PLAYBACK_KEY = 'portal-media-player-local-playback';
 export const PLAYER_LIBRARY_STATE_KEY = 'portal-media-player-library-state';
-export const PLAYER_NAV_COLLAPSED_KEY = 'portal-media-player-nav-collapsed';
 
 export type LocalPlaybackPrefs = {
     volume: number;
@@ -176,23 +175,5 @@ export const focusPlayerSearchInput = () => {
     input.focus();
     input.select();
     return true;
-};
-
-export const readPlayerNavCollapsed = () => {
-    if (typeof window === 'undefined') return false;
-    try {
-        return window.localStorage.getItem(PLAYER_NAV_COLLAPSED_KEY) === '1';
-    } catch {
-        return false;
-    }
-};
-
-export const writePlayerNavCollapsed = (collapsed: boolean) => {
-    if (typeof window === 'undefined') return;
-    try {
-        window.localStorage.setItem(PLAYER_NAV_COLLAPSED_KEY, collapsed ? '1' : '0');
-    } catch {
-        /* ignore */
-    }
 };
 

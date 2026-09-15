@@ -246,7 +246,7 @@ export const MediaPlayerDashboard: React.FC = () => {
     const activeLibraryKey = view.kind === 'library' || view.kind === 'collection' ? view.sectionKey : undefined;
 
     return (
-        <div className="flex h-full min-h-0 w-full flex-col md:flex-row">
+        <div className="relative flex h-full min-h-0 w-full flex-col">
             <MediaPlayerNav
                 libraries={libraries}
                 libraryOrder={settings.libraryNavOrder}
@@ -259,7 +259,9 @@ export const MediaPlayerDashboard: React.FC = () => {
             />
             <div
                 id={PLAYER_SCROLL_ID}
-                className={`min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-clip custom-scrollbar px-4 py-4 md:px-8 md:py-6 ${playSession ? 'pb-36' : ''}`}
+                className={`min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-clip custom-scrollbar px-4 py-4 md:py-6 md:pr-8 ${
+                    navPage === 'settings' ? 'md:pl-[18.25rem]' : 'md:pl-[6.25rem]'
+                } ${playSession ? 'pb-36' : ''}`}
             >
                 <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4">
             {view.kind === 'home' ? (
