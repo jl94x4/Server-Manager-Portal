@@ -1,20 +1,42 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Loader2, Maximize, Minimize, Pause, Play, X } from 'lucide-react';
+import {
+    ChevronsLeft,
+    ChevronsRight,
+    Loader2,
+    Maximize,
+    Minimize,
+    Pause,
+    Play,
+    Volume2,
+    VolumeX,
+    X,
+} from 'lucide-react';
 import Hls from 'hls.js';
 import { portalUrl } from '../shared/basePath';
 import { lockBackgroundScroll } from '../shared/lockBackgroundScroll';
 import { PORTAL_CSRF_HEADER, PORTAL_CSRF_VALUE } from '../shared/api';
 import { useDiscoverI18n } from '../discovery/i18n';
-import { formatClock, newPlaySessionId, playSessionIdFromSrc, buildPlaybackSrc, isHlsPlaybackSrc, offsetMsFromSrc } from './playerUtils';
-import { reportMediaPlayerTimeline, stopMediaPlayerTranscode } from './api';
-import type { PlayerPlaySession } from './types';
+import {
+    formatClock,
+    formatPlayerResolution,
+    newPlaySessionId,
+    playSessionIdFromSrc,
+    buildPlaybackSrc,
+    isHlsPlaybackSrc,
+    offsetMsFromSrc,
+    playbackModeFromSrc,
+    plexImageUrl,
+    PLAYBACK_SPEEDS,
+} from './playerUtils';
+import { fetchMediaPlayerNext, reportMediaPlayerTimeline, stopMediaPlayerTranscode } from './api';
+import type { PlayerItem, PlayerPlayOptions, PlayerPlaySession } from './types';
 
 type Props = {
     session: PlayerPlaySession;
     onClose: () => void;
     autoplayNext?: boolean;
-    onPlayNext?: (item: PlayerPlaySession['item']) => void;
+    onPlayItem?: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
 };
 
 type PickerOption = { id: string; label: string };
@@ -125,7 +147,14 @@ const TrackPicker: React.FC<{
     );
 };
 
-export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNext = false, onPlayNext }) => {
+const seekBy = (video: HTMLVideoElement | null, deltaSeconds: number) => {
+    if (!video) return;
+    const next = Math.max(0, video.currentTime + deltaSeconds);
+    const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : next;
+    video.currentTime = Math.min(duration, next);
+};
+
+export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNext = false, onPlayItem }) => {
     const { t } = useDiscoverI18n();
     const videoRef = useRef<HTMLVideoElement>(null);
     const overlayRef = useRef<HTMLDivElement>(null);
@@ -140,21 +169,53 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
     const [qualityId, setQualityId] = useState(session.qualityId || '');
     const [audioStreamId, setAudioStreamId] = useState(session.audioStreamId || '');
     const [subtitleStreamId, setSubtitleStreamId] = useState(session.subtitleStreamId || '');
-    const [openMenu, setOpenMenu] = useState<'quality' | 'audio' | 'subtitles' | null>(null);
+    const [openMenu, setOpenMenu] = useState<'quality' | 'audio' | 'subtitles' | 'speed' | 'version' | null>(null);
+    const [muted, setMuted] = useState(false);
+    const [volume, setVolume] = useState(1);
+    const [speed, setSpeed] = useState(1);
+    const [playbackMode, setPlaybackMode] = useState(session.playbackMode || playbackModeFromSrc(session.src, session.qualityId, session.canCopyOriginal));
+    const [nextItem, setNextItem] = useState<PlayerItem | null>(null);
+    const [skippedIntro, setSkippedIntro] = useState(false);
+    const [skippedCredits, setSkippedCredits] = useState(false);
+    const [dismissedUpNext, setDismissedUpNext] = useState(false);
+    const [upNextIn, setUpNextIn] = useState(10);
     const currentMsRef = useRef(0);
     const durationMsRef = useRef(session.item.durationMs || 0);
+    const volumeRef = useRef(1);
+    const mutedRef = useRef(false);
+    const speedRef = useRef(1);
     const sendTimelineRef = useRef<(state: 'playing' | 'paused' | 'buffering' | 'stopped') => void>(() => {});
+    const onPlayItemRef = useRef(onPlayItem);
+    const nextItemRef = useRef<PlayerItem | null>(null);
 
     const qualities = session.qualities || [];
     const audioTracks = session.audioTracks || [];
     const subtitles = session.subtitles || [];
+    const versions = session.versions || [];
+    const markers = session.markers || { intro: null, credits: null };
+    const mediaIndex = String(session.mediaIndex || 0);
 
+    useEffect(() => {
+        onPlayItemRef.current = onPlayItem;
+    }, [onPlayItem]);
+    useEffect(() => {
+        nextItemRef.current = nextItem;
+    }, [nextItem]);
     useEffect(() => {
         currentMsRef.current = currentMs;
     }, [currentMs]);
     useEffect(() => {
         durationMsRef.current = durationMs;
     }, [durationMs]);
+    useEffect(() => {
+        volumeRef.current = volume;
+    }, [volume]);
+    useEffect(() => {
+        mutedRef.current = muted;
+    }, [muted]);
+    useEffect(() => {
+        speedRef.current = speed;
+    }, [speed]);
 
     useEffect(() => {
         setPlaybackSrc(session.src);
@@ -164,7 +225,28 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
         setOpenMenu(null);
         setCurrentMs(session.offsetMs || 0);
         setDurationMs(session.item.durationMs || 0);
+        setPlaybackMode(session.playbackMode || playbackModeFromSrc(session.src, session.qualityId, session.canCopyOriginal));
+        setSkippedIntro(false);
+        setSkippedCredits(false);
+        setDismissedUpNext(false);
+        setUpNextIn(10);
     }, [session.sessionId]);
+
+    useEffect(() => {
+        if (session.item.type !== 'episode') {
+            setNextItem(null);
+            return undefined;
+        }
+        let cancelled = false;
+        fetchMediaPlayerNext(session.item.ratingKey)
+            .then((data) => {
+                if (!cancelled) setNextItem(data.item || null);
+            })
+            .catch(() => {
+                if (!cancelled) setNextItem(null);
+            });
+        return () => { cancelled = true; };
+    }, [session.item.ratingKey, session.item.type]);
 
     useEffect(() => lockBackgroundScroll(), []);
 
@@ -207,11 +289,17 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
         setPaused(true);
 
         const startAt = isHlsPlaybackSrc(playbackSrc) ? 0 : offsetMsFromSrc(playbackSrc) / 1000;
+        const applyLocalPlayback = () => {
+            video.volume = volumeRef.current;
+            video.muted = mutedRef.current;
+            video.playbackRate = speedRef.current;
+        };
         const onReady = () => {
             if (cancelled) return;
             if (startAt > 1 && Math.abs(video.currentTime - startAt) > 1) {
                 video.currentTime = startAt;
             }
+            applyLocalPlayback();
             setReady(true);
             void video.play().then(() => {
                 if (!cancelled) setPaused(false);
@@ -309,6 +397,37 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
         };
     }, [session.item.ratingKey, session.sessionId]);
 
+    useEffect(() => {
+        if (!('mediaSession' in navigator)) return undefined;
+        const thumb = session.item.thumb ? plexImageUrl(session.item.thumb, 512, 512) : '';
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: session.item.title,
+            artist: session.item.showTitle || 'Media Player',
+            album: session.item.seasonTitle || '',
+            artwork: thumb ? [{ src: thumb, sizes: '512x512', type: 'image/jpeg' }] : [],
+        });
+        const playCurrent = (item: PlayerItem | null) => {
+            if (!item) return;
+            onPlayItemRef.current?.(item, { offsetMs: 0, skipResume: true });
+        };
+        try {
+            navigator.mediaSession.setActionHandler('play', () => { void videoRef.current?.play(); });
+            navigator.mediaSession.setActionHandler('pause', () => { videoRef.current?.pause(); });
+            navigator.mediaSession.setActionHandler('seekbackward', () => seekBy(videoRef.current, -10));
+            navigator.mediaSession.setActionHandler('seekforward', () => seekBy(videoRef.current, 10));
+            navigator.mediaSession.setActionHandler('previoustrack', () => seekBy(videoRef.current, -10));
+            navigator.mediaSession.setActionHandler('nexttrack', () => playCurrent(nextItemRef.current));
+        } catch {
+            /* older browsers reject some handlers */
+        }
+        return () => {
+            navigator.mediaSession.metadata = null;
+            for (const action of ['play', 'pause', 'seekbackward', 'seekforward', 'previoustrack', 'nexttrack']) {
+                try { navigator.mediaSession.setActionHandler(action as MediaSessionAction, null); } catch { /* ignore */ }
+            }
+        };
+    }, [session.item.ratingKey, session.item.title, session.item.showTitle, session.item.seasonTitle, session.item.thumb]);
+
     const toggleFullscreen = () => {
         if (fullscreenElement()) return exitPlayerFullscreen();
         return requestPlayerFullscreen(overlayRef.current, videoRef.current);
@@ -319,8 +438,36 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
         onClose();
     };
 
+    const remaining = Math.max(0, durationMs - currentMs);
+    const inIntro = !!(markers.intro && !skippedIntro && currentMs >= markers.intro.startMs && currentMs < markers.intro.endMs);
+    const inCredits = !!(markers.credits && !skippedCredits && currentMs >= markers.credits.startMs);
+    const showUpNext = !!nextItem && !dismissedUpNext && session.item.type === 'episode' && durationMs > 30000 && (
+        inCredits || (remaining > 0 && remaining <= 15000)
+    );
+
+    useEffect(() => {
+        if (!showUpNext || !autoplayNext || !nextItem) {
+            setUpNextIn(10);
+            return undefined;
+        }
+        setUpNextIn(10);
+        const timer = window.setInterval(() => {
+            setUpNextIn((n) => {
+                if (n <= 1) {
+                    window.clearInterval(timer);
+                    onPlayItemRef.current?.(nextItem, { offsetMs: 0, skipResume: true });
+                    return 0;
+                }
+                return n - 1;
+            });
+        }, 1000);
+        return () => window.clearInterval(timer);
+    }, [showUpNext, autoplayNext, nextItem]);
+
     useEffect(() => {
         const onKey = (event: KeyboardEvent) => {
+            const tag = String((event.target as HTMLElement | null)?.tagName || '').toLowerCase();
+            if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
             if (event.key === 'Escape') {
                 if (openMenu) {
                     setOpenMenu(null);
@@ -335,6 +482,21 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
                 if (!video) return;
                 if (video.paused) void video.play();
                 else video.pause();
+            }
+            if (event.key === 'ArrowLeft') {
+                event.preventDefault();
+                seekBy(videoRef.current, -10);
+            }
+            if (event.key === 'ArrowRight') {
+                event.preventDefault();
+                seekBy(videoRef.current, 10);
+            }
+            if ((event.key === 'm' || event.key === 'M') && !event.metaKey && !event.ctrlKey) {
+                event.preventDefault();
+                const video = videoRef.current;
+                if (!video) return;
+                video.muted = !video.muted;
+                setMuted(video.muted);
             }
             if ((event.key === 'f' || event.key === 'F') && !event.metaKey && !event.ctrlKey && !event.altKey) {
                 event.preventDefault();
@@ -365,7 +527,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
             0,
             Math.floor(((videoRef.current?.currentTime || 0) * 1000) || currentMsRef.current || 0),
         );
-        setPlaybackSrc(buildPlaybackSrc(session.item.ratingKey, {
+        const nextSrc = buildPlaybackSrc(session.item.ratingKey, {
             sessionId: newPlaySessionId(),
             offsetMs: offset,
             qualityId: nextQuality,
@@ -373,7 +535,10 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
             subtitleStreamId: nextSub,
             directFile: !!session.canDirectPlay,
             copy: nextQuality !== 'original' || session.canCopyOriginal !== false,
-        }));
+            mediaIndex: session.mediaIndex || 0,
+        });
+        setPlaybackMode(playbackModeFromSrc(nextSrc, nextQuality, session.canCopyOriginal));
+        setPlaybackSrc(nextSrc);
     };
 
     const togglePlayback = () => {
@@ -388,8 +553,34 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
         }
     };
 
+    const skipIntro = () => {
+        const video = videoRef.current;
+        if (!video || !markers.intro) return;
+        video.currentTime = markers.intro.endMs / 1000;
+        setSkippedIntro(true);
+        sendTimelineRef.current('playing');
+    };
+
+    const skipCredits = () => {
+        setSkippedCredits(true);
+        if (nextItem) {
+            onPlayItem?.(nextItem, { offsetMs: 0, skipResume: true });
+            return;
+        }
+        const video = videoRef.current;
+        if (!video) return;
+        video.currentTime = Math.max(0, (durationMs - 1000) / 1000);
+    };
+
     const duration = durationMs || 1;
     const progress = Math.min(100, (currentMs / duration) * 100);
+    const modeLabel = playbackMode === 'directPlay'
+        ? t('mediaPlayerPage.playbackDirectPlay')
+        : playbackMode === 'directStream'
+            ? t('mediaPlayerPage.playbackDirectStream')
+            : t('mediaPlayerPage.playbackTranscode');
+    const sourceRes = formatPlayerResolution(session.source?.height, session.source?.videoResolution);
+    const sourceCodec = String(session.source?.videoCodec || '').toUpperCase();
     const overlay = (
         <div ref={overlayRef} className="fixed inset-0 z-[4000] flex h-full w-full flex-col bg-black" role="dialog" aria-modal="true" aria-label={session.item.title}>
             <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-3 p-4 bg-gradient-to-b from-black/80 to-transparent">
@@ -398,6 +589,9 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
                     {session.item.showTitle ? (
                         <p className="truncate text-xs text-white/70">{session.item.showTitle}</p>
                     ) : null}
+                    <p className="mt-1 inline-flex max-w-full items-center truncate rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-white/80">
+                        {[modeLabel, sourceRes, sourceCodec].filter(Boolean).join(' · ')}
+                    </p>
                 </div>
                 <button
                     type="button"
@@ -426,13 +620,18 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
                     sendTimelineRef.current('paused');
                 }}
                 onTimeUpdate={(event) => setCurrentMs(event.currentTarget.currentTime * 1000)}
+                onRateChange={(event) => setSpeed(event.currentTarget.playbackRate || 1)}
+                onVolumeChange={(event) => {
+                    setVolume(event.currentTarget.volume);
+                    setMuted(event.currentTarget.muted);
+                }}
                 onDurationChange={(event) => {
                     const next = event.currentTarget.duration;
                     if (Number.isFinite(next) && next > 0) setDurationMs(next * 1000);
                 }}
                 onEnded={() => {
                     sendTimelineRef.current('stopped');
-                    if (autoplayNext) void onPlayNext?.(session.item);
+                    if (autoplayNext && nextItem) onPlayItem?.(nextItem, { offsetMs: 0, skipResume: true });
                 }}
             />
 
@@ -451,6 +650,57 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
                 <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3">
                     <Loader2 className="h-10 w-10 animate-spin text-white/80" />
                     <p className="text-xs font-bold uppercase tracking-widest text-white/70">{t('mediaPlayerPage.buffering')}</p>
+                </div>
+            ) : null}
+
+            {inIntro ? (
+                <button
+                    type="button"
+                    onClick={skipIntro}
+                    className="absolute right-4 bottom-28 z-20 rounded-full bg-white px-4 py-2 text-sm font-black text-black shadow-lg"
+                >
+                    {t('mediaPlayerPage.skipIntro')}
+                </button>
+            ) : null}
+
+            {inCredits && !showUpNext ? (
+                <button
+                    type="button"
+                    onClick={skipCredits}
+                    className="absolute right-4 bottom-28 z-20 rounded-full bg-white px-4 py-2 text-sm font-black text-black shadow-lg"
+                >
+                    {t('mediaPlayerPage.skipCredits')}
+                </button>
+            ) : null}
+
+            {showUpNext && nextItem ? (
+                <div className="absolute right-4 bottom-28 z-20 w-72 overflow-hidden rounded-2xl border border-white/15 bg-black/90 shadow-2xl">
+                    {nextItem.thumb ? (
+                        <img src={plexImageUrl(nextItem.thumb, 640, 360)} alt="" className="aspect-video w-full object-cover" />
+                    ) : null}
+                    <div className="p-3">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-white/50">{t('mediaPlayerPage.upNext')}</p>
+                        <p className="mt-1 truncate text-sm font-bold text-white">{nextItem.title}</p>
+                        {autoplayNext ? (
+                            <p className="text-xs text-white/70">{t('mediaPlayerPage.nextEpisodeIn', { seconds: upNextIn })}</p>
+                        ) : null}
+                        <div className="mt-3 flex gap-2">
+                            <button
+                                type="button"
+                                onClick={() => onPlayItem?.(nextItem, { offsetMs: 0, skipResume: true })}
+                                className="rounded-lg bg-plex px-3 py-1.5 text-xs font-black text-black"
+                            >
+                                {t('mediaPlayerPage.playNow')}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setDismissedUpNext(true)}
+                                className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold text-white"
+                            >
+                                {t('common.close')}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             ) : null}
 
@@ -481,6 +731,87 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
                             {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
                             {paused ? t('mediaPlayerPage.play') : t('mediaPlayerPage.pause')}
                         </button>
+                        <button
+                            type="button"
+                            onClick={() => seekBy(videoRef.current, -10)}
+                            className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1.5 text-white hover:bg-white/20"
+                            aria-label={t('mediaPlayerPage.skipBack')}
+                        >
+                            <ChevronsLeft className="h-4 w-4" />
+                            10
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => seekBy(videoRef.current, 10)}
+                            className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1.5 text-white hover:bg-white/20"
+                            aria-label={t('mediaPlayerPage.skipForward')}
+                        >
+                            10
+                            <ChevronsRight className="h-4 w-4" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const video = videoRef.current;
+                                if (!video) return;
+                                video.muted = !video.muted;
+                                setMuted(video.muted);
+                            }}
+                            className="inline-flex items-center rounded-full bg-white/10 px-2.5 py-1.5 text-white hover:bg-white/20"
+                            aria-label={muted ? t('mediaPlayerPage.unmute') : t('mediaPlayerPage.mute')}
+                        >
+                            {muted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                        </button>
+                        <input
+                            type="range"
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            value={muted ? 0 : volume}
+                            onChange={(event) => {
+                                const video = videoRef.current;
+                                const next = Number(event.target.value);
+                                if (video) {
+                                    video.volume = next;
+                                    video.muted = next === 0;
+                                }
+                                setVolume(next);
+                                setMuted(next === 0);
+                            }}
+                            className="w-20 accent-plex"
+                            aria-label={t('mediaPlayerPage.volume')}
+                        />
+                        <TrackPicker
+                            label={t('mediaPlayerPage.speed')}
+                            value={String(speed)}
+                            options={PLAYBACK_SPEEDS.map((rate) => ({ id: String(rate), label: `${rate}×` }))}
+                            open={openMenu === 'speed'}
+                            onToggle={() => setOpenMenu((current) => current === 'speed' ? null : 'speed')}
+                            onChange={(id) => {
+                                const next = Number(id) || 1;
+                                const video = videoRef.current;
+                                if (video) video.playbackRate = next;
+                                setSpeed(next);
+                                setOpenMenu(null);
+                            }}
+                        />
+                        {versions.length > 1 ? (
+                            <TrackPicker
+                                label={t('mediaPlayerPage.version')}
+                                value={mediaIndex}
+                                options={versions.map((row) => ({ id: String(row.mediaIndex), label: row.label }))}
+                                open={openMenu === 'version'}
+                                onToggle={() => setOpenMenu((current) => current === 'version' ? null : 'version')}
+                                onChange={(id) => {
+                                    setOpenMenu(null);
+                                    onPlayItem?.(session.item, {
+                                        offsetMs: Math.floor(currentMsRef.current || 0),
+                                        mediaIndex: Number(id) || 0,
+                                        skipResume: true,
+                                    });
+                                }}
+                            />
+                        ) : null}
                         <TrackPicker
                             label={t('mediaPlayerPage.quality')}
                             value={qualityId}

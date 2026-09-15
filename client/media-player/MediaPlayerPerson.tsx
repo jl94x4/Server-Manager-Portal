@@ -9,10 +9,10 @@ import { pickTmdbPersonMatch } from '../discovery/personCredits';
 import { PosterGridSkeleton } from '../shared/skeletons';
 import { apiFetch } from '../shared/api';
 import { upgraderPosterGridClass, upgraderPosterGridStyle } from '../shared/portalLayout';
-import { fetchMediaPlayerPerson } from './api';
+import { fetchMediaPlayerPerson, setMediaPlayerWatched } from './api';
 import { plexImageUrl } from './playerUtils';
 import { PlayerPosterCard } from './PlayerPosterCard';
-import type { PlayerItem } from './types';
+import type { PlayerItem, PlayerPlayOptions } from './types';
 
 type Props = {
     actorId: string;
@@ -20,7 +20,7 @@ type Props = {
     thumb?: string | null;
     onBack: () => void;
     onOpenItem: (item: PlayerItem) => void;
-    onPlay: (item: PlayerItem) => void;
+    onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
 };
 
 type TmdbPerson = {
@@ -97,6 +97,20 @@ export const MediaPlayerPerson: React.FC<Props> = ({ actorId, name, thumb, onBac
         return () => { cancelled = true; };
     }, [actorId, name, t, thumb]);
 
+    const toggleWatched = async (item: PlayerItem) => {
+        const next = !item.watched;
+        setItems((prev) => prev.map((row) => (
+            row.ratingKey === item.ratingKey ? { ...row, watched: next } : row
+        )));
+        try {
+            await setMediaPlayerWatched(item.ratingKey, next);
+        } catch {
+            setItems((prev) => prev.map((row) => (
+                row.ratingKey === item.ratingKey ? { ...row, watched: item.watched } : row
+            )));
+        }
+    };
+
     const photoUrl = photo ? plexImageUrl(photo, 400, 600) : '';
     const headerPerson = profile || { name: title };
 
@@ -166,6 +180,7 @@ export const MediaPlayerPerson: React.FC<Props> = ({ actorId, name, thumb, onBac
                                 item={item}
                                 onOpenItem={onOpenItem}
                                 onPlay={onPlay}
+                                onToggleWatched={toggleWatched}
                             />
                         ))}
                     </div>

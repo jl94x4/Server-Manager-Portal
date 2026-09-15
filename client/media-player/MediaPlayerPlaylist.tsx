@@ -6,7 +6,7 @@ import { discoveryTheme } from '../discovery/discoveryThemeClasses';
 import { useDiscoverI18n } from '../discovery/i18n';
 import { PosterGridSkeleton } from '../shared/skeletons';
 import { upgraderPosterGridClass, upgraderPosterGridStyle } from '../shared/portalLayout';
-import { fetchMediaPlayerCollection, setMediaPlayerWatched } from './api';
+import { fetchMediaPlayerPlaylist, setMediaPlayerWatched } from './api';
 import { PlayerPosterCard } from './PlayerPosterCard';
 import type { PlayerItem, PlayerPlayOptions } from './types';
 
@@ -17,10 +17,10 @@ type Props = {
     onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
 };
 
-export const MediaPlayerCollection: React.FC<Props> = ({ ratingKey, onBack, onOpenItem, onPlay }) => {
+export const MediaPlayerPlaylist: React.FC<Props> = ({ ratingKey, onBack, onOpenItem, onPlay }) => {
     const { t } = useDiscoverI18n();
     const [gridSize, setGridSize] = useDiscoverGridSize();
-    const [title, setTitle] = useState(t('mediaPlayerPage.collections'));
+    const [title, setTitle] = useState(t('mediaPlayerPage.playlists'));
     const [items, setItems] = useState<PlayerItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -28,10 +28,10 @@ export const MediaPlayerCollection: React.FC<Props> = ({ ratingKey, onBack, onOp
     useEffect(() => {
         let cancelled = false;
         setLoading(true);
-        fetchMediaPlayerCollection(ratingKey)
+        fetchMediaPlayerPlaylist(ratingKey)
             .then((data) => {
                 if (cancelled) return;
-                setTitle(data.item?.title || t('mediaPlayerPage.collections'));
+                setTitle(data.item?.title || t('mediaPlayerPage.playlists'));
                 setItems(data.children || []);
                 setError(null);
             })
@@ -48,7 +48,7 @@ export const MediaPlayerCollection: React.FC<Props> = ({ ratingKey, onBack, onOp
     const toggleWatched = async (item: PlayerItem) => {
         const next = !item.watched;
         setItems((prev) => prev.map((row) => (
-            row.ratingKey === item.ratingKey ? { ...row, watched: next } : row
+            row.ratingKey === item.ratingKey ? { ...row, watched: next, viewCount: next ? Math.max(1, row.viewCount || 0) : 0 } : row
         )));
         try {
             await setMediaPlayerWatched(item.ratingKey, next);
@@ -71,24 +71,24 @@ export const MediaPlayerCollection: React.FC<Props> = ({ ratingKey, onBack, onOp
                         <ArrowLeft className="h-4 w-4" />
                         {t('mediaPlayerPage.back')}
                     </button>
-                    <p className={discoveryTheme.personalEyebrow}>{t('mediaPlayerPage.collections')}</p>
+                    <p className={discoveryTheme.personalEyebrow}>{t('mediaPlayerPage.playlists')}</p>
                     <h1 className={discoveryTheme.heading}>{title}</h1>
                 </div>
                 <DiscoverGridSizeSelect value={gridSize} onChange={setGridSize} />
             </div>
 
             {loading ? (
-                    <PosterGridSkeleton
-                        className={upgraderPosterGridClass(gridSize)}
-                        style={upgraderPosterGridStyle(gridSize)}
-                    />
+                <PosterGridSkeleton
+                    className={upgraderPosterGridClass(gridSize)}
+                    style={upgraderPosterGridStyle(gridSize)}
+                />
             ) : error ? (
                 <div className={discoveryTheme.emptyState}>
                     <p className={discoveryTheme.emptyTitle}>{error}</p>
                 </div>
             ) : !items.length ? (
                 <div className={discoveryTheme.emptyState}>
-                    <p className={discoveryTheme.emptyTitle}>{t('mediaPlayerPage.emptyCollection')}</p>
+                    <p className={discoveryTheme.emptyTitle}>{t('mediaPlayerPage.emptyPlaylist')}</p>
                 </div>
             ) : (
                 <div className={upgraderPosterGridClass(gridSize)} style={upgraderPosterGridStyle(gridSize)}>

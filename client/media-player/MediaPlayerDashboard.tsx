@@ -2,15 +2,17 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { portalUrl, stripBasePath } from '../shared/basePath';
 import { ToastContainer, pushToast as appendToast, type ToastMessage } from '../shared/toast';
 import { useDiscoverI18n } from '../discovery/i18n';
-import { fetchMediaPlayerNext, startMediaPlayerPlayback } from './api';
+import { startMediaPlayerPlayback } from './api';
 import { MediaPlayerHome } from './MediaPlayerHome';
 import { MediaPlayerLibrary } from './MediaPlayerLibrary';
 import { MediaPlayerCollection } from './MediaPlayerCollection';
+import { MediaPlayerPlaylist } from './MediaPlayerPlaylist';
 import { MediaPlayerDetails } from './MediaPlayerDetails';
 import { MediaPlayerPerson } from './MediaPlayerPerson';
 import { MediaPlayerVideo } from './MediaPlayerVideo';
 import { usePlayerSettings } from './usePlayerSettings';
-import type { PlayerItem, PlayerPlaySession, PlayerSection } from './types';
+import { formatClock, shouldOfferResume } from './playerUtils';
+import type { PlayerItem, PlayerPlayOptions, PlayerPlaySession, PlayerSection } from './types';
 
 type PlayerPersonRef = { id: string; name: string; thumb?: string | null };
 type LibraryTab = 'home' | 'browse' | 'collections';
@@ -19,8 +21,15 @@ type PlayerView =
     | { kind: 'home' }
     | { kind: 'library'; sectionKey: string; tab: LibraryTab }
     | { kind: 'collection'; sectionKey: string; ratingKey: string }
+    | { kind: 'playlist'; ratingKey: string }
     | { kind: 'item'; ratingKey: string }
     | { kind: 'person'; actorId: string; name?: string; thumb?: string | null };
+
+type PendingResume = {
+    item: PlayerItem;
+    offsetMs: number;
+    mediaIndex?: number;
+};
 
 const readPlayerView = (): PlayerView => {
     const href = typeof window !== 'undefined' ? window.location : { pathname: '/media-player', search: '' };
@@ -37,6 +46,9 @@ const readPlayerView = (): PlayerView => {
     }
     if (parts[1] === 'collection' && parts[2]) {
         return { kind: 'collection', sectionKey: '', ratingKey: parts[2] };
+    }
+    if (parts[1] === 'playlist' && parts[2]) {
+        return { kind: 'playlist', ratingKey: parts[2] };
     }
     if (parts[1] === 'item' && parts[2]) return { kind: 'item', ratingKey: parts[2] };
     if (parts[1] === 'person' && parts[2]) {
@@ -63,6 +75,7 @@ export const MediaPlayerDashboard: React.FC = () => {
     const [toasts, setToasts] = useState<ToastMessage[]>([]);
     const [playSession, setPlaySession] = useState<PlayerPlaySession | null>(null);
     const [startingPlay, setStartingPlay] = useState(false);
+    const [pendingResume, setPendingResume] = useState<PendingResume | null>(null);
 
     const syncFromLocation = useCallback(() => {
         setView(readPlayerView());
@@ -87,6 +100,10 @@ export const MediaPlayerDashboard: React.FC = () => {
         if (!item?.ratingKey) return;
         if (item.type === 'collection') {
             navigate(`/media-player/collection/${encodeURIComponent(item.ratingKey)}`);
+            return;
+        }
+        if (item.type === 'playlist') {
+            navigate(`/media-player/playlist/${encodeURIComponent(item.ratingKey)}`);
             return;
         }
         navigate(`/media-player/item/${encodeURIComponent(item.ratingKey)}`);
@@ -119,18 +136,15 @@ export const MediaPlayerDashboard: React.FC = () => {
         else goHome();
     }, [goHome]);
 
-    const playItem = useCallback(async (item: PlayerItem) => {
-        if (!item?.canPlay || !item.ratingKey) {
-            setToasts((prev) => appendToast(prev, t('mediaPlayerPage.notPlayable'), 'error'));
-            return;
-        }
+    const startPlayback = useCallback(async (item: PlayerItem, opts: PlayerPlayOptions = {}) => {
         setStartingPlay(true);
+        setPendingResume(null);
         try {
-            const session = await startMediaPlayerPlayback(
-                item.ratingKey,
-                item.viewOffsetMs || 0,
-                settings.defaultQualityId,
-            );
+            const session = await startMediaPlayerPlayback(item.ratingKey, {
+                offsetMs: opts.offsetMs,
+                qualityId: opts.qualityId || settings.defaultQualityId,
+                mediaIndex: opts.mediaIndex,
+            });
             setPlaySession(session);
         } catch (error: any) {
             setToasts((prev) => appendToast(prev, String(error?.message || t('mediaPlayerPage.playError')), 'error'));
@@ -139,16 +153,26 @@ export const MediaPlayerDashboard: React.FC = () => {
         }
     }, [settings.defaultQualityId, t]);
 
-    const playNext = useCallback(async (item: PlayerItem) => {
-        try {
-            const data = await fetchMediaPlayerNext(item.ratingKey);
-            if (!data?.item?.ratingKey) return;
-            const session = await startMediaPlayerPlayback(data.item.ratingKey, 0, settings.defaultQualityId);
-            setPlaySession(session);
-        } catch {
-            /* stay on the ended title */
+    const playItem = useCallback(async (item: PlayerItem, opts: PlayerPlayOptions = {}) => {
+        if (item?.type === 'playlist' && item.ratingKey) {
+            navigate(`/media-player/playlist/${encodeURIComponent(item.ratingKey)}`);
+            return;
         }
-    }, [settings.defaultQualityId]);
+        if (!item?.canPlay || !item.ratingKey) {
+            setToasts((prev) => appendToast(prev, t('mediaPlayerPage.notPlayable'), 'error'));
+            return;
+        }
+        const playableType = item.type === 'movie' || item.type === 'episode' || item.type === 'clip';
+        if (!opts.skipResume && playableType && shouldOfferResume(item, opts.offsetMs)) {
+            setPendingResume({
+                item,
+                offsetMs: opts.offsetMs == null ? Number(item.viewOffsetMs || 0) : Number(opts.offsetMs),
+                mediaIndex: opts.mediaIndex,
+            });
+            return;
+        }
+        await startPlayback(item, opts);
+    }, [navigate, startPlayback, t]);
 
     return (
         <div className="flex flex-col gap-4">
@@ -179,6 +203,14 @@ export const MediaPlayerDashboard: React.FC = () => {
                     onPlay={playItem}
                 />
             ) : null}
+            {view.kind === 'playlist' ? (
+                <MediaPlayerPlaylist
+                    ratingKey={view.ratingKey}
+                    onBack={goHome}
+                    onOpenItem={openItem}
+                    onPlay={playItem}
+                />
+            ) : null}
             {view.kind === 'item' ? (
                 <MediaPlayerDetails
                     ratingKey={view.ratingKey}
@@ -199,12 +231,54 @@ export const MediaPlayerDashboard: React.FC = () => {
                     onPlay={playItem}
                 />
             ) : null}
+            {pendingResume ? (
+                <div className="fixed inset-0 z-[3500] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">
+                    <div className="w-full max-w-md rounded-2xl border border-white/10 bg-card p-5 shadow-2xl">
+                        <p className="text-xs font-black uppercase tracking-widest text-muted">{t('mediaPlayerPage.resumeTitle')}</p>
+                        <h2 className="mt-2 text-lg font-bold text-text">{pendingResume.item.title}</h2>
+                        <p className="mt-1 text-sm text-muted">
+                            {t('mediaPlayerPage.resumeFrom', { time: formatClock(pendingResume.offsetMs) })}
+                        </p>
+                        <div className="mt-5 flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                onClick={() => void startPlayback(pendingResume.item, {
+                                    offsetMs: pendingResume.offsetMs,
+                                    mediaIndex: pendingResume.mediaIndex,
+                                    skipResume: true,
+                                })}
+                                className="rounded-xl bg-plex px-4 py-2.5 text-sm font-black text-black"
+                            >
+                                {t('mediaPlayerPage.resume')}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => void startPlayback(pendingResume.item, {
+                                    offsetMs: 0,
+                                    mediaIndex: pendingResume.mediaIndex,
+                                    skipResume: true,
+                                })}
+                                className="rounded-xl border border-border bg-white/5 px-4 py-2.5 text-sm font-bold text-text"
+                            >
+                                {t('mediaPlayerPage.startOver')}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setPendingResume(null)}
+                                className="rounded-xl px-4 py-2.5 text-sm font-bold text-muted hover:text-text"
+                            >
+                                {t('common.close')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
             {playSession ? (
                 <MediaPlayerVideo
                     session={playSession}
                     onClose={() => setPlaySession(null)}
                     autoplayNext={settings.autoplayNext}
-                    onPlayNext={playNext}
+                    onPlayItem={playItem}
                 />
             ) : null}
             <ToastContainer toasts={toasts} setToasts={setToasts} />

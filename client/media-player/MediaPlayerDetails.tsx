@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Calendar, Clock, Film, Info, Loader2, Play, Star, Tv, Users } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, Eye, EyeOff, Film, Info, ListPlus, Loader2, Play, Star, Tv, Users } from 'lucide-react';
 import { NoPosterPlaceholder } from '../shared/NoPosterPlaceholder';
 import { Carousel } from '../discovery/Carousel';
 import { DiscoveryFactWidget } from '../discovery/DiscoveryFactWidget';
@@ -7,7 +7,7 @@ import { MediaRatingPills } from '../discovery/MediaRatingPills';
 import type { CombinedRatings } from '../discovery/mediaDetailUtils';
 import { useDiscoverI18n } from '../discovery/i18n';
 import { useDiscoverGridSize } from '../discovery/useDiscoverGridSize';
-import { fetchMediaPlayerItem } from './api';
+import { addMediaPlayerPlaylistItem, createMediaPlayerPlaylist, fetchMediaPlayerItem, fetchMediaPlayerPlaylists, setMediaPlayerWatched } from './api';
 import { MediaPlayerMediaInfo } from './MediaPlayerMediaInfo';
 import { PlayerRail } from './PlayerRail';
 import {
@@ -19,14 +19,14 @@ import {
     progressPercent,
     titleCaseProfile,
 } from './playerUtils';
-import type { PlayerItem, PlayerLibraryHub, PlayerRatings } from './types';
+import type { PlayerItem, PlayerLibraryHub, PlayerPlayOptions, PlayerRatings } from './types';
 
 type Props = {
     ratingKey: string;
     onBack: () => void;
     onOpenItem: (item: PlayerItem) => void;
     onOpenPerson: (person: { id: string; name: string; thumb?: string | null }) => void;
-    onPlay: (item: PlayerItem) => void;
+    onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
     playing?: boolean;
 };
 
@@ -77,6 +77,11 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
     const [posterFailed, setPosterFailed] = useState(false);
     const [backdropFailed, setBackdropFailed] = useState(false);
     const [mediaInfoOpen, setMediaInfoOpen] = useState(false);
+    const [mediaIndex, setMediaIndex] = useState(0);
+    const [playlists, setPlaylists] = useState<PlayerItem[]>([]);
+    const [playlistOpen, setPlaylistOpen] = useState(false);
+    const [newPlaylistName, setNewPlaylistName] = useState('');
+    const [playlistMessage, setPlaylistMessage] = useState('');
 
     useEffect(() => {
         let cancelled = false;
@@ -91,6 +96,9 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                 setChildren(data.children || []);
                 setExtras(data.extras || []);
                 setRelated(data.related || []);
+                setMediaIndex(0);
+                setPlaylistOpen(false);
+                setPlaylistMessage('');
                 setError(null);
             })
             .catch((err) => {
@@ -102,6 +110,18 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
             });
         return () => { cancelled = true; };
     }, [ratingKey, t]);
+
+    useEffect(() => {
+        let cancelled = false;
+        fetchMediaPlayerPlaylists()
+            .then((data) => {
+                if (!cancelled) setPlaylists((data.items || []).filter((row) => !row.smart));
+            })
+            .catch(() => {
+                if (!cancelled) setPlaylists([]);
+            });
+        return () => { cancelled = true; };
+    }, [ratingKey]);
 
     const trailer = useMemo(() => extras.find(isPlayerTrailer) || extras[0] || null, [extras]);
     const mediaSummary = useMemo(() => {
@@ -295,7 +315,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                             {canPlay ? (
                                 <button
                                     type="button"
-                                    onClick={() => onPlay(item)}
+                                    onClick={() => onPlay(item, { mediaIndex })}
                                     disabled={playing}
                                     className="w-full py-3 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 sm:gap-2 transition-colors shadow-lg bg-plex hover:bg-plex-hover text-white disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
@@ -303,12 +323,108 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                     {playLabel}
                                 </button>
                             ) : null}
+                            {(item.versions || []).length > 1 ? (
+                                <select
+                                    value={mediaIndex}
+                                    onChange={(event) => setMediaIndex(Number(event.target.value) || 0)}
+                                    className="w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2.5 text-xs font-bold text-white"
+                                    aria-label={t('mediaPlayerPage.selectVersion')}
+                                >
+                                    {(item.versions || []).map((row) => (
+                                        <option key={row.id} value={row.mediaIndex}>{row.label}</option>
+                                    ))}
+                                </select>
+                            ) : null}
+                            {item.type === 'movie' || item.type === 'episode' || item.type === 'show' || item.type === 'season' ? (
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            const next = !item.watched;
+                                            setItem({ ...item, watched: next });
+                                            try {
+                                                await setMediaPlayerWatched(item.ratingKey, next);
+                                            } catch {
+                                                setItem({ ...item, watched: item.watched });
+                                            }
+                                        }}
+                                        className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-2 py-2.5 text-xs font-bold text-white hover:bg-white/10"
+                                    >
+                                        {item.watched ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                                        {item.watched ? t('mediaPlayerPage.markUnwatched') : t('mediaPlayerPage.markWatched')}
+                                    </button>
+                                    <div className="relative">
+                                        <button
+                                            type="button"
+                                            onClick={() => setPlaylistOpen((open) => !open)}
+                                            className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-2 py-2.5 text-xs font-bold text-white hover:bg-white/10"
+                                        >
+                                            <ListPlus className="h-3.5 w-3.5" />
+                                            {t('mediaPlayerPage.addToPlaylist')}
+                                        </button>
+                                        {playlistOpen ? (
+                                            <div className="absolute left-0 right-0 z-20 mt-2 max-h-64 overflow-y-auto rounded-xl border border-white/15 bg-black/95 p-2 shadow-2xl">
+                                                {playlists.map((playlist) => (
+                                                    <button
+                                                        key={playlist.ratingKey}
+                                                        type="button"
+                                                        onClick={async () => {
+                                                            try {
+                                                                await addMediaPlayerPlaylistItem(playlist.ratingKey, item.ratingKey);
+                                                                setPlaylistMessage(t('mediaPlayerPage.addedToPlaylist', { name: playlist.title }));
+                                                                setPlaylistOpen(false);
+                                                            } catch {
+                                                                setPlaylistMessage(t('mediaPlayerPage.playError'));
+                                                            }
+                                                        }}
+                                                        className="block w-full rounded-lg px-3 py-2 text-left text-xs font-bold text-white hover:bg-white/10"
+                                                    >
+                                                        {playlist.title}
+                                                    </button>
+                                                ))}
+                                                <form
+                                                    className="mt-2 flex gap-1"
+                                                    onSubmit={async (event) => {
+                                                        event.preventDefault();
+                                                        const title = newPlaylistName.trim();
+                                                        if (!title) return;
+                                                        try {
+                                                            const created = await createMediaPlayerPlaylist(title, item.ratingKey);
+                                                            if (created.item?.ratingKey) {
+                                                                setPlaylists((prev) => [created.item, ...prev]);
+                                                            }
+                                                            setNewPlaylistName('');
+                                                            setPlaylistMessage(t('mediaPlayerPage.addedToPlaylist', { name: title }));
+                                                            setPlaylistOpen(false);
+                                                        } catch {
+                                                            setPlaylistMessage(t('mediaPlayerPage.playError'));
+                                                        }
+                                                    }}
+                                                >
+                                                    <input
+                                                        value={newPlaylistName}
+                                                        onChange={(event) => setNewPlaylistName(event.target.value)}
+                                                        placeholder={t('mediaPlayerPage.playlistName')}
+                                                        className="min-w-0 flex-1 rounded-lg border border-white/15 bg-white/5 px-2 py-1.5 text-xs text-white"
+                                                    />
+                                                    <button type="submit" className="rounded-lg bg-plex px-2 py-1.5 text-[10px] font-black text-black">
+                                                        {t('mediaPlayerPage.createPlaylist')}
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            ) : null}
+                            {playlistMessage ? (
+                                <p className="text-[11px] font-bold text-plex">{playlistMessage}</p>
+                            ) : null}
                             {trailer || item.mediaInfo?.length ? (
                                 <div className={`grid gap-2 ${trailer && item.mediaInfo?.length ? 'grid-cols-2' : 'grid-cols-1'}`}>
                                     {trailer ? (
                                         <button
                                             type="button"
-                                            onClick={() => onPlay(trailer)}
+                                            onClick={() => onPlay(trailer, { offsetMs: 0, skipResume: true })}
                                             disabled={playing}
                                             className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-2 py-2.5 text-xs font-bold text-white hover:bg-white/10 disabled:opacity-50"
                                         >
@@ -501,7 +617,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                 <button
                                     key={extra.ratingKey}
                                     type="button"
-                                    onClick={() => extra.canPlay ? onPlay(extra) : onOpenItem(extra)}
+                                    onClick={() => extra.canPlay ? onPlay(extra, { offsetMs: 0, skipResume: true }) : onOpenItem(extra)}
                                     className="group w-64 sm:w-72 flex-shrink-0 snap-start text-left"
                                 >
                                     <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black/30">

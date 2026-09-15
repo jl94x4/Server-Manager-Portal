@@ -73,6 +73,16 @@ export const progressPercent = (item?: PlayerItem | null) => {
     return Math.min(100, Math.max(2, (offset / duration) * 100));
 };
 
+export const shouldOfferResume = (item?: PlayerItem | null, offsetMs?: number | null) => {
+    const offset = offsetMs == null ? Number(item?.viewOffsetMs || 0) : Number(offsetMs);
+    const duration = Number(item?.durationMs || 0);
+    if (offset < 5000) return false;
+    if (duration && offset > Math.max(0, duration - 15000)) return false;
+    return true;
+};
+
+export const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
 export const toPosterCardItem = (item: PlayerItem) => ({
     title: item.title,
     thumb: item.thumb || undefined,
@@ -115,6 +125,16 @@ export const isHlsPlaybackSrc = (src?: string | null) => /\.m3u8(\?|$)/i.test(St
 
 export const isFilePlaybackSrc = (src?: string | null) => /\/api\/media-player\/file\//i.test(String(src || ''));
 
+export const playbackModeFromSrc = (
+    src?: string | null,
+    qualityId?: string | null,
+    canCopyOriginal?: boolean,
+) => {
+    if (isFilePlaybackSrc(src)) return 'directPlay' as const;
+    if ((!qualityId || qualityId === 'original') && canCopyOriginal !== false) return 'directStream' as const;
+    return 'transcode' as const;
+};
+
 export const browserPlaybackCaps = () => {
     if (typeof document === 'undefined') return { hevc: false, ac3: false, hls: false };
     const video = document.createElement('video');
@@ -138,12 +158,14 @@ export const buildFilePlaybackSrc = (ratingKey: string, {
     offsetMs = 0,
     allowHevc = false,
     allowAc3 = false,
+    mediaIndex = 0,
 } = {}) => {
     const qs = new URLSearchParams();
     if (PLAY_SESSION_ID.test(String(sessionId || ''))) qs.set('session', String(sessionId));
     if (Number(offsetMs) > 0) qs.set('offset', String(Math.floor(Number(offsetMs))));
     if (allowHevc) qs.set('hevc', '1');
     if (allowAc3) qs.set('ac3', '1');
+    if (Number(mediaIndex) > 0) qs.set('mediaIndex', String(Math.floor(Number(mediaIndex))));
     return `/api/media-player/file/${encodeURIComponent(ratingKey)}?${qs}`;
 };
 
@@ -155,6 +177,7 @@ export const buildPlaybackSrc = (ratingKey: string, {
     subtitleStreamId = '',
     directFile = false,
     copy = true,
+    mediaIndex = 0,
 }: {
     sessionId?: string;
     offsetMs?: number;
@@ -163,6 +186,7 @@ export const buildPlaybackSrc = (ratingKey: string, {
     subtitleStreamId?: string | null;
     directFile?: boolean;
     copy?: boolean;
+    mediaIndex?: number;
 } = {}) => {
     const original = !qualityId || qualityId === 'original';
     const noSubs = !String(subtitleStreamId || '').replace(/\D/g, '');
@@ -173,6 +197,7 @@ export const buildPlaybackSrc = (ratingKey: string, {
             offsetMs,
             allowHevc: caps.hevc,
             allowAc3: caps.ac3,
+            mediaIndex,
         });
     }
     const qs = new URLSearchParams();
@@ -180,6 +205,7 @@ export const buildPlaybackSrc = (ratingKey: string, {
     if (Number(offsetMs) > 0) qs.set('offset', String(Math.floor(Number(offsetMs))));
     if (qualityId) qs.set('quality', String(qualityId));
     if (copy === false) qs.set('copy', '0');
+    if (Number(mediaIndex) > 0) qs.set('mediaIndex', String(Math.floor(Number(mediaIndex))));
     if (String(audioStreamId || '').replace(/\D/g, '')) qs.set('audioStreamID', String(audioStreamId).replace(/\D/g, ''));
     if (String(subtitleStreamId || '').replace(/\D/g, '')) qs.set('subtitleStreamID', String(subtitleStreamId).replace(/\D/g, ''));
     return `/api/media-player/hls/${encodeURIComponent(ratingKey)}/master.m3u8?${qs}`;

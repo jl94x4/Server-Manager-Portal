@@ -12,11 +12,12 @@ import {
     fetchMediaPlayerLibrary,
     fetchMediaPlayerLibraryFilters,
     fetchMediaPlayerLibraryHome,
+    setMediaPlayerWatched,
 } from './api';
 import { MediaPlayerLibrariesPanel } from './MediaPlayerLibrariesPanel';
 import { PlayerPosterCard } from './PlayerPosterCard';
 import { PlayerRail } from './PlayerRail';
-import type { PlayerItem, PlayerLibraryHub, PlayerSection } from './types';
+import type { PlayerItem, PlayerLibraryHub, PlayerPlayOptions, PlayerSection } from './types';
 
 type LibraryTab = 'home' | 'browse' | 'collections';
 
@@ -28,7 +29,7 @@ type Props = {
     onOpenLibrary: (section: PlayerSection, tab?: LibraryTab) => void;
     onOpenCollection: (sectionKey: string, item: PlayerItem) => void;
     onChangeTab: (tab: LibraryTab) => void;
-    onPlay: (item: PlayerItem) => void;
+    onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
 };
 
 const PAGE_SIZE = 50;
@@ -66,8 +67,15 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
     const [libraries, setLibraries] = useState<PlayerSection[]>([]);
     const [sort, setSort] = useState<string>('addedAt:desc');
     const [genre, setGenre] = useState('');
+    const [decade, setDecade] = useState('');
+    const [resolution, setResolution] = useState('');
+    const [studio, setStudio] = useState('');
     const [unwatched, setUnwatched] = useState(false);
+    const [inProgress, setInProgress] = useState(false);
     const [genres, setGenres] = useState<Array<{ key: string; title: string }>>([]);
+    const [decades, setDecades] = useState<Array<{ key: string; title: string }>>([]);
+    const [resolutions, setResolutions] = useState<Array<{ key: string; title: string }>>([]);
+    const [studios, setStudios] = useState<Array<{ key: string; title: string }>>([]);
 
     const loadHome = useCallback(async () => {
         setLoading(true);
@@ -90,7 +98,11 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
             const data = await fetchMediaPlayerLibrary(sectionKey, start, PAGE_SIZE, {
                 sort,
                 genre,
+                decade,
+                resolution,
+                studio,
                 unwatched,
+                inProgress,
             });
             setTitle(data.title || t('mediaPlayerPage.libraries'));
             setTotal(Number(data.total) || 0);
@@ -102,7 +114,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
             setLoading(false);
             setLoadingMore(false);
         }
-    }, [genre, sectionKey, sort, t, unwatched]);
+    }, [decade, genre, inProgress, resolution, sectionKey, sort, studio, t, unwatched]);
 
     const loadCollections = useCallback(async () => {
         setLoading(true);
@@ -143,13 +155,52 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
         let cancelled = false;
         fetchMediaPlayerLibraryFilters(sectionKey)
             .then((data) => {
-                if (!cancelled) setGenres(data.genres || []);
+                if (cancelled) {
+                    return;
+                }
+                setGenres(data.genres || []);
+                setDecades(data.decades || []);
+                setResolutions(data.resolutions || []);
+                setStudios(data.studios || []);
             })
             .catch(() => {
-                if (!cancelled) setGenres([]);
+                if (!cancelled) {
+                    setGenres([]);
+                    setDecades([]);
+                    setResolutions([]);
+                    setStudios([]);
+                }
             });
         return () => { cancelled = true; };
     }, [sectionKey]);
+
+    useEffect(() => {
+        setGenre('');
+        setDecade('');
+        setResolution('');
+        setStudio('');
+        setUnwatched(false);
+        setInProgress(false);
+    }, [sectionKey]);
+
+    const patchWatched = (ratingKey: string, watched: boolean) => {
+        const mapItems = (list: PlayerItem[]) => list.map((row) => (
+            row.ratingKey === ratingKey ? { ...row, watched } : row
+        ));
+        setItems((prev) => mapItems(prev));
+        setCollections((prev) => mapItems(prev));
+        setHubs((prev) => prev.map((hub) => ({ ...hub, items: mapItems(hub.items) })));
+    };
+
+    const toggleWatched = async (item: PlayerItem) => {
+        const next = !item.watched;
+        patchWatched(item.ratingKey, next);
+        try {
+            await setMediaPlayerWatched(item.ratingKey, next);
+        } catch {
+            patchWatched(item.ratingKey, !!item.watched);
+        }
+    };
 
     const tabs: Array<{ id: LibraryTab; label: string }> = [
         { id: 'home', label: t('mediaPlayerPage.libraryHome') },
@@ -232,14 +283,68 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                             <option key={row.key} value={row.key}>{row.title}</option>
                         ))}
                     </select>
+                    {decades.length ? (
+                        <select
+                            value={decade}
+                            onChange={(event) => setDecade(event.target.value)}
+                            className="rounded-lg border border-border bg-white/5 px-3 py-2 text-xs font-bold text-text"
+                            aria-label={t('mediaPlayerPage.decade')}
+                        >
+                            <option value="">{t('mediaPlayerPage.allDecades')}</option>
+                            {decades.map((row) => (
+                                <option key={row.key} value={row.key}>{row.title}</option>
+                            ))}
+                        </select>
+                    ) : null}
+                    {resolutions.length ? (
+                        <select
+                            value={resolution}
+                            onChange={(event) => setResolution(event.target.value)}
+                            className="rounded-lg border border-border bg-white/5 px-3 py-2 text-xs font-bold text-text"
+                            aria-label={t('mediaPlayerPage.resolution')}
+                        >
+                            <option value="">{t('mediaPlayerPage.allResolutions')}</option>
+                            {resolutions.map((row) => (
+                                <option key={row.key} value={row.key}>{row.title}</option>
+                            ))}
+                        </select>
+                    ) : null}
+                    {studios.length ? (
+                        <select
+                            value={studio}
+                            onChange={(event) => setStudio(event.target.value)}
+                            className="rounded-lg border border-border bg-white/5 px-3 py-2 text-xs font-bold text-text"
+                            aria-label={t('media.studio')}
+                        >
+                            <option value="">{t('mediaPlayerPage.allStudios')}</option>
+                            {studios.map((row) => (
+                                <option key={row.key} value={row.key}>{row.title}</option>
+                            ))}
+                        </select>
+                    ) : null}
                     <button
                         type="button"
-                        onClick={() => setUnwatched((prev) => !prev)}
+                        onClick={() => {
+                            setUnwatched((prev) => !prev);
+                            setInProgress(false);
+                        }}
                         className={`rounded-lg border px-3 py-2 text-xs font-bold ${
                             unwatched ? 'border-plex/50 bg-plex/15 text-plex' : 'border-border bg-white/5 text-muted'
                         }`}
                     >
                         {t('mediaPlayerPage.unwatched')}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setInProgress((prev) => !prev);
+                            setUnwatched(false);
+                        }}
+                        className={`rounded-lg border px-3 py-2 text-xs font-bold ${
+                            inProgress ? 'border-plex/50 bg-plex/15 text-plex' : 'border-border bg-white/5 text-muted'
+                        }`}
+                    >
+                        {t('mediaPlayerPage.inProgress')}
                     </button>
                 </div>
             ) : null}
@@ -272,6 +377,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                                 density={gridSize}
                                 onOpenItem={onOpenItem}
                                 onPlay={onPlay}
+                                onToggleWatched={toggleWatched}
                                 showProgress={/continue|ondeck/i.test(hub.identifier)}
                             />
                         ))}
@@ -310,6 +416,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                                 item={item}
                                 onOpenItem={onOpenItem}
                                 onPlay={onPlay}
+                                onToggleWatched={toggleWatched}
                             />
                         ))}
                     </div>

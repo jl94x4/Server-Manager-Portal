@@ -7,18 +7,18 @@ import { DiscoverGridSizeSelect } from '../discovery/DiscoverGridSizeSelect';
 import { useDiscoverGridSize } from '../discovery/useDiscoverGridSize';
 import { DiscoverHomeSkeleton } from '../shared/skeletons';
 import { MediaPlayerAlphaBanner } from '../shared/BetaBadge';
-import { fetchMediaPlayerHome, searchMediaPlayer } from './api';
+import { fetchMediaPlayerHome, searchMediaPlayer, setMediaPlayerWatched } from './api';
 import { MediaPlayerLibrariesPanel } from './MediaPlayerLibrariesPanel';
 import { MediaPlayerSettings } from './MediaPlayerSettings';
 import { PlayerPosterCard } from './PlayerPosterCard';
 import { PlayerRail } from './PlayerRail';
 import { usePlayerSettings } from './usePlayerSettings';
-import type { PlayerHome, PlayerItem, PlayerSection } from './types';
+import type { PlayerHome, PlayerItem, PlayerPlayOptions, PlayerSection } from './types';
 
 type Props = {
     onOpenItem: (item: PlayerItem) => void;
     onOpenLibrary: (section: PlayerSection) => void;
-    onPlay: (item: PlayerItem) => void;
+    onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
 };
 
 const dedupeItems = (list: PlayerItem[]) => {
@@ -117,8 +117,35 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary, on
             home.continueWatching.length
             || recentRails.some((row) => row.items.length)
             || home.libraries.length
+            || (home.playlists || []).length
         )
     ), [home, recentRails]);
+
+    const patchWatched = (ratingKey: string, watched: boolean) => {
+        setHome((prev) => {
+            if (!prev) return prev;
+            const mapItems = (list: PlayerItem[]) => list.map((row) => (
+                row.ratingKey === ratingKey ? { ...row, watched } : row
+            ));
+            return {
+                ...prev,
+                continueWatching: mapItems(prev.continueWatching),
+                playlists: mapItems(prev.playlists || []),
+                recentByLibrary: prev.recentByLibrary.map((row) => ({ ...row, items: mapItems(row.items) })),
+            };
+        });
+        setResults((prev) => prev.map((row) => (row.ratingKey === ratingKey ? { ...row, watched } : row)));
+    };
+
+    const toggleWatched = async (item: PlayerItem) => {
+        const next = !item.watched;
+        patchWatched(item.ratingKey, next);
+        try {
+            await setMediaPlayerWatched(item.ratingKey, next);
+        } catch {
+            patchWatched(item.ratingKey, !!item.watched);
+        }
+    };
 
     if (loading) return <DiscoverHomeSkeleton />;
 
@@ -164,6 +191,7 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary, on
                                     item={item}
                                     onOpenItem={onOpenItem}
                                     onPlay={onPlay}
+                                    onToggleWatched={toggleWatched}
                                 />
                             ))}
                         </div>
@@ -197,9 +225,17 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary, on
                             density={gridSize}
                             onOpenItem={onOpenItem}
                             onPlay={onPlay}
+                            onToggleWatched={toggleWatched}
                             showProgress
                         />
                     ) : null}
+                    <PlayerRail
+                        title={t('mediaPlayerPage.playlists')}
+                        items={home.playlists || []}
+                        density={gridSize}
+                        onOpenItem={onOpenItem}
+                        onPlay={onPlay}
+                    />
                     {recentRails.map((row) => (
                         <PlayerRail
                             key={row.title}
@@ -208,6 +244,7 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary, on
                             density={gridSize}
                             onOpenItem={onOpenItem}
                             onPlay={onPlay}
+                            onToggleWatched={toggleWatched}
                         />
                     ))}
                 </>

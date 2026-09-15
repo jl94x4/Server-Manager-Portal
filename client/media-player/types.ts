@@ -84,6 +84,10 @@ export type PlayerItem = {
     extraSubtype?: string | null;
     plexUrl?: string | null;
     canPlay?: boolean;
+    viewCount?: number;
+    watched?: boolean;
+    playlistType?: string;
+    smart?: boolean;
     tagline?: string;
     studio?: string;
     directors?: string[];
@@ -91,7 +95,32 @@ export type PlayerItem = {
     cast?: Array<{ id: string; name: string; role: string; thumb?: string | null }>;
     ratings?: PlayerRatings;
     mediaInfo?: PlayerMediaInfo[];
+    versions?: PlayerVersion[];
+    markers?: PlayerMarkers;
     externalIds?: { imdb: string | null; tmdb: number | null; tvdb: string | null };
+};
+
+export type PlayerMarker = {
+    startMs: number;
+    endMs: number;
+};
+
+export type PlayerMarkers = {
+    intro: PlayerMarker | null;
+    credits: PlayerMarker | null;
+};
+
+export type PlayerVersion = {
+    id: string;
+    mediaIndex: number;
+    label: string;
+    resolution?: string | null;
+    videoCodec?: string | null;
+    audioCodec?: string | null;
+    container?: string | null;
+    bitrate?: number | null;
+    width?: number | null;
+    height?: number | null;
 };
 
 export type PlayerPersonPage = {
@@ -116,6 +145,7 @@ export type PlayerHome = {
     libraries: PlayerSection[];
     continueWatching: PlayerItem[];
     recentByLibrary: PlayerHomeRail[];
+    playlists?: PlayerItem[];
 };
 
 export type PlayerLibraryHub = {
@@ -132,6 +162,9 @@ export type PlayerLibraryHome = {
 
 export type PlayerLibraryFilters = {
     genres: Array<{ key: string; title: string }>;
+    decades?: Array<{ key: string; title: string }>;
+    resolutions?: Array<{ key: string; title: string }>;
+    studios?: Array<{ key: string; title: string }>;
 };
 
 export type PlayerLibraryPage = {
@@ -174,6 +207,18 @@ export type PlayerSubtitleTrack = {
     selected?: boolean;
 };
 
+export type PlayerPlaybackMode = 'directPlay' | 'directStream' | 'transcode';
+
+export type PlayerPlaybackSource = {
+    videoCodec?: string | null;
+    audioCodec?: string | null;
+    container?: string | null;
+    height?: number | null;
+    width?: number | null;
+    videoResolution?: string | null;
+    bitrate?: number | null;
+};
+
 export type PlayerPlaySession = {
     sessionId: string;
     item: PlayerItem;
@@ -187,4 +232,16 @@ export type PlayerPlaySession = {
     audioStreamId?: string | null;
     subtitles?: PlayerSubtitleTrack[];
     subtitleStreamId?: string | null;
+    mediaIndex?: number;
+    versions?: PlayerVersion[];
+    markers?: PlayerMarkers;
+    playbackMode?: PlayerPlaybackMode;
+    source?: PlayerPlaybackSource;
+};
+
+export type PlayerPlayOptions = {
+    offsetMs?: number | null;
+    qualityId?: string;
+    mediaIndex?: number;
+    skipResume?: boolean;
 };
