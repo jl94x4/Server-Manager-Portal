@@ -80,6 +80,7 @@ import {
 } from './lib/media-automation/index.js';
 import { createPosterSetsRouter, startPosterSetsWatcher, setPosterSetsNotifyDigest, schedulePosterSetsArrHook, startTpdbCacheDailyRefresh } from './lib/poster-sets/index.js';
 import { createMediaPlayerRouter } from './lib/media-player/index.js';
+import { normalizePlayerSettings } from './lib/media-player/mapItem.js';
 import { listTpdbCachedCoverageKeys } from './lib/poster-sets/tpdbCache.js';
 import { applyTpdbCacheBrowse } from './lib/poster-sets/tpdbCacheBrowse.js';
 import { createOverlaysRouter } from './lib/overlays/index.js';
@@ -30029,6 +30030,30 @@ app.use('/api/media-player', createMediaPlayerRouter({
             if (adminToken && adminToken !== SECRET_MASK) return adminToken;
         }
         return null;
+    },
+    getMediaPlayerSettings: async (req) => {
+        const users = await loadFile(USERS_PATH, []);
+        const local = findLocalUserForSession(users, req.user);
+        const stored = local?.mediaPlayerSettings;
+        return {
+            ...normalizePlayerSettings(stored),
+            saved: stored != null && typeof stored === 'object',
+        };
+    },
+    saveMediaPlayerSettings: async (req, settings) => {
+        const next = normalizePlayerSettings(settings);
+        await updateUsers((users) => {
+            const local = findLocalUserForSession(users, req.user);
+            const idx = local ? users.findIndex((user) => normalized(user.id) === normalized(local.id)) : -1;
+            if (idx === -1) {
+                const err = new Error('User not found');
+                err.status = 404;
+                throw err;
+            }
+            users[idx].mediaPlayerSettings = next;
+            return users;
+        });
+        return next;
     },
 }));
 

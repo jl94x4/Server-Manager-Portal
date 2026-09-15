@@ -9,9 +9,9 @@ import { DiscoverHomeSkeleton } from '../shared/skeletons';
 import { MediaPlayerAlphaBanner } from '../shared/BetaBadge';
 import { fetchMediaPlayerHome, searchMediaPlayer, setMediaPlayerWatched } from './api';
 import { MediaPlayerLibrariesPanel } from './MediaPlayerLibrariesPanel';
-import { MediaPlayerSettings } from './MediaPlayerSettings';
 import { PlayerPosterCard } from './PlayerPosterCard';
 import { PlayerRail } from './PlayerRail';
+import { applyHomeRowOrder } from './playerSettings';
 import { usePlayerSettings } from './usePlayerSettings';
 import type { PlayerHome, PlayerItem, PlayerPlayOptions, PlayerSection } from './types';
 
@@ -19,6 +19,7 @@ type Props = {
     onOpenItem: (item: PlayerItem) => void;
     onOpenLibrary: (section: PlayerSection) => void;
     onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
+    onOpenSettings: () => void;
 };
 
 const dedupeItems = (list: PlayerItem[]) => {
@@ -31,9 +32,9 @@ const dedupeItems = (list: PlayerItem[]) => {
     }).slice(0, 24);
 };
 
-export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary, onPlay }) => {
+export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary, onPlay, onOpenSettings }) => {
     const { t } = useDiscoverI18n();
-    const [settings, updateSettings] = usePlayerSettings();
+    const [settings] = usePlayerSettings();
     const [gridSize, setGridSize] = useDiscoverGridSize();
     const [home, setHome] = useState<PlayerHome | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -41,7 +42,6 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary, on
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<PlayerItem[]>([]);
     const [searching, setSearching] = useState(false);
-    const [settingsOpen, setSettingsOpen] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -93,6 +93,7 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary, on
         const rows = home?.recentByLibrary || [];
         if (!settings.mixLibraries) {
             return rows.map((row) => ({
+                id: `recent:${row.library.key}`,
                 title: t('mediaPlayerPage.recentlyAddedIn', { name: row.library.title }),
                 items: row.items,
             }));
@@ -106,20 +107,20 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary, on
             else movies.push(...row.items);
         }
         return [
-            { title: t('mediaPlayerPage.recentlyAddedMovies'), items: dedupeItems(movies) },
-            { title: t('mediaPlayerPage.recentlyAddedShows'), items: dedupeItems(shows) },
-            { title: t('mediaPlayerPage.recentlyAddedMusic'), items: dedupeItems(music) },
+            { id: 'recent:movie', title: t('mediaPlayerPage.recentlyAddedMovies'), items: dedupeItems(movies) },
+            { id: 'recent:show', title: t('mediaPlayerPage.recentlyAddedShows'), items: dedupeItems(shows) },
+            { id: 'recent:artist', title: t('mediaPlayerPage.recentlyAddedMusic'), items: dedupeItems(music) },
         ];
     }, [home, settings.mixLibraries, t]);
 
     const hasRails = useMemo(() => (
         !!home && (
-            home.continueWatching.length
+            (settings.showContinueWatching && home.continueWatching.length)
             || recentRails.some((row) => row.items.length)
             || home.libraries.length
-            || (home.playlists || []).length
+            || (settings.showPlaylists && (home.playlists || []).length)
         )
-    ), [home, recentRails]);
+    ), [home, recentRails, settings.showContinueWatching, settings.showPlaylists]);
 
     const patchWatched = (ratingKey: string, watched: boolean) => {
         setHome((prev) => {
@@ -147,6 +148,65 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary, on
         }
     };
 
+    const homeSections = !home ? [] : applyHomeRowOrder(
+        [
+            'libraries',
+            'continueWatching',
+            'playlists',
+            ...recentRails.map((row) => row.id),
+        ],
+        settings.homeRowOrder,
+    ).map((id) => {
+        if (id === 'libraries') {
+            return home.libraries.length ? (
+                <MediaPlayerLibrariesPanel
+                    key="libraries"
+                    libraries={home.libraries}
+                    onOpenLibrary={onOpenLibrary}
+                />
+            ) : null;
+        }
+        if (id === 'continueWatching') {
+            return settings.showContinueWatching ? (
+                <PlayerRail
+                    key="continueWatching"
+                    title={t('mediaPlayerPage.continueWatching')}
+                    items={home.continueWatching}
+                    density={gridSize}
+                    onOpenItem={onOpenItem}
+                    onPlay={onPlay}
+                    onToggleWatched={toggleWatched}
+                    showProgress
+                />
+            ) : null;
+        }
+        if (id === 'playlists') {
+            return settings.showPlaylists ? (
+                <PlayerRail
+                    key="playlists"
+                    title={t('mediaPlayerPage.playlists')}
+                    items={home.playlists || []}
+                    density={gridSize}
+                    onOpenItem={onOpenItem}
+                    onPlay={onPlay}
+                />
+            ) : null;
+        }
+        const row = recentRails.find((rail) => rail.id === id);
+        if (!row) return null;
+        return (
+            <PlayerRail
+                key={row.id}
+                title={row.title}
+                items={row.items}
+                density={gridSize}
+                onOpenItem={onOpenItem}
+                onPlay={onPlay}
+                onToggleWatched={toggleWatched}
+            />
+        );
+    });
+
     if (loading) return <DiscoverHomeSkeleton />;
 
     return (
@@ -160,7 +220,7 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary, on
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
-                        onClick={() => setSettingsOpen(true)}
+                        onClick={onOpenSettings}
                         className="inline-flex items-center gap-2 rounded-lg border border-border bg-white/5 px-3 py-2 text-xs font-bold text-muted hover:text-text"
                     >
                         <Settings className="h-4 w-4" />
@@ -209,44 +269,9 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary, on
                 </div>
             ) : null}
 
-            {!query.trim() && home?.libraries?.length ? (
-                <MediaPlayerLibrariesPanel
-                    libraries={home.libraries}
-                    onOpenLibrary={onOpenLibrary}
-                />
-            ) : null}
-
             {!query.trim() && home ? (
                 <>
-                    {settings.showContinueWatching ? (
-                        <PlayerRail
-                            title={t('mediaPlayerPage.continueWatching')}
-                            items={home.continueWatching}
-                            density={gridSize}
-                            onOpenItem={onOpenItem}
-                            onPlay={onPlay}
-                            onToggleWatched={toggleWatched}
-                            showProgress
-                        />
-                    ) : null}
-                    <PlayerRail
-                        title={t('mediaPlayerPage.playlists')}
-                        items={home.playlists || []}
-                        density={gridSize}
-                        onOpenItem={onOpenItem}
-                        onPlay={onPlay}
-                    />
-                    {recentRails.map((row) => (
-                        <PlayerRail
-                            key={row.title}
-                            title={row.title}
-                            items={row.items}
-                            density={gridSize}
-                            onOpenItem={onOpenItem}
-                            onPlay={onPlay}
-                            onToggleWatched={toggleWatched}
-                        />
-                    ))}
+                    {homeSections}
                 </>
             ) : null}
 
@@ -254,14 +279,6 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary, on
                 <div className={discoveryTheme.emptyState}>
                     <p className={discoveryTheme.emptyTitle}>{t('mediaPlayerPage.emptyHome')}</p>
                 </div>
-            ) : null}
-
-            {settingsOpen ? (
-                <MediaPlayerSettings
-                    settings={settings}
-                    onChange={updateSettings}
-                    onClose={() => setSettingsOpen(false)}
-                />
             ) : null}
         </div>
     );

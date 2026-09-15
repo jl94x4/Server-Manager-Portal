@@ -10,6 +10,7 @@ import { useDiscoverGridSize } from '../discovery/useDiscoverGridSize';
 import { addMediaPlayerPlaylistItem, createMediaPlayerPlaylist, fetchMediaPlayerItem, fetchMediaPlayerPlaylists, setMediaPlayerWatched } from './api';
 import { MediaPlayerMediaInfo } from './MediaPlayerMediaInfo';
 import { PlayerRail } from './PlayerRail';
+import { usePlayerSettings } from './usePlayerSettings';
 import {
     formatBitrateMbps,
     formatPlayerDuration,
@@ -67,6 +68,7 @@ const ratingsHavePills = (ratings?: PlayerRatings | null) => (
 
 export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenItem, onOpenPerson, onPlay, playing = false }) => {
     const { t, locale } = useDiscoverI18n();
+    const [settings] = usePlayerSettings();
     const [gridSize] = useDiscoverGridSize();
     const [item, setItem] = useState<PlayerItem | null>(null);
     const [children, setChildren] = useState<PlayerItem[]>([]);
@@ -112,6 +114,10 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
     }, [ratingKey, t]);
 
     useEffect(() => {
+        if (!settings.showPlaylists) {
+            setPlaylists([]);
+            return undefined;
+        }
         let cancelled = false;
         fetchMediaPlayerPlaylists()
             .then((data) => {
@@ -121,7 +127,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                 if (!cancelled) setPlaylists([]);
             });
         return () => { cancelled = true; };
-    }, [ratingKey]);
+    }, [ratingKey, settings.showPlaylists]);
 
     const trailer = useMemo(() => extras.find(isPlayerTrailer) || extras[0] || null, [extras]);
     const mediaSummary = useMemo(() => {
@@ -353,16 +359,17 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                         {item.watched ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                                         {item.watched ? t('mediaPlayerPage.markUnwatched') : t('mediaPlayerPage.markWatched')}
                                     </button>
-                                    <div className="relative">
-                                        <button
-                                            type="button"
-                                            onClick={() => setPlaylistOpen((open) => !open)}
-                                            className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-2 py-2.5 text-xs font-bold text-white hover:bg-white/10"
-                                        >
-                                            <ListPlus className="h-3.5 w-3.5" />
-                                            {t('mediaPlayerPage.addToPlaylist')}
-                                        </button>
-                                        {playlistOpen ? (
+                                    {settings.showPlaylists ? (
+                                        <div className="relative">
+                                            <button
+                                                type="button"
+                                                onClick={() => setPlaylistOpen((open) => !open)}
+                                                className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-2 py-2.5 text-xs font-bold text-white hover:bg-white/10"
+                                            >
+                                                <ListPlus className="h-3.5 w-3.5" />
+                                                {t('mediaPlayerPage.addToPlaylist')}
+                                            </button>
+                                            {playlistOpen ? (
                                             <div className="absolute left-0 right-0 z-20 mt-2 max-h-64 overflow-y-auto rounded-xl border border-white/15 bg-black/95 p-2 shadow-2xl">
                                                 {playlists.map((playlist) => (
                                                     <button
@@ -414,9 +421,10 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                             </div>
                                         ) : null}
                                     </div>
+                                    ) : null}
                                 </div>
                             ) : null}
-                            {playlistMessage ? (
+                            {settings.showPlaylists && playlistMessage ? (
                                 <p className="text-[11px] font-bold text-plex">{playlistMessage}</p>
                             ) : null}
                             {trailer || item.mediaInfo?.length ? (

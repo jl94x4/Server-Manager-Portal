@@ -9,6 +9,7 @@ import { MediaPlayerCollection } from './MediaPlayerCollection';
 import { MediaPlayerPlaylist } from './MediaPlayerPlaylist';
 import { MediaPlayerDetails } from './MediaPlayerDetails';
 import { MediaPlayerPerson } from './MediaPlayerPerson';
+import { MediaPlayerSettings } from './MediaPlayerSettings';
 import { MediaPlayerVideo } from './MediaPlayerVideo';
 import { usePlayerSettings } from './usePlayerSettings';
 import { formatClock, shouldOfferResume } from './playerUtils';
@@ -23,7 +24,8 @@ type PlayerView =
     | { kind: 'collection'; sectionKey: string; ratingKey: string }
     | { kind: 'playlist'; ratingKey: string }
     | { kind: 'item'; ratingKey: string }
-    | { kind: 'person'; actorId: string; name?: string; thumb?: string | null };
+    | { kind: 'person'; actorId: string; name?: string; thumb?: string | null }
+    | { kind: 'settings' };
 
 type PendingResume = {
     item: PlayerItem;
@@ -50,6 +52,7 @@ const readPlayerView = (): PlayerView => {
     if (parts[1] === 'playlist' && parts[2]) {
         return { kind: 'playlist', ratingKey: parts[2] };
     }
+    if (parts[1] === 'settings') return { kind: 'settings' };
     if (parts[1] === 'item' && parts[2]) return { kind: 'item', ratingKey: parts[2] };
     if (parts[1] === 'person' && parts[2]) {
         return {
@@ -144,6 +147,8 @@ export const MediaPlayerDashboard: React.FC = () => {
                 offsetMs: opts.offsetMs,
                 qualityId: opts.qualityId || settings.defaultQualityId,
                 mediaIndex: opts.mediaIndex,
+                audioLanguage: settings.audioLanguage,
+                subtitleMode: settings.subtitleMode,
             });
             setPlaySession(session);
         } catch (error: any) {
@@ -151,7 +156,7 @@ export const MediaPlayerDashboard: React.FC = () => {
         } finally {
             setStartingPlay(false);
         }
-    }, [settings.defaultQualityId, t]);
+    }, [settings.audioLanguage, settings.defaultQualityId, settings.subtitleMode, t]);
 
     const playItem = useCallback(async (item: PlayerItem, opts: PlayerPlayOptions = {}) => {
         if (item?.type === 'playlist' && item.ratingKey) {
@@ -174,10 +179,20 @@ export const MediaPlayerDashboard: React.FC = () => {
         await startPlayback(item, opts);
     }, [navigate, startPlayback, t]);
 
+    const openSettings = useCallback(() => navigate('/media-player/settings'), [navigate]);
+
     return (
-        <div className="flex flex-col gap-4">
+        <div className={`flex flex-col gap-4 ${playSession ? 'pb-36' : ''}`}>
             {view.kind === 'home' ? (
-                <MediaPlayerHome onOpenItem={openItem} onOpenLibrary={openLibrary} onPlay={playItem} />
+                <MediaPlayerHome
+                    onOpenItem={openItem}
+                    onOpenLibrary={openLibrary}
+                    onPlay={playItem}
+                    onOpenSettings={openSettings}
+                />
+            ) : null}
+            {view.kind === 'settings' ? (
+                <MediaPlayerSettings onBack={goHome} />
             ) : null}
             {view.kind === 'library' ? (
                 <MediaPlayerLibrary
@@ -278,6 +293,8 @@ export const MediaPlayerDashboard: React.FC = () => {
                     session={playSession}
                     onClose={() => setPlaySession(null)}
                     autoplayNext={settings.autoplayNext}
+                    autoSkipIntro={settings.autoSkipIntro}
+                    autoSkipCredits={settings.autoSkipCredits}
                     onPlayItem={playItem}
                 />
             ) : null}

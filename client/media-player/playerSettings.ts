@@ -1,8 +1,16 @@
+export type PlayerSubtitleMode = 'off' | 'forced' | 'always';
+
 export type PlayerSettings = {
     mixLibraries: boolean;
     autoplayNext: boolean;
     showContinueWatching: boolean;
+    showPlaylists: boolean;
     defaultQualityId: string;
+    audioLanguage: string;
+    subtitleMode: PlayerSubtitleMode;
+    autoSkipIntro: boolean;
+    autoSkipCredits: boolean;
+    homeRowOrder: string[];
 };
 
 export const PLAYER_QUALITY_CHOICES = [
@@ -16,6 +24,101 @@ export const PLAYER_QUALITY_CHOICES = [
     { id: '360-0.7', label: '360p · 0.7 Mbps' },
 ];
 
+export const PLAYER_AUDIO_LANGUAGES = [
+    { id: 'en', label: 'English' },
+    { id: 'es', label: 'Spanish' },
+    { id: 'fr', label: 'French' },
+    { id: 'de', label: 'German' },
+    { id: 'it', label: 'Italian' },
+    { id: 'pt', label: 'Portuguese' },
+    { id: 'ja', label: 'Japanese' },
+    { id: 'ko', label: 'Korean' },
+    { id: 'zh', label: 'Chinese' },
+    { id: 'ru', label: 'Russian' },
+    { id: 'nl', label: 'Dutch' },
+    { id: 'pl', label: 'Polish' },
+    { id: 'sv', label: 'Swedish' },
+    { id: 'no', label: 'Norwegian' },
+    { id: 'da', label: 'Danish' },
+    { id: 'fi', label: 'Finnish' },
+    { id: 'ar', label: 'Arabic' },
+    { id: 'hi', label: 'Hindi' },
+    { id: 'tr', label: 'Turkish' },
+];
+
+export const PLAYER_HOME_ROW_IDS = ['libraries', 'continueWatching', 'playlists'] as const;
+export const MIXED_RECENT_HOME_ROW_IDS = ['recent:movie', 'recent:show', 'recent:artist'] as const;
+
+export const isPlayerHomeRowId = (value: unknown): value is string => {
+    const id = String(value || '').trim();
+    if (id === 'libraries' || id === 'continueWatching' || id === 'playlists') return true;
+    return /^recent:[A-Za-z0-9._-]{1,64}$/.test(id);
+};
+
+export const normalizeHomeRowOrder = (raw: unknown): string[] => {
+    if (!Array.isArray(raw)) return [];
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const value of raw) {
+        const id = String(value || '').trim();
+        if (!isPlayerHomeRowId(id) || seen.has(id)) continue;
+        seen.add(id);
+        out.push(id);
+    }
+    return out.slice(0, 40);
+};
+
+export const applyHomeRowOrder = (ids: string[] = [], order: string[] = []): string[] => {
+    const wanted: string[] = [];
+    const seenWanted = new Set<string>();
+    for (const value of ids) {
+        const id = String(value || '').trim();
+        if (!id || seenWanted.has(id)) continue;
+        seenWanted.add(id);
+        wanted.push(id);
+    }
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const id of normalizeHomeRowOrder(order)) {
+        if (!seenWanted.has(id) || seen.has(id)) continue;
+        seen.add(id);
+        out.push(id);
+    }
+    for (const id of wanted) {
+        if (seen.has(id)) continue;
+        out.push(id);
+    }
+    return out;
+};
+
+export const defaultHomeRowIds = ({
+    mixLibraries = false,
+    libraries = [],
+}: {
+    mixLibraries?: boolean;
+    libraries?: Array<{ key?: string | null }>;
+} = {}): string[] => {
+    const recent = mixLibraries
+        ? [...MIXED_RECENT_HOME_ROW_IDS]
+        : libraries
+            .map((row) => `recent:${String(row?.key || '').trim()}`)
+            .filter((id) => isPlayerHomeRowId(id));
+    return [...PLAYER_HOME_ROW_IDS, ...recent];
+};
+
+export const moveHomeRow = (ids: string[], index: number, direction: -1 | 1): string[] => {
+    const next = [...ids];
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= next.length) return next;
+    const current = next[index];
+    next[index] = next[target];
+    next[target] = current;
+    return next;
+};
+
+const QUALITY_IDS = new Set(['auto', ...PLAYER_QUALITY_CHOICES.map((row) => row.id)]);
+const SUBTITLE_MODES = new Set<PlayerSubtitleMode>(['off', 'forced', 'always']);
+
 export const PLAYER_SETTINGS_KEY = 'portal-media-player-settings';
 export const PLAYER_SETTINGS_EVENT = 'portal-media-player-settings';
 
@@ -23,21 +126,54 @@ export const DEFAULT_PLAYER_SETTINGS: PlayerSettings = {
     mixLibraries: false,
     autoplayNext: true,
     showContinueWatching: true,
+    showPlaylists: true,
     defaultQualityId: 'auto',
+    audioLanguage: '',
+    subtitleMode: 'forced',
+    autoSkipIntro: false,
+    autoSkipCredits: false,
+    homeRowOrder: [],
 };
+
+const normalizeLang = (value: unknown) => String(value || '').trim().toLowerCase().replace(/_/g, '-');
+
+export const normalizePlayerSettings = (raw: Partial<PlayerSettings> | Record<string, unknown> | null | undefined): PlayerSettings => {
+    const quality = String(raw?.defaultQualityId || 'auto');
+    const audioLanguage = normalizeLang(raw?.audioLanguage);
+    const subtitleMode = String(raw?.subtitleMode || DEFAULT_PLAYER_SETTINGS.subtitleMode) as PlayerSubtitleMode;
+    return {
+        mixLibraries: raw?.mixLibraries === true,
+        autoplayNext: raw?.autoplayNext !== false,
+        showContinueWatching: raw?.showContinueWatching !== false,
+        showPlaylists: raw?.showPlaylists !== false,
+        defaultQualityId: QUALITY_IDS.has(quality) ? quality : 'auto',
+        audioLanguage: /^[a-z]{2}(?:-[a-z]{2})?$/.test(audioLanguage) ? audioLanguage : '',
+        subtitleMode: SUBTITLE_MODES.has(subtitleMode) ? subtitleMode : 'forced',
+        autoSkipIntro: raw?.autoSkipIntro === true,
+        autoSkipCredits: raw?.autoSkipCredits === true,
+        homeRowOrder: normalizeHomeRowOrder(raw?.homeRowOrder),
+    };
+};
+
+export const playerSettingsEqual = (a: PlayerSettings, b: PlayerSettings) => (
+    a.mixLibraries === b.mixLibraries
+    && a.autoplayNext === b.autoplayNext
+    && a.showContinueWatching === b.showContinueWatching
+    && a.showPlaylists === b.showPlaylists
+    && a.defaultQualityId === b.defaultQualityId
+    && a.audioLanguage === b.audioLanguage
+    && a.subtitleMode === b.subtitleMode
+    && a.autoSkipIntro === b.autoSkipIntro
+    && a.autoSkipCredits === b.autoSkipCredits
+    && a.homeRowOrder.join('\0') === b.homeRowOrder.join('\0')
+);
 
 export const readPlayerSettings = (): PlayerSettings => {
     if (typeof window === 'undefined') return { ...DEFAULT_PLAYER_SETTINGS };
     try {
         const raw = window.localStorage.getItem(PLAYER_SETTINGS_KEY);
         if (!raw) return { ...DEFAULT_PLAYER_SETTINGS };
-        const parsed = JSON.parse(raw) || {};
-        return {
-            mixLibraries: parsed.mixLibraries === true,
-            autoplayNext: parsed.autoplayNext !== false,
-            showContinueWatching: parsed.showContinueWatching !== false,
-            defaultQualityId: String(parsed.defaultQualityId || 'auto'),
-        };
+        return normalizePlayerSettings(JSON.parse(raw) || {});
     } catch {
         return { ...DEFAULT_PLAYER_SETTINGS };
     }
@@ -45,6 +181,6 @@ export const readPlayerSettings = (): PlayerSettings => {
 
 export const writePlayerSettings = (settings: PlayerSettings) => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem(PLAYER_SETTINGS_KEY, JSON.stringify(settings));
+    window.localStorage.setItem(PLAYER_SETTINGS_KEY, JSON.stringify(normalizePlayerSettings(settings)));
     window.dispatchEvent(new Event(PLAYER_SETTINGS_EVENT));
 };

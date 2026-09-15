@@ -109,10 +109,23 @@ export const searchMediaPlayer = (query: string) => (
     apiFetch(`/api/media-player/search?q=${encodeURIComponent(query)}`) as Promise<{ results: PlayerItemPage['item'][] }>
 );
 
+export const fetchMediaPlayerSettings = () => (
+    apiFetch('/api/media-player/settings') as Promise<Record<string, unknown>>
+);
+
+export const saveMediaPlayerSettings = (settings: Record<string, unknown>) => (
+    apiFetch('/api/media-player/settings', {
+        method: 'PUT',
+        body: JSON.stringify(settings),
+    }) as Promise<Record<string, unknown>>
+);
+
 export const startMediaPlayerPlayback = (ratingKey: string, opts: {
     offsetMs?: number | null;
     qualityId?: string;
     mediaIndex?: number;
+    audioLanguage?: string;
+    subtitleMode?: string;
 } = {}) => {
     const caps = browserPlaybackCaps();
     return apiFetch(`/api/media-player/play/${encodeURIComponent(ratingKey)}`, {
@@ -121,6 +134,8 @@ export const startMediaPlayerPlayback = (ratingKey: string, opts: {
             ...(opts.offsetMs == null ? {} : { offsetMs: opts.offsetMs }),
             qualityId: opts.qualityId && opts.qualityId !== 'auto' ? opts.qualityId : undefined,
             mediaIndex: opts.mediaIndex,
+            audioLanguage: opts.audioLanguage || undefined,
+            subtitleMode: opts.subtitleMode || undefined,
             canPlayHevc: caps.hevc,
             canPlayAc3: caps.ac3,
             canPlayNativeHls: caps.hls,

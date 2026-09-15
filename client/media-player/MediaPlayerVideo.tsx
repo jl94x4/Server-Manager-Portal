@@ -6,7 +6,9 @@ import {
     Loader2,
     Maximize,
     Minimize,
+    Minimize2,
     Pause,
+    PictureInPicture2,
     Play,
     Volume2,
     VolumeX,
@@ -37,6 +39,8 @@ type Props = {
     session: PlayerPlaySession;
     onClose: () => void;
     autoplayNext?: boolean;
+    autoSkipIntro?: boolean;
+    autoSkipCredits?: boolean;
     onPlayItem?: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
 };
 
@@ -54,6 +58,45 @@ type FullscreenElement = HTMLElement & {
 type IosVideo = HTMLVideoElement & {
     webkitEnterFullscreen?: () => void;
     webkitDisplayingFullscreen?: boolean;
+};
+
+type PipVideo = HTMLVideoElement & {
+    webkitSupportsPresentationMode?: (mode: string) => boolean;
+    webkitSetPresentationMode?: (mode: string) => void;
+    webkitPresentationMode?: string;
+};
+
+const canUsePictureInPicture = (video: HTMLVideoElement | null) => {
+    if (typeof document === 'undefined') return false;
+    if (document.pictureInPictureEnabled) return true;
+    const pip = video as PipVideo | null;
+    return !!(pip?.webkitSetPresentationMode || pip?.webkitSupportsPresentationMode?.('picture-in-picture'));
+};
+
+const isInPictureInPicture = (video: HTMLVideoElement | null) => {
+    if (typeof document !== 'undefined' && document.pictureInPictureElement === video) return true;
+    return (video as PipVideo | null)?.webkitPresentationMode === 'picture-in-picture';
+};
+
+const requestPictureInPicture = async (video: HTMLVideoElement | null) => {
+    if (!video) return;
+    const pip = video as PipVideo;
+    if (pip.webkitSetPresentationMode && pip.webkitPresentationMode !== 'picture-in-picture') {
+        pip.webkitSetPresentationMode('picture-in-picture');
+        return;
+    }
+    if (video.requestPictureInPicture) await video.requestPictureInPicture();
+};
+
+const exitPictureInPicture = async (video: HTMLVideoElement | null) => {
+    const pip = video as PipVideo | null;
+    if (pip?.webkitSetPresentationMode && pip.webkitPresentationMode === 'picture-in-picture') {
+        pip.webkitSetPresentationMode('inline');
+        return;
+    }
+    if (typeof document !== 'undefined' && document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+    }
 };
 
 const fullscreenElement = () => {
@@ -155,7 +198,14 @@ const seekBy = (video: HTMLVideoElement | null, deltaSeconds: number) => {
     video.currentTime = Math.min(duration, next);
 };
 
-export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNext = false, onPlayItem }) => {
+export const MediaPlayerVideo: React.FC<Props> = ({
+    session,
+    onClose,
+    autoplayNext = false,
+    autoSkipIntro = false,
+    autoSkipCredits = false,
+    onPlayItem,
+}) => {
     const { t } = useDiscoverI18n();
     const videoRef = useRef<HTMLVideoElement>(null);
     const overlayRef = useRef<HTMLDivElement>(null);
@@ -164,6 +214,9 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
     const [paused, setPaused] = useState(true);
     const [ready, setReady] = useState(false);
     const [fullscreen, setFullscreen] = useState(false);
+    const [chrome, setChrome] = useState<'theater' | 'mini'>('theater');
+    const [pip, setPip] = useState(false);
+    const [pipSupported, setPipSupported] = useState(false);
     const [currentMs, setCurrentMs] = useState(0);
     const [durationMs, setDurationMs] = useState(session.item.durationMs || 0);
     const [playbackSrc, setPlaybackSrc] = useState(session.src);
@@ -251,7 +304,26 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
         return () => { cancelled = true; };
     }, [session.item.ratingKey, session.item.type]);
 
-    useEffect(() => lockBackgroundScroll(), []);
+    useEffect(() => {
+        if (chrome !== 'theater') return undefined;
+        return lockBackgroundScroll();
+    }, [chrome]);
+
+    useEffect(() => {
+        const video = videoRef.current;
+        setPipSupported(canUsePictureInPicture(video));
+        if (!video) return undefined;
+        const syncPip = () => setPip(isInPictureInPicture(video));
+        syncPip();
+        video.addEventListener('enterpictureinpicture', syncPip);
+        video.addEventListener('leavepictureinpicture', syncPip);
+        video.addEventListener('webkitpresentationmodechanged', syncPip);
+        return () => {
+            video.removeEventListener('enterpictureinpicture', syncPip);
+            video.removeEventListener('leavepictureinpicture', syncPip);
+            video.removeEventListener('webkitpresentationmodechanged', syncPip);
+        };
+    }, [playbackSrc]);
 
     useEffect(() => {
         const sync = () => {
@@ -470,7 +542,34 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
 
     const closePlayer = () => {
         void exitPlayerFullscreen();
+        void exitPictureInPicture(videoRef.current);
         onClose();
+    };
+
+    const enterMini = () => {
+        void exitPlayerFullscreen();
+        setOpenMenu(null);
+        setChrome('mini');
+    };
+
+    const enterTheater = () => {
+        void exitPictureInPicture(videoRef.current);
+        setChrome('theater');
+    };
+
+    const togglePip = async () => {
+        const video = videoRef.current;
+        if (!video) return;
+        try {
+            if (isInPictureInPicture(video)) {
+                await exitPictureInPicture(video);
+                return;
+            }
+            await requestPictureInPicture(video);
+            setChrome('mini');
+        } catch {
+            /* unsupported or gesture blocked */
+        }
     };
 
     const remaining = Math.max(0, durationMs - currentMs);
@@ -503,12 +602,14 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
         const onKey = (event: KeyboardEvent) => {
             const tag = String((event.target as HTMLElement | null)?.tagName || '').toLowerCase();
             if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+            if (chrome === 'mini' && !overlayRef.current?.contains(event.target as Node)) return;
             if (event.key === 'Escape') {
                 if (openMenu) {
                     setOpenMenu(null);
                     return;
                 }
                 if (fullscreenElement()) return;
+                if (chrome === 'mini') return;
                 closePlayer();
             }
             if (event.key === ' ') {
@@ -535,12 +636,13 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
             }
             if ((event.key === 'f' || event.key === 'F') && !event.metaKey && !event.ctrlKey && !event.altKey) {
                 event.preventDefault();
-                void toggleFullscreen();
+                if (chrome === 'mini') enterTheater();
+                else void toggleFullscreen();
             }
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
-    }, [onClose, openMenu]);
+    }, [chrome, onClose, openMenu]);
 
     const applyStreamChange = (patch: {
         qualityId?: string;
@@ -607,8 +709,19 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
         video.currentTime = Math.max(0, (durationMs - 1000) / 1000);
     };
 
+    useEffect(() => {
+        if (!autoSkipIntro || !inIntro || !ready) return;
+        skipIntro();
+    }, [autoSkipIntro, inIntro, ready]);
+
+    useEffect(() => {
+        if (!autoSkipCredits || !inCredits || !ready) return;
+        skipCredits();
+    }, [autoSkipCredits, inCredits, nextItem, ready]);
+
     const duration = durationMs || 1;
     const progress = Math.min(100, (currentMs / duration) * 100);
+    const theater = chrome === 'theater';
     const modeLabel = playbackMode === 'directPlay'
         ? t('mediaPlayerPage.playbackDirectPlay')
         : playbackMode === 'directStream'
@@ -616,147 +729,189 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
             : t('mediaPlayerPage.playbackTranscode');
     const sourceRes = formatPlayerResolution(session.source?.height, session.source?.videoResolution);
     const sourceCodec = String(session.source?.videoCodec || '').toUpperCase();
+    const seekProgress = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const video = videoRef.current;
+        if (!video || !durationMs) return;
+        const next = (Number(event.target.value) / 100) * durationMs;
+        video.currentTime = next / 1000;
+        setCurrentMs(next);
+        sendTimelineRef.current('playing');
+    };
     const overlay = (
-        <div ref={overlayRef} className="fixed inset-0 z-[4000] flex h-full w-full flex-col bg-black" role="dialog" aria-modal="true" aria-label={session.item.title}>
-            <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-3 p-4 bg-gradient-to-b from-black/80 to-transparent">
+        <div
+            ref={overlayRef}
+            className={theater
+                ? 'fixed inset-0 z-[4000] flex h-full w-full flex-col bg-black'
+                : 'fixed bottom-4 right-4 z-[3200] flex w-[min(22rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-2xl border border-white/15 bg-black shadow-2xl'}
+            role={theater ? 'dialog' : 'region'}
+            aria-modal={theater}
+            aria-label={session.item.title}
+        >
+            <div className={`absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-3 ${theater ? 'bg-gradient-to-b from-black/80 to-transparent p-4' : 'bg-black/80 p-2'}`}>
                 <div className="min-w-0">
                     <p className="truncate text-sm font-bold text-white">{session.item.title}</p>
                     {session.item.showTitle ? (
                         <p className="truncate text-xs text-white/70">{session.item.showTitle}</p>
                     ) : null}
-                    <p className="mt-1 inline-flex max-w-full items-center truncate rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-white/80">
-                        {[modeLabel, sourceRes, sourceCodec].filter(Boolean).join(' · ')}
-                    </p>
+                    {theater ? (
+                        <p className="mt-1 inline-flex max-w-full items-center truncate rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-white/80">
+                            {[modeLabel, sourceRes, sourceCodec].filter(Boolean).join(' · ')}
+                        </p>
+                    ) : null}
                 </div>
-                <button
-                    type="button"
-                    onClick={closePlayer}
-                    className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-2 text-sm font-bold text-white hover:bg-white/20"
-                    aria-label={t('mediaPlayerPage.closePlayer')}
-                >
-                    <X className="h-4 w-4" />
-                    {t('common.close')}
-                </button>
+                <div className="flex shrink-0 items-center gap-1">
+                    {theater ? (
+                        <button
+                            type="button"
+                            onClick={enterMini}
+                            className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-2 text-sm font-bold text-white hover:bg-white/20"
+                            aria-label={t('mediaPlayerPage.miniplayer')}
+                        >
+                            <Minimize2 className="h-4 w-4" />
+                            <span className="hidden sm:inline">{t('mediaPlayerPage.miniplayer')}</span>
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={enterTheater}
+                            className="inline-flex items-center rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
+                            aria-label={t('mediaPlayerPage.expandPlayer')}
+                        >
+                            <Maximize className="h-4 w-4" />
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        onClick={closePlayer}
+                        className={`inline-flex items-center gap-2 rounded-full bg-white/10 text-sm font-bold text-white hover:bg-white/20 ${theater ? 'px-3 py-2' : 'p-2'}`}
+                        aria-label={t('mediaPlayerPage.closePlayer')}
+                    >
+                        <X className="h-4 w-4" />
+                        {theater ? t('common.close') : null}
+                    </button>
+                </div>
             </div>
 
-            <video
-                ref={videoRef}
-                className="h-full w-full bg-black object-contain"
-                controls={false}
-                playsInline
-                autoPlay
-                onClick={togglePlayback}
-                onPlay={() => {
-                    setPaused(false);
-                    sendTimelineRef.current('playing');
-                }}
-                onPause={() => {
-                    setPaused(true);
-                    sendTimelineRef.current('paused');
-                }}
-                onTimeUpdate={(event) => setCurrentMs(event.currentTarget.currentTime * 1000)}
-                onRateChange={(event) => setSpeed(event.currentTarget.playbackRate || 1)}
-                onVolumeChange={(event) => {
-                    setVolume(event.currentTarget.volume);
-                    setMuted(event.currentTarget.muted);
-                }}
-                onDurationChange={(event) => {
-                    const next = event.currentTarget.duration;
-                    if (Number.isFinite(next) && next > 0) setDurationMs(next * 1000);
-                }}
-                onEnded={() => {
-                    sendTimelineRef.current('stopped');
-                    if (autoplayNext && nextItem) onPlayItem?.(nextItem, { offsetMs: 0, skipResume: true });
-                }}
-            />
+            <div className={`relative ${theater ? 'h-full w-full' : 'aspect-video w-full'}`}>
+                <video
+                    ref={videoRef}
+                    className="h-full w-full bg-black object-contain"
+                    controls={false}
+                    playsInline
+                    autoPlay
+                    disablePictureInPicture={false}
+                    onClick={togglePlayback}
+                    onPlay={() => {
+                        setPaused(false);
+                        sendTimelineRef.current('playing');
+                    }}
+                    onPause={() => {
+                        setPaused(true);
+                        sendTimelineRef.current('paused');
+                    }}
+                    onTimeUpdate={(event) => setCurrentMs(event.currentTarget.currentTime * 1000)}
+                    onRateChange={(event) => setSpeed(event.currentTarget.playbackRate || 1)}
+                    onVolumeChange={(event) => {
+                        setVolume(event.currentTarget.volume);
+                        setMuted(event.currentTarget.muted);
+                    }}
+                    onDurationChange={(event) => {
+                        const next = event.currentTarget.duration;
+                        if (Number.isFinite(next) && next > 0) setDurationMs(next * 1000);
+                    }}
+                    onEnded={() => {
+                        sendTimelineRef.current('stopped');
+                        if (autoplayNext && nextItem) onPlayItem?.(nextItem, { offsetMs: 0, skipResume: true });
+                    }}
+                />
 
-            {error ? (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-6 text-center">
-                    <div>
-                        <p className="font-bold text-white">{error}</p>
-                        <button type="button" onClick={closePlayer} className="mt-4 rounded-lg bg-plex px-4 py-2 text-sm font-black text-black">
-                            {t('common.close')}
-                        </button>
+                {pip ? (
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/80 p-4 text-center">
+                        <p className="text-xs font-bold uppercase tracking-widest text-white/80">{t('mediaPlayerPage.playingInPip')}</p>
                     </div>
-                </div>
-            ) : null}
+                ) : null}
 
-            {!error && !ready ? (
-                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3">
-                    <Loader2 className="h-10 w-10 animate-spin text-white/80" />
-                    <p className="text-xs font-bold uppercase tracking-widest text-white/70">{t('mediaPlayerPage.buffering')}</p>
-                </div>
-            ) : null}
-
-            {inIntro ? (
-                <button
-                    type="button"
-                    onClick={skipIntro}
-                    className="absolute right-4 bottom-28 z-20 rounded-full bg-white px-4 py-2 text-sm font-black text-black shadow-lg"
-                >
-                    {t('mediaPlayerPage.skipIntro')}
-                </button>
-            ) : null}
-
-            {inCredits && !showUpNext ? (
-                <button
-                    type="button"
-                    onClick={skipCredits}
-                    className="absolute right-4 bottom-28 z-20 rounded-full bg-white px-4 py-2 text-sm font-black text-black shadow-lg"
-                >
-                    {t('mediaPlayerPage.skipCredits')}
-                </button>
-            ) : null}
-
-            {showUpNext && nextItem ? (
-                <div className="absolute right-4 bottom-28 z-20 w-72 overflow-hidden rounded-2xl border border-white/15 bg-black/90 shadow-2xl">
-                    {nextItem.thumb ? (
-                        <img src={plexImageUrl(nextItem.thumb, 640, 360)} alt="" className="aspect-video w-full object-cover" />
-                    ) : null}
-                    <div className="p-3">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-white/50">{t('mediaPlayerPage.upNext')}</p>
-                        <p className="mt-1 truncate text-sm font-bold text-white">{nextItem.title}</p>
-                        {autoplayNext ? (
-                            <p className="text-xs text-white/70">{t('mediaPlayerPage.nextEpisodeIn', { seconds: upNextIn })}</p>
-                        ) : null}
-                        <div className="mt-3 flex gap-2">
-                            <button
-                                type="button"
-                                onClick={() => onPlayItem?.(nextItem, { offsetMs: 0, skipResume: true })}
-                                className="rounded-lg bg-plex px-3 py-1.5 text-xs font-black text-black"
-                            >
-                                {t('mediaPlayerPage.playNow')}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setDismissedUpNext(true)}
-                                className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold text-white"
-                            >
+                {error ? (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-6 text-center">
+                        <div>
+                            <p className="font-bold text-white">{error}</p>
+                            <button type="button" onClick={closePlayer} className="mt-4 rounded-lg bg-plex px-4 py-2 text-sm font-black text-black">
                                 {t('common.close')}
                             </button>
                         </div>
                     </div>
-                </div>
-            ) : null}
+                ) : null}
 
-            <div className="absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/85 to-transparent px-4 pb-5 pt-10">
+                {!error && !ready ? (
+                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3">
+                        <Loader2 className="h-10 w-10 animate-spin text-white/80" />
+                        <p className="text-xs font-bold uppercase tracking-widest text-white/70">{t('mediaPlayerPage.buffering')}</p>
+                    </div>
+                ) : null}
+
+                {inIntro ? (
+                    <button
+                        type="button"
+                        onClick={skipIntro}
+                        className={`absolute z-20 rounded-full bg-white font-black text-black shadow-lg ${theater ? 'right-4 bottom-28 px-4 py-2 text-sm' : 'right-2 bottom-2 px-2.5 py-1 text-xs'}`}
+                    >
+                        {t('mediaPlayerPage.skipIntro')}
+                    </button>
+                ) : null}
+
+                {inCredits && !showUpNext ? (
+                    <button
+                        type="button"
+                        onClick={skipCredits}
+                        className={`absolute z-20 rounded-full bg-white font-black text-black shadow-lg ${theater ? 'right-4 bottom-28 px-4 py-2 text-sm' : 'right-2 bottom-2 px-2.5 py-1 text-xs'}`}
+                    >
+                        {t('mediaPlayerPage.skipCredits')}
+                    </button>
+                ) : null}
+
+                {showUpNext && nextItem && theater ? (
+                    <div className="absolute right-4 bottom-28 z-20 w-72 overflow-hidden rounded-2xl border border-white/15 bg-black/90 shadow-2xl">
+                        {nextItem.thumb ? (
+                            <img src={plexImageUrl(nextItem.thumb, 640, 360)} alt="" className="aspect-video w-full object-cover" />
+                        ) : null}
+                        <div className="p-3">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-white/50">{t('mediaPlayerPage.upNext')}</p>
+                            <p className="mt-1 truncate text-sm font-bold text-white">{nextItem.title}</p>
+                            {autoplayNext ? (
+                                <p className="text-xs text-white/70">{t('mediaPlayerPage.nextEpisodeIn', { seconds: upNextIn })}</p>
+                            ) : null}
+                            <div className="mt-3 flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => onPlayItem?.(nextItem, { offsetMs: 0, skipResume: true })}
+                                    className="rounded-lg bg-plex px-3 py-1.5 text-xs font-black text-black"
+                                >
+                                    {t('mediaPlayerPage.playNow')}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setDismissedUpNext(true)}
+                                    className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold text-white"
+                                >
+                                    {t('common.close')}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ) : null}
+            </div>
+
+            <div className={`z-10 ${theater ? 'absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-4 pb-5 pt-10' : 'bg-black px-3 pb-3 pt-1'}`}>
                 <input
                     type="range"
                     min={0}
                     max={100}
                     value={progress}
-                    onChange={(event) => {
-                        const video = videoRef.current;
-                        if (!video || !durationMs) return;
-                        const next = (Number(event.target.value) / 100) * durationMs;
-                        video.currentTime = next / 1000;
-                        setCurrentMs(next);
-                        sendTimelineRef.current('playing');
-                    }}
+                    onChange={seekProgress}
                     className="w-full accent-plex"
                     aria-label={session.item.title}
                 />
-                <div className="mt-2 flex flex-wrap items-center justify-between gap-3 text-xs font-bold text-white/80">
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-white/80">
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
                         <button
                             type="button"
@@ -764,130 +919,149 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
                             className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-white hover:bg-white/20"
                         >
                             {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-                            {paused ? t('mediaPlayerPage.play') : t('mediaPlayerPage.pause')}
+                            {theater ? (paused ? t('mediaPlayerPage.play') : t('mediaPlayerPage.pause')) : null}
                         </button>
-                        <button
-                            type="button"
-                            onClick={() => seekBy(videoRef.current, -10)}
-                            className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1.5 text-white hover:bg-white/20"
-                            aria-label={t('mediaPlayerPage.skipBack')}
-                        >
-                            <ChevronsLeft className="h-4 w-4" />
-                            10
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => seekBy(videoRef.current, 10)}
-                            className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1.5 text-white hover:bg-white/20"
-                            aria-label={t('mediaPlayerPage.skipForward')}
-                        >
-                            10
-                            <ChevronsRight className="h-4 w-4" />
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                const video = videoRef.current;
-                                if (!video) return;
-                                video.muted = !video.muted;
-                                setMuted(video.muted);
-                            }}
-                            className="inline-flex items-center rounded-full bg-white/10 px-2.5 py-1.5 text-white hover:bg-white/20"
-                            aria-label={muted ? t('mediaPlayerPage.unmute') : t('mediaPlayerPage.mute')}
-                        >
-                            {muted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-                        </button>
-                        <input
-                            type="range"
-                            min={0}
-                            max={1}
-                            step={0.05}
-                            value={muted ? 0 : volume}
-                            onChange={(event) => {
-                                const video = videoRef.current;
-                                const next = Number(event.target.value);
-                                if (video) {
-                                    video.volume = next;
-                                    video.muted = next === 0;
-                                }
-                                setVolume(next);
-                                setMuted(next === 0);
-                            }}
-                            className="w-20 accent-plex"
-                            aria-label={t('mediaPlayerPage.volume')}
-                        />
-                        <TrackPicker
-                            label={t('mediaPlayerPage.speed')}
-                            value={String(speed)}
-                            options={PLAYBACK_SPEEDS.map((rate) => ({ id: String(rate), label: `${rate}×` }))}
-                            open={openMenu === 'speed'}
-                            onToggle={() => setOpenMenu((current) => current === 'speed' ? null : 'speed')}
-                            onChange={(id) => {
-                                const next = Number(id) || 1;
-                                const video = videoRef.current;
-                                if (video) video.playbackRate = next;
-                                setSpeed(next);
-                                setOpenMenu(null);
-                            }}
-                        />
-                        {versions.length > 1 ? (
-                            <TrackPicker
-                                label={t('mediaPlayerPage.version')}
-                                value={mediaIndex}
-                                options={versions.map((row) => ({ id: String(row.mediaIndex), label: row.label }))}
-                                open={openMenu === 'version'}
-                                onToggle={() => setOpenMenu((current) => current === 'version' ? null : 'version')}
-                                onChange={(id) => {
-                                    setOpenMenu(null);
-                                    onPlayItem?.(session.item, {
-                                        offsetMs: Math.floor(currentMsRef.current || 0),
-                                        mediaIndex: Number(id) || 0,
-                                        skipResume: true,
-                                    });
-                                }}
-                            />
-                        ) : null}
-                        <TrackPicker
-                            label={t('mediaPlayerPage.quality')}
-                            value={qualityId}
-                            options={qualities}
-                            open={openMenu === 'quality'}
-                            onToggle={() => setOpenMenu((current) => current === 'quality' ? null : 'quality')}
-                            onChange={(id) => applyStreamChange({ qualityId: id })}
-                        />
-                        <TrackPicker
-                            label={t('mediaPlayerPage.audio')}
-                            value={audioStreamId}
-                            options={audioTracks}
-                            open={openMenu === 'audio'}
-                            onToggle={() => setOpenMenu((current) => current === 'audio' ? null : 'audio')}
-                            onChange={(id) => applyStreamChange({ audioStreamId: id })}
-                        />
-                        {subtitles.length ? (
-                            <TrackPicker
-                                label={t('mediaPlayerPage.subtitles')}
-                                value={subtitleStreamId}
-                                options={[
-                                    { id: '', label: t('mediaPlayerPage.subtitlesOff') },
-                                    ...subtitles,
-                                ]}
-                                open={openMenu === 'subtitles'}
-                                onToggle={() => setOpenMenu((current) => current === 'subtitles' ? null : 'subtitles')}
-                                onChange={(id) => applyStreamChange({ subtitleStreamId: id })}
-                            />
+                        {theater ? (
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={() => seekBy(videoRef.current, -10)}
+                                    className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1.5 text-white hover:bg-white/20"
+                                    aria-label={t('mediaPlayerPage.skipBack')}
+                                >
+                                    <ChevronsLeft className="h-4 w-4" />
+                                    10
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => seekBy(videoRef.current, 10)}
+                                    className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1.5 text-white hover:bg-white/20"
+                                    aria-label={t('mediaPlayerPage.skipForward')}
+                                >
+                                    10
+                                    <ChevronsRight className="h-4 w-4" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const video = videoRef.current;
+                                        if (!video) return;
+                                        video.muted = !video.muted;
+                                        setMuted(video.muted);
+                                    }}
+                                    className="inline-flex items-center rounded-full bg-white/10 px-2.5 py-1.5 text-white hover:bg-white/20"
+                                    aria-label={muted ? t('mediaPlayerPage.unmute') : t('mediaPlayerPage.mute')}
+                                >
+                                    {muted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                                </button>
+                                <input
+                                    type="range"
+                                    min={0}
+                                    max={1}
+                                    step={0.05}
+                                    value={muted ? 0 : volume}
+                                    onChange={(event) => {
+                                        const video = videoRef.current;
+                                        const next = Number(event.target.value);
+                                        if (video) {
+                                            video.volume = next;
+                                            video.muted = next === 0;
+                                        }
+                                        setVolume(next);
+                                        setMuted(next === 0);
+                                    }}
+                                    className="w-20 accent-plex"
+                                    aria-label={t('mediaPlayerPage.volume')}
+                                />
+                                <TrackPicker
+                                    label={t('mediaPlayerPage.speed')}
+                                    value={String(speed)}
+                                    options={PLAYBACK_SPEEDS.map((rate) => ({ id: String(rate), label: `${rate}×` }))}
+                                    open={openMenu === 'speed'}
+                                    onToggle={() => setOpenMenu((current) => current === 'speed' ? null : 'speed')}
+                                    onChange={(id) => {
+                                        const next = Number(id) || 1;
+                                        const video = videoRef.current;
+                                        if (video) video.playbackRate = next;
+                                        setSpeed(next);
+                                        setOpenMenu(null);
+                                    }}
+                                />
+                                {versions.length > 1 ? (
+                                    <TrackPicker
+                                        label={t('mediaPlayerPage.version')}
+                                        value={mediaIndex}
+                                        options={versions.map((row) => ({ id: String(row.mediaIndex), label: row.label }))}
+                                        open={openMenu === 'version'}
+                                        onToggle={() => setOpenMenu((current) => current === 'version' ? null : 'version')}
+                                        onChange={(id) => {
+                                            setOpenMenu(null);
+                                            onPlayItem?.(session.item, {
+                                                offsetMs: Math.floor(currentMsRef.current || 0),
+                                                mediaIndex: Number(id) || 0,
+                                                skipResume: true,
+                                            });
+                                        }}
+                                    />
+                                ) : null}
+                                <TrackPicker
+                                    label={t('mediaPlayerPage.quality')}
+                                    value={qualityId}
+                                    options={qualities}
+                                    open={openMenu === 'quality'}
+                                    onToggle={() => setOpenMenu((current) => current === 'quality' ? null : 'quality')}
+                                    onChange={(id) => applyStreamChange({ qualityId: id })}
+                                />
+                                <TrackPicker
+                                    label={t('mediaPlayerPage.audio')}
+                                    value={audioStreamId}
+                                    options={audioTracks}
+                                    open={openMenu === 'audio'}
+                                    onToggle={() => setOpenMenu((current) => current === 'audio' ? null : 'audio')}
+                                    onChange={(id) => applyStreamChange({ audioStreamId: id })}
+                                />
+                                {subtitles.length ? (
+                                    <TrackPicker
+                                        label={t('mediaPlayerPage.subtitles')}
+                                        value={subtitleStreamId}
+                                        options={[
+                                            { id: '', label: t('mediaPlayerPage.subtitlesOff') },
+                                            ...subtitles,
+                                        ]}
+                                        open={openMenu === 'subtitles'}
+                                        onToggle={() => setOpenMenu((current) => current === 'subtitles' ? null : 'subtitles')}
+                                        onChange={(id) => applyStreamChange({ subtitleStreamId: id })}
+                                    />
+                                ) : null}
+                            </>
                         ) : null}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                        <span>{formatClock(currentMs)} / {formatClock(durationMs)}</span>
-                        <button
-                            type="button"
-                            onClick={() => { void toggleFullscreen(); }}
-                            className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-white hover:bg-white/20"
-                            aria-label={fullscreen ? t('mediaPlayerPage.exitFullscreen') : t('mediaPlayerPage.fullscreen')}
-                        >
-                            {fullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
-                            <span className="hidden sm:inline">{fullscreen ? t('mediaPlayerPage.exitFullscreen') : t('mediaPlayerPage.fullscreen')}</span>
-                        </button>
+                        <span>{formatClock(currentMs)}{theater ? ` / ${formatClock(durationMs)}` : ''}</span>
+                        {pipSupported ? (
+                            <button
+                                type="button"
+                                onClick={() => { void togglePip(); }}
+                                className="inline-flex items-center gap-2 rounded-full bg-white/10 px-2.5 py-1.5 text-white hover:bg-white/20"
+                                aria-label={pip ? t('mediaPlayerPage.exitPictureInPicture') : t('mediaPlayerPage.pictureInPicture')}
+                            >
+                                <PictureInPicture2 className="h-4 w-4" />
+                                {theater ? (
+                                    <span className="hidden sm:inline">{pip ? t('mediaPlayerPage.exitPictureInPicture') : t('mediaPlayerPage.pictureInPicture')}</span>
+                                ) : null}
+                            </button>
+                        ) : null}
+                        {theater ? (
+                            <button
+                                type="button"
+                                onClick={() => { void toggleFullscreen(); }}
+                                className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-white hover:bg-white/20"
+                                aria-label={fullscreen ? t('mediaPlayerPage.exitFullscreen') : t('mediaPlayerPage.fullscreen')}
+                            >
+                                {fullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+                                <span className="hidden sm:inline">{fullscreen ? t('mediaPlayerPage.exitFullscreen') : t('mediaPlayerPage.fullscreen')}</span>
+                            </button>
+                        ) : null}
                     </div>
                 </div>
             </div>
