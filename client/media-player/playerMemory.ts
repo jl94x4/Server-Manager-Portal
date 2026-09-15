@@ -5,6 +5,7 @@ export const PLAYER_FOCUS_SEARCH_KEY = 'portal-media-player-focus-search';
 export const PLAYER_HOME_SCROLL_KEY = 'portal-media-player-home-scroll';
 export const PLAYER_LOCAL_PLAYBACK_KEY = 'portal-media-player-local-playback';
 export const PLAYER_LIBRARY_STATE_KEY = 'portal-media-player-library-state';
+export const PLAYER_MINI_WIDTH_KEY = 'portal-media-player-mini-width';
 
 export type LocalPlaybackPrefs = {
     volume: number;
@@ -23,6 +24,8 @@ export type LibraryBrowseState = {
 };
 
 const DEFAULT_PLAYBACK: LocalPlaybackPrefs = { volume: 1, muted: false, speed: 1 };
+export const DEFAULT_MINI_PLAYER_WIDTH = 352;
+export const MIN_MINI_PLAYER_WIDTH = 260;
 const DEFAULT_LIBRARY: LibraryBrowseState = {
     sort: 'addedAt:desc',
     genre: '',
@@ -69,6 +72,25 @@ export const writeLocalPlaybackPrefs = (prefs: LocalPlaybackPrefs) => {
         muted: prefs.muted === true,
         speed: Math.min(3, Math.max(0.25, Number(prefs.speed) || 1)),
     });
+};
+
+export const clampMiniPlayerWidth = (width: number, viewportWidth = typeof window === 'undefined' ? 1280 : window.innerWidth) => {
+    const max = Math.max(
+        MIN_MINI_PLAYER_WIDTH,
+        Math.min(960, Math.round(viewportWidth - 32), Math.round(viewportWidth * 0.72)),
+    );
+    const n = Math.round(Number(width) || DEFAULT_MINI_PLAYER_WIDTH);
+    return Math.min(max, Math.max(MIN_MINI_PLAYER_WIDTH, n));
+};
+
+export const readMiniPlayerWidth = () => {
+    const raw = Number(readJson(PLAYER_MINI_WIDTH_KEY));
+    return clampMiniPlayerWidth(Number.isFinite(raw) ? raw : DEFAULT_MINI_PLAYER_WIDTH);
+};
+
+export const writeMiniPlayerWidth = (width: number) => {
+    if (typeof window === 'undefined') return;
+    writeJson(window.localStorage, PLAYER_MINI_WIDTH_KEY, clampMiniPlayerWidth(width));
 };
 
 export const readLibraryBrowseState = (sectionKey: string): LibraryBrowseState => {

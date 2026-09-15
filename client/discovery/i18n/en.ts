@@ -178,6 +178,7 @@ export const en = {
         autoSkipCredits: 'Automatically skip credits',
         autoSkipCreditsHint: 'Skip end credits, or start the next episode when autoplay is on.',
         miniplayer: 'Miniplayer',
+        resizeMiniplayer: 'Resize miniplayer',
         expandPlayer: 'Expand player',
         pictureInPicture: 'Picture in picture',
         exitPictureInPicture: 'Exit picture in picture',

@@ -39,7 +39,15 @@ import {
 } from './playerUtils';
 import { fetchMediaPlayerNeighbors, reportMediaPlayerTimeline, stopMediaPlayerTranscode } from './api';
 import { PlayerSeekBar } from './PlayerSeekBar';
-import { readLocalPlaybackPrefs, writeLocalPlaybackPrefs } from './playerMemory';
+import {
+    clampMiniPlayerWidth,
+    DEFAULT_MINI_PLAYER_WIDTH,
+    MIN_MINI_PLAYER_WIDTH,
+    readLocalPlaybackPrefs,
+    readMiniPlayerWidth,
+    writeLocalPlaybackPrefs,
+    writeMiniPlayerWidth,
+} from './playerMemory';
 import type { PlayerItem, PlayerPlayOptions, PlayerPlaySession } from './types';
 
 type Props = {
@@ -281,6 +289,17 @@ export const MediaPlayerVideo: React.FC<Props> = ({
     const hideTimerRef = useRef<number>(0);
     const streamRestartGenRef = useRef(0);
     const playbackSrcRef = useRef(session.src);
+    const [miniWidth, setMiniWidth] = useState(() => readMiniPlayerWidth());
+    const [miniResizing, setMiniResizing] = useState(false);
+    const miniDragRef = useRef<{
+        pointerId: number;
+        startX: number;
+        startY: number;
+        startWidth: number;
+        axis: 'both' | 'x' | 'y';
+        previousCursor: string;
+        previousUserSelect: string;
+    } | null>(null);
 
     const qualities = session.qualities || [];
     const audioTracks = session.audioTracks || [];
@@ -622,6 +641,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({
     const enterMini = () => {
         void exitPlayerFullscreen();
         setOpenMenu(null);
+        setMiniWidth(readMiniPlayerWidth());
         setChrome('mini');
     };
 
@@ -804,6 +824,91 @@ export const MediaPlayerVideo: React.FC<Props> = ({
     }, [chrome, error, openMenu, paused]);
 
     useEffect(() => {
+        const onWindowResize = () => setMiniWidth((width) => clampMiniPlayerWidth(width));
+        window.addEventListener('resize', onWindowResize);
+        return () => window.removeEventListener('resize', onWindowResize);
+    }, []);
+
+    useEffect(() => {
+        const restoreBody = () => {
+            const drag = miniDragRef.current;
+            document.body.style.cursor = drag?.previousCursor || '';
+            document.body.style.userSelect = drag?.previousUserSelect || '';
+        };
+        const onMove = (event: PointerEvent) => {
+            const drag = miniDragRef.current;
+            if (!drag || event.pointerId !== drag.pointerId) return;
+            event.preventDefault();
+            const dx = drag.startX - event.clientX;
+            const dy = drag.startY - event.clientY;
+            const delta = drag.axis === 'x'
+                ? dx
+                : drag.axis === 'y'
+                    ? dy * (16 / 9)
+                    : Math.max(dx, dy * (16 / 9));
+            setMiniWidth(clampMiniPlayerWidth(drag.startWidth + delta));
+        };
+        const onUp = (event: PointerEvent) => {
+            const drag = miniDragRef.current;
+            if (!drag || event.pointerId !== drag.pointerId) return;
+            restoreBody();
+            miniDragRef.current = null;
+            setMiniResizing(false);
+            setMiniWidth((width) => {
+                const next = clampMiniPlayerWidth(width);
+                writeMiniPlayerWidth(next);
+                return next;
+            });
+        };
+        window.addEventListener('pointermove', onMove, { passive: false });
+        window.addEventListener('pointerup', onUp);
+        window.addEventListener('pointercancel', onUp);
+        return () => {
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+            window.removeEventListener('pointercancel', onUp);
+            restoreBody();
+        };
+    }, []);
+
+    const beginMiniResize = (event: React.PointerEvent, axis: 'both' | 'x' | 'y' = 'both') => {
+        if (theater) return;
+        event.preventDefault();
+        event.stopPropagation();
+        miniDragRef.current = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            startWidth: miniWidth,
+            axis,
+            previousCursor: document.body.style.cursor,
+            previousUserSelect: document.body.style.userSelect,
+        };
+        setMiniResizing(true);
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = axis === 'x' ? 'ew-resize' : axis === 'y' ? 'ns-resize' : 'nwse-resize';
+        try {
+            event.currentTarget.setPointerCapture(event.pointerId);
+        } catch {
+            /* capture is optional */
+        }
+    };
+
+    const nudgeMiniWidth = (delta: number) => {
+        setMiniWidth((width) => {
+            const next = clampMiniPlayerWidth(width + delta);
+            writeMiniPlayerWidth(next);
+            return next;
+        });
+    };
+
+    const resetMiniWidth = () => {
+        const next = clampMiniPlayerWidth(DEFAULT_MINI_PLAYER_WIDTH);
+        setMiniWidth(next);
+        writeMiniPlayerWidth(next);
+    };
+
+    useEffect(() => {
         bumpControls();
         return () => window.clearTimeout(hideTimerRef.current);
     }, [bumpControls]);
@@ -883,14 +988,64 @@ export const MediaPlayerVideo: React.FC<Props> = ({
             ref={overlayRef}
             className={`${theater
                 ? `fixed inset-0 z-[4000] flex h-full w-full flex-col bg-black ${showBars ? '' : 'cursor-none'}`
-                : 'fixed bottom-4 right-4 z-[3200] flex w-[min(22rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-2xl border border-white/15 bg-black shadow-2xl'}`}
+                : `fixed bottom-4 right-4 z-[3200] flex flex-col overflow-hidden rounded-2xl border border-white/15 bg-black shadow-2xl ${miniResizing ? 'cursor-nwse-resize' : ''}`}`}
+            style={theater ? undefined : { width: miniWidth }}
             role={theater ? 'dialog' : 'region'}
             aria-modal={theater}
             aria-label={session.item.title}
             onMouseMove={bumpControls}
             onPointerDown={bumpControls}
         >
-            <div className={`absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-3 transition-opacity ${theater ? 'bg-gradient-to-b from-black/80 to-transparent p-4' : 'bg-black/80 p-2'} ${showBars ? 'opacity-100' : 'pointer-events-none opacity-0'}`}>
+            {!theater ? (
+                <>
+                    <div
+                        className="absolute inset-y-0 left-0 z-20 w-2 cursor-ew-resize touch-none"
+                        onPointerDown={(event) => beginMiniResize(event, 'x')}
+                    />
+                    <div
+                        className="absolute inset-x-8 top-0 z-20 h-2 cursor-ns-resize touch-none"
+                        onPointerDown={(event) => beginMiniResize(event, 'y')}
+                    />
+                    <div
+                        role="slider"
+                        tabIndex={0}
+                        aria-label={t('mediaPlayerPage.resizeMiniplayer')}
+                        aria-orientation="horizontal"
+                        aria-valuemin={MIN_MINI_PLAYER_WIDTH}
+                        aria-valuemax={960}
+                        aria-valuenow={miniWidth}
+                        className="absolute left-0 top-0 z-30 h-10 w-10 cursor-nwse-resize touch-none"
+                        onPointerDown={(event) => beginMiniResize(event, 'both')}
+                        onDoubleClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            resetMiniWidth();
+                        }}
+                        onKeyDown={(event) => {
+                            if (event.key === 'ArrowRight' || event.key === 'ArrowUp') {
+                                event.preventDefault();
+                                nudgeMiniWidth(24);
+                            } else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') {
+                                event.preventDefault();
+                                nudgeMiniWidth(-24);
+                            } else if (event.key === 'Home') {
+                                event.preventDefault();
+                                const next = clampMiniPlayerWidth(MIN_MINI_PLAYER_WIDTH);
+                                setMiniWidth(next);
+                                writeMiniPlayerWidth(next);
+                            } else if (event.key === 'End') {
+                                event.preventDefault();
+                                const next = clampMiniPlayerWidth(960);
+                                setMiniWidth(next);
+                                writeMiniPlayerWidth(next);
+                            }
+                        }}
+                    >
+                        <span className="pointer-events-none absolute left-1.5 top-1.5 h-3.5 w-3.5 rounded-tl-md border-l-2 border-t-2 border-white/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]" />
+                    </div>
+                </>
+            ) : null}
+            <div className={`absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-3 transition-opacity ${theater ? 'bg-gradient-to-b from-black/80 to-transparent p-4' : 'bg-black/80 py-2 pr-2 pl-9'} ${showBars ? 'opacity-100' : 'pointer-events-none opacity-0'}`}>
                 <div className="min-w-0">
                     <p className="truncate text-sm font-bold text-white">{session.item.title}</p>
                     {session.item.showTitle ? (
