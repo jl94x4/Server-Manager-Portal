@@ -33,6 +33,23 @@ export const portalRequestHeaders = (extra: HeadersInit = {}): HeadersInit => ({
     ...extra,
 });
 
+const jsonErrorMessage = (text: string) => {
+    try {
+        const data = JSON.parse(text);
+        return String(data?.error || data?.message || '').trim();
+    } catch {
+        return '';
+    }
+};
+
+export const apiErrorMessage = (status: number, text = '') => {
+    const fromJson = jsonErrorMessage(text);
+    if (fromJson) return fromJson;
+    if (status === 502 || status === 504) return 'The server took too long to respond.';
+    if (status >= 500) return `Server error (${status}).`;
+    return `Request failed with status ${status}`;
+};
+
 export const apiFetch = async (url: string, options: RequestInit = {}) => {
     const response = await fetch(portalUrl(url), {
         credentials: 'same-origin',
@@ -44,8 +61,8 @@ export const apiFetch = async (url: string, options: RequestInit = {}) => {
         }),
     });
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'An unknown API error occurred.' }));
-        throw new Error(errorData.error || `Request failed with status ${response.status}`);
+        const text = await response.text().catch(() => '');
+        throw new Error(apiErrorMessage(response.status, text));
     }
     if (response.status === 204) return;
     return response.json();

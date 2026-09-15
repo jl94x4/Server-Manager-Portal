@@ -33038,6 +33038,24 @@ async function monitorConcurrentSessions() {
     }
 }
 
+// Last middleware: API routes must never fall through to Express HTML error pages.
+// The client treats non-JSON bodies as "An unknown API error occurred."
+app.use((err, req, res, next) => {
+    if (!err) return next();
+    if (res.headersSent) return next(err);
+    const url = String(req.originalUrl || req.url || req.path || '');
+    if (!url.includes('/api/')) return next(err);
+    const status = Number(err.status || err.statusCode) || 500;
+    const parseErr = err.type === 'entity.parse.failed'
+        || (err instanceof SyntaxError && status === 400);
+    const safeStatus = status >= 400 && status < 600 ? status : 500;
+    const message = parseErr
+        ? 'Invalid JSON body.'
+        : String(err.message || 'Request failed.');
+    log(`API ${req.method} ${url} failed: ${err.stack || message}`);
+    return res.status(safeStatus).json({ error: message });
+});
+
 app.listen(PORT, BIND_HOST, async () => {
     log(`--- Server Manager Portal Service starting on http://${BIND_HOST}:${PORT} ---`);
     log(`Runtime: CONFIG_DIR=${CONFIG_DIR}, FORCE_SECURE_COOKIES=${FORCE_SECURE_COOKIES}, BASE_PATH=${BASE_PATH || '/'}, appVersion=${appVersion}`);

@@ -179,20 +179,16 @@ export const startMediaPlayerPlayback = (ratingKey: string, opts: {
     subtitleMode?: string;
 } = {}) => {
     const caps = browserPlaybackCaps();
-    return apiFetch(`${PLAYER_API_ROOT}/play/${encodeURIComponent(ratingKey)}`, {
-        method: 'POST',
-        body: JSON.stringify({
-            ...(opts.offsetMs == null ? {} : { offsetMs: opts.offsetMs }),
-            qualityId: opts.qualityId && opts.qualityId !== 'auto' ? opts.qualityId : undefined,
-            mediaIndex: opts.mediaIndex,
-            audioLanguage: opts.audioLanguage || undefined,
-            subtitleMode: opts.subtitleMode || undefined,
-            client: 'web',
-            canPlayHevc: caps.hevc,
-            canPlayAc3: caps.ac3,
-            canPlayNativeHls: caps.hls,
-        }),
-    }) as Promise<PlayerPlaySession>;
+    const qs = new URLSearchParams({ client: 'web' });
+    if (opts.offsetMs != null) qs.set('offsetMs', String(opts.offsetMs));
+    if (opts.qualityId && opts.qualityId !== 'auto') qs.set('qualityId', opts.qualityId);
+    if (opts.mediaIndex != null) qs.set('mediaIndex', String(opts.mediaIndex));
+    if (opts.audioLanguage) qs.set('audioLanguage', opts.audioLanguage);
+    if (opts.subtitleMode) qs.set('subtitleMode', opts.subtitleMode);
+    if (caps.hevc) qs.set('canPlayHevc', '1');
+    if (caps.ac3) qs.set('canPlayAc3', '1');
+    if (caps.hls) qs.set('canPlayNativeHls', '1');
+    return apiFetch(`${PLAYER_API_ROOT}/play/${encodeURIComponent(ratingKey)}?${qs}`) as Promise<PlayerPlaySession>;
 };
 
 export const reportMediaPlayerTimeline = (payload: {
