@@ -168,6 +168,14 @@ export const playSessionIdFromSrc = (src?: string | null) => {
     return PLAY_SESSION_ID.test(id) ? id : '';
 };
 
+export const playbackQueryParam = (src: string | null | undefined, key: string) => (
+    new URLSearchParams(String(src || '').split('?')[1] || '').get(key) || ''
+);
+
+export const audioStreamIdFromSrc = (src?: string | null) => playbackQueryParam(src, 'audioStreamID').replace(/\D/g, '');
+
+export const subtitleStreamIdFromSrc = (src?: string | null) => playbackQueryParam(src, 'subtitleStreamID').replace(/\D/g, '');
+
 export const isHlsPlaybackSrc = (src?: string | null) => /\.m3u8(\?|$)/i.test(String(src || ''));
 
 export const isFilePlaybackSrc = (src?: string | null) => (

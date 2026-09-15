@@ -32,10 +32,13 @@ import {
     buildPlaybackSrc,
     canUseNativeHls,
     isHlsPlaybackSrc,
+    isFilePlaybackSrc,
     offsetMsFromSrc,
     playbackModeFromSrc,
     plexImageUrl,
     PLAYBACK_SPEEDS,
+    audioStreamIdFromSrc,
+    subtitleStreamIdFromSrc,
 } from './playerUtils';
 import { fetchMediaPlayerNeighbors, reportMediaPlayerTimeline, stopMediaPlayerTranscode } from './api';
 import { PlayerSeekBar } from './PlayerSeekBar';
@@ -578,6 +581,8 @@ export const MediaPlayerVideo: React.FC<Props> = ({
                 state,
                 timeMs,
                 durationMs: nextDuration,
+                audioStreamId: audioStreamIdFromSrc(playbackSrc) || audioStreamId,
+                subtitleStreamId: isFilePlaybackSrc(playbackSrc) ? '' : subtitleStreamIdFromSrc(playbackSrc),
             });
         };
         sendTimelineRef.current = send;
@@ -591,7 +596,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({
             sendTimelineRef.current = () => {};
             send('stopped');
         };
-    }, [session.item.ratingKey, session.sessionId, playbackSrc]);
+    }, [session.item.ratingKey, session.sessionId, playbackSrc, audioStreamId]);
 
     useEffect(() => {
         if (!('mediaSession' in navigator)) return undefined;
@@ -940,7 +945,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({
             qualityId: qualityId || session.qualityId || 'original',
             audioStreamId,
             subtitleStreamId,
-            directFile: !!session.canDirectPlay,
+            directFile: !!session.canDirectPlay && !String(subtitleStreamId || '').replace(/\D/g, ''),
             copy: (qualityId || session.qualityId) !== 'original' || session.canCopyOriginal !== false,
             mediaIndex: session.mediaIndex || 0,
         }));

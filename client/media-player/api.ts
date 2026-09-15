@@ -197,6 +197,8 @@ export const reportMediaPlayerTimeline = (payload: {
     state: 'playing' | 'paused' | 'buffering' | 'stopped';
     timeMs: number;
     durationMs: number;
+    audioStreamId?: string | null;
+    subtitleStreamId?: string | null;
 }) => (
     apiFetch(`${PLAYER_API_ROOT}/timeline`, {
         method: 'POST',
