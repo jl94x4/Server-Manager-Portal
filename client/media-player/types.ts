@@ -55,6 +55,13 @@ export type PlayerMediaInfo = {
     parts: PlayerMediaPartInfo[];
 };
 
+export type PlayerPersonCredit = {
+    id: string;
+    name: string;
+    role: string;
+    thumb?: string | null;
+};
+
 export type PlayerItem = {
     ratingKey: string;
     title: string;
@@ -78,7 +85,10 @@ export type PlayerItem = {
     originallyAvailableAt?: string | null;
     tmdbId?: number | null;
     genres?: string[];
+    countries?: string[];
+    collections?: string[];
     addedAt?: number | null;
+    lastViewedAt?: number | null;
     viewedLeafCount?: number | null;
     extraType?: string | null;
     extraSubtype?: string | null;
@@ -92,7 +102,11 @@ export type PlayerItem = {
     studio?: string;
     directors?: string[];
     writers?: string[];
-    cast?: Array<{ id: string; name: string; role: string; thumb?: string | null }>;
+    directorPeople?: PlayerPersonCredit[];
+    writerPeople?: PlayerPersonCredit[];
+    producers?: PlayerPersonCredit[];
+    cast?: PlayerPersonCredit[];
+    guestStars?: PlayerPersonCredit[];
     ratings?: PlayerRatings;
     mediaInfo?: PlayerMediaInfo[];
     versions?: PlayerVersion[];

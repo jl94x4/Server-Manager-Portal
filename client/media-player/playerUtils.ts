@@ -95,6 +95,23 @@ export const formatEpisodeCode = (item?: PlayerItem | null) => {
     return `S${season} · E${episode}`;
 };
 
+export const formatPlayerDate = (value?: string | number | null, locale = 'en') => {
+    if (value == null || value === '') return '';
+    const raw = String(value);
+    let date: Date;
+    if (typeof value === 'number' || /^\d+$/.test(raw)) {
+        const stamp = Number(value);
+        date = new Date(stamp * (stamp > 1e12 ? 1 : 1000));
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+        const [year, month, day] = raw.split('-').map(Number);
+        date = new Date(year, month - 1, day);
+    } else {
+        date = new Date(raw);
+    }
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString(locale || 'en', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
 export const unwatchedCount = (item?: PlayerItem | null) => {
     if (!item || (item.type !== 'show' && item.type !== 'season')) return 0;
     const leaves = Number(item.leafCount || 0);
