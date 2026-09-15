@@ -1373,6 +1373,7 @@ const portalCsrfMiddleware = (req, res, next) => {
     if (String(req.path || '').startsWith('/api/editions/webhook')) return next();
     if (String(req.path || '').startsWith('/api/poster-sets/webhook')) return next();
     if (String(req.path || '').startsWith('/api/overlays/collexions-collection-updated')) return next();
+    const headerOk = String(req.get(PORTAL_CSRF_HEADER) || '') === PORTAL_CSRF_VALUE;
     if (headerOk || isSameOriginApiRequest(req) || isBearerOnlyRequest(req)) return next();
     return res.status(403).json({ error: 'CSRF validation failed.' });
 };
