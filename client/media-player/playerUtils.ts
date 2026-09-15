@@ -2,11 +2,19 @@ import { portalUrl } from '../shared/basePath';
 import { PLAYER_API_ROOT, PLAYER_IMAGE_PATH } from './paths';
 import type { PlayerItem } from './types';
 
-export const plexImageUrl = (path?: string | null, width = 300, height = 450) => {
+export const plexImageUrl = (path?: string | null, width = 300, height = 450, opts?: { fit?: 'contain' | 'cover' }) => {
     if (!path) return '';
     if (path.startsWith('http') || path.startsWith('/api/')) return path;
-    return portalUrl(`${PLAYER_IMAGE_PATH}?path=${encodeURIComponent(path)}&width=${width}&height=${height}`);
+    const params = new URLSearchParams({
+        path,
+        width: String(width),
+        height: String(height),
+    });
+    if (opts?.fit === 'contain') params.set('fit', 'contain');
+    return portalUrl(`${PLAYER_IMAGE_PATH}?${params.toString()}`);
 };
+
+export const plexLogoUrl = (path?: string | null) => plexImageUrl(path, 1000, 360, { fit: 'contain' });
 
 export const plexBackdropUrl = (path?: string | null) => {
     if (!path) return '';

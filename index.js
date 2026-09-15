@@ -9188,10 +9188,11 @@ const isSafePlexMediaPath = (rawPath) => {
     return true;
 };
 
-const fetchPlexPosterBuffer = async (config, thumbPath, width, height) => {
+const fetchPlexPosterBuffer = async (config, thumbPath, width, height, { minSize = 1 } = {}) => {
     const fetchPoster = async () => {
         const uri = await getPlexConnectionUri(config);
-        const url = `${uri}/photo/:/transcode?url=${encodeURIComponent(thumbPath)}&width=${encodeURIComponent(width)}&height=${encodeURIComponent(height)}&minSize=1&upscale=0&quality=90&X-Plex-Token=${config.plexToken}`;
+        const fit = minSize === 0 ? 0 : 1;
+        const url = `${uri}/photo/:/transcode?url=${encodeURIComponent(thumbPath)}&width=${encodeURIComponent(width)}&height=${encodeURIComponent(height)}&minSize=${fit}&upscale=0&quality=90&X-Plex-Token=${config.plexToken}`;
         return fetchWithTimeout(url, { headers: plexClientHeaders(config.plexToken) }, 15000);
     };
     let response = null;
@@ -9279,16 +9280,19 @@ app.get('/api/plex/image', requireAuth, requireMember, async (req, res) => {
         const config = await loadFile(CONFIG_PATH, {});
         const transcodeWidth = Math.min(Math.max(parseInt(width, 10) || PLEX_POSTER_WIDTH, 16), PLEX_IMAGE_MAX_WIDTH);
         const transcodeHeight = Math.min(Math.max(parseInt(height, 10) || PLEX_POSTER_HEIGHT, 16), PLEX_IMAGE_MAX_HEIGHT);
+        const fitContain = String(req.query.fit || '').toLowerCase() === 'contain';
         const key = mediaImageCacheKey({
             source: 'plex',
-            id: String(thumbPath),
+            id: fitContain ? `${thumbPath}|contain` : String(thumbPath),
             width: transcodeWidth,
             height: transcodeHeight,
         });
         await serveMediaImage(
             res,
             key,
-            () => fetchPlexPosterBuffer(config, thumbPath, transcodeWidth, transcodeHeight),
+            () => fetchPlexPosterBuffer(config, thumbPath, transcodeWidth, transcodeHeight, {
+                minSize: fitContain ? 0 : 1,
+            }),
             failImage,
         );
     } catch (e) {

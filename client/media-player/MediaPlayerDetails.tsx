@@ -24,6 +24,7 @@ import {
     isPlayerTrailer,
     plexImageUrl,
     plexBackdropUrl,
+    plexLogoUrl,
     progressPercent,
     shouldOfferResume,
     titleCaseProfile,
@@ -88,6 +89,8 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
     const [error, setError] = useState<string | null>(null);
     const [posterFailed, setPosterFailed] = useState(false);
     const [backdropFailed, setBackdropFailed] = useState(false);
+    const [logoFailed, setLogoFailed] = useState(false);
+    const [logoReady, setLogoReady] = useState(false);
     const [mediaInfoOpen, setMediaInfoOpen] = useState(false);
     const [mediaIndex, setMediaIndex] = useState(0);
     const [playlists, setPlaylists] = useState<PlayerItem[]>([]);
@@ -100,6 +103,8 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
         setLoading(true);
         setPosterFailed(false);
         setBackdropFailed(false);
+        setLogoFailed(false);
+        setLogoReady(false);
         setMediaInfoOpen(false);
         fetchMediaPlayerItem(ratingKey)
             .then((data) => {
@@ -199,6 +204,8 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
 
     const posterUrl = plexImageUrl(item.thumb, item.type === 'episode' ? 960 : 600, item.type === 'episode' ? 540 : 900);
     const backdropUrl = plexBackdropUrl(item.art || item.thumb);
+    const logoUrl = plexLogoUrl(item.logo);
+    const showLogo = Boolean(logoUrl) && !logoFailed && logoReady;
     const isEpisodeGrid = children.some((row) => row.type === 'episode');
     const canPlay = !!item.canPlay;
     const playLabel = item.type === 'show' || item.type === 'season'
@@ -252,14 +259,29 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                 <span className="text-[10px] font-bold uppercase tracking-widest text-plex">{typeLabel(item.type)}</span>
             </div>
             {showName ? (
-                <button
-                    type="button"
-                    onClick={() => openCrumb(showKey)}
-                    disabled={!showKey}
-                    className="text-sm sm:text-lg font-black text-white/80 hover:text-plex transition-colors text-left disabled:hover:text-white/80 disabled:cursor-default"
-                >
-                    {showName}
-                </button>
+                showLogo ? (
+                    <button
+                        type="button"
+                        onClick={() => openCrumb(showKey)}
+                        disabled={!showKey}
+                        className="self-start text-left disabled:cursor-default"
+                    >
+                        <img
+                            src={logoUrl}
+                            alt={showName}
+                            className="h-10 sm:h-12 lg:h-16 w-auto max-w-[min(100%,26rem)] object-contain object-left drop-shadow-[0_10px_24px_rgba(0,0,0,0.7)]"
+                        />
+                    </button>
+                ) : (
+                    <button
+                        type="button"
+                        onClick={() => openCrumb(showKey)}
+                        disabled={!showKey}
+                        className="text-sm sm:text-lg font-black text-white/80 hover:text-plex transition-colors text-left disabled:hover:text-white/80 disabled:cursor-default"
+                    >
+                        {showName}
+                    </button>
+                )
             ) : null}
             {seasonName ? (
                 <button
@@ -271,9 +293,20 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                     {seasonName}
                 </button>
             ) : null}
-            <h1 className="text-2xl sm:text-3xl lg:text-5xl font-black text-white leading-[1.08] tracking-tight drop-shadow-lg">
-                {item.title}
-            </h1>
+            {showLogo && !showName ? (
+                <>
+                    <img
+                        src={logoUrl}
+                        alt={item.title}
+                        className="h-14 sm:h-20 lg:h-[6.5rem] w-auto max-w-[min(100%,32rem)] object-contain object-left drop-shadow-[0_12px_28px_rgba(0,0,0,0.75)]"
+                    />
+                    <h1 className="sr-only">{item.title}</h1>
+                </>
+            ) : (
+                <h1 className="text-2xl sm:text-3xl lg:text-5xl font-black text-white leading-[1.08] tracking-tight drop-shadow-lg">
+                    {item.title}
+                </h1>
+            )}
             {item.tagline ? (
                 <p className="text-sm sm:text-base text-white/55 italic max-w-4xl">{item.tagline}</p>
             ) : null}
@@ -315,6 +348,15 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                 </div>
 
                 <div className="relative z-10 w-full max-w-[1600px] mx-auto page-x sm:px-8 xl:px-12 pt-4 sm:pt-5 pb-8">
+                    {logoUrl && !logoFailed ? (
+                        <img
+                            src={logoUrl}
+                            alt=""
+                            className="hidden"
+                            onLoad={() => setLogoReady(true)}
+                            onError={() => setLogoFailed(true)}
+                        />
+                    ) : null}
                     <button
                         type="button"
                         onClick={onBack}

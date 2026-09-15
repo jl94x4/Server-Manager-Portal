@@ -148,6 +148,15 @@ const hlsErrorMessage = (data: { response?: { code?: number; text?: string; data
     return fallback;
 };
 
+const stopPlaybackSession = (sessionId?: string | null) => {
+    const id = String(sessionId || '').trim();
+    if (!id) return Promise.resolve();
+    return Promise.race([
+        stopMediaPlayerTranscode(id),
+        new Promise<void>((resolve) => window.setTimeout(resolve, 4000)),
+    ]);
+};
+
 const TrackPicker: React.FC<{
     label: string;
     value: string;
@@ -270,6 +279,8 @@ export const MediaPlayerVideo: React.FC<Props> = ({
     const clickTimerRef = useRef<number>(0);
     const lastTapRef = useRef<{ at: number; x: number } | null>(null);
     const hideTimerRef = useRef<number>(0);
+    const streamRestartGenRef = useRef(0);
+    const playbackSrcRef = useRef(session.src);
 
     const qualities = session.qualities || [];
     const audioTracks = session.audioTracks || [];
@@ -307,6 +318,8 @@ export const MediaPlayerVideo: React.FC<Props> = ({
     }, [muted, speed, volume]);
 
     useEffect(() => {
+        streamRestartGenRef.current += 1;
+        playbackSrcRef.current = session.src;
         setPlaybackSrc(session.src);
         setQualityId(session.qualityId || '');
         setAudioStreamId(session.audioStreamId || '');
@@ -324,6 +337,21 @@ export const MediaPlayerVideo: React.FC<Props> = ({
         setControlsVisible(true);
         fallbackUsedRef.current = false;
     }, [session.sessionId]);
+
+    useEffect(() => {
+        playbackSrcRef.current = playbackSrc;
+    }, [playbackSrc]);
+
+    const swapPlaybackSrc = (nextSrc: string, nextMode?: typeof playbackMode) => {
+        const previous = playSessionIdFromSrc(playbackSrcRef.current);
+        const gen = ++streamRestartGenRef.current;
+        if (nextMode) setPlaybackMode(nextMode);
+        void stopPlaybackSession(previous).finally(() => {
+            if (streamRestartGenRef.current !== gen) return;
+            playbackSrcRef.current = nextSrc;
+            setPlaybackSrc(nextSrc);
+        });
+    };
 
     useEffect(() => {
         if (session.item.type !== 'episode') {
@@ -445,8 +473,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({
                     mediaIndex: session.mediaIndex || 0,
                 });
                 if (nextSrc !== playbackSrc) {
-                    setPlaybackMode('transcode');
-                    setPlaybackSrc(nextSrc);
+                    swapPlaybackSrc(nextSrc, 'transcode');
                     return;
                 }
             }
@@ -515,7 +542,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({
 
     useEffect(() => {
         const ratingKey = session.item.ratingKey;
-        const sessionId = session.sessionId;
+        const sessionId = playSessionIdFromSrc(playbackSrc) || session.sessionId;
         if (!ratingKey || !sessionId) return undefined;
         const send = (state: 'playing' | 'paused' | 'buffering' | 'stopped') => {
             const video = videoRef.current;
@@ -545,7 +572,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({
             sendTimelineRef.current = () => {};
             send('stopped');
         };
-    }, [session.item.ratingKey, session.sessionId]);
+    }, [session.item.ratingKey, session.sessionId, playbackSrc]);
 
     useEffect(() => {
         if (!('mediaSession' in navigator)) return undefined;
@@ -710,18 +737,20 @@ export const MediaPlayerVideo: React.FC<Props> = ({
             0,
             Math.floor(((videoRef.current?.currentTime || 0) * 1000) || currentMsRef.current || 0),
         );
+        const audioUnchanged = !nextAudio || nextAudio === (session.audioStreamId || audioStreamId);
         const nextSrc = buildPlaybackSrc(session.item.ratingKey, {
             sessionId: newPlaySessionId(),
             offsetMs: offset,
             qualityId: nextQuality,
             audioStreamId: nextAudio,
             subtitleStreamId: nextSub,
-            directFile: !!session.canDirectPlay,
+            directFile: !!session.canDirectPlay && (nextQuality === 'original' || !nextQuality) && !String(nextSub || '').replace(/\D/g, '') && audioUnchanged,
             copy: nextQuality !== 'original' || session.canCopyOriginal !== false,
             mediaIndex: session.mediaIndex || 0,
         });
-        setPlaybackMode(playbackModeFromSrc(nextSrc, nextQuality, session.canCopyOriginal));
-        setPlaybackSrc(nextSrc);
+        fallbackUsedRef.current = false;
+        setError(null);
+        swapPlaybackSrc(nextSrc, playbackModeFromSrc(nextSrc, nextQuality, session.canCopyOriginal));
     };
 
     const togglePlayback = () => {
@@ -799,7 +828,8 @@ export const MediaPlayerVideo: React.FC<Props> = ({
         setError(null);
         fallbackUsedRef.current = false;
         const offset = Math.max(0, Math.floor(currentMsRef.current || session.offsetMs || 0));
-        setPlaybackSrc(buildPlaybackSrc(session.item.ratingKey, {
+        fallbackUsedRef.current = false;
+        swapPlaybackSrc(buildPlaybackSrc(session.item.ratingKey, {
             sessionId: newPlaySessionId(),
             offsetMs: offset,
             qualityId: qualityId || session.qualityId || 'original',

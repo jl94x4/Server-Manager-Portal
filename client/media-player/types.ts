@@ -72,6 +72,7 @@ export type PlayerItem = {
     summary?: string;
     thumb?: string | null;
     art?: string | null;
+    logo?: string | null;
     durationMs?: number | null;
     viewOffsetMs?: number;
     index?: number | null;
