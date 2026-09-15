@@ -64,7 +64,10 @@ export const MediaPlayerCollection: React.FC<Props> = ({ ratingKey, onBack, onOp
             </div>
 
             {loading ? (
-                <PosterGridSkeleton />
+                    <PosterGridSkeleton
+                        className={upgraderPosterGridClass(gridSize)}
+                        style={upgraderPosterGridStyle(gridSize)}
+                    />
             ) : error ? (
                 <div className={discoveryTheme.emptyState}>
                     <p className={discoveryTheme.emptyTitle}>{error}</p>

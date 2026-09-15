@@ -92,7 +92,10 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary, on
     const recentRails = useMemo(() => {
         const rows = home?.recentByLibrary || [];
         if (!settings.mixLibraries) {
-            return rows.map((row) => ({ title: row.library.title, items: row.items }));
+            return rows.map((row) => ({
+                title: t('mediaPlayerPage.recentlyAddedIn', { name: row.library.title }),
+                items: row.items,
+            }));
         }
         const movies: PlayerItem[] = [];
         const shows: PlayerItem[] = [];

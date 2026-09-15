@@ -6,7 +6,7 @@ import { portalUrl } from '../shared/basePath';
 import { lockBackgroundScroll } from '../shared/lockBackgroundScroll';
 import { PORTAL_CSRF_HEADER, PORTAL_CSRF_VALUE } from '../shared/api';
 import { useDiscoverI18n } from '../discovery/i18n';
-import { formatClock, newPlaySessionId, playSessionIdFromSrc, withPlayerStreamQuery } from './playerUtils';
+import { formatClock, newPlaySessionId, playSessionIdFromSrc, buildPlaybackSrc, isHlsPlaybackSrc, offsetMsFromSrc } from './playerUtils';
 import { reportMediaPlayerTimeline, stopMediaPlayerTranscode } from './api';
 import type { PlayerPlaySession } from './types';
 
@@ -206,8 +206,12 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
         setReady(false);
         setPaused(true);
 
+        const startAt = isHlsPlaybackSrc(playbackSrc) ? 0 : offsetMsFromSrc(playbackSrc) / 1000;
         const onReady = () => {
             if (cancelled) return;
+            if (startAt > 1 && Math.abs(video.currentTime - startAt) > 1) {
+                video.currentTime = startAt;
+            }
             setReady(true);
             void video.play().then(() => {
                 if (!cancelled) setPaused(false);
@@ -221,7 +225,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
             setError(message || t('mediaPlayerPage.playError'));
         };
 
-        if (Hls.isSupported()) {
+        if (Hls.isSupported() && isHlsPlaybackSrc(playbackSrc)) {
             const hls = new Hls({
                 enableWorker: false,
                 lowLatencyMode: false,
@@ -249,12 +253,14 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
                 try { hls.destroy(); } catch { /* ignore */ }
                 fail(hlsErrorMessage(data, t('mediaPlayerPage.playError')));
             });
-        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        } else if (isHlsPlaybackSrc(playbackSrc) && video.canPlayType('application/vnd.apple.mpegurl')) {
             video.src = src;
             video.addEventListener('loadedmetadata', onReady, { once: true });
             video.addEventListener('error', () => fail(), { once: true });
         } else {
-            fail();
+            video.src = src;
+            video.addEventListener('loadedmetadata', onReady, { once: true });
+            video.addEventListener('error', () => fail(), { once: true });
         }
 
         return () => {
@@ -358,12 +364,12 @@ export const MediaPlayerVideo: React.FC<Props> = ({ session, onClose, autoplayNe
             0,
             Math.floor(((videoRef.current?.currentTime || 0) * 1000) || currentMsRef.current || 0),
         );
-        setPlaybackSrc(withPlayerStreamQuery(session.src, {
-            session: newPlaySessionId(),
-            offset,
-            quality: nextQuality || null,
-            audioStreamID: nextAudio || null,
-            subtitleStreamID: nextSub || null,
+        setPlaybackSrc(buildPlaybackSrc(session.item.ratingKey, {
+            sessionId: newPlaySessionId(),
+            offsetMs: offset,
+            qualityId: nextQuality,
+            audioStreamId: nextAudio,
+            subtitleStreamId: nextSub,
         }));
     };
 

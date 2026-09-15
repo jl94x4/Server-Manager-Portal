@@ -4,7 +4,7 @@ import { DiscoverGridSizeSelect } from '../discovery/DiscoverGridSizeSelect';
 import { useDiscoverGridSize } from '../discovery/useDiscoverGridSize';
 import { discoveryTheme } from '../discovery/discoveryThemeClasses';
 import { useDiscoverI18n } from '../discovery/i18n';
-import { PosterGridSkeleton } from '../shared/skeletons';
+import { DiscoverHomeRowSkeleton, PosterGridSkeleton } from '../shared/skeletons';
 import { upgraderPosterGridClass, upgraderPosterGridStyle } from '../shared/portalLayout';
 import {
     fetchMediaPlayerCollections,
@@ -245,7 +245,18 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
             ) : null}
 
             {loading ? (
-                <PosterGridSkeleton />
+                tab === 'home' ? (
+                    <div className="flex flex-col gap-6">
+                        <DiscoverHomeRowSkeleton />
+                        <DiscoverHomeRowSkeleton />
+                        <DiscoverHomeRowSkeleton />
+                    </div>
+                ) : (
+                    <PosterGridSkeleton
+                        className={upgraderPosterGridClass(gridSize)}
+                        style={upgraderPosterGridStyle(gridSize)}
+                    />
+                )
             ) : error ? (
                 <div className={discoveryTheme.emptyState}>
                     <p className={discoveryTheme.emptyTitle}>{error}</p>

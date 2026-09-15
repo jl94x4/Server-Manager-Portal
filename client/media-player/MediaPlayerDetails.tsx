@@ -390,7 +390,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                     key={row.ratingKey}
                                     type="button"
                                     onClick={() => onOpenItem(row)}
-                                    className="group min-w-0 text-left"
+                                    className="group min-w-0 w-[85%] text-left"
                                 >
                                     <div className="overflow-hidden rounded-xl border border-white/10 bg-black/30">
                                         {row.thumb ? (
@@ -466,18 +466,18 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                         name: actor.name,
                                         thumb: actor.thumb,
                                     })}
-                                    className="group flex flex-col items-center gap-3 w-36 sm:w-40 flex-shrink-0 snap-start text-center"
+                                    className="group flex flex-col items-center gap-3 w-40 flex-shrink-0 snap-start text-center"
                                 >
-                                    <div className="w-32 h-32 rounded-full bg-white/5 border-2 border-border overflow-hidden transition-transform group-hover:scale-[1.03] group-hover:border-plex">
+                                    <div className="w-36 h-36 rounded-full bg-white/5 border-2 border-border overflow-hidden transition-transform group-hover:scale-[1.03] group-hover:border-plex">
                                         {actor.thumb ? (
                                             <img
-                                                src={plexImageUrl(actor.thumb, 300, 300)}
+                                                src={plexImageUrl(actor.thumb, 400, 400)}
                                                 alt=""
                                                 className="w-full h-full object-cover"
                                             />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center text-muted bg-white/5">
-                                                <Users className="w-10 h-10" />
+                                                <Users className="w-12 h-12" />
                                             </div>
                                         )}
                                     </div>

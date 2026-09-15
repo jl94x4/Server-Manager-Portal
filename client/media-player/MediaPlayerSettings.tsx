@@ -15,7 +15,8 @@ export const MediaPlayerSettings: React.FC<Props> = ({ settings, onChange, onClo
     const { t } = useDiscoverI18n();
     const qualityOptions = [
         { id: 'auto', label: t('mediaPlayerPage.qualityAuto') },
-        ...PLAYER_QUALITY_CHOICES.map((row) => ({ id: row.id, label: row.label })),
+        { id: 'original', label: t('mediaPlayerPage.qualityOriginal') },
+        ...PLAYER_QUALITY_CHOICES.filter((row) => row.id !== 'original').map((row) => ({ id: row.id, label: row.label })),
     ];
 
     const overlay = (

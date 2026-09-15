@@ -38,16 +38,18 @@ export const PlayerPosterCard: React.FC<Props> = ({
                         </div>
                     ) : null}
                     {canHoverPlay ? (
-                        <div
-                            className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100"
-                            onClick={(event) => {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                onPlay?.(item);
-                            }}
-                            role="presentation"
-                        >
-                            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-plex text-black shadow-lg">
+                        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                            <span
+                                role="button"
+                                tabIndex={-1}
+                                aria-label="Play"
+                                className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full bg-plex text-black shadow-lg"
+                                onClick={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    onPlay?.(item);
+                                }}
+                            >
                                 <Play className="h-5 w-5 fill-current" />
                             </span>
                         </div>

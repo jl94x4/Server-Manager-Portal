@@ -110,3 +110,31 @@ export const playSessionIdFromSrc = (src?: string | null) => {
     const id = new URLSearchParams(String(src || '').split('?')[1] || '').get('session') || '';
     return PLAY_SESSION_ID.test(id) ? id : '';
 };
+
+export const isHlsPlaybackSrc = (src?: string | null) => /\.m3u8(\?|$)/i.test(String(src || ''));
+
+export const offsetMsFromSrc = (src?: string | null) => (
+    Math.max(0, Math.floor(Number(new URLSearchParams(String(src || '').split('?')[1] || '').get('offset') || 0)))
+);
+
+export const buildPlaybackSrc = (ratingKey: string, {
+    sessionId = '',
+    offsetMs = 0,
+    qualityId = '',
+    audioStreamId = '',
+    subtitleStreamId = '',
+}: {
+    sessionId?: string;
+    offsetMs?: number;
+    qualityId?: string;
+    audioStreamId?: string | null;
+    subtitleStreamId?: string | null;
+} = {}) => {
+    const qs = new URLSearchParams();
+    if (PLAY_SESSION_ID.test(String(sessionId || ''))) qs.set('session', String(sessionId));
+    if (Number(offsetMs) > 0) qs.set('offset', String(Math.floor(Number(offsetMs))));
+    if (qualityId) qs.set('quality', String(qualityId));
+    if (String(audioStreamId || '').replace(/\D/g, '')) qs.set('audioStreamID', String(audioStreamId).replace(/\D/g, ''));
+    if (String(subtitleStreamId || '').replace(/\D/g, '')) qs.set('subtitleStreamID', String(subtitleStreamId).replace(/\D/g, ''));
+    return `/api/media-player/hls/${encodeURIComponent(ratingKey)}/master.m3u8?${qs}`;
+};

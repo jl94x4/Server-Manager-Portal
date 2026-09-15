@@ -86,7 +86,10 @@ export const MediaPlayerPerson: React.FC<Props> = ({ actorId, name, thumb, onBac
             </div>
 
             {loading ? (
-                <PosterGridSkeleton />
+                    <PosterGridSkeleton
+                        className={upgraderPosterGridClass(gridSize)}
+                        style={upgraderPosterGridStyle(gridSize)}
+                    />
             ) : error ? (
                 <div className={discoveryTheme.emptyState}>
                     <p className={discoveryTheme.emptyTitle}>{error}</p>

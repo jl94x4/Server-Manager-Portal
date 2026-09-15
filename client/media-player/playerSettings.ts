@@ -6,6 +6,7 @@ export type PlayerSettings = {
 };
 
 export const PLAYER_QUALITY_CHOICES = [
+    { id: 'original', label: 'Original' },
     { id: '1080-20', label: '1080p · 20 Mbps' },
     { id: '1080-12', label: '1080p · 12 Mbps' },
     { id: '1080-8', label: '1080p · 8 Mbps' },
@@ -19,7 +20,7 @@ export const PLAYER_SETTINGS_KEY = 'portal-media-player-settings';
 export const PLAYER_SETTINGS_EVENT = 'portal-media-player-settings';
 
 export const DEFAULT_PLAYER_SETTINGS: PlayerSettings = {
-    mixLibraries: true,
+    mixLibraries: false,
     autoplayNext: true,
     showContinueWatching: true,
     defaultQualityId: 'auto',
@@ -32,7 +33,7 @@ export const readPlayerSettings = (): PlayerSettings => {
         if (!raw) return { ...DEFAULT_PLAYER_SETTINGS };
         const parsed = JSON.parse(raw) || {};
         return {
-            mixLibraries: parsed.mixLibraries !== false,
+            mixLibraries: parsed.mixLibraries === true,
             autoplayNext: parsed.autoplayNext !== false,
             showContinueWatching: parsed.showContinueWatching !== false,
             defaultQualityId: String(parsed.defaultQualityId || 'auto'),

@@ -31,16 +31,24 @@ export const PosterCardSkeleton: React.FC<{
     </div>
 );
 
-export const PosterGridSkeleton: React.FC<{ count?: number; aspect?: '2/3' | 'square'; rows?: number }> = ({
+export const PosterGridSkeleton: React.FC<{
+    count?: number;
+    aspect?: '2/3' | 'square';
+    rows?: number;
+    className?: string;
+    style?: React.CSSProperties;
+}> = ({
     count,
     aspect = '2/3',
     rows = 2,
+    className,
+    style,
 }) => {
     const { grid: defaultCount } = useSkeletonLayoutCounts({ gridRows: rows });
     const itemCount = count ?? defaultCount;
 
     return (
-        <div className={discoverPosterGridClass} aria-hidden="true">
+        <div className={className || discoverPosterGridClass} style={style} aria-hidden="true">
             {Array.from({ length: itemCount }, (_, i) => (
                 <PosterCardSkeleton key={i} aspect={aspect} variant="discover" />
             ))}
