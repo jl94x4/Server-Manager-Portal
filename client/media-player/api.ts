@@ -98,6 +98,13 @@ export const fetchMediaPlayerNext = (ratingKey: string) => (
     apiFetch(`${PLAYER_API_ROOT}/next/${encodeURIComponent(ratingKey)}`) as Promise<{ item: PlayerItem | null }>
 );
 
+export const fetchMediaPlayerNeighbors = (ratingKey: string) => (
+    apiFetch(`${PLAYER_API_ROOT}/neighbors/${encodeURIComponent(ratingKey)}`) as Promise<{
+        previous: PlayerItem | null;
+        next: PlayerItem | null;
+    }>
+);
+
 export const fetchMediaPlayerItem = (ratingKey: string) => (
     apiFetch(`${PLAYER_API_ROOT}/item/${encodeURIComponent(ratingKey)}`) as Promise<PlayerItemPage>
 );

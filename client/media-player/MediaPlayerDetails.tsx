@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Calendar, Clock, Eye, EyeOff, Film, Info, ListPlus, Loader2, Play, Star, Tv, Users } from 'lucide-react';
 import {
     Carousel,
+    CustomSelect,
     DiscoveryFactWidget,
     MediaRatingPills,
     NoPosterPlaceholder,
@@ -15,11 +16,15 @@ import { PlayerRail } from './PlayerRail';
 import { usePlayerSettings } from './usePlayerSettings';
 import {
     formatBitrateMbps,
+    formatClock,
+    formatEpisodeCode,
     formatPlayerDuration,
     formatPlayerResolution,
     isPlayerTrailer,
     plexImageUrl,
+    plexBackdropUrl,
     progressPercent,
+    shouldOfferResume,
     titleCaseProfile,
 } from './playerUtils';
 import type { PlayerItem, PlayerLibraryHub, PlayerPlayOptions, PlayerRatings } from './types';
@@ -76,6 +81,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
     const [children, setChildren] = useState<PlayerItem[]>([]);
     const [extras, setExtras] = useState<PlayerItem[]>([]);
     const [related, setRelated] = useState<PlayerLibraryHub[]>([]);
+    const [onDeck, setOnDeck] = useState<PlayerItem | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [posterFailed, setPosterFailed] = useState(false);
@@ -100,6 +106,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                 setChildren(data.children || []);
                 setExtras(data.extras || []);
                 setRelated(data.related || []);
+                setOnDeck(data.onDeck || null);
                 setMediaIndex(0);
                 setPlaylistOpen(false);
                 setPlaylistMessage('');
@@ -172,8 +179,8 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
         );
     }
 
-    const posterUrl = plexImageUrl(item.thumb, item.type === 'episode' ? 640 : 400, item.type === 'episode' ? 360 : 600);
-    const backdropUrl = plexImageUrl(item.art || item.thumb, 1280, 720);
+    const posterUrl = plexImageUrl(item.thumb, item.type === 'episode' ? 960 : 600, item.type === 'episode' ? 540 : 900);
+    const backdropUrl = plexBackdropUrl(item.art || item.thumb);
     const isEpisodeGrid = children.some((row) => row.type === 'episode');
     const canPlay = !!item.canPlay;
     const playLabel = item.type === 'show' || item.type === 'season'
@@ -284,7 +291,9 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                         <img
                             src={backdropUrl}
                             alt=""
-                            className="absolute inset-0 w-full h-full object-cover scale-110 object-[32%_30%] opacity-45 md:scale-[1.15] md:object-[22%_28%] md:opacity-90"
+                            className="absolute inset-0 w-full h-full object-cover object-[32%_30%] opacity-45 md:object-[22%_28%] md:opacity-90"
+                            fetchPriority="high"
+                            decoding="async"
                             onError={() => setBackdropFailed(true)}
                         />
                     ) : (
@@ -320,7 +329,45 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                     {titleBlock}
                                 </div>
                             </div>
-                            {canPlay ? (
+                            {onDeck ? (
+                                <button
+                                    type="button"
+                                    onClick={() => onPlay(onDeck, { mediaIndex })}
+                                    disabled={playing}
+                                    className="w-full overflow-hidden rounded-xl border border-white/15 bg-black/50 text-left shadow-lg transition-colors hover:border-plex/60 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <div className="relative aspect-video w-full bg-black/40">
+                                        {onDeck.thumb ? (
+                                            <img src={plexImageUrl(onDeck.thumb, 640, 360)} alt="" className="h-full w-full object-cover" />
+                                        ) : (
+                                            <NoPosterPlaceholder />
+                                        )}
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/25">
+                                            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-plex text-black shadow-lg">
+                                                {playing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5 fill-current" />}
+                                            </span>
+                                        </div>
+                                        {progressPercent(onDeck) > 0 ? (
+                                            <div className="absolute inset-x-0 bottom-0 h-1.5 bg-black/70">
+                                                <div className="h-full bg-plex" style={{ width: `${progressPercent(onDeck)}%` }} />
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                    <div className="px-3 py-3">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-plex">
+                                            {t('mediaPlayerPage.playNextEpisode')}
+                                        </p>
+                                        <p className="mt-1 text-sm font-black text-white">
+                                            {[formatEpisodeCode(onDeck), onDeck.title].filter(Boolean).join(' · ')}
+                                        </p>
+                                        {shouldOfferResume(onDeck) ? (
+                                            <p className="mt-1 text-xs font-bold text-white/70">
+                                                {t('mediaPlayerPage.resumeFrom', { time: formatClock(onDeck.viewOffsetMs) })}
+                                            </p>
+                                        ) : null}
+                                    </div>
+                                </button>
+                            ) : canPlay ? (
                                 <button
                                     type="button"
                                     onClick={() => onPlay(item, { mediaIndex })}
@@ -332,16 +379,14 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                 </button>
                             ) : null}
                             {(item.versions || []).length > 1 ? (
-                                <select
-                                    value={mediaIndex}
-                                    onChange={(event) => setMediaIndex(Number(event.target.value) || 0)}
-                                    className="w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2.5 text-xs font-bold text-white"
-                                    aria-label={t('mediaPlayerPage.selectVersion')}
-                                >
-                                    {(item.versions || []).map((row) => (
-                                        <option key={row.id} value={row.mediaIndex}>{row.label}</option>
-                                    ))}
-                                </select>
+                                <CustomSelect
+                                    value={String(mediaIndex)}
+                                    onChange={(value) => setMediaIndex(Number(value) || 0)}
+                                    options={(item.versions || []).map((row) => ({
+                                        value: String(row.mediaIndex),
+                                        label: row.label,
+                                    }))}
+                                />
                             ) : null}
                             {item.type === 'movie' || item.type === 'episode' || item.type === 'show' || item.type === 'season' ? (
                                 <div className="grid grid-cols-2 gap-2">

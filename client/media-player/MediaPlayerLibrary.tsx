@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import {
+    CustomSelect,
     DiscoverGridSizeSelect,
     DiscoverHomeRowSkeleton,
     discoveryTheme,
@@ -18,6 +19,7 @@ import {
     fetchMediaPlayerLibraryHome,
     setMediaPlayerWatched,
 } from './api';
+import { readLibraryBrowseState, writeLibraryBrowseState } from './playerMemory';
 import { MediaPlayerLibrariesPanel } from './MediaPlayerLibrariesPanel';
 import { PlayerPosterCard } from './PlayerPosterCard';
 import { PlayerRail } from './PlayerRail';
@@ -68,6 +70,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [hydrated, setHydrated] = useState(false);
     const [libraries, setLibraries] = useState<PlayerSection[]>([]);
     const [sort, setSort] = useState<string>('addedAt:desc');
     const [genre, setGenre] = useState('');
@@ -137,11 +140,11 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
     useEffect(() => {
         if (tab === 'home') void loadHome();
         else if (tab === 'collections') void loadCollections();
-        else {
+        else if (hydrated) {
             setItems([]);
             void loadBrowse(0, false);
         }
-    }, [loadBrowse, loadCollections, loadHome, tab]);
+    }, [hydrated, loadBrowse, loadCollections, loadHome, tab]);
 
     useEffect(() => {
         let cancelled = false;
@@ -179,13 +182,30 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
     }, [sectionKey]);
 
     useEffect(() => {
-        setGenre('');
-        setDecade('');
-        setResolution('');
-        setStudio('');
-        setUnwatched(false);
-        setInProgress(false);
+        const saved = readLibraryBrowseState(sectionKey);
+        setHydrated(false);
+        setSort(saved.sort);
+        setGenre(saved.genre);
+        setDecade(saved.decade);
+        setResolution(saved.resolution);
+        setStudio(saved.studio);
+        setUnwatched(saved.unwatched);
+        setInProgress(saved.inProgress);
+        setHydrated(true);
     }, [sectionKey]);
+
+    useEffect(() => {
+        if (!hydrated) return;
+        writeLibraryBrowseState(sectionKey, {
+            sort,
+            genre,
+            decade,
+            resolution,
+            studio,
+            unwatched,
+            inProgress,
+        });
+    }, [decade, genre, hydrated, inProgress, resolution, sectionKey, sort, studio, unwatched]);
 
     const patchWatched = (ratingKey: string, watched: boolean) => {
         const mapItems = (list: PlayerItem[]) => list.map((row) => (
@@ -266,65 +286,58 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
 
             {tab === 'browse' ? (
                 <div className="flex flex-wrap items-center gap-2">
-                    <select
+                    <CustomSelect
+                        compact
                         value={sort}
-                        onChange={(event) => setSort(event.target.value)}
-                        className="rounded-lg border border-border bg-white/5 px-3 py-2 text-xs font-bold text-text"
-                        aria-label={t('mediaPlayerPage.sortLabel')}
-                    >
-                        {SORT_IDS.map((id) => (
-                            <option key={id} value={id}>{sortLabels[id] || id}</option>
-                        ))}
-                    </select>
-                    <select
+                        onChange={setSort}
+                        className="min-w-[11rem]"
+                        options={SORT_IDS.map((id) => ({ value: id, label: sortLabels[id] || id }))}
+                    />
+                    <CustomSelect
+                        compact
                         value={genre}
-                        onChange={(event) => setGenre(event.target.value)}
-                        className="rounded-lg border border-border bg-white/5 px-3 py-2 text-xs font-bold text-text"
-                        aria-label={t('mediaPlayerPage.genre')}
-                    >
-                        <option value="">{t('mediaPlayerPage.allGenres')}</option>
-                        {genres.map((row) => (
-                            <option key={row.key} value={row.key}>{row.title}</option>
-                        ))}
-                    </select>
+                        onChange={setGenre}
+                        className="min-w-[10rem]"
+                        options={[
+                            { value: '', label: t('mediaPlayerPage.allGenres') },
+                            ...genres.map((row) => ({ value: row.key, label: row.title })),
+                        ]}
+                    />
                     {decades.length ? (
-                        <select
+                        <CustomSelect
+                            compact
                             value={decade}
-                            onChange={(event) => setDecade(event.target.value)}
-                            className="rounded-lg border border-border bg-white/5 px-3 py-2 text-xs font-bold text-text"
-                            aria-label={t('mediaPlayerPage.decade')}
-                        >
-                            <option value="">{t('mediaPlayerPage.allDecades')}</option>
-                            {decades.map((row) => (
-                                <option key={row.key} value={row.key}>{row.title}</option>
-                            ))}
-                        </select>
+                            onChange={setDecade}
+                            className="min-w-[10rem]"
+                            options={[
+                                { value: '', label: t('mediaPlayerPage.allDecades') },
+                                ...decades.map((row) => ({ value: row.key, label: row.title })),
+                            ]}
+                        />
                     ) : null}
                     {resolutions.length ? (
-                        <select
+                        <CustomSelect
+                            compact
                             value={resolution}
-                            onChange={(event) => setResolution(event.target.value)}
-                            className="rounded-lg border border-border bg-white/5 px-3 py-2 text-xs font-bold text-text"
-                            aria-label={t('mediaPlayerPage.resolution')}
-                        >
-                            <option value="">{t('mediaPlayerPage.allResolutions')}</option>
-                            {resolutions.map((row) => (
-                                <option key={row.key} value={row.key}>{row.title}</option>
-                            ))}
-                        </select>
+                            onChange={setResolution}
+                            className="min-w-[10rem]"
+                            options={[
+                                { value: '', label: t('mediaPlayerPage.allResolutions') },
+                                ...resolutions.map((row) => ({ value: row.key, label: row.title })),
+                            ]}
+                        />
                     ) : null}
                     {studios.length ? (
-                        <select
+                        <CustomSelect
+                            compact
                             value={studio}
-                            onChange={(event) => setStudio(event.target.value)}
-                            className="rounded-lg border border-border bg-white/5 px-3 py-2 text-xs font-bold text-text"
-                            aria-label={t('media.studio')}
-                        >
-                            <option value="">{t('mediaPlayerPage.allStudios')}</option>
-                            {studios.map((row) => (
-                                <option key={row.key} value={row.key}>{row.title}</option>
-                            ))}
-                        </select>
+                            onChange={setStudio}
+                            className="min-w-[10rem]"
+                            options={[
+                                { value: '', label: t('mediaPlayerPage.allStudios') },
+                                ...studios.map((row) => ({ value: row.key, label: row.title })),
+                            ]}
+                        />
                     ) : null}
                     <button
                         type="button"

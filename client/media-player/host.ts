@@ -24,8 +24,10 @@ export {
     upgraderPosterGridClass,
     upgraderPosterGridStyle,
 } from '../shared/portalLayout';
-export { SettingsToggleRow } from '../shared/ui';
+export { CustomSelect, SettingsToggleRow } from '../shared/ui';
+export { StickySaveBar } from '../shared/StickySaveBar';
 export { portalUrl, stripBasePath } from '../shared/basePath';
+export { PLAYER_EXIT_EVENT, exitToPortal } from './paths';
 export { lockBackgroundScroll } from '../shared/lockBackgroundScroll';
 export { PORTAL_CSRF_HEADER, PORTAL_CSRF_VALUE } from '../shared/api';
 export { ToastContainer, pushToast, type ToastMessage } from '../shared/toast';

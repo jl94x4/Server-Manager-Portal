@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchMediaPlayerSettings, saveMediaPlayerSettings } from './api';
 import {
     DEFAULT_PLAYER_SETTINGS,
@@ -11,10 +11,20 @@ import {
 } from './playerSettings';
 
 export const usePlayerSettings = () => {
-    const [settings, setSettings] = useState<PlayerSettings>(() => readPlayerSettings());
+    const [saved, setSaved] = useState<PlayerSettings>(() => readPlayerSettings());
+    const [draft, setDraft] = useState<PlayerSettings>(() => readPlayerSettings());
+    const [saving, setSaving] = useState(false);
+    const savedRef = useRef(saved);
+    const draftRef = useRef(draft);
+    savedRef.current = saved;
+    draftRef.current = draft;
 
     useEffect(() => {
-        const sync = () => setSettings(readPlayerSettings());
+        const sync = () => {
+            const next = readPlayerSettings();
+            setSaved(next);
+            setDraft((current) => (playerSettingsEqual(current, savedRef.current) ? next : current));
+        };
         window.addEventListener(PLAYER_SETTINGS_EVENT, sync);
         window.addEventListener('storage', sync);
         return () => {
@@ -31,7 +41,8 @@ export const usePlayerSettings = () => {
                 const remote = normalizePlayerSettings(data);
                 if (data.saved === true) {
                     writePlayerSettings(remote);
-                    setSettings(remote);
+                    setSaved(remote);
+                    setDraft((current) => (playerSettingsEqual(current, savedRef.current) ? remote : current));
                     return;
                 }
                 const local = readPlayerSettings();
@@ -44,11 +55,34 @@ export const usePlayerSettings = () => {
     }, []);
 
     const updateSettings = useCallback((patch: Partial<PlayerSettings>) => {
-        const next = normalizePlayerSettings({ ...readPlayerSettings(), ...patch });
-        writePlayerSettings(next);
-        setSettings(next);
-        void saveMediaPlayerSettings(next).catch(() => undefined);
+        setDraft((current) => normalizePlayerSettings({ ...current, ...patch }));
     }, []);
 
-    return [settings, updateSettings] as const;
+    const discardSettings = useCallback(() => {
+        setDraft(savedRef.current);
+    }, []);
+
+    const saveSettings = useCallback(async () => {
+        const next = normalizePlayerSettings(draftRef.current);
+        setSaving(true);
+        try {
+            await saveMediaPlayerSettings(next);
+            writePlayerSettings(next);
+            setSaved(next);
+            setDraft(next);
+        } finally {
+            setSaving(false);
+        }
+    }, []);
+
+    return [
+        draft,
+        updateSettings,
+        {
+            dirty: !playerSettingsEqual(draft, saved),
+            saving,
+            saveSettings,
+            discardSettings,
+        },
+    ] as const;
 };

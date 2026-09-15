@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     portalUrl,
     pushToast as appendToast,
@@ -7,8 +7,7 @@ import {
     useDiscoverI18n,
     type ToastMessage,
 } from './host';
-import { PLAYER_APP_BASE, PLAYER_NAVIGATE_EVENT } from './paths';
-import { startMediaPlayerPlayback } from './api';
+import { fetchMediaPlayerLibraries, startMediaPlayerPlayback } from './api';
 import { MediaPlayerHome } from './MediaPlayerHome';
 import { MediaPlayerLibrary } from './MediaPlayerLibrary';
 import { MediaPlayerCollection } from './MediaPlayerCollection';
@@ -17,8 +16,17 @@ import { MediaPlayerDetails } from './MediaPlayerDetails';
 import { MediaPlayerPerson } from './MediaPlayerPerson';
 import { MediaPlayerSettings } from './MediaPlayerSettings';
 import { MediaPlayerVideo } from './MediaPlayerVideo';
+import { MediaPlayerNav } from './MediaPlayerNav';
+import { PLAYER_APP_BASE, PLAYER_NAVIGATE_EVENT, PLAYER_SCROLL_ID } from './paths';
 import { usePlayerSettings } from './usePlayerSettings';
 import { formatClock, shouldOfferResume } from './playerUtils';
+import {
+    consumePlayerSearchFocus,
+    focusPlayerSearchInput,
+    requestPlayerSearchFocus,
+    restorePlayerHomeScrollWhenReady,
+    stashPlayerHomeScroll,
+} from './playerMemory';
 import type { PlayerItem, PlayerPlayOptions, PlayerPlaySession, PlayerSection } from './types';
 
 type PlayerPersonRef = { id: string; name: string; thumb?: string | null };
@@ -81,14 +89,24 @@ export const MediaPlayerDashboard: React.FC = () => {
     const { t } = useDiscoverI18n();
     const [settings] = usePlayerSettings();
     const [view, setView] = useState<PlayerView>(() => readPlayerView());
+    const [libraries, setLibraries] = useState<PlayerSection[]>([]);
     const [toasts, setToasts] = useState<ToastMessage[]>([]);
     const [playSession, setPlaySession] = useState<PlayerPlaySession | null>(null);
     const [startingPlay, setStartingPlay] = useState(false);
     const [pendingResume, setPendingResume] = useState<PendingResume | null>(null);
+    const viewKindRef = useRef(view.kind);
 
     const syncFromLocation = useCallback(() => {
         setView(readPlayerView());
     }, []);
+
+    useEffect(() => {
+        const previous = viewKindRef.current;
+        viewKindRef.current = view.kind;
+        if (previous === 'home' && view.kind !== 'home') stashPlayerHomeScroll();
+        if (view.kind !== 'home' || previous === 'home') return undefined;
+        return restorePlayerHomeScrollWhenReady();
+    }, [view.kind]);
 
     useEffect(() => {
         window.addEventListener('popstate', syncFromLocation);
@@ -98,6 +116,18 @@ export const MediaPlayerDashboard: React.FC = () => {
             window.removeEventListener(PLAYER_NAVIGATE_EVENT, syncFromLocation);
         };
     }, [syncFromLocation]);
+
+    useEffect(() => {
+        let cancelled = false;
+        fetchMediaPlayerLibraries()
+            .then((data) => {
+                if (!cancelled) setLibraries(data.libraries || []);
+            })
+            .catch(() => {
+                if (!cancelled) setLibraries([]);
+            });
+        return () => { cancelled = true; };
+    }, []);
 
     const navigate = useCallback((path: string) => {
         window.history.pushState({}, '', portalUrl(path));
@@ -139,6 +169,26 @@ export const MediaPlayerDashboard: React.FC = () => {
     }, [navigate]);
 
     const goHome = useCallback(() => navigate(PLAYER_APP_BASE), [navigate]);
+
+    const openSearch = useCallback(() => {
+        requestPlayerSearchFocus();
+        if (view.kind !== 'home') navigate(PLAYER_APP_BASE);
+        window.setTimeout(() => {
+            if (focusPlayerSearchInput()) consumePlayerSearchFocus();
+        }, 80);
+    }, [navigate, view.kind]);
+
+    useEffect(() => {
+        const onKey = (event: KeyboardEvent) => {
+            if (event.key !== '/' || event.metaKey || event.ctrlKey || event.altKey) return;
+            const tag = String((event.target as HTMLElement | null)?.tagName || '').toLowerCase();
+            if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+            event.preventDefault();
+            openSearch();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [openSearch]);
 
     const goBack = useCallback(() => {
         if (window.history.length > 1) window.history.back();
@@ -186,15 +236,36 @@ export const MediaPlayerDashboard: React.FC = () => {
     }, [navigate, startPlayback, t]);
 
     const openSettings = useCallback(() => navigate(`${PLAYER_APP_BASE}/settings`), [navigate]);
+    const navPage = view.kind === 'home'
+        ? 'home'
+        : view.kind === 'settings'
+            ? 'settings'
+            : view.kind === 'library' || view.kind === 'collection'
+                ? 'library'
+                : 'other';
+    const activeLibraryKey = view.kind === 'library' || view.kind === 'collection' ? view.sectionKey : undefined;
 
     return (
-        <div className={`flex flex-col gap-4 ${playSession ? 'pb-36' : ''}`}>
+        <div className="flex h-full min-h-0 w-full flex-col md:flex-row">
+            <MediaPlayerNav
+                libraries={libraries}
+                libraryOrder={settings.libraryNavOrder}
+                page={navPage}
+                activeLibraryKey={activeLibraryKey}
+                onHome={goHome}
+                onSearch={openSearch}
+                onOpenLibrary={openLibrary}
+                onOpenSettings={openSettings}
+            />
+            <div
+                id={PLAYER_SCROLL_ID}
+                className={`min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-clip custom-scrollbar px-4 py-4 md:px-8 md:py-6 ${playSession ? 'pb-36' : ''}`}
+            >
+                <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4">
             {view.kind === 'home' ? (
                 <MediaPlayerHome
                     onOpenItem={openItem}
-                    onOpenLibrary={openLibrary}
                     onPlay={playItem}
-                    onOpenSettings={openSettings}
                 />
             ) : null}
             {view.kind === 'settings' ? (
@@ -305,6 +376,8 @@ export const MediaPlayerDashboard: React.FC = () => {
                 />
             ) : null}
             <ToastContainer toasts={toasts} setToasts={setToasts} />
+                </div>
+            </div>
         </div>
     );
 };

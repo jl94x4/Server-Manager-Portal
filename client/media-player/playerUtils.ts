@@ -8,6 +8,12 @@ export const plexImageUrl = (path?: string | null, width = 300, height = 450) =>
     return portalUrl(`${PLAYER_IMAGE_PATH}?path=${encodeURIComponent(path)}&width=${width}&height=${height}`);
 };
 
+export const plexBackdropUrl = (path?: string | null) => {
+    if (!path) return '';
+    const dpr = typeof window === 'undefined' ? 2 : Math.min(Math.max(window.devicePixelRatio || 1, 1), 2);
+    return plexImageUrl(path, Math.round(1920 * dpr), Math.round(1080 * dpr));
+};
+
 export const formatBitrateMbps = (bitrate?: number | null) => {
     const n = Number(bitrate);
     if (!Number.isFinite(n) || n <= 0) return '';
@@ -80,6 +86,21 @@ export const shouldOfferResume = (item?: PlayerItem | null, offsetMs?: number | 
     if (offset < 5000) return false;
     if (duration && offset > Math.max(0, duration - 15000)) return false;
     return true;
+};
+
+export const formatEpisodeCode = (item?: PlayerItem | null) => {
+    const season = Number(item?.parentIndex);
+    const episode = Number(item?.index);
+    if (!Number.isFinite(season) || season <= 0 || !Number.isFinite(episode) || episode <= 0) return '';
+    return `S${season} · E${episode}`;
+};
+
+export const unwatchedCount = (item?: PlayerItem | null) => {
+    if (!item || (item.type !== 'show' && item.type !== 'season')) return 0;
+    const leaves = Number(item.leafCount || 0);
+    const viewed = Number(item.viewedLeafCount || 0);
+    if (leaves <= 0) return 0;
+    return Math.max(0, leaves - viewed);
 };
 
 export const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];

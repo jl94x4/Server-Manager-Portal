@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
-import { discoveryTheme, MediaPlayerAlphaBanner, SettingsToggleRow, useDiscoverI18n } from './host';
+import { ArrowLeft, ChevronDown, ChevronUp, Loader2, Save } from 'lucide-react';
+import { CustomSelect, discoveryTheme, MediaPlayerAlphaBanner, SettingsToggleRow, StickySaveBar, useDiscoverI18n } from './host';
 import { fetchMediaPlayerLibraries } from './api';
 import {
     PLAYER_AUDIO_LANGUAGES,
     PLAYER_QUALITY_CHOICES,
     applyHomeRowOrder,
+    applyLibraryNavOrder,
     defaultHomeRowIds,
     moveHomeRow,
     type PlayerSubtitleMode,
@@ -17,12 +18,13 @@ type Props = {
     onBack: () => void;
 };
 
-const selectClass = 'w-full rounded-xl border border-border bg-white/5 px-3 py-2 text-sm font-bold text-text';
+const sectionClass = 'w-full overflow-hidden rounded-2xl border border-border bg-card';
 
 export const MediaPlayerSettings: React.FC<Props> = ({ onBack }) => {
     const { t } = useDiscoverI18n();
-    const [settings, updateSettings] = usePlayerSettings();
+    const [settings, updateSettings, { dirty, saving, saveSettings, discardSettings }] = usePlayerSettings();
     const [libraries, setLibraries] = useState<PlayerSection[]>([]);
+    const [saveState, setSaveState] = useState<'idle' | 'saved' | 'error'>('idle');
     const qualityOptions = [
         { id: 'auto', label: t('mediaPlayerPage.qualityAuto') },
         { id: 'original', label: t('mediaPlayerPage.qualityOriginal') },
@@ -46,32 +48,34 @@ export const MediaPlayerSettings: React.FC<Props> = ({ onBack }) => {
         return () => { cancelled = true; };
     }, []);
 
-    const rowLabels = useMemo(() => {
-        const labels: Record<string, string> = {
-            libraries: t('mediaPlayerPage.libraries'),
-            continueWatching: t('mediaPlayerPage.continueWatching'),
-            playlists: t('mediaPlayerPage.playlists'),
-            'recent:movie': t('mediaPlayerPage.recentlyAddedMovies'),
-            'recent:show': t('mediaPlayerPage.recentlyAddedShows'),
-            'recent:artist': t('mediaPlayerPage.recentlyAddedMusic'),
-        };
-        for (const library of libraries) {
-            labels[`recent:${library.key}`] = t('mediaPlayerPage.recentlyAddedIn', { name: library.title });
-        }
-        return labels;
-    }, [libraries, t]);
+    const rowLabels = useMemo(() => ({
+        continueWatching: t('mediaPlayerPage.continueWatching'),
+        recents: t('mediaPlayerPage.recents'),
+        playlists: t('mediaPlayerPage.playlists'),
+    }), [t]);
 
-    const orderedRowIds = applyHomeRowOrder(
-        defaultHomeRowIds({ mixLibraries: settings.mixLibraries, libraries }),
-        settings.homeRowOrder,
-    );
+    const orderedRowIds = applyHomeRowOrder(defaultHomeRowIds(), settings.homeRowOrder);
+    const orderedLibraries = applyLibraryNavOrder(libraries, settings.libraryNavOrder);
 
     const hiddenRows = new Set<string>();
     if (!settings.showContinueWatching) hiddenRows.add('continueWatching');
     if (!settings.showPlaylists) hiddenRows.add('playlists');
 
+    useEffect(() => {
+        if (dirty) setSaveState('idle');
+    }, [dirty]);
+
+    const handleSave = async () => {
+        try {
+            await saveSettings();
+            setSaveState('saved');
+        } catch {
+            setSaveState('error');
+        }
+    };
+
     return (
-        <div className="flex flex-col gap-6 pb-8">
+        <div className="flex w-full flex-col gap-6 pb-24">
             <MediaPlayerAlphaBanner />
             <div>
                 <button
@@ -84,14 +88,69 @@ export const MediaPlayerSettings: React.FC<Props> = ({ onBack }) => {
                 </button>
                 <p className={discoveryTheme.personalEyebrow}>{t('navigation.mediaPlayer')}</p>
                 <h1 className={discoveryTheme.heading}>{t('mediaPlayerPage.settings')}</h1>
-                <p className="mt-1 max-w-2xl text-sm text-muted">{t('mediaPlayerPage.settingsHint')}</p>
+                <p className="mt-1 text-sm text-muted">{t('mediaPlayerPage.settingsHint')}</p>
             </div>
 
-            <section className="max-w-2xl overflow-hidden rounded-2xl border border-border bg-card">
-                <div className="border-b border-border px-5 py-4">
+            <section className={sectionClass}>
+                <div className="border-b border-border px-5 py-4 sm:px-6">
                     <h2 className="text-sm font-black uppercase tracking-widest text-muted">{t('mediaPlayerPage.settingsHome')}</h2>
                 </div>
-                <div className="px-5 py-2">
+                <div className="px-5 py-2 sm:px-6">
+                    <div className="border-b border-border/40 py-4">
+                        <div className="mb-3 flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-sm font-bold text-text">{t('mediaPlayerPage.libraryNavOrder')}</p>
+                                <p className="mt-1 text-xs text-muted">{t('mediaPlayerPage.libraryNavOrderHint')}</p>
+                            </div>
+                            {settings.libraryNavOrder.length ? (
+                                <button
+                                    type="button"
+                                    onClick={() => updateSettings({ libraryNavOrder: [] })}
+                                    className="shrink-0 text-xs font-bold text-muted hover:text-text"
+                                >
+                                    {t('mediaPlayerPage.homeRowReset')}
+                                </button>
+                            ) : null}
+                        </div>
+                        {orderedLibraries.length ? (
+                            <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+                                {orderedLibraries.map((library, index) => (
+                                    <div
+                                        key={library.key}
+                                        className="flex items-center gap-2 rounded-xl border border-border bg-white/[0.03] px-3 py-2"
+                                    >
+                                        <p className="min-w-0 flex-1 truncate text-sm font-bold text-text">
+                                            {library.title}
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => updateSettings({
+                                                libraryNavOrder: moveHomeRow(orderedLibraries.map((row) => row.key), index, -1),
+                                            })}
+                                            disabled={index === 0}
+                                            className="rounded-lg border border-border bg-white/5 p-1.5 text-muted hover:text-text disabled:opacity-30"
+                                            aria-label={t('mediaPlayerPage.homeRowMoveUp')}
+                                        >
+                                            <ChevronUp className="h-4 w-4" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => updateSettings({
+                                                libraryNavOrder: moveHomeRow(orderedLibraries.map((row) => row.key), index, 1),
+                                            })}
+                                            disabled={index === orderedLibraries.length - 1}
+                                            className="rounded-lg border border-border bg-white/5 p-1.5 text-muted hover:text-text disabled:opacity-30"
+                                            aria-label={t('mediaPlayerPage.homeRowMoveDown')}
+                                        >
+                                            <ChevronDown className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-xs text-muted">{t('mediaPlayerPage.emptyLibrariesNav')}</p>
+                        )}
+                    </div>
                     <SettingsToggleRow
                         title={t('mediaPlayerPage.mixLibraries')}
                         description={t('mediaPlayerPage.mixLibrariesHint')}
@@ -132,7 +191,7 @@ export const MediaPlayerSettings: React.FC<Props> = ({ onBack }) => {
                                 </button>
                             ) : null}
                         </div>
-                        <div className="flex flex-col gap-2">
+                        <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
                             {orderedRowIds.map((id, index) => (
                                 <div
                                     key={id}
@@ -168,81 +227,104 @@ export const MediaPlayerSettings: React.FC<Props> = ({ onBack }) => {
                             {t('mediaPlayerPage.defaultQuality')}
                         </label>
                         <p className="mb-3 text-xs text-muted">{t('mediaPlayerPage.defaultQualityHint')}</p>
-                        <select
+                        <CustomSelect
                             id="media-player-default-quality"
                             value={settings.defaultQualityId}
-                            onChange={(event) => updateSettings({ defaultQualityId: event.target.value })}
-                            className={selectClass}
-                        >
-                            {qualityOptions.map((row) => (
-                                <option key={row.id} value={row.id}>{row.label}</option>
-                            ))}
-                        </select>
+                            onChange={(value) => updateSettings({ defaultQualityId: value })}
+                            className="max-w-xl"
+                            options={qualityOptions.map((row) => ({ value: row.id, label: row.label }))}
+                        />
                     </div>
                 </div>
             </section>
 
-            <section className="max-w-2xl overflow-hidden rounded-2xl border border-border bg-card">
-                <div className="border-b border-border px-5 py-4">
-                    <h2 className="text-sm font-black uppercase tracking-widest text-muted">{t('mediaPlayerPage.settingsAudio')}</h2>
-                </div>
-                <div className="px-5 py-2">
-                    <div className="border-b border-border/40 py-4">
-                        <label className="mb-2 block text-sm font-bold text-text" htmlFor="media-player-audio-language">
-                            {t('mediaPlayerPage.audioLanguage')}
-                        </label>
-                        <p className="mb-3 text-xs text-muted">{t('mediaPlayerPage.audioLanguageHint')}</p>
-                        <select
-                            id="media-player-audio-language"
-                            value={settings.audioLanguage}
-                            onChange={(event) => updateSettings({ audioLanguage: event.target.value })}
-                            className={selectClass}
-                        >
-                            <option value="">{t('mediaPlayerPage.audioLanguageDefault')}</option>
-                            {PLAYER_AUDIO_LANGUAGES.map((row) => (
-                                <option key={row.id} value={row.id}>{row.label}</option>
-                            ))}
-                        </select>
+            <div className="grid w-full grid-cols-1 gap-6 xl:grid-cols-2">
+                <section className={sectionClass}>
+                    <div className="border-b border-border px-5 py-4 sm:px-6">
+                        <h2 className="text-sm font-black uppercase tracking-widest text-muted">{t('mediaPlayerPage.settingsAudio')}</h2>
                     </div>
-                    <div className="py-4">
-                        <label className="mb-2 block text-sm font-bold text-text" htmlFor="media-player-subtitle-mode">
-                            {t('mediaPlayerPage.subtitleMode')}
-                        </label>
-                        <p className="mb-3 text-xs text-muted">{t('mediaPlayerPage.subtitleModeHint')}</p>
-                        <select
-                            id="media-player-subtitle-mode"
-                            value={settings.subtitleMode}
-                            onChange={(event) => updateSettings({ subtitleMode: event.target.value as PlayerSubtitleMode })}
-                            className={selectClass}
-                        >
-                            {subtitleOptions.map((row) => (
-                                <option key={row.id} value={row.id}>{row.label}</option>
-                            ))}
-                        </select>
+                    <div className="px-5 py-2 sm:px-6">
+                        <div className="border-b border-border/40 py-4">
+                            <label className="mb-2 block text-sm font-bold text-text" htmlFor="media-player-audio-language">
+                                {t('mediaPlayerPage.audioLanguage')}
+                            </label>
+                            <p className="mb-3 text-xs text-muted">{t('mediaPlayerPage.audioLanguageHint')}</p>
+                            <CustomSelect
+                                id="media-player-audio-language"
+                                value={settings.audioLanguage}
+                                onChange={(value) => updateSettings({ audioLanguage: value })}
+                                className="max-w-xl"
+                                options={[
+                                    { value: '', label: t('mediaPlayerPage.audioLanguageDefault') },
+                                    ...PLAYER_AUDIO_LANGUAGES.map((row) => ({ value: row.id, label: row.label })),
+                                ]}
+                            />
+                        </div>
+                        <div className="py-4">
+                            <label className="mb-2 block text-sm font-bold text-text" htmlFor="media-player-subtitle-mode">
+                                {t('mediaPlayerPage.subtitleMode')}
+                            </label>
+                            <p className="mb-3 text-xs text-muted">{t('mediaPlayerPage.subtitleModeHint')}</p>
+                            <CustomSelect
+                                id="media-player-subtitle-mode"
+                                value={settings.subtitleMode}
+                                onChange={(value) => updateSettings({ subtitleMode: value as PlayerSubtitleMode })}
+                                className="max-w-xl"
+                                options={subtitleOptions.map((row) => ({ value: row.id, label: row.label }))}
+                            />
+                        </div>
                     </div>
-                </div>
-            </section>
+                </section>
 
-            <section className="max-w-2xl overflow-hidden rounded-2xl border border-border bg-card">
-                <div className="border-b border-border px-5 py-4">
-                    <h2 className="text-sm font-black uppercase tracking-widest text-muted">{t('mediaPlayerPage.settingsSkipping')}</h2>
-                </div>
-                <div className="px-5 py-2">
-                    <SettingsToggleRow
-                        title={t('mediaPlayerPage.autoSkipIntro')}
-                        description={t('mediaPlayerPage.autoSkipIntroHint')}
-                        checked={settings.autoSkipIntro}
-                        onChange={(checked) => updateSettings({ autoSkipIntro: checked })}
-                    />
-                    <SettingsToggleRow
-                        title={t('mediaPlayerPage.autoSkipCredits')}
-                        description={t('mediaPlayerPage.autoSkipCreditsHint')}
-                        checked={settings.autoSkipCredits}
-                        onChange={(checked) => updateSettings({ autoSkipCredits: checked })}
-                        border={false}
-                    />
-                </div>
-            </section>
+                <section className={sectionClass}>
+                    <div className="border-b border-border px-5 py-4 sm:px-6">
+                        <h2 className="text-sm font-black uppercase tracking-widest text-muted">{t('mediaPlayerPage.settingsSkipping')}</h2>
+                    </div>
+                    <div className="px-5 py-2 sm:px-6">
+                        <SettingsToggleRow
+                            title={t('mediaPlayerPage.autoSkipIntro')}
+                            description={t('mediaPlayerPage.autoSkipIntroHint')}
+                            checked={settings.autoSkipIntro}
+                            onChange={(checked) => updateSettings({ autoSkipIntro: checked })}
+                        />
+                        <SettingsToggleRow
+                            title={t('mediaPlayerPage.autoSkipCredits')}
+                            description={t('mediaPlayerPage.autoSkipCreditsHint')}
+                            checked={settings.autoSkipCredits}
+                            onChange={(checked) => updateSettings({ autoSkipCredits: checked })}
+                            border={false}
+                        />
+                    </div>
+                </section>
+            </div>
+
+            <StickySaveBar className="!bottom-5">
+                {dirty ? (
+                    <p className="px-2 text-xs font-bold text-muted">{t('mediaPlayerPage.unsavedSettings')}</p>
+                ) : saveState === 'saved' ? (
+                    <p className="px-2 text-xs font-bold text-muted">{t('mediaPlayerPage.settingsSaved')}</p>
+                ) : saveState === 'error' ? (
+                    <p className="px-2 text-xs font-bold text-red-400">{t('mediaPlayerPage.settingsSaveError')}</p>
+                ) : null}
+                <button
+                    type="button"
+                    onClick={discardSettings}
+                    disabled={!dirty || saving}
+                    className="inline-flex items-center justify-center rounded-xl bg-white/[0.06] px-3.5 py-2.5 text-sm font-bold text-text transition-colors hover:bg-white/10 disabled:opacity-40"
+                >
+                    {t('mediaPlayerPage.discardChanges')}
+                </button>
+                <button
+                    type="button"
+                    onClick={() => { void handleSave(); }}
+                    disabled={!dirty || saving}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-plex px-4 py-2.5 text-sm font-bold text-background shadow-lg shadow-plex/15 transition-colors hover:bg-plex-hover disabled:opacity-50"
+                >
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    {t('mediaPlayerPage.saveSettings')}
+                </button>
+            </StickySaveBar>
         </div>
     );
 };
+

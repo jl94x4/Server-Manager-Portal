@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Search, Settings } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Search } from 'lucide-react';
 import {
     DiscoverGridSizeSelect,
     DiscoverHomeSkeleton,
@@ -10,18 +10,16 @@ import {
     useDiscoverI18n,
 } from './host';
 import { fetchMediaPlayerHome, searchMediaPlayer, setMediaPlayerWatched } from './api';
-import { MediaPlayerLibrariesPanel } from './MediaPlayerLibrariesPanel';
 import { PlayerPosterCard } from './PlayerPosterCard';
 import { PlayerRail } from './PlayerRail';
-import { applyHomeRowOrder } from './playerSettings';
+import { applyHomeRowOrder, applyLibraryNavOrder } from './playerSettings';
+import { consumePlayerSearchFocus, PLAYER_SEARCH_INPUT_ID } from './playerMemory';
 import { usePlayerSettings } from './usePlayerSettings';
-import type { PlayerHome, PlayerItem, PlayerPlayOptions, PlayerSection } from './types';
+import type { PlayerHome, PlayerItem, PlayerPlayOptions } from './types';
 
 type Props = {
     onOpenItem: (item: PlayerItem) => void;
-    onOpenLibrary: (section: PlayerSection) => void;
     onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
-    onOpenSettings: () => void;
 };
 
 const dedupeItems = (list: PlayerItem[]) => {
@@ -34,7 +32,7 @@ const dedupeItems = (list: PlayerItem[]) => {
     }).slice(0, 24);
 };
 
-export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary, onPlay, onOpenSettings }) => {
+export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onPlay }) => {
     const { t } = useDiscoverI18n();
     const [settings] = usePlayerSettings();
     const [gridSize, setGridSize] = useDiscoverGridSize();
@@ -44,6 +42,13 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary, on
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<PlayerItem[]>([]);
     const [searching, setSearching] = useState(false);
+    const searchRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (!consumePlayerSearchFocus()) return;
+        searchRef.current?.focus();
+        searchRef.current?.select();
+    }, []);
 
     useEffect(() => {
         let cancelled = false;
@@ -91,35 +96,57 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary, on
         };
     }, [query]);
 
+    const orderedLibraries = useMemo(
+        () => applyLibraryNavOrder(home?.libraries || [], settings.libraryNavOrder),
+        [home?.libraries, settings.libraryNavOrder],
+    );
+
     const recentRails = useMemo(() => {
         const rows = home?.recentByLibrary || [];
+        const byKey = new Map(rows.map((row) => [String(row.library.key), row]));
         if (!settings.mixLibraries) {
-            return rows.map((row) => ({
-                id: `recent:${row.library.key}`,
-                title: t('mediaPlayerPage.recentlyAddedIn', { name: row.library.title }),
-                items: row.items,
-            }));
+            return orderedLibraries.map((library) => {
+                const row = byKey.get(String(library.key));
+                return {
+                    id: `recent:${library.key}`,
+                    title: t('mediaPlayerPage.recentlyAddedIn', { name: library.title }),
+                    items: row?.items || [],
+                };
+            }).filter((row) => row.items.length);
         }
-        const movies: PlayerItem[] = [];
-        const shows: PlayerItem[] = [];
-        const music: PlayerItem[] = [];
+        const typeOrder: Array<'movie' | 'show' | 'artist'> = [];
+        const seenTypes = new Set<string>();
+        for (const library of orderedLibraries) {
+            const type = library.type === 'show' ? 'show' : library.type === 'artist' ? 'artist' : 'movie';
+            if (seenTypes.has(type)) continue;
+            seenTypes.add(type);
+            typeOrder.push(type);
+        }
+        for (const type of ['movie', 'show', 'artist'] as const) {
+            if (!seenTypes.has(type)) typeOrder.push(type);
+        }
+        const buckets: Record<'movie' | 'show' | 'artist', PlayerItem[]> = { movie: [], show: [], artist: [] };
         for (const row of rows) {
-            if (row.library.type === 'show') shows.push(...row.items);
-            else if (row.library.type === 'artist') music.push(...row.items);
-            else movies.push(...row.items);
+            if (row.library.type === 'show') buckets.show.push(...row.items);
+            else if (row.library.type === 'artist') buckets.artist.push(...row.items);
+            else buckets.movie.push(...row.items);
         }
-        return [
-            { id: 'recent:movie', title: t('mediaPlayerPage.recentlyAddedMovies'), items: dedupeItems(movies) },
-            { id: 'recent:show', title: t('mediaPlayerPage.recentlyAddedShows'), items: dedupeItems(shows) },
-            { id: 'recent:artist', title: t('mediaPlayerPage.recentlyAddedMusic'), items: dedupeItems(music) },
-        ];
-    }, [home, settings.mixLibraries, t]);
+        const titles = {
+            movie: t('mediaPlayerPage.recentlyAddedMovies'),
+            show: t('mediaPlayerPage.recentlyAddedShows'),
+            artist: t('mediaPlayerPage.recentlyAddedMusic'),
+        };
+        return typeOrder.map((type) => ({
+            id: `recent:${type}`,
+            title: titles[type],
+            items: dedupeItems(buckets[type]),
+        })).filter((row) => row.items.length);
+    }, [home, orderedLibraries, settings.mixLibraries, t]);
 
     const hasRails = useMemo(() => (
         !!home && (
             (settings.showContinueWatching && home.continueWatching.length)
             || recentRails.some((row) => row.items.length)
-            || home.libraries.length
             || (settings.showPlaylists && (home.playlists || []).length)
         )
     ), [home, recentRails, settings.showContinueWatching, settings.showPlaylists]);
@@ -151,23 +178,9 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary, on
     };
 
     const homeSections = !home ? [] : applyHomeRowOrder(
-        [
-            'libraries',
-            'continueWatching',
-            'playlists',
-            ...recentRails.map((row) => row.id),
-        ],
+        ['continueWatching', 'recents', 'playlists'],
         settings.homeRowOrder,
     ).map((id) => {
-        if (id === 'libraries') {
-            return home.libraries.length ? (
-                <MediaPlayerLibrariesPanel
-                    key="libraries"
-                    libraries={home.libraries}
-                    onOpenLibrary={onOpenLibrary}
-                />
-            ) : null;
-        }
         if (id === 'continueWatching') {
             return settings.showContinueWatching ? (
                 <PlayerRail
@@ -194,18 +207,21 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary, on
                 />
             ) : null;
         }
-        const row = recentRails.find((rail) => rail.id === id);
-        if (!row) return null;
+        if (id !== 'recents') return null;
         return (
-            <PlayerRail
-                key={row.id}
-                title={row.title}
-                items={row.items}
-                density={gridSize}
-                onOpenItem={onOpenItem}
-                onPlay={onPlay}
-                onToggleWatched={toggleWatched}
-            />
+            <React.Fragment key="recents">
+                {recentRails.map((row) => (
+                    <PlayerRail
+                        key={row.id}
+                        title={row.title}
+                        items={row.items}
+                        density={gridSize}
+                        onOpenItem={onOpenItem}
+                        onPlay={onPlay}
+                        onToggleWatched={toggleWatched}
+                    />
+                ))}
+            </React.Fragment>
         );
     });
 
@@ -217,24 +233,16 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onOpenLibrary, on
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                     <p className={discoveryTheme.personalEyebrow}>{t('navigation.mediaPlayer')}</p>
-                    <h1 className={discoveryTheme.heading}>{t('navigation.mediaPlayer')}</h1>
+                    <h1 className={discoveryTheme.heading}>{t('mediaPlayerPage.navHome')}</h1>
                 </div>
-                <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={onOpenSettings}
-                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white/5 px-3 py-2 text-xs font-bold text-muted hover:text-text"
-                    >
-                        <Settings className="h-4 w-4" />
-                        {t('mediaPlayerPage.settings')}
-                    </button>
-                    <DiscoverGridSizeSelect value={gridSize} onChange={setGridSize} />
-                </div>
+                <DiscoverGridSizeSelect value={gridSize} onChange={setGridSize} />
             </div>
 
             <div className="relative">
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
                 <input
+                    id={PLAYER_SEARCH_INPUT_ID}
+                    ref={searchRef}
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder={t('mediaPlayerPage.searchPlaceholder')}

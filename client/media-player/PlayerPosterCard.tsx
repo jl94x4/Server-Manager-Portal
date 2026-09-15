@@ -1,7 +1,7 @@
 import React from 'react';
 import { Check, Eye, EyeOff, Play } from 'lucide-react';
 import { DiscoverPosterCard, useDiscoverI18n } from './host';
-import { progressPercent, toPosterCardItem } from './playerUtils';
+import { progressPercent, toPosterCardItem, unwatchedCount } from './playerUtils';
 import type { PlayerItem, PlayerPlayOptions } from './types';
 
 type Props = {
@@ -24,7 +24,11 @@ export const PlayerPosterCard: React.FC<Props> = ({
     className,
 }) => {
     const { t } = useDiscoverI18n();
-    const progress = showProgress ? progressPercent(item) : 0;
+    const progress = progressPercent(item);
+    const remaining = unwatchedCount(item);
+    const showUnwatched = remaining > 0 || (
+        !item.watched && progress <= 0 && (item.type === 'movie' || item.type === 'episode')
+    );
     const canHoverPlay = !!onPlay && item.canPlay !== false && item.type !== 'collection' && item.type !== 'artist' && item.type !== 'album' && item.type !== 'playlist';
     const canToggleWatched = !!onToggleWatched && (item.type === 'movie' || item.type === 'episode' || item.type === 'show' || item.type === 'season');
     return (
@@ -36,13 +40,20 @@ export const PlayerPosterCard: React.FC<Props> = ({
             onPosterClick={() => onOpenItem(item)}
             overlay={(
                 <>
-                    {item.watched ? (
-                        <div className="absolute right-1.5 top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-plex text-black shadow">
+                    {showUnwatched ? (
+                        <div className="absolute left-1.5 top-1.5 z-10 max-w-[calc(100%-0.75rem)] rounded-md bg-plex px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-black shadow-lg">
+                            {remaining > 0
+                                ? t('mediaPlayerPage.unwatchedCount', { count: remaining })
+                                : t('mediaPlayerPage.unwatched')}
+                        </div>
+                    ) : null}
+                    {item.watched && remaining <= 0 ? (
+                        <div className="absolute right-1.5 top-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-plex text-black shadow-lg ring-2 ring-black/40">
                             <Check className="h-3.5 w-3.5" />
                         </div>
                     ) : null}
                     {progress > 0 ? (
-                        <div className="absolute inset-x-0 bottom-0 z-10 h-1 bg-black/50">
+                        <div className="absolute inset-x-0 bottom-0 z-10 h-1.5 bg-black/70">
                             <div className="h-full bg-plex" style={{ width: `${progress}%` }} />
                         </div>
                     ) : null}

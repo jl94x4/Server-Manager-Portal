@@ -14,6 +14,7 @@ import {
     fetchMediaPlayerLibrary,
     fetchMediaPlayerLibraryFilters,
     fetchMediaPlayerLibraryHome,
+    fetchMediaPlayerNeighbors,
     fetchMediaPlayerNext,
     fetchMediaPlayerPerson,
     fetchMediaPlayerPlaylist,
@@ -80,6 +81,7 @@ export type PlayerBackend = {
     addPlaylistItem: (playlistKey: string, ratingKey: string) => Promise<unknown>;
     setWatched: (ratingKey: string, watched: boolean) => Promise<unknown>;
     fetchNext: (ratingKey: string) => Promise<{ item: PlayerItem | null }>;
+    fetchNeighbors: (ratingKey: string) => Promise<{ previous: PlayerItem | null; next: PlayerItem | null }>;
     fetchItem: (ratingKey: string) => Promise<PlayerItemPage>;
     fetchPerson: (actorId: string, name?: string) => Promise<PlayerPersonPage>;
     fetchPersonBundle: (actorId: string, name?: string, thumb?: string | null) => Promise<PlayerPersonBundle>;
@@ -105,6 +107,7 @@ export const portalPlayerBackend: PlayerBackend = {
     addPlaylistItem: addMediaPlayerPlaylistItem,
     setWatched: setMediaPlayerWatched,
     fetchNext: fetchMediaPlayerNext,
+    fetchNeighbors: fetchMediaPlayerNeighbors,
     fetchItem: fetchMediaPlayerItem,
     fetchPerson: fetchMediaPlayerPerson,
     fetchPersonBundle: fetchPlayerPersonBundle,

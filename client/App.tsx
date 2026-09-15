@@ -22,7 +22,7 @@ import {
     type ReleaseNotes,
 } from './shared/releaseNotes';
 
-import { PLAYER_APP_BASE, PLAYER_NAVIGATE_EVENT } from './media-player/paths';
+import { PLAYER_APP_BASE, PLAYER_EXIT_EVENT, PLAYER_NAVIGATE_EVENT } from './media-player/paths';
 import { usePendingRequestCount } from './requests/usePendingRequestCount';
 import { useWatchingCount } from './shared/useWatchingCount';
 import { useDownloadCount } from './shared/useDownloadCount';
@@ -728,6 +728,14 @@ export const MainApp: React.FC = () => {
     }, [setRoute]);
 
     useEffect(() => {
+        const onExitPlayer = () => {
+            setRoute(sessionInfoRef.current?.session?.isAdmin ? 'dashboard' : 'user');
+        };
+        window.addEventListener(PLAYER_EXIT_EVENT, onExitPlayer);
+        return () => window.removeEventListener(PLAYER_EXIT_EVENT, onExitPlayer);
+    }, [setRoute]);
+
+    useEffect(() => {
         const onOpenArrEmbed = (event: Event) => {
             if (!sessionInfo?.arrOpenInPortalEmbed || !sessionInfo?.session?.isAdmin) return;
             const detail = (event as CustomEvent)?.detail || {};
@@ -932,6 +940,7 @@ export const MainApp: React.FC = () => {
     const isPublicInvite = currentRoute === 'invite';
     const isOnboardingView = currentRoute === 'onboarding';
     const isPublicView = isPublicStatus || isPublicInvite || isOnboardingView;
+    const isMediaPlayerView = currentRoute === 'media-player';
 
     const renderView = () => {
         if (currentRoute === 'invite') {
@@ -1107,7 +1116,7 @@ export const MainApp: React.FC = () => {
             accountId={sessionInfo?.account?.id}
             accountLocale={sessionInfo?.account?.uiLocale}
         >
-        <div className="relative flex w-full min-h-screen md:h-dvh md:overflow-hidden">
+        <div className={`relative flex w-full min-h-screen md:h-dvh md:overflow-hidden ${isMediaPlayerView ? 'h-dvh overflow-hidden' : ''}`}>
             <AppAmbientBackground backgroundImageUrl={publicConfig?.backgroundImageUrl} />
             <ConfirmModal
                 isOpen={confirmState.isOpen}
@@ -1133,10 +1142,10 @@ export const MainApp: React.FC = () => {
                     onClose={() => setSummaryDigestId(null)}
                 />
             )}
-            {!isPublicView && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} onSessionRefresh={checkSession} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Server Portal'} adminThumb={sessionInfo?.adminThumb} customLogoUrl={publicConfig?.customLogoUrl} requestUrl={sessionInfo?.requestUrl || 'https://yourdomain.com'} navOrder={sessionInfo?.navOrder || [...DEFAULT_NAV_ORDER]} navHiddenKeys={sessionInfo?.navHiddenKeys} memberNavOrder={sessionInfo?.memberNavOrder} memberNavHiddenKeys={sessionInfo?.memberNavHiddenKeys} navFeatures={sessionInfo?.navFeatures} appVersion={publicConfig.appVersion} activeTheme={activeTheme} setActiveTheme={setActiveTheme} pendingRequestCount={queueBadgeCount} supportUnreadCount={supportUnreadCount} chatUnreadCount={chatUnreadCount} watchingCount={watchingCount} downloadCount={downloadCount} mediaAutomationActiveCount={mediaAutomationActiveCount} showDashboardWatchingBadge={showDashboardWatchingBadge} sessionInfo={sessionInfo} mediaServerType={sessionInfo?.mediaServerType || publicConfig?.mediaServerType || 'plex'} sidebarIdentityPosition={publicConfig?.sidebarIdentityPosition || 'bottom'} externalTabId={externalTabId} openApplets={openApplets} onCloseApplet={handleCloseApplet} />}
-            <div id="main-scroll-container" className={`relative z-10 flex-1 min-w-0 min-h-0 flex flex-col items-center px-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:px-8 md:pb-8 overflow-x-clip custom-scrollbar ${currentRoute === 'external' ? 'overflow-hidden md:pb-4' : 'md:overflow-y-auto'} ${isPublicView ? '!pb-8' : ''}`}>
+            {!isPublicView && !isMediaPlayerView && <Navigation currentRoute={currentRoute} onNavigate={setRoute as any} onLogout={handleLogout} onSessionRefresh={checkSession} isAdmin={isAdmin} serverName={sessionInfo?.serverName || 'Server Portal'} adminThumb={sessionInfo?.adminThumb} customLogoUrl={publicConfig?.customLogoUrl} requestUrl={sessionInfo?.requestUrl || 'https://yourdomain.com'} navOrder={sessionInfo?.navOrder || [...DEFAULT_NAV_ORDER]} navHiddenKeys={sessionInfo?.navHiddenKeys} memberNavOrder={sessionInfo?.memberNavOrder} memberNavHiddenKeys={sessionInfo?.memberNavHiddenKeys} navFeatures={sessionInfo?.navFeatures} appVersion={publicConfig.appVersion} activeTheme={activeTheme} setActiveTheme={setActiveTheme} pendingRequestCount={queueBadgeCount} supportUnreadCount={supportUnreadCount} chatUnreadCount={chatUnreadCount} watchingCount={watchingCount} downloadCount={downloadCount} mediaAutomationActiveCount={mediaAutomationActiveCount} showDashboardWatchingBadge={showDashboardWatchingBadge} sessionInfo={sessionInfo} mediaServerType={sessionInfo?.mediaServerType || publicConfig?.mediaServerType || 'plex'} sidebarIdentityPosition={publicConfig?.sidebarIdentityPosition || 'bottom'} externalTabId={externalTabId} openApplets={openApplets} onCloseApplet={handleCloseApplet} />}
+            <div id="main-scroll-container" className={`relative z-10 flex-1 min-w-0 min-h-0 flex flex-col items-center overflow-x-clip custom-scrollbar ${isMediaPlayerView ? 'px-0 pb-0 overflow-hidden' : `px-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:px-8 md:pb-8 ${currentRoute === 'external' ? 'overflow-hidden md:pb-4' : 'md:overflow-y-auto'} ${isPublicView ? '!pb-8' : ''}`}`}>
                 {isImpersonating && (
-                    <div className="w-full max-w-[100%] pt-[calc(5rem+env(safe-area-inset-top,0px))] md:pt-0 md:sticky md:top-0 md:z-30">
+                    <div className={`w-full max-w-[100%] ${isMediaPlayerView ? 'pt-2' : 'pt-[calc(5rem+env(safe-area-inset-top,0px))]'} md:pt-0 md:sticky md:top-0 md:z-30`}>
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-100 shadow-lg backdrop-blur-md">
                             <p className="text-sm font-medium">
                                 Viewing portal as <span className="font-bold text-white">{sessionInfo?.impersonation?.targetUsername || sessionInfo?.session?.username}</span>
@@ -1151,7 +1160,15 @@ export const MainApp: React.FC = () => {
                         </div>
                     </div>
                 )}
-                <div className={`w-full min-w-0 max-w-[100%] flex flex-col ${isImpersonating ? 'shrink-0 pt-3 md:pt-4' : currentRoute === 'external' ? 'flex-1 min-h-0 pt-[calc(5rem+env(safe-area-inset-top,0px))] md:pt-4' : 'shrink-0 pt-[calc(5rem+env(safe-area-inset-top,0px))] md:pt-8'}`}>
+                <div className={`w-full min-w-0 max-w-[100%] flex flex-col ${
+                    isMediaPlayerView
+                        ? `flex-1 min-h-0 h-full ${isImpersonating ? 'pt-3' : 'pt-0'}`
+                        : isImpersonating
+                            ? 'shrink-0 pt-3 md:pt-4'
+                            : currentRoute === 'external'
+                                ? 'flex-1 min-h-0 pt-[calc(5rem+env(safe-area-inset-top,0px))] md:pt-4'
+                                : 'shrink-0 pt-[calc(5rem+env(safe-area-inset-top,0px))] md:pt-8'
+                }`}>
                     <Suspense fallback={<div className="flex w-full items-center justify-center pt-20"><Loader isLoading={true} isCinematic={false} /></div>}>
                         {(openApplets.length > 0 || currentRoute === 'external') ? (
                             <OpenAppletsHost
@@ -1167,22 +1184,24 @@ export const MainApp: React.FC = () => {
                             />
                         ) : null}
                         {currentRoute !== 'external' ? (
-                            <>
-                                {isAdmin && !isPublicView ? (
+                            <div className={isMediaPlayerView ? 'flex h-full min-h-0 flex-col' : ''}>
+                                {isAdmin && !isPublicView && !isMediaPlayerView ? (
                                     <PortalJobsBanner
                                         currentRoute={currentRoute}
                                         collexionsEnabled={!!sessionInfo?.navFeatures?.collexions}
                                         onNavigate={(route) => setRoute(route as any)}
                                     />
                                 ) : null}
-                                {renderView()}
-                            </>
+                                <div className={isMediaPlayerView ? 'flex min-h-0 flex-1 flex-col' : ''}>
+                                    {renderView()}
+                                </div>
+                            </div>
                         ) : null}
                     </Suspense>
                 </div>
 
                 {/* Mobile Bottom Version */}
-                {!isPublicView && publicConfig?.appVersion && currentRoute !== 'external' && (
+                {!isPublicView && !isMediaPlayerView && publicConfig?.appVersion && currentRoute !== 'external' && (
                     <div className="md:hidden mt-auto pt-12 pb-4 w-full text-center text-[10px] text-white/30 font-mono tracking-widest pointer-events-none">
                         {publicConfig.appVersion}
                     </div>

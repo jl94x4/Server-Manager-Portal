@@ -11,6 +11,7 @@ export type PlayerSettings = {
     autoSkipIntro: boolean;
     autoSkipCredits: boolean;
     homeRowOrder: string[];
+    libraryNavOrder: string[];
 };
 
 export const PLAYER_QUALITY_CHOICES = [
@@ -46,13 +47,75 @@ export const PLAYER_AUDIO_LANGUAGES = [
     { id: 'tr', label: 'Turkish' },
 ];
 
-export const PLAYER_HOME_ROW_IDS = ['libraries', 'continueWatching', 'playlists'] as const;
+export const PLAYER_HOME_ROW_IDS = ['continueWatching', 'recents', 'playlists'] as const;
 export const MIXED_RECENT_HOME_ROW_IDS = ['recent:movie', 'recent:show', 'recent:artist'] as const;
 
 export const isPlayerHomeRowId = (value: unknown): value is string => {
     const id = String(value || '').trim();
-    if (id === 'libraries' || id === 'continueWatching' || id === 'playlists') return true;
+    if (id === 'continueWatching' || id === 'recents' || id === 'playlists' || id === 'libraries') return true;
     return /^recent:[A-Za-z0-9._-]{1,64}$/.test(id);
+};
+
+export const isPlayerLibraryKey = (value: unknown): value is string => (
+    /^[A-Za-z0-9._-]{1,64}$/.test(String(value || '').trim())
+);
+
+export const normalizeLibraryNavOrder = (raw: unknown): string[] => {
+    if (!Array.isArray(raw)) return [];
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const value of raw) {
+        const id = String(value || '').trim();
+        if (!isPlayerLibraryKey(id) || seen.has(id)) continue;
+        seen.add(id);
+        out.push(id);
+    }
+    return out.slice(0, 40);
+};
+
+export const libraryNavOrderFromHomeRows = (homeRowOrder: unknown): string[] => {
+    const keys: string[] = [];
+    const mixed = new Set<string>(MIXED_RECENT_HOME_ROW_IDS);
+    for (const id of normalizeHomeRowOrder(homeRowOrder)) {
+        if (!id.startsWith('recent:') || mixed.has(id)) continue;
+        keys.push(id.slice('recent:'.length));
+    }
+    return normalizeLibraryNavOrder(keys);
+};
+
+export const collapseHomeRowOrder = (order: unknown): string[] => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const raw of normalizeHomeRowOrder(order)) {
+        const id = raw.startsWith('recent:') ? 'recents' : raw === 'libraries' ? '' : raw;
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        out.push(id);
+    }
+    return out;
+};
+
+export const applyLibraryNavOrder = <T extends { key?: string | null }>(
+    libraries: T[] = [],
+    order: string[] = [],
+): T[] => {
+    const list = Array.isArray(libraries) ? libraries.filter((row) => row && String(row.key || '').trim()) : [];
+    const byKey = new Map(list.map((row) => [String(row.key), row]));
+    const seen = new Set<string>();
+    const out: T[] = [];
+    for (const key of normalizeLibraryNavOrder(order)) {
+        const row = byKey.get(key);
+        if (!row || seen.has(key)) continue;
+        seen.add(key);
+        out.push(row);
+    }
+    for (const row of list) {
+        const key = String(row.key);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(row);
+    }
+    return out;
 };
 
 export const normalizeHomeRowOrder = (raw: unknown): string[] => {
@@ -79,7 +142,7 @@ export const applyHomeRowOrder = (ids: string[] = [], order: string[] = []): str
     }
     const seen = new Set<string>();
     const out: string[] = [];
-    for (const id of normalizeHomeRowOrder(order)) {
+    for (const id of collapseHomeRowOrder(order)) {
         if (!seenWanted.has(id) || seen.has(id)) continue;
         seen.add(id);
         out.push(id);
@@ -91,20 +154,7 @@ export const applyHomeRowOrder = (ids: string[] = [], order: string[] = []): str
     return out;
 };
 
-export const defaultHomeRowIds = ({
-    mixLibraries = false,
-    libraries = [],
-}: {
-    mixLibraries?: boolean;
-    libraries?: Array<{ key?: string | null }>;
-} = {}): string[] => {
-    const recent = mixLibraries
-        ? [...MIXED_RECENT_HOME_ROW_IDS]
-        : libraries
-            .map((row) => `recent:${String(row?.key || '').trim()}`)
-            .filter((id) => isPlayerHomeRowId(id));
-    return [...PLAYER_HOME_ROW_IDS, ...recent];
-};
+export const defaultHomeRowIds = (): string[] => [...PLAYER_HOME_ROW_IDS];
 
 export const moveHomeRow = (ids: string[], index: number, direction: -1 | 1): string[] => {
     const next = [...ids];
@@ -133,6 +183,7 @@ export const DEFAULT_PLAYER_SETTINGS: PlayerSettings = {
     autoSkipIntro: false,
     autoSkipCredits: false,
     homeRowOrder: [],
+    libraryNavOrder: [],
 };
 
 const normalizeLang = (value: unknown) => String(value || '').trim().toLowerCase().replace(/_/g, '-');
@@ -151,7 +202,12 @@ export const normalizePlayerSettings = (raw: Partial<PlayerSettings> | Record<st
         subtitleMode: SUBTITLE_MODES.has(subtitleMode) ? subtitleMode : 'forced',
         autoSkipIntro: raw?.autoSkipIntro === true,
         autoSkipCredits: raw?.autoSkipCredits === true,
-        homeRowOrder: normalizeHomeRowOrder(raw?.homeRowOrder),
+        homeRowOrder: collapseHomeRowOrder(raw?.homeRowOrder),
+        libraryNavOrder: normalizeLibraryNavOrder(
+            Array.isArray(raw?.libraryNavOrder) && raw.libraryNavOrder.length
+                ? raw.libraryNavOrder
+                : libraryNavOrderFromHomeRows(raw?.homeRowOrder),
+        ),
     };
 };
 
@@ -166,6 +222,7 @@ export const playerSettingsEqual = (a: PlayerSettings, b: PlayerSettings) => (
     && a.autoSkipIntro === b.autoSkipIntro
     && a.autoSkipCredits === b.autoSkipCredits
     && a.homeRowOrder.join('\0') === b.homeRowOrder.join('\0')
+    && a.libraryNavOrder.join('\0') === b.libraryNavOrder.join('\0')
 );
 
 export const readPlayerSettings = (): PlayerSettings => {

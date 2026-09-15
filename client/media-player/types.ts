@@ -194,6 +194,7 @@ export type PlayerItemPage = {
     children: PlayerItem[];
     extras?: PlayerItem[];
     related?: PlayerLibraryHub[];
+    onDeck?: PlayerItem | null;
 };
 
 export type PlayerQualityOption = {
