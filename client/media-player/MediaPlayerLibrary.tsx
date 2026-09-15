@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import {
     CustomSelect,
@@ -39,6 +39,10 @@ type Props = {
 };
 
 const PAGE_SIZE = 50;
+
+const isContinueWatchingHub = (hub: PlayerLibraryHub) => (
+    /continue\s*watch|ondeck|on[.\s_-]?deck|in[.\s_-]?progress/i.test(`${hub.identifier || ''} ${hub.title || ''}`)
+);
 
 const SORT_IDS = [
     'addedAt:desc',
@@ -83,6 +87,15 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
     const [decades, setDecades] = useState<Array<{ key: string; title: string }>>([]);
     const [resolutions, setResolutions] = useState<Array<{ key: string; title: string }>>([]);
     const [studios, setStudios] = useState<Array<{ key: string; title: string }>>([]);
+    const homeHubs = useMemo(() => {
+        let keptContinue = false;
+        return hubs.filter((hub) => {
+            if (!isContinueWatchingHub(hub)) return true;
+            if (keptContinue) return false;
+            keptContinue = true;
+            return true;
+        });
+    }, [hubs]);
 
     const loadHome = useCallback(async () => {
         setLoading(true);
@@ -384,9 +397,9 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                     <p className={discoveryTheme.emptyTitle}>{error}</p>
                 </div>
             ) : tab === 'home' ? (
-                hubs.length ? (
+                homeHubs.length ? (
                     <div className="flex flex-col gap-6">
-                        {hubs.map((hub) => (
+                        {homeHubs.map((hub) => (
                             <PlayerRail
                                 key={hub.identifier || hub.title}
                                 title={hub.title}
