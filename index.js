@@ -30075,6 +30075,14 @@ app.use('/api/media-player', createMediaPlayerRouter({
             saved: stored != null && typeof stored === 'object',
         };
     },
+    getMediaPlayerProfile: async (req) => {
+        const users = await loadFile(USERS_PATH, []);
+        const local = findLocalUserForSession(users, req.user);
+        return {
+            username: local?.username || req.user?.username || req.user?.title || '',
+            thumb: req.user?.thumb || local?.thumb || null,
+        };
+    },
     saveMediaPlayerSettings: async (req, settings) => {
         const next = normalizePlayerSettings(settings);
         await updateUsers((users) => {

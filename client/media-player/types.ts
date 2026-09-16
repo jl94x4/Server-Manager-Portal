@@ -175,6 +175,11 @@ export type PlayerSection = {
     thumb?: string | null;
 };
 
+export type PlayerProfile = {
+    username: string;
+    thumb?: string | null;
+};
+
 export type PlayerHomeRail = {
     library: PlayerSection;
     items: PlayerItem[];

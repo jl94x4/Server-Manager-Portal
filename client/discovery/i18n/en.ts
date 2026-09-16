@@ -153,6 +153,7 @@ export const en = {
         navLibraries: 'Libraries',
         navSettings: 'Settings',
         exitToPortal: 'Back to portal',
+        signedInAs: 'Signed in as {name}',
         openNav: 'Open menu',
         closeNav: 'Close menu',
         collapseNav: 'Collapse sidebar',

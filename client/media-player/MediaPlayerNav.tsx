@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+    ChevronRight,
     Film,
     Home,
     LogOut,
@@ -8,11 +9,13 @@ import {
     Search,
     Settings,
     Tv,
+    User,
     X,
 } from 'lucide-react';
-import { exitToPortal, lockBackgroundScroll, useDiscoverI18n } from './host';
+import { exitToPortal, lockBackgroundScroll, portalUrl, useDiscoverI18n } from './host';
+import { fetchMediaPlayerMe } from './api';
 import { applyLibraryNavOrder } from './playerSettings';
-import type { PlayerSection } from './types';
+import type { PlayerProfile, PlayerSection } from './types';
 
 type NavPage = 'home' | 'library' | 'settings' | 'other';
 
@@ -33,6 +36,27 @@ const libraryIcon = (type: string) => {
     if (type === 'show') return Tv;
     if (type === 'artist') return Music;
     return Film;
+};
+
+const NavAvatar: React.FC<{ profile: PlayerProfile | null; sizeClass: string }> = ({ profile, sizeClass }) => {
+    const [failed, setFailed] = useState(false);
+    const src = profile?.thumb && !failed ? portalUrl(profile.thumb) : '';
+    const initial = String(profile?.username || '?').trim().charAt(0).toUpperCase() || '?';
+    if (src) {
+        return (
+            <img
+                src={src}
+                alt=""
+                className={`${sizeClass} shrink-0 rounded-full object-cover bg-white/10 ring-1 ring-white/20`}
+                onError={() => setFailed(true)}
+            />
+        );
+    }
+    return (
+        <span className={`inline-flex ${sizeClass} shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-black text-white ring-1 ring-white/20`}>
+            {profile?.username ? initial : <User className="h-4 w-4" />}
+        </span>
+    );
 };
 
 const navButtonClass = (active: boolean, expanded: boolean) => (
@@ -63,7 +87,20 @@ export const MediaPlayerNav: React.FC<Props> = ({
 }) => {
     const { t } = useDiscoverI18n();
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [profile, setProfile] = useState<PlayerProfile | null>(null);
     const orderedLibraries = applyLibraryNavOrder(libraries, libraryOrder);
+
+    useEffect(() => {
+        let cancelled = false;
+        fetchMediaPlayerMe()
+            .then((data) => {
+                if (!cancelled) setProfile(data);
+            })
+            .catch(() => {
+                if (!cancelled) setProfile(null);
+            });
+        return () => { cancelled = true; };
+    }, []);
 
     useEffect(() => {
         if (!mobileOpen) return undefined;
@@ -87,19 +124,39 @@ export const MediaPlayerNav: React.FC<Props> = ({
 
     const renderNav = (showLabels: boolean, desktop = false) => (
         <nav className={`flex max-h-full min-h-0 flex-col ${showLabels ? 'gap-3 px-2.5 py-3' : 'items-center gap-1.5 px-1.5 py-2.5'}`}>
-            {desktop ? (
-                <div className={`flex shrink-0 ${showLabels ? 'px-1' : 'items-center'}`}>
+            <div className={`flex shrink-0 ${showLabels ? 'items-center gap-1' : 'flex-col items-center gap-1.5'}`}>
+                <button
+                    type="button"
+                    className={showLabels
+                        ? 'flex min-w-0 flex-1 items-center gap-3 rounded-full px-2 py-1.5 text-left hover:bg-white/10'
+                        : 'flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10'}
+                    onClick={() => go(onOpenSettings)}
+                    title={profile?.username
+                        ? t('mediaPlayerPage.signedInAs', { name: profile.username })
+                        : t('mediaPlayerPage.navSettings')}
+                >
+                    <NavAvatar key={profile?.thumb || profile?.username || 'avatar'} profile={profile} sizeClass={showLabels ? 'h-9 w-9' : 'h-8 w-8'} />
+                    {showLabels ? (
+                        <>
+                            <span className="min-w-0 flex-1 truncate text-sm font-bold text-white">
+                                {profile?.username || t('mediaPlayerPage.navSettings')}
+                            </span>
+                            <ChevronRight className="h-4 w-4 shrink-0 text-white/40" />
+                        </>
+                    ) : null}
+                </button>
+                {desktop ? (
                     <button
                         type="button"
-                        className="flex h-10 w-10 items-center justify-center rounded-full text-white/80 hover:bg-white/10 hover:text-white"
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/80 hover:bg-white/10 hover:text-white"
                         onClick={onToggleExpanded}
                         title={expanded ? t('mediaPlayerPage.collapseNav') : t('mediaPlayerPage.expandNav')}
                         aria-label={expanded ? t('mediaPlayerPage.collapseNav') : t('mediaPlayerPage.expandNav')}
                     >
                         <Menu className="h-4 w-4 shrink-0" />
                     </button>
-                </div>
-            ) : null}
+                ) : null}
+            </div>
             <div className={`flex shrink-0 flex-col ${showLabels ? 'gap-1' : 'items-center gap-1'}`}>
                 <button
                     type="button"
@@ -192,6 +249,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
                 <p className="min-w-0 flex-1 truncate text-sm font-black text-white">
                     {t('navigation.mediaPlayer')}
                 </p>
+                {profile ? <NavAvatar profile={profile} sizeClass="h-8 w-8" /> : null}
                 <button
                     type="button"
                     onClick={onSearch}

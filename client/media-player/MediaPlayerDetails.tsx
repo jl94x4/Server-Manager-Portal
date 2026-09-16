@@ -170,6 +170,29 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
         return () => { cancelled = true; };
     }, [ratingKey, settings.showPlaylists]);
 
+    useEffect(() => {
+        if (!item || item.ratingKey !== ratingKey) return undefined;
+        const src = plexLogoUrl(item.logo);
+        setLogoReady(false);
+        setLogoFailed(false);
+        if (!src) {
+            setLogoFailed(true);
+            return undefined;
+        }
+        let cancelled = false;
+        const img = new Image();
+        const finish = (ok: boolean) => {
+            if (cancelled) return;
+            if (ok && img.naturalWidth > 0) setLogoReady(true);
+            else setLogoFailed(true);
+        };
+        img.onload = () => finish(true);
+        img.onerror = () => finish(false);
+        img.src = src;
+        if (img.complete) finish(img.naturalWidth > 0);
+        return () => { cancelled = true; };
+    }, [ratingKey, item?.ratingKey, item?.logo]);
+
     const trailer = useMemo(() => extras.find(isPlayerTrailer) || extras[0] || null, [extras]);
     const mediaSummary = useMemo(() => {
         const mediaInfo = item?.mediaInfo || [];
@@ -367,15 +390,6 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                 </div>
 
                 <div className={`relative z-10 w-full max-w-[2400px] mx-auto page-x sm:px-8 xl:px-12 pt-4 sm:pt-5 ${children.length ? 'pb-5' : 'pb-8'}`}>
-                    {logoUrl && !logoFailed ? (
-                        <img
-                            src={logoUrl}
-                            alt=""
-                            className="hidden"
-                            onLoad={() => setLogoReady(true)}
-                            onError={() => setLogoFailed(true)}
-                        />
-                    ) : null}
                     <button
                         type="button"
                         onClick={onBack}

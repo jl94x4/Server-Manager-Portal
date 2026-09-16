@@ -13,8 +13,11 @@ import type {
     PlayerPersonBundle,
     PlayerPersonPage,
     PlayerPersonProfile,
+    PlayerProfile,
     PlayerSection,
 } from './types';
+
+export const fetchMediaPlayerMe = () => apiFetch(`${PLAYER_API_ROOT}/me`) as Promise<PlayerProfile>;
 
 export const fetchMediaPlayerHome = () => apiFetch(`${PLAYER_API_ROOT}/home`) as Promise<PlayerHome>;
 
