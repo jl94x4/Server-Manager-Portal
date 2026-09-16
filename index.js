@@ -81,6 +81,12 @@ import {
 import { createPosterSetsRouter, startPosterSetsWatcher, setPosterSetsNotifyDigest, schedulePosterSetsArrHook, startTpdbCacheDailyRefresh } from './lib/poster-sets/index.js';
 import { createMediaPlayerRouter } from './lib/media-player/index.js';
 import { normalizePlayerSettings } from './lib/media-player/mapItem.js';
+import {
+    buildSocialMetaTagBlock,
+    parseMediaPlayerSocialTarget,
+    pickMediaPlayerSocialImagePath,
+    socialPreviewFromPlexMetadata,
+} from './lib/media-player/socialMeta.js';
 import { isBearerOnlyRequest, readSessionToken } from './lib/session-token.js';
 import { listTpdbCachedCoverageKeys } from './lib/poster-sets/tpdbCache.js';
 import { applyTpdbCacheBrowse } from './lib/poster-sets/tpdbCacheBrowse.js';
@@ -16510,6 +16516,77 @@ app.get('/api/public/branding-icon', publicReadRateLimit, async (req, res) => {
     }
 });
 
+/** Public poster/art for social crawlers (Discord, Slack, Facebook, Twitter/X, etc.). */
+const mediaPlayerOgPreviewCache = createTtlLruCache({
+    name: 'mediaPlayerOgPreview',
+    maxEntries: 200,
+    defaultTtlMs: 10 * 60 * 1000,
+});
+
+const fetchMediaPlayerOgMetadata = async (config, ratingKey) => {
+    const id = String(ratingKey || '').trim();
+    if (!/^\d+$/.test(id)) return null;
+    const cached = mediaPlayerOgPreviewCache.get(id);
+    if (cached) return cached;
+    const token = normalizePlexToken(config?.plexToken);
+    if (!token || token === SECRET_MASK) return null;
+    const uri = await getPlexConnectionUri(config);
+    if (!uri) return null;
+    const url = `${uri}/library/metadata/${encodeURIComponent(id)}?includeGuids=1&X-Plex-Token=${encodeURIComponent(token)}`;
+    const res = await fetchWithTimeout(url, { headers: plexClientHeaders(token) }, 8000);
+    if (!res?.ok) {
+        if (res) discardFetchBody(res);
+        return null;
+    }
+    const payload = await res.json().catch(() => null);
+    if (payload) mediaPlayerOgPreviewCache.set(id, payload);
+    return payload;
+};
+
+app.get('/api/public/media-player/og-image/:ratingKey', publicReadRateLimit, async (req, res) => {
+    const ratingKey = String(req.params.ratingKey || '').trim();
+    if (!/^\d+$/.test(ratingKey)) return res.status(400).send('');
+    const failImage = (status = 404) => {
+        if (res.headersSent) {
+            if (!res.writableEnded) res.destroy();
+            return;
+        }
+        res.setHeader('Cache-Control', 'public, max-age=300');
+        res.status(status).send('');
+    };
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        if (String(config.mediaServerType || 'plex').toLowerCase() !== 'plex') {
+            return failImage(404);
+        }
+        const payload = await fetchMediaPlayerOgMetadata(config, ratingKey);
+        const meta = payload?.MediaContainer?.Metadata;
+        const row = Array.isArray(meta) ? meta[0] : meta;
+        const thumbPath = pickMediaPlayerSocialImagePath(row || {});
+        if (!thumbPath || !isSafePlexMediaPath(thumbPath)) return failImage(404);
+        const width = Math.min(Math.max(parseInt(String(req.query.width || '1200'), 10) || 1200, 200), 1600);
+        const height = Math.min(Math.max(parseInt(String(req.query.height || '630'), 10) || 630, 200), 1600);
+        const key = mediaImageCacheKey({
+            source: 'plex-og',
+            id: thumbPath,
+            width,
+            height,
+        });
+        const result = await getOrFetchMediaImage(
+            key,
+            () => fetchPlexPosterBuffer(config, thumbPath, width, height, { minSize: 0 }),
+        );
+        if (!result?.body?.length) return failImage(404);
+        sendImageBuffer(res, result, {
+            cacheControl: 'public, max-age=86400',
+            cacheStatus: result.cacheStatus,
+        });
+    } catch (e) {
+        log(`Media Player OG image failed: ${e.message}`);
+        return failImage(500);
+    }
+});
+
 app.get('/api/public/info', publicReadRateLimit, async (req, res) => {
     try {
         const config = await loadFile(CONFIG_PATH, {});
@@ -21888,6 +21965,7 @@ const buildSocialMetaTags = async (req) => {
     const config = await loadFile(CONFIG_PATH, {});
     const profile = await getAdminProfile(config);
     const baseUrl = getRequestBaseUrl(req, config);
+    const pathOnly = stripBasePathFromUrl(String(req.originalUrl || '/').split('?')[0] || '/');
     const pageUrl = `${baseUrl}${stripBasePathFromUrl(req.originalUrl || '/')}`;
     const serverName = profile.serverName || 'Server Portal';
     const mediaServerType = String(config.mediaServerType || 'plex').toLowerCase();
@@ -21903,30 +21981,96 @@ const buildSocialMetaTags = async (req) => {
     if (hasRequests) highlights.push('discover & request movies and TV');
     else highlights.push('discover new movies and TV');
 
-    const description = `Your private ${mediaLabel} portal for ${serverName}. Sign in to ${highlights.slice(0, -1).join(', ')}, and ${highlights[highlights.length - 1]}.`;
-    const title = `${serverName} Portal`;
-
+    let description = `Your private ${mediaLabel} portal for ${serverName}. Sign in to ${highlights.slice(0, -1).join(', ')}, and ${highlights[highlights.length - 1]}.`;
+    let title = `${serverName} Portal`;
     let imageUrl = '';
+    let ogType = 'website';
+    let imageWidth = 1200;
+    let imageHeight = 630;
+    let imageAlt = title;
+
     const configuredImage = config.customLogoUrl || profile.thumb || '';
     if (configuredImage) {
         imageUrl = configuredImage.startsWith('http')
             ? configuredImage
-            : `${baseUrl}/api/plex/image?path=${encodeURIComponent(configuredImage)}&width=1200&height=630`;
+            : `${baseUrl}/api/public/branding-icon?v=${getPortalBrandingIconCacheKey(config, profile)}&round=1`;
     }
 
-    const tags = [
-        `<meta property="og:type" content="website" />`,
-        `<meta property="og:site_name" content="${escapeHtmlAttr(serverName)}" />`,
-        `<meta property="og:title" content="${escapeHtmlAttr(title)}" />`,
-        `<meta property="og:description" content="${escapeHtmlAttr(description)}" />`,
-        `<meta property="og:url" content="${escapeHtmlAttr(pageUrl)}" />`,
-        ...(imageUrl ? [`<meta property="og:image" content="${escapeHtmlAttr(imageUrl)}" />`] : []),
-        `<meta name="twitter:card" content="${imageUrl ? 'summary_large_image' : 'summary'}" />`,
-        `<meta name="twitter:title" content="${escapeHtmlAttr(title)}" />`,
-        `<meta name="twitter:description" content="${escapeHtmlAttr(description)}" />`,
-        ...(imageUrl ? [`<meta name="twitter:image" content="${escapeHtmlAttr(imageUrl)}" />`] : []),
-        `<meta name="description" content="${escapeHtmlAttr(description)}" />`
-    ].join('\n    ');
+    const playerTarget = parseMediaPlayerSocialTarget(pathOnly);
+    if (playerTarget) {
+        title = `Media Player · ${serverName}`;
+        description = `Watch and browse your ${mediaLabel} library on ${serverName}.`;
+        if (playerTarget.kind === 'settings') {
+            title = `Media Player Settings · ${serverName}`;
+            description = `Media Player preferences for ${serverName}.`;
+        } else if (playerTarget.kind === 'person') {
+            const personName = String(new URLSearchParams(String(req.originalUrl || '').split('?')[1] || '').get('name') || '').trim();
+            title = personName
+                ? `${personName} · Media Player · ${serverName}`
+                : `Cast & crew · Media Player · ${serverName}`;
+            description = personName
+                ? `Browse titles featuring ${personName} on ${serverName}.`
+                : `Browse cast and crew on ${serverName}.`;
+        } else if (playerTarget.kind === 'studio') {
+            const studioName = String(new URLSearchParams(String(req.originalUrl || '').split('?')[1] || '').get('name') || '').trim()
+                || decodeURIComponent(String(playerTarget.studioKey || ''));
+            title = `${studioName} · Media Player · ${serverName}`;
+            description = `Browse ${studioName} titles on ${serverName}.`;
+        } else if (playerTarget.kind === 'library') {
+            title = `Library · Media Player · ${serverName}`;
+            description = `Browse this library on ${serverName}.`;
+            try {
+                const libraries = await listPlexLibrariesForConfig(config).catch(() => []);
+                const section = (Array.isArray(libraries) ? libraries : []).find(
+                    (row) => String(row?.id || '') === String(playerTarget.sectionKey || ''),
+                );
+                if (section?.title) {
+                    title = `${section.title} · Media Player · ${serverName}`;
+                    description = `Browse ${section.title} on ${serverName}.`;
+                }
+            } catch {
+                /* keep defaults */
+            }
+        } else if (playerTarget.ratingKey && mediaServerType === 'plex') {
+            try {
+                const payload = await fetchMediaPlayerOgMetadata(config, playerTarget.ratingKey);
+                const preview = socialPreviewFromPlexMetadata(payload, {
+                    serverName,
+                    baseUrl,
+                    pageUrl,
+                    ratingKey: playerTarget.ratingKey,
+                });
+                if (preview) {
+                    title = preview.title;
+                    description = preview.description;
+                    imageUrl = preview.imageUrl || imageUrl;
+                    ogType = preview.type || ogType;
+                    imageWidth = preview.imageWidth || imageWidth;
+                    imageHeight = preview.imageHeight || imageHeight;
+                    imageAlt = preview.imageAlt || title;
+                }
+            } catch (e) {
+                log(`Media Player social preview failed: ${e.message}`);
+            }
+        }
+    }
+
+    // Prefer branded public icon over auth-gated /api/plex/image for crawlers.
+    if (imageUrl.includes('/api/plex/image')) {
+        imageUrl = `${baseUrl}/api/public/branding-icon?v=${getPortalBrandingIconCacheKey(config, profile)}&round=1`;
+    }
+
+    const tags = buildSocialMetaTagBlock({
+        title,
+        description,
+        pageUrl,
+        imageUrl,
+        siteName: serverName,
+        type: ogType,
+        imageWidth,
+        imageHeight,
+        imageAlt,
+    });
 
     return { title, tags, iconHref: resolvePortalBrandingIconHref(config, profile) };
 };
