@@ -180,3 +180,27 @@ export const buildStreamingNetworkLogos = ({
 
     return out;
 };
+
+/** TMDB flatrate providers for a region (Netflix, Disney+, Apple TV+, …). */
+export const pickWatchProvidersForRegion = (watchProviders = [], region = 'US') => {
+    const want = String(region || 'US').trim().toUpperCase() || 'US';
+    const rows = Array.isArray(watchProviders) ? watchProviders : [];
+    const hit = rows.find((row) => String(row?.iso_3166_1 || '').toUpperCase() === want)
+        || rows.find((row) => String(row?.iso_3166_1 || '').toUpperCase() === 'US')
+        || rows[0]
+        || null;
+    const providers = [].concat(hit?.flatrate || []);
+    const out = [];
+    const seen = new Set();
+    for (const row of providers) {
+        const name = String(row?.name || '').trim();
+        const logoPath = String(row?.logoPath || '').trim();
+        const id = String(row?.id || name).trim();
+        if (!name || !logoPath) continue;
+        const key = id.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ name, logoPath, key: id });
+    }
+    return out;
+};

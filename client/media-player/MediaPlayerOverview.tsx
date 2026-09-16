@@ -6,10 +6,11 @@ import { DISCOVER_NETWORKS, DISCOVER_STUDIOS } from '../discovery/discoverConsta
 import { plexImageUrl, formatEpisodeCode, formatPlayerDate, formatPlayerDuration, progressPercent } from './playerUtils';
 import {
     buildStreamingNetworkLogos,
-    pickLogoPathFromTmdbCompanies,
+    pickWatchProvidersForRegion,
     resolvePlayerStudioLogo,
 } from './studioLogo.js';
 import type { PlayerCollectionRef, PlayerItem, PlayerPersonCredit } from './types';
+import { useDiscoveryPreferences } from '../discovery/useDiscoveryPreferences';
 
 type PersonHandler = (person: { id: string; name: string; thumb?: string | null }) => void;
 type StudioHandler = (studio: { key: string; name: string; sectionKey?: string; mediaType?: 'movie' | 'show' }) => void;
@@ -135,24 +136,32 @@ const CollectionPills: React.FC<{
     </div>
 );
 
-/** Streaming networks: Netflix, Disney+, Apple TV+, HBO, etc. */
-const useStreamingNetworkLogos = (item: PlayerItem): NetworkLogo[] => {
+/** Studio / broadcast network from Plex (+ TMDB TV networks), and streaming providers. */
+const useOverviewServiceLogos = (item: PlayerItem, region: string) => {
     const plexName = String(item.studio || '').trim();
-    const initial = buildStreamingNetworkLogos({
-        plexName,
-        mediaType: item.type,
-        networks: DISCOVER_NETWORKS,
-        studios: DISCOVER_STUDIOS,
-    });
-    const [logos, setLogos] = useState<NetworkLogo[]>(initial);
+    const watchRegion = String(region || 'US').trim().toUpperCase() || 'US';
+    const [studioLogos, setStudioLogos] = useState<NetworkLogo[]>(() => (
+        plexName
+            ? buildStreamingNetworkLogos({
+                plexName,
+                mediaType: item.type,
+                networks: DISCOVER_NETWORKS,
+                studios: DISCOVER_STUDIOS,
+            })
+            : []
+    ));
+    const [streamingLogos, setStreamingLogos] = useState<NetworkLogo[]>([]);
 
     useEffect(() => {
-        setLogos(buildStreamingNetworkLogos({
-            plexName,
-            mediaType: item.type,
-            networks: DISCOVER_NETWORKS,
-            studios: DISCOVER_STUDIOS,
-        }));
+        setStudioLogos(plexName
+            ? buildStreamingNetworkLogos({
+                plexName,
+                mediaType: item.type,
+                networks: DISCOVER_NETWORKS,
+                studios: DISCOVER_STUDIOS,
+            })
+            : []);
+        setStreamingLogos([]);
     }, [item.type, plexName]);
 
     useEffect(() => {
@@ -163,43 +172,38 @@ const useStreamingNetworkLogos = (item: PlayerItem): NetworkLogo[] => {
         apiFetch(`/api/discovery/proxy/${mediaType}/${tmdbId}`)
             .then((details: any) => {
                 if (cancelled) return;
-                const tmdbNetworks = mediaType === 'tv'
-                    ? [].concat(details?.networks || [])
-                    : [];
-                // Movies rarely have TMDB networks; fall back to production companies that are streamers.
-                const companies = mediaType === 'movie'
-                    ? [].concat(details?.productionCompanies || [])
-                    : [].concat(details?.networks || [], details?.productionCompanies || []);
-                const fromTmdb = buildStreamingNetworkLogos({
-                    plexName,
-                    mediaType: item.type,
-                    networks: DISCOVER_NETWORKS,
-                    studios: DISCOVER_STUDIOS,
-                    tmdbNetworks: tmdbNetworks.length
-                        ? tmdbNetworks
-                        : companies
-                            .map((row: any) => ({
-                                id: row.id,
-                                name: row.name,
-                                logoPath: row.logoPath || pickLogoPathFromTmdbCompanies(row.name, companies)
-                                    || resolvePlayerStudioLogo(row.name, item.type, {
-                                        networks: DISCOVER_NETWORKS,
-                                        studios: DISCOVER_STUDIOS,
-                                    })?.logoPath
-                                    || '',
-                            }))
-                            .filter((row: any) => resolvePlayerStudioLogo(row.name, item.type, {
-                                networks: DISCOVER_NETWORKS,
-                                studios: DISCOVER_STUDIOS,
-                            })),
-                });
-                if (fromTmdb.length) setLogos(fromTmdb);
+                if (mediaType === 'tv') {
+                    const nextStudio = buildStreamingNetworkLogos({
+                        plexName,
+                        mediaType: item.type,
+                        networks: DISCOVER_NETWORKS,
+                        studios: DISCOVER_STUDIOS,
+                        tmdbNetworks: [].concat(details?.networks || []),
+                    });
+                    if (nextStudio.length) setStudioLogos(nextStudio);
+                }
+                const providers = pickWatchProvidersForRegion(details?.watchProviders || [], watchRegion)
+                    .map((row) => {
+                        const catalog = resolvePlayerStudioLogo(row.name, item.type, {
+                            networks: DISCOVER_NETWORKS,
+                            studios: DISCOVER_STUDIOS,
+                        });
+                        return {
+                            name: row.name,
+                            logoPath: row.logoPath || catalog?.logoPath || '',
+                            key: String(row.key || catalog?.id || row.name),
+                        };
+                    })
+                    .filter((row) => row.logoPath);
+                setStreamingLogos(providers);
             })
-            .catch(() => {});
+            .catch(() => {
+                if (!cancelled) setStreamingLogos([]);
+            });
         return () => { cancelled = true; };
-    }, [item.externalIds?.tmdb, item.tmdbId, item.type, plexName]);
+    }, [item.externalIds?.tmdb, item.tmdbId, item.type, plexName, watchRegion]);
 
-    return logos;
+    return { studioLogos, streamingLogos };
 };
 
 export const OverviewSummary: React.FC<{ text: string }> = ({ text }) => {
@@ -247,7 +251,11 @@ export const OverviewFacts: React.FC<{
     onOpenStudio?: StudioHandler;
 }> = ({ item, onOpenPerson, onOpenItem, onOpenStudio }) => {
     const { t, locale } = useDiscoverI18n();
-    const networkLogos = useStreamingNetworkLogos(item);
+    const { preferences } = useDiscoveryPreferences();
+    const { studioLogos, streamingLogos } = useOverviewServiceLogos(
+        item,
+        preferences.discoverRegion || 'US',
+    );
     const aired = formatPlayerDate(item.originallyAvailableAt, locale);
     const added = formatPlayerDate(item.addedAt, locale);
     const lastPlayed = formatPlayerDate(item.lastViewedAt, locale);
@@ -257,7 +265,10 @@ export const OverviewFacts: React.FC<{
         ? item.collectionItems
         : (item.collections || []).map((title) => ({ ratingKey: '', title }))
     ).filter((row) => row.title);
-    const networkLabel = item.type === 'movie' ? t('media.studio') : t('mediaPlayerPage.network');
+    const studioLabel = item.type === 'movie' ? t('media.studio') : t('mediaPlayerPage.network');
+    const streamingIds = new Set(streamingLogos.map((row) => String(row.name || '').trim().toLowerCase()));
+    // Keep Studio/Network distinct from Streaming when the same brand appears in both.
+    const studioOnly = studioLogos.filter((row) => !streamingIds.has(String(row.name || '').trim().toLowerCase()));
     const rows: Array<{
         label: string;
         value?: string;
@@ -268,9 +279,13 @@ export const OverviewFacts: React.FC<{
         item.directorPeople?.length ? { label: t('mediaPlayerPage.directedBy'), people: item.directorPeople } : null,
         item.writerPeople?.length ? { label: t('mediaPlayerPage.writtenBy'), people: item.writerPeople } : null,
         item.producers?.length ? { label: t('mediaPlayerPage.producedBy'), people: item.producers } : null,
-        networkLogos.length ? {
-            label: networkLabel,
-            networks: networkLogos,
+        studioOnly.length ? {
+            label: studioLabel,
+            networks: studioOnly,
+        } : null,
+        streamingLogos.length ? {
+            label: t('mediaPlayerPage.streaming'),
+            networks: streamingLogos,
         } : null,
         aired ? { label: item.type === 'episode' ? t('mediaPlayerPage.aired') : t('mediaPlayerPage.released'), value: aired } : null,
         item.countries?.length ? { label: t('mediaPlayerPage.countries'), value: item.countries.join(', ') } : null,

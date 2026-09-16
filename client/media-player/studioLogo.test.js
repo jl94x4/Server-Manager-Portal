@@ -4,6 +4,7 @@ import {
     buildStreamingNetworkLogos,
     matchDiscoverCompanyByName,
     pickLogoPathFromTmdbCompanies,
+    pickWatchProvidersForRegion,
     resolvePlayerStudioLogo,
 } from './studioLogo.js';
 
@@ -52,12 +53,19 @@ test('buildStreamingNetworkLogos merges TMDB Netflix with Plex label', () => {
     assert.ok(logos[0].logoPath);
 });
 
-test('pickLogoPathFromTmdbCompanies matches by name', () => {
-    assert.equal(pickLogoPathFromTmdbCompanies('HBO', [
-        { name: 'HBO', logoPath: '/tuomPhY2UtuPTqqFnKMVHvSb724.png' },
-        { name: 'AMC', logoPath: '/other.png' },
-    ]), '/tuomPhY2UtuPTqqFnKMVHvSb724.png');
-    assert.equal(pickLogoPathFromTmdbCompanies('Unknown', [
-        { name: 'HBO', logoPath: '/tuomPhY2UtuPTqqFnKMVHvSb724.png' },
-    ]), '');
+test('pickWatchProvidersForRegion reads flatrate logos for the region', () => {
+    const providers = pickWatchProvidersForRegion([
+        {
+            iso_3166_1: 'GB',
+            flatrate: [{ id: 8, name: 'Netflix', logoPath: '/netflix.png' }],
+        },
+        {
+            iso_3166_1: 'US',
+            flatrate: [
+                { id: 337, name: 'Disney Plus', logoPath: '/disney.png' },
+                { id: 350, name: 'Apple TV Plus', logoPath: '/apple.png' },
+            ],
+        },
+    ], 'US');
+    assert.deepEqual(providers.map((row) => row.name), ['Disney Plus', 'Apple TV Plus']);
 });

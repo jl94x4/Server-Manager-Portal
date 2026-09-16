@@ -223,6 +223,7 @@ export const en = {
         lastPlayed: 'Last played',
         plays: 'Plays',
         network: 'Network',
+        streaming: 'Streaming',
         countries: 'Countries',
         collection: 'Collection',
         episodeProgress: 'Watched',
