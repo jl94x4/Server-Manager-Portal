@@ -336,7 +336,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                         <img
                             src={backdropUrl}
                             alt=""
-                            className="absolute inset-0 w-full h-full object-cover object-[42%_30%] opacity-45 md:object-[40%_28%] md:opacity-90"
+                            className="absolute inset-0 w-full h-full object-cover object-[28%_30%] opacity-45 md:object-[20%_28%] md:opacity-90"
                             fetchPriority="high"
                             decoding="async"
                             onError={() => setBackdropFailed(true)}
