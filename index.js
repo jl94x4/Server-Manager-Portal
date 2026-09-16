@@ -30079,6 +30079,12 @@ app.use('/api/media-player', createMediaPlayerRouter({
         }).catch(() => '');
         return switched || null;
     },
+    resolveMemberAccountId: async (req, { config, uri } = {}) => {
+        if (!req?.user || !config || !uri) return null;
+        const accountID = String(await resolveLocalPlexAccountId(config, uri, req.user).catch(() => '') || '').trim();
+        if (!accountID || isPlexOwnerLocalAccountId(accountID)) return null;
+        return accountID;
+    },
     getMediaPlayerSettings: async (req) => {
         const users = await loadFile(USERS_PATH, []);
         const local = findLocalUserForSession(users, req.user);
