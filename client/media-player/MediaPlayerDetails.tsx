@@ -12,6 +12,7 @@ import {
 } from './host';
 import { addMediaPlayerPlaylistItem, createMediaPlayerPlaylist, fetchMediaPlayerItem, fetchMediaPlayerNeighbors, fetchMediaPlayerPlaylists, setMediaPlayerWatched } from './api';
 import { MediaPlayerMediaInfo } from './MediaPlayerMediaInfo';
+import { MediaPlayerThemeTune } from './MediaPlayerThemeTune';
 import { EpisodeNeighbors, OverviewFacts, OverviewGenres, OverviewLinks, OverviewSummary } from './MediaPlayerOverview';
 import { PlayerRail } from './PlayerRail';
 import { usePlayerSettings } from './usePlayerSettings';
@@ -38,6 +39,7 @@ type Props = {
     onOpenStudio: (studio: { key: string; name: string; sectionKey?: string; mediaType?: 'movie' | 'show' }) => void;
     onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
     playing?: boolean;
+    playbackActive?: boolean;
 };
 
 const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -75,7 +77,7 @@ const ratingsHavePills = (ratings?: PlayerRatings | null) => (
     !!(ratings?.imdb || ratings?.rottenTomatoes || ratings?.popcorn || ratings?.tmdb)
 );
 
-export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenItem, onOpenPerson, onOpenStudio, onPlay, playing = false }) => {
+export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenItem, onOpenPerson, onOpenStudio, onPlay, playing = false, playbackActive = false }) => {
     const { t } = useDiscoverI18n();
     const [settings] = usePlayerSettings();
     const [gridSize] = useDiscoverGridSize();
@@ -397,6 +399,16 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                         <div className="absolute inset-x-0 bottom-0 h-1.5 bg-black/70">
                                             <div className="h-full bg-plex" style={{ width: `${progressPercent(item)}%` }} />
                                         </div>
+                                    ) : null}
+                                    {!waitingForItem && item.themeKey && settings.playThemeTunes ? (
+                                        <MediaPlayerThemeTune
+                                            themeKey={item.themeKey}
+                                            enabled
+                                            paused={playing || playbackActive}
+                                            playLabel={t('mediaPlayerPage.playTheme')}
+                                            muteLabel={t('mediaPlayerPage.mute')}
+                                            unmuteLabel={t('mediaPlayerPage.unmute')}
+                                        />
                                     ) : null}
                                 </div>
                                 <div className="light-on-media flex-1 min-w-0 flex flex-col justify-end gap-2 md:hidden">

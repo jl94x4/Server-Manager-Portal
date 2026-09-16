@@ -348,6 +348,7 @@ export const MediaPlayerDashboard: React.FC = () => {
                     onOpenStudio={openStudio}
                     onPlay={playItem}
                     playing={startingPlay}
+                    playbackActive={Boolean(playSession)}
                 />
             ) : null}
             {view.kind === 'person' ? (

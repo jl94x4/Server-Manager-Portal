@@ -10,6 +10,7 @@ export type PlayerSettings = {
     subtitleMode: PlayerSubtitleMode;
     autoSkipIntro: boolean;
     autoSkipCredits: boolean;
+    playThemeTunes: boolean;
     homeRowOrder: string[];
     libraryNavOrder: string[];
 };
@@ -182,6 +183,7 @@ export const DEFAULT_PLAYER_SETTINGS: PlayerSettings = {
     subtitleMode: 'forced',
     autoSkipIntro: false,
     autoSkipCredits: false,
+    playThemeTunes: true,
     homeRowOrder: [],
     libraryNavOrder: [],
 };
@@ -202,6 +204,7 @@ export const normalizePlayerSettings = (raw: Partial<PlayerSettings> | Record<st
         subtitleMode: SUBTITLE_MODES.has(subtitleMode) ? subtitleMode : 'forced',
         autoSkipIntro: raw?.autoSkipIntro === true,
         autoSkipCredits: raw?.autoSkipCredits === true,
+        playThemeTunes: raw?.playThemeTunes !== false,
         homeRowOrder: collapseHomeRowOrder(raw?.homeRowOrder),
         libraryNavOrder: normalizeLibraryNavOrder(
             Array.isArray(raw?.libraryNavOrder) && raw.libraryNavOrder.length
@@ -221,6 +224,7 @@ export const playerSettingsEqual = (a: PlayerSettings, b: PlayerSettings) => (
     && a.subtitleMode === b.subtitleMode
     && a.autoSkipIntro === b.autoSkipIntro
     && a.autoSkipCredits === b.autoSkipCredits
+    && a.playThemeTunes === b.playThemeTunes
     && a.homeRowOrder.join('\0') === b.homeRowOrder.join('\0')
     && a.libraryNavOrder.join('\0') === b.libraryNavOrder.join('\0')
 );

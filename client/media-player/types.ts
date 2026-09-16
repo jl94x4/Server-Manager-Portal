@@ -78,6 +78,7 @@ export type PlayerItem = {
     thumb?: string | null;
     art?: string | null;
     logo?: string | null;
+    themeKey?: string | null;
     durationMs?: number | null;
     viewOffsetMs?: number;
     index?: number | null;

@@ -175,6 +175,12 @@ export const MediaPlayerSettings: React.FC<Props> = ({ onBack }) => {
                         checked={settings.autoplayNext}
                         onChange={(checked) => updateSettings({ autoplayNext: checked })}
                     />
+                    <SettingsToggleRow
+                        title={t('mediaPlayerPage.playThemeTunes')}
+                        description={t('mediaPlayerPage.playThemeTunesHint')}
+                        checked={settings.playThemeTunes}
+                        onChange={(checked) => updateSettings({ playThemeTunes: checked })}
+                    />
                     <div className="border-b border-border/40 py-4">
                         <div className="mb-3 flex items-start justify-between gap-3">
                             <div>

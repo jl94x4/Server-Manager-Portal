@@ -22,6 +22,12 @@ export const plexBackdropUrl = (path?: string | null) => {
     return plexImageUrl(path, Math.round(1920 * dpr), Math.round(1080 * dpr));
 };
 
+export const plexThemeUrl = (ratingKey?: string | null) => {
+    const key = String(ratingKey || '').replace(/\D/g, '');
+    if (!key) return '';
+    return portalUrl(`${PLAYER_API_ROOT}/theme/${encodeURIComponent(key)}`);
+};
+
 export const formatBitrateMbps = (bitrate?: number | null) => {
     const n = Number(bitrate);
     if (!Number.isFinite(n) || n <= 0) return '';
