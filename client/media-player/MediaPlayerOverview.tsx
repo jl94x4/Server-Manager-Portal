@@ -103,7 +103,7 @@ export const OverviewFacts: React.FC<{
     return (
         <div className="flex flex-col gap-3">
             <SectionHeading>{t('media.details')}</SectionHeading>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-10 gap-y-3">
                 {rows.map((row) => (
                     <div key={row.label} className="flex flex-col gap-1 min-w-0">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-muted">{row.label}</span>

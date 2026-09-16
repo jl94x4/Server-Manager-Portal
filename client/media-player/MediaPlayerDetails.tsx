@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Calendar, Clock, Eye, EyeOff, Film, Info, ListPlus, Loader2, Play, Star, Tv, Users } from 'lucide-react';
+import { ArrowLeft, Calendar, ChevronDown, Clock, Eye, EyeOff, Film, Info, ListPlus, Loader2, Play, Star, Tv, Users } from 'lucide-react';
 import {
     Carousel,
     CustomSelect,
@@ -92,6 +92,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
     const [logoFailed, setLogoFailed] = useState(false);
     const [logoReady, setLogoReady] = useState(false);
     const [mediaInfoOpen, setMediaInfoOpen] = useState(false);
+    const [mediaInfoExpanded, setMediaInfoExpanded] = useState(false);
     const [mediaIndex, setMediaIndex] = useState(0);
     const [playlists, setPlaylists] = useState<PlayerItem[]>([]);
     const [playlistOpen, setPlaylistOpen] = useState(false);
@@ -106,6 +107,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
         setLogoFailed(false);
         setLogoReady(false);
         setMediaInfoOpen(false);
+        setMediaInfoExpanded(false);
         fetchMediaPlayerItem(ratingKey)
             .then((data) => {
                 if (cancelled) return;
@@ -308,7 +310,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                 </h1>
             )}
             {item.tagline ? (
-                <p className="text-sm sm:text-base text-white/55 italic max-w-4xl">{item.tagline}</p>
+                <p className="text-sm sm:text-base text-white/55 italic max-w-6xl">{item.tagline}</p>
             ) : null}
             <div className="flex flex-wrap items-center gap-1.5">
                 {metaChips.map((chip) => (
@@ -334,7 +336,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                         <img
                             src={backdropUrl}
                             alt=""
-                            className="absolute inset-0 w-full h-full object-cover object-[32%_30%] opacity-45 md:object-[22%_28%] md:opacity-90"
+                            className="absolute inset-0 w-full h-full object-cover object-[42%_30%] opacity-45 md:object-[40%_28%] md:opacity-90"
                             fetchPriority="high"
                             decoding="async"
                             onError={() => setBackdropFailed(true)}
@@ -344,7 +346,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                     )}
                     <div className="media-details-hero-scrim-mobile absolute inset-0 bg-gradient-to-b from-black/50 via-card/65 via-[55%] to-card md:hidden" />
                     <div className="media-details-hero-scrim-bottom absolute inset-0 hidden md:block bg-gradient-to-t from-card from-0% via-card/80 via-[38%] to-transparent" />
-                    <div className="media-details-hero-scrim-left absolute inset-0 hidden md:block bg-gradient-to-r from-card from-0% via-card/70 via-[32%] to-transparent to-[78%]" />
+                    <div className="media-details-hero-scrim-left absolute inset-0 hidden md:block bg-gradient-to-r from-card from-0% via-card/80 via-[42%] to-transparent to-[90%]" />
                 </div>
 
                 <div className="relative z-10 w-full max-w-[2400px] mx-auto page-x sm:px-8 xl:px-12 pt-4 sm:pt-5 pb-8">
@@ -562,7 +564,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                             <div className="light-on-media hidden md:flex flex-col gap-2.5">
                                 {titleBlock}
                             </div>
-                            <div className="media-details-panel flex flex-col gap-5 max-w-5xl">
+                            <div className="media-details-panel flex flex-col gap-5 max-w-7xl">
                                 <OverviewSummary text={item.summary || t('media.noDescription')} />
                                 <OverviewGenres genres={genres} />
                                 <OverviewFacts item={item} onOpenPerson={onOpenPerson} />
@@ -577,21 +579,34 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                 ) : null}
                                 {streamRows.length ? (
                                     <div className="flex flex-col gap-3">
-                                        <SectionHeading>{t('mediaPlayerPage.mediaInfo')}</SectionHeading>
-                                        <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 max-w-xl">
-                                            {streamRows.map((row) => (
-                                                <React.Fragment key={row.label}>
-                                                    <span className="text-xs font-black uppercase tracking-wider text-muted pt-0.5">{row.label}</span>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => item.mediaInfo?.length && setMediaInfoOpen(true)}
-                                                        className="text-left text-sm font-semibold text-text hover:text-plex"
-                                                    >
-                                                        {row.value}
-                                                    </button>
-                                                </React.Fragment>
-                                            ))}
-                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setMediaInfoExpanded((open) => !open)}
+                                            className="flex w-full items-center gap-3 pr-4 text-left"
+                                            aria-expanded={mediaInfoExpanded}
+                                        >
+                                            <h3 className="text-xs font-black text-muted uppercase tracking-[0.2em]">
+                                                {t('mediaPlayerPage.mediaInfo')}
+                                            </h3>
+                                            <ChevronDown className={`h-4 w-4 shrink-0 text-muted transition-transform ${mediaInfoExpanded ? 'rotate-180' : ''}`} />
+                                            <div className="h-px min-w-0 flex-1 bg-gradient-to-r from-border to-transparent" />
+                                        </button>
+                                        {mediaInfoExpanded ? (
+                                            <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 max-w-xl">
+                                                {streamRows.map((row) => (
+                                                    <React.Fragment key={row.label}>
+                                                        <span className="text-xs font-black uppercase tracking-wider text-muted pt-0.5">{row.label}</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => item.mediaInfo?.length && setMediaInfoOpen(true)}
+                                                            className="text-left text-sm font-semibold text-text hover:text-plex"
+                                                        >
+                                                            {row.value}
+                                                        </button>
+                                                    </React.Fragment>
+                                                ))}
+                                            </div>
+                                        ) : null}
                                     </div>
                                 ) : null}
                                 {factMediaType && Number.isFinite(factMediaId) && factMediaId > 0 ? (
