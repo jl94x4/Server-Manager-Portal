@@ -295,6 +295,7 @@ import {
     switchPlexHomeUser,
     toPublicPlexHomeUser,
 } from './lib/plex/homeUsers.js';
+import { resolvePlexSharedServerMemberToken } from './lib/plex/sharedServers.js';
 
 const resolveAppVersion = () => {
     const pkgVersion = resolvePackageVersion();
@@ -30041,6 +30042,7 @@ const requireOverlays = async (req, res, next) => {
 };
 
 const plexHomeMemberTokenCache = new Map();
+const plexSharedServerTokenCache = new Map();
 
 app.use('/api/media-player', createMediaPlayerRouter({
     Router: express.Router,
@@ -30059,10 +30061,12 @@ app.use('/api/media-player', createMediaPlayerRouter({
         const local = findLocalUserForSession(users, sessionUser);
         const fromLocal = decryptPlexAuthToken(local?.plexAuthToken);
         if (fromLocal) return fromLocal;
-        if (isImpersonatingSession(sessionUser) || sessionUser?.impersonatingUserId) return null;
-        const fromSession = decryptPlexAuthToken(sessionUser?.plexAuthToken);
-        if (fromSession) return fromSession;
-        if (sessionUser?.isAdmin) {
+        const impersonating = isImpersonatingSession(sessionUser) || !!sessionUser?.impersonatingUserId;
+        if (!impersonating) {
+            const fromSession = decryptPlexAuthToken(sessionUser?.plexAuthToken);
+            if (fromSession) return fromSession;
+        }
+        if (!impersonating && sessionUser?.isAdmin) {
             const config = await loadFile(CONFIG_PATH, {});
             const adminToken = String(config?.plexToken || '').trim();
             if (adminToken && adminToken !== SECRET_MASK) return adminToken;
@@ -30070,6 +30074,15 @@ app.use('/api/media-player', createMediaPlayerRouter({
         const config = await loadFile(CONFIG_PATH, {});
         const ownerToken = String(config?.plexToken || '').trim();
         if (!ownerToken || ownerToken === SECRET_MASK) return null;
+        const shared = await resolvePlexSharedServerMemberToken({
+            ownerToken,
+            machineId: config.serverIdentifier,
+            sessionUser,
+            localUser: local || {},
+            headers: plexClientHeaders(ownerToken),
+            cache: plexSharedServerTokenCache,
+        }).catch(() => '');
+        if (shared) return shared;
         const switched = await resolvePlexHomeMemberToken({
             ownerToken,
             sessionUser,
