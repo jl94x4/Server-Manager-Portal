@@ -288,6 +288,7 @@ import {
     fetchPlexHomeUsers,
     findRememberedPlexHomeUser,
     isSamePlexHomeUser,
+    resolvePlexHomeMemberToken,
     sessionCanUsePlexHomeSwitch,
     sessionIsPlexHomeProfile,
     shouldOfferPlexHomeSelect,
@@ -30039,6 +30040,8 @@ const requireOverlays = async (req, res, next) => {
     }
 };
 
+const plexHomeMemberTokenCache = new Map();
+
 app.use('/api/media-player', createMediaPlayerRouter({
     Router: express.Router,
     requireAuth,
@@ -30064,7 +30067,17 @@ app.use('/api/media-player', createMediaPlayerRouter({
             const adminToken = String(config?.plexToken || '').trim();
             if (adminToken && adminToken !== SECRET_MASK) return adminToken;
         }
-        return null;
+        const config = await loadFile(CONFIG_PATH, {});
+        const ownerToken = String(config?.plexToken || '').trim();
+        if (!ownerToken || ownerToken === SECRET_MASK) return null;
+        const switched = await resolvePlexHomeMemberToken({
+            ownerToken,
+            sessionUser,
+            localUser: local || {},
+            headers: plexClientHeaders(ownerToken),
+            cache: plexHomeMemberTokenCache,
+        }).catch(() => '');
+        return switched || null;
     },
     getMediaPlayerSettings: async (req) => {
         const users = await loadFile(USERS_PATH, []);
