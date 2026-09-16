@@ -30083,10 +30083,22 @@ app.use('/api/media-player', createMediaPlayerRouter({
             cache: plexSharedServerTokenCache,
         }).catch(() => '');
         if (shared) return shared;
+        const remembered = impersonating ? null : readPlexHomeRemember(req);
+        const rememberedIds = [
+            sessionUser?.plexId,
+            sessionUser?.id,
+            local?.plexId,
+            local?.id,
+        ].map((value) => String(value || '').trim()).filter(Boolean);
+        const pin = remembered && rememberedIds.includes(String(remembered.userId || '').trim())
+            ? remembered.pin
+            : '';
         const switched = await resolvePlexHomeMemberToken({
             ownerToken,
+            machineId: config.serverIdentifier,
             sessionUser,
             localUser: local || {},
+            pin,
             headers: plexClientHeaders(ownerToken),
             cache: plexHomeMemberTokenCache,
         }).catch(() => '');
