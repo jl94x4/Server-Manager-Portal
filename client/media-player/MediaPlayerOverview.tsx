@@ -5,6 +5,7 @@ import { apiFetch } from '../shared/api';
 import { DISCOVER_NETWORKS, DISCOVER_STUDIOS } from '../discovery/discoverConstants';
 import { plexImageUrl, formatEpisodeCode, formatPlayerDate, formatPlayerDuration, progressPercent } from './playerUtils';
 import {
+    buildStreamingNetworkLogos,
     pickLogoPathFromTmdbCompanies,
     resolvePlayerStudioLogo,
 } from './studioLogo.js';
@@ -12,6 +13,7 @@ import type { PlayerCollectionRef, PlayerItem, PlayerPersonCredit } from './type
 
 type PersonHandler = (person: { id: string; name: string; thumb?: string | null }) => void;
 type StudioHandler = (studio: { key: string; name: string; sectionKey?: string; mediaType?: 'movie' | 'show' }) => void;
+type NetworkLogo = { name: string; logoPath: string; key: string };
 
 const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div className="flex items-center gap-3 mb-3">
@@ -46,15 +48,16 @@ const StudioPill: React.FC<{
     const [failed, setFailed] = useState(false);
     const showLogo = Boolean(logoPath) && !failed;
     const className = showLogo
-        ? 'self-start inline-flex items-center rounded-lg border border-border/60 bg-white/5 px-2.5 py-1.5 hover:bg-white/10 hover:border-plex/40 transition-colors'
+        ? 'self-start inline-flex items-center rounded-xl border border-border/60 bg-white/5 px-3 py-2.5 hover:bg-white/10 hover:border-plex/40 transition-colors'
         : 'self-start px-2.5 py-1 rounded-lg bg-white/5 border border-border text-sm text-text hover:bg-plex/15 hover:border-plex/40 hover:text-plex transition-colors';
     const body = showLogo ? (
         <DiscoveryLogo
             logoPath={String(logoPath)}
             alt={name}
-            width={154}
+            width={300}
+            duotone
             onError={() => setFailed(true)}
-            className="h-6 max-w-[120px] object-contain opacity-90"
+            className="h-9 sm:h-10 max-w-[180px] sm:max-w-[200px] object-contain opacity-95"
         />
     ) : name;
 
@@ -77,6 +80,29 @@ const StudioPill: React.FC<{
         <span className="text-sm text-text leading-snug">{name}</span>
     );
 };
+
+const NetworkLogoRow: React.FC<{
+    networks: NetworkLogo[];
+    onOpenStudio?: StudioHandler;
+    sectionKey?: string;
+    mediaType?: 'movie' | 'show';
+}> = ({ networks, onOpenStudio, sectionKey, mediaType }) => (
+    <div className="flex flex-wrap gap-2 items-center">
+        {networks.map((row) => (
+            <StudioPill
+                key={`${row.key}-${row.name}`}
+                name={row.name}
+                logoPath={row.logoPath}
+                onClick={onOpenStudio ? () => onOpenStudio({
+                    key: row.key || row.name,
+                    name: row.name,
+                    sectionKey: sectionKey || '',
+                    mediaType: mediaType || 'show',
+                }) : undefined}
+            />
+        ))}
+    </div>
+);
 
 const CollectionPills: React.FC<{
     collections: PlayerCollectionRef[];
@@ -109,22 +135,27 @@ const CollectionPills: React.FC<{
     </div>
 );
 
-const useStudioNetworkLogoPath = (item: PlayerItem) => {
-    const studioName = String(item.studio || '').trim();
-    const catalog = studioName
-        ? resolvePlayerStudioLogo(studioName, item.type, {
+/** Streaming networks: Netflix, Disney+, Apple TV+, HBO, etc. */
+const useStreamingNetworkLogos = (item: PlayerItem): NetworkLogo[] => {
+    const plexName = String(item.studio || '').trim();
+    const initial = buildStreamingNetworkLogos({
+        plexName,
+        mediaType: item.type,
+        networks: DISCOVER_NETWORKS,
+        studios: DISCOVER_STUDIOS,
+    });
+    const [logos, setLogos] = useState<NetworkLogo[]>(initial);
+
+    useEffect(() => {
+        setLogos(buildStreamingNetworkLogos({
+            plexName,
+            mediaType: item.type,
             networks: DISCOVER_NETWORKS,
             studios: DISCOVER_STUDIOS,
-        })
-        : null;
-    const [logoPath, setLogoPath] = useState<string>(catalog?.logoPath || '');
+        }));
+    }, [item.type, plexName]);
 
     useEffect(() => {
-        setLogoPath(catalog?.logoPath || '');
-    }, [catalog?.logoPath, studioName]);
-
-    useEffect(() => {
-        if (!studioName || catalog?.logoPath) return undefined;
         const tmdbId = Number(item.externalIds?.tmdb || item.tmdbId || 0);
         if (!Number.isFinite(tmdbId) || tmdbId <= 0) return undefined;
         const mediaType = item.type === 'movie' ? 'movie' : 'tv';
@@ -132,17 +163,43 @@ const useStudioNetworkLogoPath = (item: PlayerItem) => {
         apiFetch(`/api/discovery/proxy/${mediaType}/${tmdbId}`)
             .then((details: any) => {
                 if (cancelled) return;
+                const tmdbNetworks = mediaType === 'tv'
+                    ? [].concat(details?.networks || [])
+                    : [];
+                // Movies rarely have TMDB networks; fall back to production companies that are streamers.
                 const companies = mediaType === 'movie'
                     ? [].concat(details?.productionCompanies || [])
                     : [].concat(details?.networks || [], details?.productionCompanies || []);
-                const path = pickLogoPathFromTmdbCompanies(studioName, companies);
-                if (path) setLogoPath(path);
+                const fromTmdb = buildStreamingNetworkLogos({
+                    plexName,
+                    mediaType: item.type,
+                    networks: DISCOVER_NETWORKS,
+                    studios: DISCOVER_STUDIOS,
+                    tmdbNetworks: tmdbNetworks.length
+                        ? tmdbNetworks
+                        : companies
+                            .map((row: any) => ({
+                                id: row.id,
+                                name: row.name,
+                                logoPath: row.logoPath || pickLogoPathFromTmdbCompanies(row.name, companies)
+                                    || resolvePlayerStudioLogo(row.name, item.type, {
+                                        networks: DISCOVER_NETWORKS,
+                                        studios: DISCOVER_STUDIOS,
+                                    })?.logoPath
+                                    || '',
+                            }))
+                            .filter((row: any) => resolvePlayerStudioLogo(row.name, item.type, {
+                                networks: DISCOVER_NETWORKS,
+                                studios: DISCOVER_STUDIOS,
+                            })),
+                });
+                if (fromTmdb.length) setLogos(fromTmdb);
             })
             .catch(() => {});
         return () => { cancelled = true; };
-    }, [catalog?.logoPath, item.externalIds?.tmdb, item.tmdbId, item.type, studioName]);
+    }, [item.externalIds?.tmdb, item.tmdbId, item.type, plexName]);
 
-    return logoPath;
+    return logos;
 };
 
 export const OverviewSummary: React.FC<{ text: string }> = ({ text }) => {
@@ -190,7 +247,7 @@ export const OverviewFacts: React.FC<{
     onOpenStudio?: StudioHandler;
 }> = ({ item, onOpenPerson, onOpenItem, onOpenStudio }) => {
     const { t, locale } = useDiscoverI18n();
-    const studioLogoPath = useStudioNetworkLogoPath(item);
+    const networkLogos = useStreamingNetworkLogos(item);
     const aired = formatPlayerDate(item.originallyAvailableAt, locale);
     const added = formatPlayerDate(item.addedAt, locale);
     const lastPlayed = formatPlayerDate(item.lastViewedAt, locale);
@@ -200,19 +257,20 @@ export const OverviewFacts: React.FC<{
         ? item.collectionItems
         : (item.collections || []).map((title) => ({ ratingKey: '', title }))
     ).filter((row) => row.title);
+    const networkLabel = item.type === 'movie' ? t('media.studio') : t('mediaPlayerPage.network');
     const rows: Array<{
         label: string;
         value?: string;
         people?: PlayerPersonCredit[];
         collections?: PlayerCollectionRef[];
-        studio?: string;
+        networks?: NetworkLogo[];
     }> = [
         item.directorPeople?.length ? { label: t('mediaPlayerPage.directedBy'), people: item.directorPeople } : null,
         item.writerPeople?.length ? { label: t('mediaPlayerPage.writtenBy'), people: item.writerPeople } : null,
         item.producers?.length ? { label: t('mediaPlayerPage.producedBy'), people: item.producers } : null,
-        item.studio ? {
-            label: item.type === 'movie' ? t('media.studio') : t('mediaPlayerPage.network'),
-            studio: item.studio,
+        networkLogos.length ? {
+            label: networkLabel,
+            networks: networkLogos,
         } : null,
         aired ? { label: item.type === 'episode' ? t('mediaPlayerPage.aired') : t('mediaPlayerPage.released'), value: aired } : null,
         item.countries?.length ? { label: t('mediaPlayerPage.countries'), value: item.countries.join(', ') } : null,
@@ -232,7 +290,7 @@ export const OverviewFacts: React.FC<{
         value?: string;
         people?: PlayerPersonCredit[];
         collections?: PlayerCollectionRef[];
-        studio?: string;
+        networks?: NetworkLogo[];
     }>;
 
     if (!rows.length) return null;
@@ -247,16 +305,12 @@ export const OverviewFacts: React.FC<{
                             <CreditPills people={row.people} onOpenPerson={onOpenPerson} />
                         ) : row.collections?.length ? (
                             <CollectionPills collections={row.collections} onOpenItem={onOpenItem} />
-                        ) : row.studio ? (
-                            <StudioPill
-                                name={row.studio}
-                                logoPath={studioLogoPath}
-                                onClick={onOpenStudio ? () => onOpenStudio({
-                                    key: item.studioKey || item.studio || row.studio,
-                                    name: item.studio || row.studio,
-                                    sectionKey: item.librarySectionID || '',
-                                    mediaType: item.type === 'movie' ? 'movie' : 'show',
-                                }) : undefined}
+                        ) : row.networks?.length ? (
+                            <NetworkLogoRow
+                                networks={row.networks}
+                                onOpenStudio={onOpenStudio}
+                                sectionKey={item.librarySectionID || ''}
+                                mediaType={item.type === 'movie' ? 'movie' : 'show'}
                             />
                         ) : (
                             <span className="text-sm text-text leading-snug">{row.value}</span>

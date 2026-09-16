@@ -21988,6 +21988,7 @@ const buildSocialMetaTags = async (req) => {
     let imageWidth = 1200;
     let imageHeight = 630;
     let imageAlt = title;
+    let card = '';
 
     const configuredImage = config.customLogoUrl || profile.thumb || '';
     if (configuredImage) {
@@ -22048,6 +22049,7 @@ const buildSocialMetaTags = async (req) => {
                     imageWidth = preview.imageWidth || imageWidth;
                     imageHeight = preview.imageHeight || imageHeight;
                     imageAlt = preview.imageAlt || title;
+                    card = preview.card || 'summary';
                 }
             } catch (e) {
                 log(`Media Player social preview failed: ${e.message}`);
@@ -22070,6 +22072,7 @@ const buildSocialMetaTags = async (req) => {
         imageWidth,
         imageHeight,
         imageAlt,
+        card,
     });
 
     return { title, tags, iconHref: resolvePortalBrandingIconHref(config, profile) };

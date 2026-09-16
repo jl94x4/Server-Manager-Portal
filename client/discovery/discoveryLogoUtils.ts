@@ -56,6 +56,26 @@ export const shouldInvertByLabel = (label: string) => {
         || normalized === 'showtime'
         || normalized === 'amc'
         || normalized === 'starz'
+        // Common black wordmarks on dark UI (Walt Disney Pictures, etc.)
+        || normalized === 'disney'
+        || normalized.includes('walt disney')
+        || normalized.includes('disney pictures')
+        || normalized === 'pixar'
+        || normalized.includes('dreamworks')
+        || normalized === 'a24'
+        || normalized === 'neon'
+        || normalized.includes('searchlight')
+        || normalized.includes('focus features')
+        || normalized.includes('miramax')
+        || normalized.includes('new line')
+        || normalized === 'mgm'
+        || normalized.includes('legendary')
+        || normalized.includes('blumhouse')
+        || normalized.includes('illumination')
+        || normalized.includes('bbc')
+        || normalized === 'itv'
+        || normalized === 'sky'
+        || normalized.includes('sky atlantic')
     );
 };
 
@@ -93,7 +113,9 @@ export const isPredominantlyDarkLogo = (img: HTMLImageElement): boolean => {
     const averageLuminance = totalLuminance / opaquePixels;
     const darkRatio = darkPixels / opaquePixels;
 
-    return averageLuminance < 55 && darkRatio > 0.5;
+    // Include near-black / charcoal wordmarks (e.g. Walt Disney Pictures).
+    return (averageLuminance < 55 && darkRatio > 0.5)
+        || (averageLuminance < 72 && darkRatio > 0.62);
 };
 
 export const shouldInvertDiscoveryLogo = (logoPath: string, label = '', img?: HTMLImageElement | null) => {
