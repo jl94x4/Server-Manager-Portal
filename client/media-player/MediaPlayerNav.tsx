@@ -124,7 +124,18 @@ export const MediaPlayerNav: React.FC<Props> = ({
 
     const renderNav = (showLabels: boolean, desktop = false) => (
         <nav className={`flex max-h-full min-h-0 flex-col ${showLabels ? 'gap-3 px-2.5 py-3' : 'items-center gap-1.5 px-1.5 py-2.5'}`}>
-            <div className={`flex shrink-0 ${showLabels ? 'items-center gap-1' : 'flex-col items-center gap-1.5'}`}>
+            {desktop ? (
+                <button
+                    type="button"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/80 hover:bg-white/10 hover:text-white"
+                    onClick={onToggleExpanded}
+                    title={expanded ? t('mediaPlayerPage.collapseNav') : t('mediaPlayerPage.expandNav')}
+                    aria-label={expanded ? t('mediaPlayerPage.collapseNav') : t('mediaPlayerPage.expandNav')}
+                >
+                    <Menu className="h-4 w-4 shrink-0" />
+                </button>
+            ) : null}
+            <div className={`flex shrink-0 ${showLabels ? 'items-center' : 'flex-col items-center'}`}>
                 <button
                     type="button"
                     className={showLabels
@@ -145,17 +156,6 @@ export const MediaPlayerNav: React.FC<Props> = ({
                         </>
                     ) : null}
                 </button>
-                {desktop ? (
-                    <button
-                        type="button"
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/80 hover:bg-white/10 hover:text-white"
-                        onClick={onToggleExpanded}
-                        title={expanded ? t('mediaPlayerPage.collapseNav') : t('mediaPlayerPage.expandNav')}
-                        aria-label={expanded ? t('mediaPlayerPage.collapseNav') : t('mediaPlayerPage.expandNav')}
-                    >
-                        <Menu className="h-4 w-4 shrink-0" />
-                    </button>
-                ) : null}
             </div>
             <div className={`flex shrink-0 flex-col ${showLabels ? 'gap-1' : 'items-center gap-1'}`}>
                 <button

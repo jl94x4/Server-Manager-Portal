@@ -7211,7 +7211,7 @@ export { WrapUpModal } from './shared/WrapUpModal';
 
 export const DiscoverPosterCard: React.FC<{
     item: { title: string; thumb?: string; thumbUrl?: string; posterFallbackUrl?: string; plexUrl: string; tags?: string[]; year?: number | string; parentTitle?: string };
-    aspect?: '2/3' | 'square';
+    aspect?: '2/3' | 'square' | '16/9';
     overlay?: React.ReactNode;
     variant?: 'discover' | 'home';
     className?: string;
@@ -7235,7 +7235,13 @@ export const DiscoverPosterCard: React.FC<{
     const resolvedAspect = aspect ?? (
         item?.mediaType === 'music' || item?.type === 'music' ? 'square' : '2/3'
     );
-    const resolvedPosterHeight = posterHeight ?? (resolvedAspect === 'square' ? posterWidth : Math.round(posterWidth * 1.5));
+    const resolvedPosterHeight = posterHeight ?? (
+        resolvedAspect === 'square'
+            ? posterWidth
+            : resolvedAspect === '16/9'
+                ? Math.round(posterWidth * 9 / 16)
+                : Math.round(posterWidth * 1.5)
+    );
     const posterShell = variant === 'home'
         ? 'relative rounded-xl overflow-hidden bg-background border border-border transition-[border-color] duration-300 group-hover:border-plex/50'
         : 'relative rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors bg-card';
@@ -7272,7 +7278,7 @@ export const DiscoverPosterCard: React.FC<{
     const hasPoster = !!(primaryPosterSrc || fallbackPosterSrc);
     const hasQuickActions = Array.isArray(quickActions) && quickActions.length > 0;
     const posterInner = (
-        <div className={`${posterShell} ${resolvedAspect === 'square' ? 'aspect-square' : 'aspect-[2/3]'} w-full`}>
+        <div className={`${posterShell} ${resolvedAspect === 'square' ? 'aspect-square' : resolvedAspect === '16/9' ? 'aspect-video' : 'aspect-[2/3]'} w-full`}>
             {!hasPoster ? (
                 <NoPosterPlaceholder />
             ) : (

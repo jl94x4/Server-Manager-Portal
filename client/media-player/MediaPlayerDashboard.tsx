@@ -108,6 +108,7 @@ export const MediaPlayerDashboard: React.FC = () => {
     const [startingPlay, setStartingPlay] = useState(false);
     const [pendingResume, setPendingResume] = useState<PendingResume | null>(null);
     const [navExpanded, setNavExpanded] = useState(() => readPlayerNavExpanded());
+    const [keepHome, setKeepHome] = useState(() => view.kind === 'home');
     const viewKindRef = useRef(view.kind);
 
     const syncFromLocation = useCallback(() => {
@@ -117,6 +118,7 @@ export const MediaPlayerDashboard: React.FC = () => {
     useEffect(() => {
         const previous = viewKindRef.current;
         viewKindRef.current = view.kind;
+        if (view.kind === 'home') setKeepHome(true);
         if (previous === 'home' && view.kind !== 'home') stashPlayerHomeScroll();
         if (view.kind !== 'home' || previous === 'home') return undefined;
         return restorePlayerHomeScrollWhenReady();
@@ -298,11 +300,14 @@ export const MediaPlayerDashboard: React.FC = () => {
                 } ${playSession ? 'pb-36' : ''}`}
             >
                 <div className="mx-auto flex w-full max-w-[2400px] flex-col gap-4">
-            {view.kind === 'home' ? (
-                <MediaPlayerHome
-                    onOpenItem={openItem}
-                    onPlay={playItem}
-                />
+            {keepHome ? (
+                <div className={view.kind === 'home' ? '' : 'hidden'} hidden={view.kind !== 'home'}>
+                    <MediaPlayerHome
+                        active={view.kind === 'home'}
+                        onOpenItem={openItem}
+                        onPlay={playItem}
+                    />
+                </div>
             ) : null}
             {view.kind === 'settings' ? (
                 <MediaPlayerSettings onBack={goHome} />

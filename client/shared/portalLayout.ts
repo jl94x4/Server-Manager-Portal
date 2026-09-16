@@ -141,8 +141,10 @@ export const upgraderPosterGridStyle = (size: PosterGridValue): CSSProperties =>
 export const upgraderLandscapeGridStyle = (size: PosterGridValue): CSSProperties => {
     if (size === 'list') return {};
     const rem = posterGridScaleRem(size) * 1.85;
+    const gap = rem < 11.5 ? 0.5 : 0.75;
     return {
         gridTemplateColumns: `repeat(auto-fill, minmax(${rem}rem, 1fr))`,
+        gap: `${gap}rem`,
     };
 };
 

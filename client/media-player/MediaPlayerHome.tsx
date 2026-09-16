@@ -2,12 +2,13 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import {
     DiscoverGridSizeSelect,
-    DiscoverHomeSkeleton,
+    DiscoverHomeRowSkeleton,
     DiscoverSectionHeader,
     discoveryTheme,
     MediaPlayerAlphaBanner,
     useDiscoverGridSize,
     useDiscoverI18n,
+    upgraderLandscapeGridStyle,
     upgraderPosterGridClass,
     upgraderPosterGridStyle,
 } from './host';
@@ -15,11 +16,12 @@ import { fetchMediaPlayerHome, searchMediaPlayer, setMediaPlayerWatched } from '
 import { PlayerPosterCard } from './PlayerPosterCard';
 import { PlayerRail } from './PlayerRail';
 import { applyHomeRowOrder, applyLibraryNavOrder } from './playerSettings';
-import { consumePlayerSearchFocus, PLAYER_SEARCH_INPUT_ID } from './playerMemory';
+import { consumePlayerSearchFocus, PLAYER_SEARCH_INPUT_ID, readPlayerHomeCache, writePlayerHomeCache } from './playerMemory';
 import { usePlayerSettings } from './usePlayerSettings';
 import type { PlayerHome, PlayerItem, PlayerLibraryHub, PlayerPlayOptions } from './types';
 
 type Props = {
+    active?: boolean;
     onOpenItem: (item: PlayerItem) => void;
     onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
 };
@@ -42,13 +44,13 @@ const dedupeItems = (list: PlayerItem[]) => {
     }).slice(0, 24);
 };
 
-export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onPlay }) => {
+export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, onPlay }) => {
     const { t } = useDiscoverI18n();
     const [settings] = usePlayerSettings();
     const [gridSize, setGridSize] = useDiscoverGridSize();
-    const [home, setHome] = useState<PlayerHome | null>(null);
+    const [home, setHome] = useState<PlayerHome | null>(() => readPlayerHomeCache());
     const [error, setError] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(() => !readPlayerHomeCache());
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<PlayerItem[]>([]);
     const [searching, setSearching] = useState(false);
@@ -61,11 +63,13 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onPlay }) => {
     }, []);
 
     useEffect(() => {
+        if (!active) return undefined;
         let cancelled = false;
-        setLoading(true);
+        if (!readPlayerHomeCache()) setLoading(true);
         fetchMediaPlayerHome()
             .then((data) => {
                 if (cancelled) return;
+                writePlayerHomeCache(data);
                 setHome(data);
                 setError(null);
             })
@@ -77,7 +81,7 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onPlay }) => {
                 if (!cancelled) setLoading(false);
             });
         return () => { cancelled = true; };
-    }, [t]);
+    }, [active, t]);
 
     useEffect(() => {
         const trimmed = query.trim();
@@ -161,6 +165,25 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onPlay }) => {
             return true;
         })
     ), [home, settings.showContinueWatching, settings.showPlaylists]);
+
+    const searchGroups = useMemo(() => {
+        const shows: PlayerItem[] = [];
+        const movies: PlayerItem[] = [];
+        const episodes: PlayerItem[] = [];
+        const more: PlayerItem[] = [];
+        for (const row of results) {
+            if (row.type === 'show') shows.push(row);
+            else if (row.type === 'movie') movies.push(row);
+            else if (row.type === 'episode') episodes.push(row);
+            else more.push(row);
+        }
+        return [
+            { id: 'show', title: t('mediaPlayerPage.searchShows'), items: shows, aspect: '2/3' as const },
+            { id: 'movie', title: t('mediaPlayerPage.searchMovies'), items: movies, aspect: '2/3' as const },
+            { id: 'episode', title: t('mediaPlayerPage.searchEpisodes'), items: episodes, aspect: '16/9' as const },
+            { id: 'more', title: t('mediaPlayerPage.searchMore'), items: more, aspect: '2/3' as const },
+        ].filter((group) => group.items.length);
+    }, [results, t]);
 
     const hasRails = useMemo(() => (
         !!home && (
@@ -266,7 +289,16 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onPlay }) => {
         );
     });
 
-    if (loading) return <DiscoverHomeSkeleton />;
+    if (loading && !home) {
+        return (
+            <div className="flex flex-col gap-6 pb-8" aria-busy="true" aria-label={t('mediaPlayerPage.navHome')}>
+                <DiscoverHomeRowSkeleton />
+                <DiscoverHomeRowSkeleton showViewAll />
+                <DiscoverHomeRowSkeleton />
+                <DiscoverHomeRowSkeleton showViewAll />
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col gap-6 pb-8">
@@ -292,26 +324,36 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onPlay }) => {
             </div>
 
             {query.trim().length >= 2 ? (
-                <section className="flex flex-col gap-3">
-                    <DiscoverSectionHeader title={searching ? t('common.searching') : t('mediaPlayerPage.searchResults')} />
-                    {results.length ? (
-                        <div className={upgraderPosterGridClass(gridSize)} style={upgraderPosterGridStyle(gridSize)}>
-                            {results.map((item) => (
-                                <PlayerPosterCard
-                                    key={item.ratingKey}
-                                    item={item}
-                                    onOpenItem={onOpenItem}
-                                    onPlay={onPlay}
-                                    onToggleWatched={toggleWatched}
-                                />
-                            ))}
-                        </div>
-                    ) : (
+                <div className="flex flex-col gap-6">
+                    {searching && !results.length ? (
+                        <DiscoverSectionHeader title={t('common.searching')} />
+                    ) : null}
+                    {searchGroups.map((group) => (
+                        <section key={group.id} className="flex flex-col gap-3">
+                            <DiscoverSectionHeader title={group.title} />
+                            <div
+                                className={upgraderPosterGridClass(gridSize)}
+                                style={group.aspect === '16/9' ? upgraderLandscapeGridStyle(gridSize) : upgraderPosterGridStyle(gridSize)}
+                            >
+                                {group.items.map((item) => (
+                                    <PlayerPosterCard
+                                        key={item.ratingKey}
+                                        item={item}
+                                        aspect={group.aspect}
+                                        onOpenItem={onOpenItem}
+                                        onPlay={onPlay}
+                                        onToggleWatched={toggleWatched}
+                                    />
+                                ))}
+                            </div>
+                        </section>
+                    ))}
+                    {!searching && !results.length ? (
                         <div className={discoveryTheme.emptyState}>
                             <p className={discoveryTheme.emptyTitle}>{t('mediaPlayerPage.emptySearch')}</p>
                         </div>
-                    )}
-                </section>
+                    ) : null}
+                </div>
             ) : null}
 
             {error ? (

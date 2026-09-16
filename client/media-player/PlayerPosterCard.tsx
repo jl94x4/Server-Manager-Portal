@@ -1,7 +1,7 @@
 import React from 'react';
 import { Eye, EyeOff, Play } from 'lucide-react';
 import { DiscoverPosterCard, useDiscoverI18n } from './host';
-import { progressPercent, toPosterCardItem } from './playerUtils';
+import { formatEpisodeCode, progressPercent, toPosterCardItem } from './playerUtils';
 import type { PlayerItem, PlayerPlayOptions } from './types';
 
 type Props = {
@@ -10,7 +10,7 @@ type Props = {
     onPlay?: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
     onToggleWatched?: (item: PlayerItem) => void;
     showProgress?: boolean;
-    aspect?: '2/3' | 'square';
+    aspect?: '2/3' | 'square' | '16/9';
     className?: string;
 };
 
@@ -27,11 +27,23 @@ export const PlayerPosterCard: React.FC<Props> = ({
     const progress = progressPercent(item);
     const canHoverPlay = !!onPlay && item.canPlay !== false && item.type !== 'collection' && item.type !== 'artist' && item.type !== 'album' && item.type !== 'playlist';
     const canToggleWatched = !!onToggleWatched && (item.type === 'movie' || item.type === 'episode' || item.type === 'show' || item.type === 'season');
+    const resolvedAspect = aspect || (item.type === 'artist' || item.type === 'album' ? 'square' : '2/3');
+    const episodeCode = formatEpisodeCode(item);
     return (
         <DiscoverPosterCard
             className={className}
             item={toPosterCardItem(item)}
-            aspect={aspect || (item.type === 'artist' || item.type === 'album' ? 'square' : '2/3')}
+            aspect={resolvedAspect}
+            posterWidth={resolvedAspect === '16/9' ? 640 : 300}
+            posterHeight={resolvedAspect === '16/9' ? 360 : undefined}
+            footer={item.type === 'episode' ? (
+                <div className="px-1 text-left">
+                    <div className="text-xs font-medium line-clamp-2 leading-tight text-text">{item.title}</div>
+                    <div className="mt-0.5 truncate text-[11px] text-muted">
+                        {[item.showTitle, episodeCode].filter(Boolean).join(' · ')}
+                    </div>
+                </div>
+            ) : undefined}
             showQualityBadges={false}
             onPosterClick={() => onOpenItem(item)}
             overlay={(

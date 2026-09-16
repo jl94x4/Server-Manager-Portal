@@ -1,4 +1,5 @@
 import { PLAYER_SCROLL_ID } from './paths';
+import type { PlayerHome } from './types';
 
 export const PLAYER_SEARCH_INPUT_ID = 'media-player-search';
 export const PLAYER_FOCUS_SEARCH_KEY = 'portal-media-player-focus-search';
@@ -209,5 +210,21 @@ export const focusPlayerSearchInput = () => {
     input.focus();
     input.select();
     return true;
+};
+
+const PLAYER_HOME_CACHE_TTL_MS = 60_000;
+let playerHomeCache: { at: number; data: PlayerHome } | null = null;
+
+export const readPlayerHomeCache = (): PlayerHome | null => {
+    if (!playerHomeCache) return null;
+    if (Date.now() - playerHomeCache.at > PLAYER_HOME_CACHE_TTL_MS * 5) {
+        playerHomeCache = null;
+        return null;
+    }
+    return playerHomeCache.data;
+};
+
+export const writePlayerHomeCache = (data: PlayerHome) => {
+    playerHomeCache = { at: Date.now(), data };
 };
 

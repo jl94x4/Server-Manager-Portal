@@ -23,6 +23,7 @@ export {
     posterGridCardWidthStyle,
     upgraderPosterGridClass,
     upgraderPosterGridStyle,
+    upgraderLandscapeGridStyle,
 } from '../shared/portalLayout';
 export { CustomSelect, SettingsToggleRow } from '../shared/ui';
 export { StickySaveBar } from '../shared/StickySaveBar';
