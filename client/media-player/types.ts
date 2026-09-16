@@ -62,6 +62,11 @@ export type PlayerPersonCredit = {
     thumb?: string | null;
 };
 
+export type PlayerCollectionRef = {
+    ratingKey: string;
+    title: string;
+};
+
 export type PlayerItem = {
     ratingKey: string;
     title: string;
@@ -88,6 +93,7 @@ export type PlayerItem = {
     genres?: string[];
     countries?: string[];
     collections?: string[];
+    collectionItems?: PlayerCollectionRef[];
     addedAt?: number | null;
     lastViewedAt?: number | null;
     viewedLeafCount?: number | null;

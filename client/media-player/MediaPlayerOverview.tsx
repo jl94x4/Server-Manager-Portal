@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, ExternalLink, Play } from 'lucide-react';
 import { useDiscoverI18n } from './host';
 import { plexImageUrl, formatEpisodeCode, formatPlayerDate, formatPlayerDuration, progressPercent } from './playerUtils';
-import type { PlayerItem, PlayerPersonCredit } from './types';
+import type { PlayerCollectionRef, PlayerItem, PlayerPersonCredit } from './types';
 
 type PersonHandler = (person: { id: string; name: string; thumb?: string | null }) => void;
 
@@ -27,6 +27,37 @@ const CreditPills: React.FC<{
             >
                 {person.name}
             </button>
+        ))}
+    </div>
+);
+
+const CollectionPills: React.FC<{
+    collections: PlayerCollectionRef[];
+    onOpenItem: (item: PlayerItem) => void;
+}> = ({ collections, onOpenItem }) => (
+    <div className="flex flex-wrap gap-2">
+        {collections.map((collection) => (
+            collection.ratingKey ? (
+                <button
+                    key={collection.ratingKey}
+                    type="button"
+                    onClick={() => onOpenItem({
+                        ratingKey: collection.ratingKey,
+                        title: collection.title,
+                        type: 'collection',
+                    })}
+                    className="px-2.5 py-1 rounded-lg bg-white/5 border border-border text-sm text-text hover:bg-plex/15 hover:border-plex/40 hover:text-plex transition-colors"
+                >
+                    {collection.title}
+                </button>
+            ) : (
+                <span
+                    key={collection.title}
+                    className="px-2.5 py-1 rounded-lg bg-white/5 border border-border text-sm text-text"
+                >
+                    {collection.title}
+                </span>
+            )
         ))}
     </div>
 );
@@ -72,14 +103,24 @@ export const OverviewGenres: React.FC<{ genres: string[] }> = ({ genres }) => {
 export const OverviewFacts: React.FC<{
     item: PlayerItem;
     onOpenPerson: PersonHandler;
-}> = ({ item, onOpenPerson }) => {
+    onOpenItem: (item: PlayerItem) => void;
+}> = ({ item, onOpenPerson, onOpenItem }) => {
     const { t, locale } = useDiscoverI18n();
     const aired = formatPlayerDate(item.originallyAvailableAt, locale);
     const added = formatPlayerDate(item.addedAt, locale);
     const lastPlayed = formatPlayerDate(item.lastViewedAt, locale);
     const watched = Number(item.viewedLeafCount || 0);
     const total = Number(item.leafCount || 0);
-    const rows: Array<{ label: string; value?: string; people?: PlayerPersonCredit[] }> = [
+    const collectionItems = (item.collectionItems?.length
+        ? item.collectionItems
+        : (item.collections || []).map((title) => ({ ratingKey: '', title }))
+    ).filter((row) => row.title);
+    const rows: Array<{
+        label: string;
+        value?: string;
+        people?: PlayerPersonCredit[];
+        collections?: PlayerCollectionRef[];
+    }> = [
         item.directorPeople?.length ? { label: t('mediaPlayerPage.directedBy'), people: item.directorPeople } : null,
         item.writerPeople?.length ? { label: t('mediaPlayerPage.writtenBy'), people: item.writerPeople } : null,
         item.producers?.length ? { label: t('mediaPlayerPage.producedBy'), people: item.producers } : null,
@@ -89,7 +130,10 @@ export const OverviewFacts: React.FC<{
         } : null,
         aired ? { label: item.type === 'episode' ? t('mediaPlayerPage.aired') : t('mediaPlayerPage.released'), value: aired } : null,
         item.countries?.length ? { label: t('mediaPlayerPage.countries'), value: item.countries.join(', ') } : null,
-        item.collections?.length ? { label: t('mediaPlayerPage.collection'), value: item.collections.join(', ') } : null,
+        collectionItems.length ? {
+            label: collectionItems.length > 1 ? t('mediaPlayerPage.collections') : t('mediaPlayerPage.collection'),
+            collections: collectionItems,
+        } : null,
         (item.type === 'show' || item.type === 'season') && total > 0
             ? { label: t('mediaPlayerPage.episodeProgress'), value: t('mediaPlayerPage.episodeProgressValue', { watched, total }) }
             : null,
@@ -97,7 +141,12 @@ export const OverviewFacts: React.FC<{
         added ? { label: t('mediaPlayerPage.addedToLibrary'), value: added } : null,
         lastPlayed ? { label: t('mediaPlayerPage.lastPlayed'), value: lastPlayed } : null,
         item.viewCount ? { label: t('mediaPlayerPage.plays'), value: String(item.viewCount) } : null,
-    ].filter(Boolean) as Array<{ label: string; value?: string; people?: PlayerPersonCredit[] }>;
+    ].filter(Boolean) as Array<{
+        label: string;
+        value?: string;
+        people?: PlayerPersonCredit[];
+        collections?: PlayerCollectionRef[];
+    }>;
 
     if (!rows.length) return null;
     return (
@@ -109,6 +158,8 @@ export const OverviewFacts: React.FC<{
                         <span className="text-[10px] font-bold uppercase tracking-wider text-muted">{row.label}</span>
                         {row.people?.length ? (
                             <CreditPills people={row.people} onOpenPerson={onOpenPerson} />
+                        ) : row.collections?.length ? (
+                            <CollectionPills collections={row.collections} onOpenItem={onOpenItem} />
                         ) : (
                             <span className="text-sm text-text leading-snug">{row.value}</span>
                         )}

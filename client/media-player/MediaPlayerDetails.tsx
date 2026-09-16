@@ -204,7 +204,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
         );
     }
 
-    const posterUrl = plexImageUrl(item.thumb, item.type === 'episode' ? 960 : 600, item.type === 'episode' ? 540 : 900);
+    const posterUrl = plexImageUrl(item.thumb, item.type === 'episode' ? 960 : 720, item.type === 'episode' ? 540 : 1080);
     const backdropUrl = plexBackdropUrl(item.art || item.thumb);
     const logoUrl = plexLogoUrl(item.logo);
     const showLogo = Boolean(logoUrl) && !logoFailed && logoReady;
@@ -369,9 +369,9 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                     </button>
 
                     <div className="flex flex-col md:flex-row gap-5 md:gap-6 lg:gap-10">
-                        <div className={`w-full flex-shrink-0 flex flex-col gap-3 ${item.type === 'episode' ? 'md:w-80 lg:w-96' : 'md:w-52 lg:w-60'}`}>
+                        <div className={`w-full flex-shrink-0 flex flex-col gap-3 ${item.type === 'episode' ? 'md:w-96 lg:w-[28rem]' : 'md:w-64 lg:w-72'}`}>
                             <div className="flex flex-row md:flex-col gap-4 items-stretch">
-                                <div className={`relative w-[38%] max-w-[10.5rem] sm:max-w-[12rem] md:w-full md:max-w-none rounded-xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.55)] border border-white/15 bg-black/50 ring-1 ring-white/10 flex-shrink-0 ${item.type === 'episode' ? 'aspect-video max-w-[14rem] sm:max-w-[16rem]' : 'aspect-[2/3]'}`}>
+                                <div className={`relative w-[42%] max-w-[12rem] sm:max-w-[14rem] md:w-full md:max-w-none rounded-xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.55)] border border-white/15 bg-black/50 ring-1 ring-white/10 flex-shrink-0 ${item.type === 'episode' ? 'aspect-video max-w-[16rem] sm:max-w-[18rem]' : 'aspect-[2/3]'}`}>
                                     <div className="absolute -inset-4 bg-plex/10 blur-3xl opacity-40 pointer-events-none" />
                                     {posterUrl && !posterFailed ? (
                                         <img src={posterUrl} alt="" className="relative w-full h-full object-cover" onError={() => setPosterFailed(true)} />
@@ -567,7 +567,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                             <div className="media-details-panel flex flex-col gap-5 max-w-7xl">
                                 <OverviewSummary text={item.summary || t('media.noDescription')} />
                                 <OverviewGenres genres={genres} />
-                                <OverviewFacts item={item} onOpenPerson={onOpenPerson} />
+                                <OverviewFacts item={item} onOpenPerson={onOpenPerson} onOpenItem={onOpenItem} />
                                 <OverviewLinks item={item} />
                                 {item.type === 'episode' ? (
                                     <EpisodeNeighbors
