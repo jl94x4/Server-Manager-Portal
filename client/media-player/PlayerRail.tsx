@@ -11,11 +11,13 @@ export const PlayerRail: React.FC<{
     onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
     onToggleWatched?: (item: PlayerItem) => void;
     showProgress?: boolean;
-}> = ({ title, items, density, onOpenItem, onPlay, onToggleWatched, showProgress = false }) => {
+    onViewAll?: () => void;
+    viewAllLabel?: string;
+}> = ({ title, items, density, onOpenItem, onPlay, onToggleWatched, showProgress = false, onViewAll, viewAllLabel }) => {
     if (!items.length) return null;
     return (
         <div className="flex flex-col gap-2">
-            <DiscoverSectionHeader title={title} />
+            <DiscoverSectionHeader title={title} onViewAll={onViewAll} viewAllLabel={viewAllLabel} />
             <Carousel>
                 {items.map((item, idx) => (
                     <div

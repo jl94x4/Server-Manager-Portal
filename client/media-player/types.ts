@@ -180,17 +180,20 @@ export type PlayerHomeRail = {
     items: PlayerItem[];
 };
 
+export type PlayerLibraryHub = {
+    title: string;
+    identifier: string;
+    items: PlayerItem[];
+    collectionRatingKey?: string | null;
+    playlistRatingKey?: string | null;
+};
+
 export type PlayerHome = {
     libraries: PlayerSection[];
     continueWatching: PlayerItem[];
     recentByLibrary: PlayerHomeRail[];
     playlists?: PlayerItem[];
-};
-
-export type PlayerLibraryHub = {
-    title: string;
-    identifier: string;
-    items: PlayerItem[];
+    hubs?: PlayerLibraryHub[];
 };
 
 export type PlayerLibraryHome = {

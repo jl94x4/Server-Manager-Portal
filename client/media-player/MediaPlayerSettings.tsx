@@ -94,6 +94,7 @@ export const MediaPlayerSettings: React.FC<Props> = ({ onBack }) => {
             <section className={sectionClass}>
                 <div className="border-b border-border px-5 py-4 sm:px-6">
                     <h2 className="text-sm font-black uppercase tracking-widest text-muted">{t('mediaPlayerPage.settingsHome')}</h2>
+                    <p className="mt-1 text-xs text-muted">{t('mediaPlayerPage.homeFollowsPlexHint')}</p>
                 </div>
                 <div className="px-5 py-2 sm:px-6">
                     <div className="border-b border-border/40 py-4">

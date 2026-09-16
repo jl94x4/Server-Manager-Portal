@@ -17,12 +17,20 @@ import { PlayerRail } from './PlayerRail';
 import { applyHomeRowOrder, applyLibraryNavOrder } from './playerSettings';
 import { consumePlayerSearchFocus, PLAYER_SEARCH_INPUT_ID } from './playerMemory';
 import { usePlayerSettings } from './usePlayerSettings';
-import type { PlayerHome, PlayerItem, PlayerPlayOptions } from './types';
+import type { PlayerHome, PlayerItem, PlayerLibraryHub, PlayerPlayOptions } from './types';
 
 type Props = {
     onOpenItem: (item: PlayerItem) => void;
     onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
 };
+
+const isContinueWatchingHub = (hub: PlayerLibraryHub) => (
+    /continue\s*watch|ondeck|on[.\s_-]?deck|in[.\s_-]?progress/i.test(`${hub.identifier || ''} ${hub.title || ''}`)
+);
+
+const isPlaylistHub = (hub: PlayerLibraryHub) => (
+    Boolean(hub.playlistRatingKey) || /playlist/i.test(`${hub.identifier || ''} ${hub.title || ''}`)
+);
 
 const dedupeItems = (list: PlayerItem[]) => {
     const seen = new Set<string>();
@@ -145,13 +153,23 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onPlay }) => {
         })).filter((row) => row.items.length);
     }, [home, orderedLibraries, settings.mixLibraries, t]);
 
+    const plexHubs = useMemo(() => (
+        (home?.hubs || []).filter((hub) => {
+            if (!hub.items?.length) return false;
+            if (!settings.showContinueWatching && isContinueWatchingHub(hub)) return false;
+            if (!settings.showPlaylists && isPlaylistHub(hub)) return false;
+            return true;
+        })
+    ), [home, settings.showContinueWatching, settings.showPlaylists]);
+
     const hasRails = useMemo(() => (
         !!home && (
-            (settings.showContinueWatching && home.continueWatching.length)
+            plexHubs.length
+            || (settings.showContinueWatching && home.continueWatching.length)
             || recentRails.some((row) => row.items.length)
             || (settings.showPlaylists && (home.playlists || []).length)
         )
-    ), [home, recentRails, settings.showContinueWatching, settings.showPlaylists]);
+    ), [home, plexHubs, recentRails, settings.showContinueWatching, settings.showPlaylists]);
 
     const patchWatched = (ratingKey: string, watched: boolean) => {
         setHome((prev) => {
@@ -164,6 +182,7 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onPlay }) => {
                 continueWatching: mapItems(prev.continueWatching),
                 playlists: mapItems(prev.playlists || []),
                 recentByLibrary: prev.recentByLibrary.map((row) => ({ ...row, items: mapItems(row.items) })),
+                hubs: (prev.hubs || []).map((hub) => ({ ...hub, items: mapItems(hub.items) })),
             };
         });
         setResults((prev) => prev.map((row) => (row.ratingKey === ratingKey ? { ...row, watched } : row)));
@@ -179,7 +198,27 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onPlay }) => {
         }
     };
 
-    const homeSections = !home ? [] : applyHomeRowOrder(
+    const homeSections = !home ? [] : plexHubs.length ? plexHubs.map((hub) => {
+        const viewAllKey = hub.collectionRatingKey || hub.playlistRatingKey;
+        return (
+            <PlayerRail
+                key={hub.identifier}
+                title={hub.title}
+                items={hub.items}
+                density={gridSize}
+                onOpenItem={onOpenItem}
+                onPlay={onPlay}
+                onToggleWatched={toggleWatched}
+                showProgress={isContinueWatchingHub(hub)}
+                onViewAll={viewAllKey ? () => onOpenItem({
+                    ratingKey: viewAllKey,
+                    title: hub.title,
+                    type: hub.collectionRatingKey ? 'collection' : 'playlist',
+                }) : undefined}
+                viewAllLabel={viewAllKey ? t('common.viewAll') : undefined}
+            />
+        );
+    }) : applyHomeRowOrder(
         ['continueWatching', 'recents', 'playlists'],
         settings.homeRowOrder,
     ).map((id) => {
