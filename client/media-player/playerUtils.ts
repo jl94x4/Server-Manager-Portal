@@ -125,7 +125,7 @@ export const unwatchedCount = (item?: PlayerItem | null) => {
     const leaves = Number(item.leafCount || 0);
     const viewed = Number(item.viewedLeafCount || 0);
     if (leaves <= 0) return 0;
-    return Math.max(0, leaves - viewed);
+    return Math.max(0, leaves - Math.min(viewed, leaves));
 };
 
 export const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];

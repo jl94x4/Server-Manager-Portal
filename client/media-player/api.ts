@@ -116,6 +116,21 @@ export const fetchMediaPlayerPerson = (actorId: string, name = '') => {
     return apiFetch(`${PLAYER_API_ROOT}/person/${encodeURIComponent(actorId)}${suffix}`) as Promise<PlayerPersonPage>;
 };
 
+export const fetchMediaPlayerStudio = (
+    studioKey: string,
+    opts: { name?: string; sectionKey?: string; mediaType?: 'movie' | 'show' } = {},
+) => {
+    const qs = new URLSearchParams();
+    if (opts.name) qs.set('name', opts.name);
+    if (opts.sectionKey) qs.set('section', opts.sectionKey);
+    if (opts.mediaType) qs.set('type', opts.mediaType);
+    const suffix = qs.toString() ? `?${qs}` : '';
+    return apiFetch(`${PLAYER_API_ROOT}/studio/${encodeURIComponent(studioKey)}${suffix}`) as Promise<{
+        studio: { key: string; name: string };
+        items: PlayerItem[];
+    }>;
+};
+
 const searchDiscoveryPeople = async (query: string) => {
     const q = String(query || '').trim();
     if (q.length < 2) return [];

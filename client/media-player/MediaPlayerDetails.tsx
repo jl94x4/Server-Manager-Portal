@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Calendar, ChevronDown, Clock, Eye, EyeOff, Film, Info, ListPlus, Loader2, Play, Star, Tv, Users } from 'lucide-react';
 import {
     Carousel,
@@ -17,7 +17,6 @@ import { PlayerRail } from './PlayerRail';
 import { usePlayerSettings } from './usePlayerSettings';
 import {
     formatBitrateMbps,
-    formatClock,
     formatEpisodeCode,
     formatPlayerDuration,
     formatPlayerResolution,
@@ -26,9 +25,9 @@ import {
     plexBackdropUrl,
     plexLogoUrl,
     progressPercent,
-    shouldOfferResume,
     titleCaseProfile,
 } from './playerUtils';
+import { writePlayerScrollTop } from './playerMemory';
 import type { PlayerItem, PlayerLibraryHub, PlayerPlayOptions, PlayerRatings } from './types';
 
 type Props = {
@@ -36,6 +35,7 @@ type Props = {
     onBack: () => void;
     onOpenItem: (item: PlayerItem) => void;
     onOpenPerson: (person: { id: string; name: string; thumb?: string | null }) => void;
+    onOpenStudio: (studio: { key: string; name: string; sectionKey?: string; mediaType?: 'movie' | 'show' }) => void;
     onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
     playing?: boolean;
 };
@@ -75,7 +75,7 @@ const ratingsHavePills = (ratings?: PlayerRatings | null) => (
     !!(ratings?.imdb || ratings?.rottenTomatoes || ratings?.popcorn || ratings?.tmdb)
 );
 
-export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenItem, onOpenPerson, onPlay, playing = false }) => {
+export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenItem, onOpenPerson, onOpenStudio, onPlay, playing = false }) => {
     const { t } = useDiscoverI18n();
     const [settings] = usePlayerSettings();
     const [gridSize] = useDiscoverGridSize();
@@ -99,9 +99,14 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
     const [newPlaylistName, setNewPlaylistName] = useState('');
     const [playlistMessage, setPlaylistMessage] = useState('');
 
+    useLayoutEffect(() => {
+        writePlayerScrollTop(0);
+    }, [ratingKey]);
+
     useEffect(() => {
         let cancelled = false;
         setLoading(true);
+        setError(null);
         setPosterFailed(false);
         setBackdropFailed(false);
         setLogoFailed(false);
@@ -328,8 +333,18 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
         </>
     );
 
+    const waitingForItem = item.ratingKey !== ratingKey;
+
     return (
-        <div className="page-bleed-x md:w-full flex flex-col min-h-screen bg-card animate-fade-in pb-24 md:pb-16 rounded-none md:rounded-2xl lg:rounded-3xl overflow-x-hidden border-0 md:border border-white/5 shadow-2xl">
+        <div className="relative page-bleed-x md:w-full flex flex-col min-h-screen bg-card animate-fade-in pb-24 md:pb-16 rounded-none md:rounded-2xl lg:rounded-3xl overflow-x-hidden border-0 md:border border-white/5 shadow-2xl">
+            {waitingForItem ? (
+                <div className="absolute inset-0 z-30 bg-card/80 backdrop-blur-sm" aria-busy="true" aria-live="polite">
+                    <div className="sticky top-0 flex min-h-[70vh] flex-col items-center justify-center gap-3 text-muted">
+                        <Loader2 className="h-10 w-10 animate-spin text-plex" />
+                        <span className="text-sm font-bold">{t('mediaPlayerPage.loading')}</span>
+                    </div>
+                </div>
+            ) : null}
             <div className="relative isolate">
                 <div className="media-details-hero-backdrop absolute inset-x-0 top-0 h-[34rem] max-h-[72vh] sm:h-[36rem] md:h-[min(72vh,52rem)] md:max-h-none overflow-hidden pointer-events-none" aria-hidden>
                     {backdropUrl && !backdropFailed ? (
@@ -349,7 +364,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                     <div className="media-details-hero-scrim-left absolute inset-0 hidden md:block bg-gradient-to-r from-card from-0% via-card/80 via-[42%] to-transparent to-[90%]" />
                 </div>
 
-                <div className="relative z-10 w-full max-w-[2400px] mx-auto page-x sm:px-8 xl:px-12 pt-4 sm:pt-5 pb-8">
+                <div className={`relative z-10 w-full max-w-[2400px] mx-auto page-x sm:px-8 xl:px-12 pt-4 sm:pt-5 ${children.length ? 'pb-5' : 'pb-8'}`}>
                     {logoUrl && !logoFailed ? (
                         <img
                             src={logoUrl}
@@ -388,48 +403,10 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                     {titleBlock}
                                 </div>
                             </div>
-                            {onDeck ? (
+                            {canPlay ? (
                                 <button
                                     type="button"
-                                    onClick={() => onPlay(onDeck, { mediaIndex })}
-                                    disabled={playing}
-                                    className="w-full overflow-hidden rounded-xl border border-white/15 bg-black/50 text-left shadow-lg transition-colors hover:border-plex/60 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <div className="relative aspect-video w-full bg-black/40">
-                                        {onDeck.thumb ? (
-                                            <img src={plexImageUrl(onDeck.thumb, 640, 360)} alt="" className="h-full w-full object-cover" />
-                                        ) : (
-                                            <NoPosterPlaceholder />
-                                        )}
-                                        <div className="absolute inset-0 flex items-center justify-center bg-black/25">
-                                            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-plex text-black shadow-lg">
-                                                {playing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5 fill-current" />}
-                                            </span>
-                                        </div>
-                                        {progressPercent(onDeck) > 0 ? (
-                                            <div className="absolute inset-x-0 bottom-0 h-1.5 bg-black/70">
-                                                <div className="h-full bg-plex" style={{ width: `${progressPercent(onDeck)}%` }} />
-                                            </div>
-                                        ) : null}
-                                    </div>
-                                    <div className="px-3 py-3">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-plex">
-                                            {t('mediaPlayerPage.playNextEpisode')}
-                                        </p>
-                                        <p className="mt-1 text-sm font-black text-white">
-                                            {[formatEpisodeCode(onDeck), onDeck.title].filter(Boolean).join(' · ')}
-                                        </p>
-                                        {shouldOfferResume(onDeck) ? (
-                                            <p className="mt-1 text-xs font-bold text-white/70">
-                                                {t('mediaPlayerPage.resumeFrom', { time: formatClock(onDeck.viewOffsetMs) })}
-                                            </p>
-                                        ) : null}
-                                    </div>
-                                </button>
-                            ) : canPlay ? (
-                                <button
-                                    type="button"
-                                    onClick={() => onPlay(item, { mediaIndex })}
+                                    onClick={() => onPlay(onDeck || item, { mediaIndex })}
                                     disabled={playing}
                                     className="w-full py-3 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 sm:gap-2 transition-colors shadow-lg bg-plex hover:bg-plex-hover text-white disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
@@ -567,7 +544,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                             <div className="media-details-panel flex flex-col gap-5 max-w-7xl">
                                 <OverviewSummary text={item.summary || t('media.noDescription')} />
                                 <OverviewGenres genres={genres} />
-                                <OverviewFacts item={item} onOpenPerson={onOpenPerson} onOpenItem={onOpenItem} />
+                                <OverviewFacts item={item} onOpenPerson={onOpenPerson} onOpenItem={onOpenItem} onOpenStudio={onOpenStudio} />
                                 <OverviewLinks item={item} />
                                 {item.type === 'episode' ? (
                                     <EpisodeNeighbors
@@ -609,7 +586,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                         ) : null}
                                     </div>
                                 ) : null}
-                                {factMediaType && Number.isFinite(factMediaId) && factMediaId > 0 ? (
+                                {item.type !== 'show' && item.type !== 'season' && factMediaType && Number.isFinite(factMediaId) && factMediaId > 0 ? (
                                     <DiscoveryFactWidget
                                         mediaType={factMediaType}
                                         mediaId={factMediaId}
@@ -619,12 +596,9 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <div className="relative z-10 w-full max-w-[2400px] mx-auto page-x sm:px-8 xl:px-12 mt-2 md:mt-4 flex flex-col gap-8 md:gap-10 bg-card">
-                {children.length && !isEpisodeGrid ? (
-                    <section className="border-t border-border pt-8">
+                    {children.length && !isEpisodeGrid ? (
+                    <section className="mt-6">
                         <SectionHeading>{t('mediaPlayerPage.seasons')}</SectionHeading>
                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
                             {children.map((row) => (
@@ -653,10 +627,10 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                             ))}
                         </div>
                     </section>
-                ) : null}
+                    ) : null}
 
-                {children.length && isEpisodeGrid ? (
-                    <section className="border-t border-border pt-8">
+                    {children.length && isEpisodeGrid ? (
+                    <section className="mt-6">
                         <SectionHeading>{t('mediaPlayerPage.episodes')}</SectionHeading>
                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                             {children.map((row) => (
@@ -696,7 +670,21 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                             ))}
                         </div>
                     </section>
-                ) : null}
+                    ) : null}
+
+                    {(item.type === 'show' || item.type === 'season') && factMediaType && Number.isFinite(factMediaId) && factMediaId > 0 ? (
+                        <div className="mt-6 max-w-7xl">
+                            <DiscoveryFactWidget
+                                mediaType={factMediaType}
+                                mediaId={factMediaId}
+                                title={factTitle}
+                            />
+                        </div>
+                    ) : null}
+                </div>
+            </div>
+
+            <div className="relative z-10 w-full max-w-[2400px] mx-auto page-x sm:px-8 xl:px-12 mt-2 md:mt-4 flex flex-col gap-8 md:gap-10 bg-card">
 
                 {item.guestStars?.length ? (
                     <section className="border-t border-border pt-8">

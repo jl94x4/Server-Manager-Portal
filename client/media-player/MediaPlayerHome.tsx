@@ -8,6 +8,8 @@ import {
     MediaPlayerAlphaBanner,
     useDiscoverGridSize,
     useDiscoverI18n,
+    upgraderPosterGridClass,
+    upgraderPosterGridStyle,
 } from './host';
 import { fetchMediaPlayerHome, searchMediaPlayer, setMediaPlayerWatched } from './api';
 import { PlayerPosterCard } from './PlayerPosterCard';
@@ -254,7 +256,7 @@ export const MediaPlayerHome: React.FC<Props> = ({ onOpenItem, onPlay }) => {
                 <section className="flex flex-col gap-3">
                     <DiscoverSectionHeader title={searching ? t('common.searching') : t('mediaPlayerPage.searchResults')} />
                     {results.length ? (
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+                        <div className={upgraderPosterGridClass(gridSize)} style={upgraderPosterGridStyle(gridSize)}>
                             {results.map((item) => (
                                 <PlayerPosterCard
                                     key={item.ratingKey}

@@ -5,6 +5,7 @@ import { plexImageUrl, formatEpisodeCode, formatPlayerDate, formatPlayerDuration
 import type { PlayerCollectionRef, PlayerItem, PlayerPersonCredit } from './types';
 
 type PersonHandler = (person: { id: string; name: string; thumb?: string | null }) => void;
+type StudioHandler = (studio: { key: string; name: string; sectionKey?: string; mediaType?: 'movie' | 'show' }) => void;
 
 const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div className="flex items-center gap-3 mb-3">
@@ -29,6 +30,23 @@ const CreditPills: React.FC<{
             </button>
         ))}
     </div>
+);
+
+const StudioPill: React.FC<{
+    name: string;
+    onClick?: () => void;
+}> = ({ name, onClick }) => (
+    onClick ? (
+        <button
+            type="button"
+            onClick={onClick}
+            className="self-start px-2.5 py-1 rounded-lg bg-white/5 border border-border text-sm text-text hover:bg-plex/15 hover:border-plex/40 hover:text-plex transition-colors"
+        >
+            {name}
+        </button>
+    ) : (
+        <span className="text-sm text-text leading-snug">{name}</span>
+    )
 );
 
 const CollectionPills: React.FC<{
@@ -104,7 +122,8 @@ export const OverviewFacts: React.FC<{
     item: PlayerItem;
     onOpenPerson: PersonHandler;
     onOpenItem: (item: PlayerItem) => void;
-}> = ({ item, onOpenPerson, onOpenItem }) => {
+    onOpenStudio?: StudioHandler;
+}> = ({ item, onOpenPerson, onOpenItem, onOpenStudio }) => {
     const { t, locale } = useDiscoverI18n();
     const aired = formatPlayerDate(item.originallyAvailableAt, locale);
     const added = formatPlayerDate(item.addedAt, locale);
@@ -120,13 +139,14 @@ export const OverviewFacts: React.FC<{
         value?: string;
         people?: PlayerPersonCredit[];
         collections?: PlayerCollectionRef[];
+        studio?: string;
     }> = [
         item.directorPeople?.length ? { label: t('mediaPlayerPage.directedBy'), people: item.directorPeople } : null,
         item.writerPeople?.length ? { label: t('mediaPlayerPage.writtenBy'), people: item.writerPeople } : null,
         item.producers?.length ? { label: t('mediaPlayerPage.producedBy'), people: item.producers } : null,
         item.studio ? {
             label: item.type === 'movie' ? t('media.studio') : t('mediaPlayerPage.network'),
-            value: item.studio,
+            studio: item.studio,
         } : null,
         aired ? { label: item.type === 'episode' ? t('mediaPlayerPage.aired') : t('mediaPlayerPage.released'), value: aired } : null,
         item.countries?.length ? { label: t('mediaPlayerPage.countries'), value: item.countries.join(', ') } : null,
@@ -146,6 +166,7 @@ export const OverviewFacts: React.FC<{
         value?: string;
         people?: PlayerPersonCredit[];
         collections?: PlayerCollectionRef[];
+        studio?: string;
     }>;
 
     if (!rows.length) return null;
@@ -160,6 +181,16 @@ export const OverviewFacts: React.FC<{
                             <CreditPills people={row.people} onOpenPerson={onOpenPerson} />
                         ) : row.collections?.length ? (
                             <CollectionPills collections={row.collections} onOpenItem={onOpenItem} />
+                        ) : row.studio ? (
+                            <StudioPill
+                                name={row.studio}
+                                onClick={onOpenStudio ? () => onOpenStudio({
+                                    key: item.studioKey || item.studio || row.studio,
+                                    name: item.studio || row.studio,
+                                    sectionKey: item.librarySectionID || '',
+                                    mediaType: item.type === 'movie' ? 'movie' : 'show',
+                                }) : undefined}
+                            />
                         ) : (
                             <span className="text-sm text-text leading-snug">{row.value}</span>
                         )}

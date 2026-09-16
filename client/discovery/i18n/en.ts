@@ -188,6 +188,7 @@ export const en = {
         collections: 'Collections',
         emptyCollections: 'No collections in this library yet.',
         emptyCollection: 'This collection is empty.',
+        emptyStudio: 'No titles from this studio in the library.',
         sortLabel: 'Sort',
         sortAdded: 'Date added',
         sortTitle: 'Title',

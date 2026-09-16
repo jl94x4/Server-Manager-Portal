@@ -107,6 +107,8 @@ export type PlayerItem = {
     smart?: boolean;
     tagline?: string;
     studio?: string;
+    studioKey?: string;
+    librarySectionID?: string | null;
     directors?: string[];
     writers?: string[];
     directorPeople?: PlayerPersonCredit[];
@@ -216,6 +218,11 @@ export type PlayerItemPage = {
     extras?: PlayerItem[];
     related?: PlayerLibraryHub[];
     onDeck?: PlayerItem | null;
+};
+
+export type PlayerStudioPage = {
+    studio: { key: string; name: string };
+    items: PlayerItem[];
 };
 
 export type PlayerQualityOption = {

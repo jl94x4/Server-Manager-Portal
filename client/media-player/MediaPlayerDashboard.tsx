@@ -14,6 +14,7 @@ import { MediaPlayerCollection } from './MediaPlayerCollection';
 import { MediaPlayerPlaylist } from './MediaPlayerPlaylist';
 import { MediaPlayerDetails } from './MediaPlayerDetails';
 import { MediaPlayerPerson } from './MediaPlayerPerson';
+import { MediaPlayerStudio } from './MediaPlayerStudio';
 import { MediaPlayerSettings } from './MediaPlayerSettings';
 import { MediaPlayerVideo } from './MediaPlayerVideo';
 import { MediaPlayerNav } from './MediaPlayerNav';
@@ -41,6 +42,7 @@ type PlayerView =
     | { kind: 'playlist'; ratingKey: string }
     | { kind: 'item'; ratingKey: string }
     | { kind: 'person'; actorId: string; name?: string; thumb?: string | null }
+    | { kind: 'studio'; studioKey: string; name?: string; sectionKey?: string; mediaType?: 'movie' | 'show' }
     | { kind: 'settings' };
 
 type PendingResume = {
@@ -76,6 +78,15 @@ const readPlayerView = (): PlayerView => {
             actorId: decodeURIComponent(parts[2]),
             name: params.get('name') || '',
             thumb: params.get('thumb') || '',
+        };
+    }
+    if (parts[1] === 'studio' && parts[2]) {
+        return {
+            kind: 'studio',
+            studioKey: decodeURIComponent(parts[2]),
+            name: params.get('name') || '',
+            sectionKey: params.get('section') || '',
+            mediaType: params.get('type') === 'movie' ? 'movie' : params.get('type') === 'show' ? 'show' : undefined,
         };
     }
     return { kind: 'home' };
@@ -169,6 +180,17 @@ export const MediaPlayerDashboard: React.FC = () => {
         if (person.thumb) qs.set('thumb', person.thumb);
         const suffix = qs.toString() ? `?${qs}` : '';
         navigate(`${PLAYER_APP_BASE}/person/${encodeURIComponent(actorId)}${suffix}`);
+    }, [navigate]);
+
+    const openStudio = useCallback((studio: { key: string; name: string; sectionKey?: string; mediaType?: 'movie' | 'show' }) => {
+        const studioKey = String(studio?.key || studio?.name || '').trim();
+        if (!studioKey) return;
+        const qs = new URLSearchParams();
+        if (studio.name) qs.set('name', studio.name);
+        if (studio.sectionKey) qs.set('section', studio.sectionKey);
+        if (studio.mediaType) qs.set('type', studio.mediaType);
+        const suffix = qs.toString() ? `?${qs}` : '';
+        navigate(`${PLAYER_APP_BASE}/studio/${encodeURIComponent(studioKey)}${suffix}`);
     }, [navigate]);
 
     const goHome = useCallback(() => navigate(PLAYER_APP_BASE), [navigate]);
@@ -323,6 +345,7 @@ export const MediaPlayerDashboard: React.FC = () => {
                     onBack={goBack}
                     onOpenItem={openItem}
                     onOpenPerson={openPerson}
+                    onOpenStudio={openStudio}
                     onPlay={playItem}
                     playing={startingPlay}
                 />
@@ -332,6 +355,17 @@ export const MediaPlayerDashboard: React.FC = () => {
                     actorId={view.actorId}
                     name={view.name}
                     thumb={view.thumb}
+                    onBack={goBack}
+                    onOpenItem={openItem}
+                    onPlay={playItem}
+                />
+            ) : null}
+            {view.kind === 'studio' ? (
+                <MediaPlayerStudio
+                    studioKey={view.studioKey}
+                    name={view.name}
+                    sectionKey={view.sectionKey}
+                    mediaType={view.mediaType}
                     onBack={goBack}
                     onOpenItem={openItem}
                     onPlay={playItem}
