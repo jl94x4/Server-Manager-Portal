@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
     buildStreamingNetworkLogos,
     matchDiscoverCompanyByName,
+    mergeStudioAndStreamingLogos,
     pickLogoPathFromTmdbCompanies,
     pickWatchProvidersForRegion,
     resolvePlayerStudioLogo,
@@ -68,4 +69,34 @@ test('pickWatchProvidersForRegion reads flatrate logos for the region', () => {
         },
     ], 'US');
     assert.deepEqual(providers.map((row) => row.name), ['Disney Plus', 'Apple TV Plus']);
+});
+
+test('pickWatchProvidersForRegion collapses Peacock Premium into Peacock', () => {
+    const providers = pickWatchProvidersForRegion([
+        {
+            iso_3166_1: 'US',
+            flatrate: [
+                { id: 386, name: 'Peacock', logoPath: '/peacock.png' },
+                { id: 387, name: 'Peacock Premium', logoPath: '/peacock-premium.png' },
+            ],
+        },
+    ], 'US');
+    assert.deepEqual(providers.map((row) => row.name), ['Peacock']);
+});
+
+test('mergeStudioAndStreamingLogos puts streamers under studio with catalog logos', () => {
+    const networks = [
+        { id: 3353, name: 'Peacock', logoPath: '/peacock-wordmark.png' },
+        { id: 213, name: 'Netflix', logoPath: '/netflix-wordmark.png' },
+    ];
+    const merged = mergeStudioAndStreamingLogos(
+        [{ name: 'DreamWorks', logoPath: '/dreamworks.png', key: 'dw' }],
+        [
+            { name: 'Peacock Premium', logoPath: '/tiny-square.png', key: '386' },
+            { name: 'Unknown Streamer', logoPath: '/ugly.png', key: '999' },
+        ],
+        { networks, studios: [], mediaType: 'movie' },
+    );
+    assert.deepEqual(merged.map((row) => row.name), ['DreamWorks', 'Peacock']);
+    assert.equal(merged[1].logoPath, '/peacock-wordmark.png');
 });

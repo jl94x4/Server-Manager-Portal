@@ -6,6 +6,7 @@ import {
     isPredominantlyDarkLogo,
     shouldInvertByLabel,
     shouldNeverInvertLogo,
+    shouldPreserveColorLogo,
 } from './discoveryLogoUtils';
 
 type Props = {
@@ -40,7 +41,9 @@ export const DiscoveryLogo: React.FC<Props> = ({
     onError,
 }) => {
     const [isLightTheme, setIsLightTheme] = useState(readLightTheme);
-    const useDuotone = duotone && !isBundledOrAbsoluteLogo(logoPath);
+    const useDuotone = duotone
+        && !isBundledOrAbsoluteLogo(logoPath)
+        && !shouldPreserveColorLogo(logoPath, alt);
     const src = useDuotone
         ? tmdbDuotoneLogo(logoPath, width === 154 ? 300 : width, isLightTheme ? 'onLight' : 'onDark')
         : discoveryLogoUrl(logoPath, width);

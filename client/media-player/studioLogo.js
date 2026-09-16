@@ -30,6 +30,8 @@ const STREAMING_ALIASES = {
     'paramount plus': 'paramount',
     paramountplus: 'paramount',
     peacock: 'peacock',
+    'peacock premium': 'peacock',
+    'peacock tv': 'peacock',
     discovery: 'discovery',
     'discovery plus': 'discovery',
     discoveryplus: 'discovery',
@@ -197,10 +199,49 @@ export const pickWatchProvidersForRegion = (watchProviders = [], region = 'US') 
         const logoPath = String(row?.logoPath || '').trim();
         const id = String(row?.id || name).trim();
         if (!name || !logoPath) continue;
-        const key = id.toLowerCase();
+        // Collapse Peacock / Peacock Premium / etc. into one brand.
+        const key = aliasKey(name) || id.toLowerCase();
         if (seen.has(key)) continue;
         seen.add(key);
         out.push({ name, logoPath, key: id });
+    }
+    return out;
+};
+
+/**
+ * Studio/network first, then streaming providers — one row under Studio.
+ * Prefer Discover catalog wordmarks over TMDB's tiny square provider icons.
+ */
+export const mergeStudioAndStreamingLogos = (
+    studioLogos = [],
+    streamingProviders = [],
+    { networks = [], studios = [], mediaType = '' } = {},
+) => {
+    const out = [];
+    const seen = new Set();
+    const add = (name, logoPath, key, { requireCatalogLogo = false } = {}) => {
+        const label = String(name || '').trim();
+        if (!label) return;
+        const catalog = resolvePlayerStudioLogo(label, mediaType, { networks, studios });
+        if (requireCatalogLogo && !catalog?.logoPath) return;
+        const resolvedLogo = catalog?.logoPath || (logoPath ? String(logoPath) : '') || '';
+        const id = aliasKey(catalog?.name || label) || String(key || label).toLowerCase();
+        if (seen.has(id)) return;
+        seen.add(id);
+        out.push({
+            name: catalog?.name || label,
+            // Catalog logos are horizontal white wordmarks; TMDB flatrate icons are tiny squares.
+            logoPath: requireCatalogLogo ? String(catalog.logoPath) : resolvedLogo,
+            key: String(catalog?.id || key || label),
+        });
+    };
+
+    for (const row of Array.isArray(studioLogos) ? studioLogos : []) {
+        add(row?.name, row?.logoPath, row?.key);
+    }
+    for (const row of Array.isArray(streamingProviders) ? streamingProviders : []) {
+        // Only catalog wordmarks for streamers — raw TMDB provider badges look awful.
+        add(row?.name, row?.logoPath, row?.key, { requireCatalogLogo: true });
     }
     return out;
 };

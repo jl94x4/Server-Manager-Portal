@@ -32,15 +32,23 @@ const FALLBACK_DARK_LOGO_PATHS = new Set([
 /** Geometric / multi-tone marks that must keep original colors (invert ruins them). */
 const NEVER_INVERT_LOGO_PATHS = new Set([
     '/6mSHSquNpfLgDdv6VnOOvC5Uz2h.png', // Cinemax
+    '/gIAcGTjKKr0KOHL5s4O36roJ8p7.png', // Peacock
 ]);
 
-const NEVER_INVERT_LABELS = new Set(['cinemax']);
+const NEVER_INVERT_LABELS = new Set(['cinemax', 'peacock']);
 
 export const shouldNeverInvertLogo = (logoPath: string, label = '') => {
     if (NEVER_INVERT_LOGO_PATHS.has(normalizeLogoPath(logoPath))) return true;
     const normalized = String(label || '').trim().toLowerCase();
-    return NEVER_INVERT_LABELS.has(normalized);
+    if (NEVER_INVERT_LABELS.has(normalized)) return true;
+    // Peacock Premium / Peacock TV — keep the multicolour mark.
+    return normalized.includes('peacock');
 };
+
+/** Brand-color logos — no duotone, no invert (Peacock feathers, etc.). */
+export const shouldPreserveColorLogo = (logoPath: string, label = '') => (
+    shouldNeverInvertLogo(logoPath, label)
+);
 
 export const isKnownDarkLogoPath = (logoPath: string) => (
     FALLBACK_DARK_LOGO_PATHS.has(normalizeLogoPath(logoPath))

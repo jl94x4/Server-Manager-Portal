@@ -3,11 +3,12 @@ import { ChevronLeft, ChevronRight, ExternalLink, Play } from 'lucide-react';
 import { DiscoveryLogo, useDiscoverI18n } from './host';
 import { apiFetch } from '../shared/api';
 import { DISCOVER_NETWORKS, DISCOVER_STUDIOS } from '../discovery/discoverConstants';
+import { shouldPreserveColorLogo } from '../discovery/discoveryLogoUtils';
 import { plexImageUrl, formatEpisodeCode, formatPlayerDate, formatPlayerDuration, progressPercent } from './playerUtils';
 import {
     buildStreamingNetworkLogos,
+    mergeStudioAndStreamingLogos,
     pickWatchProvidersForRegion,
-    resolvePlayerStudioLogo,
 } from './studioLogo.js';
 import type { PlayerCollectionRef, PlayerItem, PlayerPersonCredit } from './types';
 import { useDiscoveryPreferences } from '../discovery/useDiscoveryPreferences';
@@ -48,15 +49,19 @@ const StudioPill: React.FC<{
 }> = ({ name, logoPath, onClick }) => {
     const [failed, setFailed] = useState(false);
     const showLogo = Boolean(logoPath) && !failed;
+    const preserveColor = showLogo && shouldPreserveColorLogo(String(logoPath), name);
     const className = showLogo
-        ? 'self-start inline-flex items-center rounded-xl border border-border/60 bg-white/5 px-3 py-2.5 hover:bg-white/10 hover:border-plex/40 transition-colors'
+        ? (preserveColor
+            // Color logos (Peacock, etc.) — no grey plate; brand colors stay intact.
+            ? 'self-start inline-flex items-center rounded-lg border border-transparent px-0.5 py-0.5 hover:border-border/50 hover:bg-white/5 transition-colors'
+            : 'self-start inline-flex items-center rounded-xl border border-border/60 bg-white/5 px-3 py-2.5 hover:bg-white/10 hover:border-plex/40 transition-colors')
         : 'self-start px-2.5 py-1 rounded-lg bg-white/5 border border-border text-sm text-text hover:bg-plex/15 hover:border-plex/40 hover:text-plex transition-colors';
     const body = showLogo ? (
         <DiscoveryLogo
             logoPath={String(logoPath)}
             alt={name}
             width={300}
-            duotone
+            duotone={!preserveColor}
             onError={() => setFailed(true)}
             className="h-9 sm:h-10 max-w-[180px] sm:max-w-[200px] object-contain opacity-95"
         />
@@ -182,20 +187,7 @@ const useOverviewServiceLogos = (item: PlayerItem, region: string) => {
                     });
                     if (nextStudio.length) setStudioLogos(nextStudio);
                 }
-                const providers = pickWatchProvidersForRegion(details?.watchProviders || [], watchRegion)
-                    .map((row) => {
-                        const catalog = resolvePlayerStudioLogo(row.name, item.type, {
-                            networks: DISCOVER_NETWORKS,
-                            studios: DISCOVER_STUDIOS,
-                        });
-                        return {
-                            name: row.name,
-                            logoPath: row.logoPath || catalog?.logoPath || '',
-                            key: String(row.key || catalog?.id || row.name),
-                        };
-                    })
-                    .filter((row) => row.logoPath);
-                setStreamingLogos(providers);
+                setStreamingLogos(pickWatchProvidersForRegion(details?.watchProviders || [], watchRegion));
             })
             .catch(() => {
                 if (!cancelled) setStreamingLogos([]);
@@ -266,9 +258,11 @@ export const OverviewFacts: React.FC<{
         : (item.collections || []).map((title) => ({ ratingKey: '', title }))
     ).filter((row) => row.title);
     const studioLabel = item.type === 'movie' ? t('media.studio') : t('mediaPlayerPage.network');
-    const streamingIds = new Set(streamingLogos.map((row) => String(row.name || '').trim().toLowerCase()));
-    // Keep Studio/Network distinct from Streaming when the same brand appears in both.
-    const studioOnly = studioLogos.filter((row) => !streamingIds.has(String(row.name || '').trim().toLowerCase()));
+    const serviceLogos = mergeStudioAndStreamingLogos(studioLogos, streamingLogos, {
+        networks: DISCOVER_NETWORKS,
+        studios: DISCOVER_STUDIOS,
+        mediaType: item.type,
+    });
     const rows: Array<{
         label: string;
         value?: string;
@@ -279,13 +273,9 @@ export const OverviewFacts: React.FC<{
         item.directorPeople?.length ? { label: t('mediaPlayerPage.directedBy'), people: item.directorPeople } : null,
         item.writerPeople?.length ? { label: t('mediaPlayerPage.writtenBy'), people: item.writerPeople } : null,
         item.producers?.length ? { label: t('mediaPlayerPage.producedBy'), people: item.producers } : null,
-        studioOnly.length ? {
+        serviceLogos.length ? {
             label: studioLabel,
-            networks: studioOnly,
-        } : null,
-        streamingLogos.length ? {
-            label: t('mediaPlayerPage.streaming'),
-            networks: streamingLogos,
+            networks: serviceLogos,
         } : null,
         aired ? { label: item.type === 'episode' ? t('mediaPlayerPage.aired') : t('mediaPlayerPage.released'), value: aired } : null,
         item.countries?.length ? { label: t('mediaPlayerPage.countries'), value: item.countries.join(', ') } : null,
