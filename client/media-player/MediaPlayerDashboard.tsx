@@ -271,11 +271,11 @@ export const MediaPlayerDashboard: React.FC = () => {
             />
             <div
                 id={PLAYER_SCROLL_ID}
-                className={`min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-clip custom-scrollbar px-4 py-4 md:py-6 md:pr-8 ${
-                    navExpanded ? 'md:pl-[19rem]' : 'md:pl-[7rem]'
+                className={`min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-clip custom-scrollbar px-4 py-4 md:py-6 md:pr-6 ${
+                    navExpanded ? 'md:pl-[18.25rem]' : 'md:pl-[6.5rem]'
                 } ${playSession ? 'pb-36' : ''}`}
             >
-                <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4">
+                <div className="mx-auto flex w-full max-w-[2400px] flex-col gap-4">
             {view.kind === 'home' ? (
                 <MediaPlayerHome
                     onOpenItem={openItem}

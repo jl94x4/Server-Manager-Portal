@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import {
-    ChevronLeft,
-    ChevronRight,
     Film,
     Home,
     LogOut,
@@ -87,8 +85,21 @@ export const MediaPlayerNav: React.FC<Props> = ({
         closeMobile();
     };
 
-    const renderNav = (showLabels: boolean) => (
+    const renderNav = (showLabels: boolean, desktop = false) => (
         <nav className={`flex max-h-full min-h-0 flex-col ${showLabels ? 'gap-3 px-2.5 py-3' : 'items-center gap-1.5 px-1.5 py-2.5'}`}>
+            {desktop ? (
+                <div className={`flex shrink-0 ${showLabels ? 'px-1' : 'items-center'}`}>
+                    <button
+                        type="button"
+                        className="flex h-10 w-10 items-center justify-center rounded-full text-white/80 hover:bg-white/10 hover:text-white"
+                        onClick={onToggleExpanded}
+                        title={expanded ? t('mediaPlayerPage.collapseNav') : t('mediaPlayerPage.expandNav')}
+                        aria-label={expanded ? t('mediaPlayerPage.collapseNav') : t('mediaPlayerPage.expandNav')}
+                    >
+                        <Menu className="h-4 w-4 shrink-0" />
+                    </button>
+                </div>
+            ) : null}
             <div className={`flex shrink-0 flex-col ${showLabels ? 'gap-1' : 'items-center gap-1'}`}>
                 <button
                     type="button"
@@ -193,22 +204,11 @@ export const MediaPlayerNav: React.FC<Props> = ({
 
             <aside className="pointer-events-none absolute inset-y-0 left-0 z-40 hidden md:flex items-center pl-3">
                 <div
-                    className={`pointer-events-auto relative flex max-h-[calc(100%-3rem)] flex-col transition-[width] duration-200 ${
+                    className={`pointer-events-auto flex max-h-[calc(100%-3rem)] flex-col overflow-hidden rounded-[28px] bg-[#0b1018]/80 shadow-[0_18px_50px_rgba(0,0,0,0.45)] ring-1 ring-white/10 backdrop-blur-2xl transition-[width] duration-200 ${
                         expanded ? 'w-[16.25rem]' : 'w-[4.25rem]'
                     }`}
                 >
-                    <div className="flex min-h-0 max-h-full flex-col overflow-hidden rounded-[28px] bg-[#0b1018]/80 shadow-[0_18px_50px_rgba(0,0,0,0.45)] ring-1 ring-white/10 backdrop-blur-2xl">
-                        {renderNav(expanded)}
-                    </div>
-                    <button
-                        type="button"
-                        onClick={onToggleExpanded}
-                        className="absolute top-1/2 -right-3 z-10 flex h-11 w-6 -translate-y-1/2 items-center justify-center rounded-r-xl bg-[#0b1018]/85 text-white/80 shadow-lg ring-1 ring-white/10 backdrop-blur-xl hover:bg-white/10 hover:text-white"
-                        title={expanded ? t('mediaPlayerPage.collapseNav') : t('mediaPlayerPage.expandNav')}
-                        aria-label={expanded ? t('mediaPlayerPage.collapseNav') : t('mediaPlayerPage.expandNav')}
-                    >
-                        {expanded ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                    </button>
+                    {renderNav(expanded, true)}
                 </div>
             </aside>
 

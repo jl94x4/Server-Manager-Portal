@@ -347,7 +347,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                     <div className="media-details-hero-scrim-left absolute inset-0 hidden md:block bg-gradient-to-r from-card from-0% via-card/70 via-[32%] to-transparent to-[78%]" />
                 </div>
 
-                <div className="relative z-10 w-full max-w-[1600px] mx-auto page-x sm:px-8 xl:px-12 pt-4 sm:pt-5 pb-8">
+                <div className="relative z-10 w-full max-w-[2400px] mx-auto page-x sm:px-8 xl:px-12 pt-4 sm:pt-5 pb-8">
                     {logoUrl && !logoFailed ? (
                         <img
                             src={logoUrl}
@@ -607,7 +607,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                 </div>
             </div>
 
-            <div className="relative z-10 w-full max-w-[1600px] mx-auto page-x sm:px-8 xl:px-12 mt-2 md:mt-4 flex flex-col gap-8 md:gap-10 bg-card">
+            <div className="relative z-10 w-full max-w-[2400px] mx-auto page-x sm:px-8 xl:px-12 mt-2 md:mt-4 flex flex-col gap-8 md:gap-10 bg-card">
                 {children.length && !isEpisodeGrid ? (
                     <section className="border-t border-border pt-8">
                         <SectionHeading>{t('mediaPlayerPage.seasons')}</SectionHeading>
