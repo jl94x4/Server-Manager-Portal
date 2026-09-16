@@ -1,7 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, ExternalLink, Play } from 'lucide-react';
-import { useDiscoverI18n } from './host';
+import { DiscoveryLogo, useDiscoverI18n } from './host';
+import { apiFetch } from '../shared/api';
+import { DISCOVER_NETWORKS, DISCOVER_STUDIOS } from '../discovery/discoverConstants';
 import { plexImageUrl, formatEpisodeCode, formatPlayerDate, formatPlayerDuration, progressPercent } from './playerUtils';
+import {
+    pickLogoPathFromTmdbCompanies,
+    resolvePlayerStudioLogo,
+} from './studioLogo.js';
 import type { PlayerCollectionRef, PlayerItem, PlayerPersonCredit } from './types';
 
 type PersonHandler = (person: { id: string; name: string; thumb?: string | null }) => void;
@@ -34,20 +40,43 @@ const CreditPills: React.FC<{
 
 const StudioPill: React.FC<{
     name: string;
+    logoPath?: string | null;
     onClick?: () => void;
-}> = ({ name, onClick }) => (
-    onClick ? (
-        <button
-            type="button"
-            onClick={onClick}
-            className="self-start px-2.5 py-1 rounded-lg bg-white/5 border border-border text-sm text-text hover:bg-plex/15 hover:border-plex/40 hover:text-plex transition-colors"
-        >
-            {name}
-        </button>
+}> = ({ name, logoPath, onClick }) => {
+    const [failed, setFailed] = useState(false);
+    const showLogo = Boolean(logoPath) && !failed;
+    const className = showLogo
+        ? 'self-start inline-flex items-center rounded-lg border border-border/60 bg-white/5 px-2.5 py-1.5 hover:bg-white/10 hover:border-plex/40 transition-colors'
+        : 'self-start px-2.5 py-1 rounded-lg bg-white/5 border border-border text-sm text-text hover:bg-plex/15 hover:border-plex/40 hover:text-plex transition-colors';
+    const body = showLogo ? (
+        <DiscoveryLogo
+            logoPath={String(logoPath)}
+            alt={name}
+            width={154}
+            onError={() => setFailed(true)}
+            className="h-6 max-w-[120px] object-contain opacity-90"
+        />
+    ) : name;
+
+    if (onClick) {
+        return (
+            <button
+                type="button"
+                onClick={onClick}
+                title={name}
+                aria-label={name}
+                className={className}
+            >
+                {body}
+            </button>
+        );
+    }
+    return showLogo ? (
+        <span title={name} className={className}>{body}</span>
     ) : (
         <span className="text-sm text-text leading-snug">{name}</span>
-    )
-);
+    );
+};
 
 const CollectionPills: React.FC<{
     collections: PlayerCollectionRef[];
@@ -79,6 +108,42 @@ const CollectionPills: React.FC<{
         ))}
     </div>
 );
+
+const useStudioNetworkLogoPath = (item: PlayerItem) => {
+    const studioName = String(item.studio || '').trim();
+    const catalog = studioName
+        ? resolvePlayerStudioLogo(studioName, item.type, {
+            networks: DISCOVER_NETWORKS,
+            studios: DISCOVER_STUDIOS,
+        })
+        : null;
+    const [logoPath, setLogoPath] = useState<string>(catalog?.logoPath || '');
+
+    useEffect(() => {
+        setLogoPath(catalog?.logoPath || '');
+    }, [catalog?.logoPath, studioName]);
+
+    useEffect(() => {
+        if (!studioName || catalog?.logoPath) return undefined;
+        const tmdbId = Number(item.externalIds?.tmdb || item.tmdbId || 0);
+        if (!Number.isFinite(tmdbId) || tmdbId <= 0) return undefined;
+        const mediaType = item.type === 'movie' ? 'movie' : 'tv';
+        let cancelled = false;
+        apiFetch(`/api/discovery/proxy/${mediaType}/${tmdbId}`)
+            .then((details: any) => {
+                if (cancelled) return;
+                const companies = mediaType === 'movie'
+                    ? [].concat(details?.productionCompanies || [])
+                    : [].concat(details?.networks || [], details?.productionCompanies || []);
+                const path = pickLogoPathFromTmdbCompanies(studioName, companies);
+                if (path) setLogoPath(path);
+            })
+            .catch(() => {});
+        return () => { cancelled = true; };
+    }, [catalog?.logoPath, item.externalIds?.tmdb, item.tmdbId, item.type, studioName]);
+
+    return logoPath;
+};
 
 export const OverviewSummary: React.FC<{ text: string }> = ({ text }) => {
     const { t } = useDiscoverI18n();
@@ -125,6 +190,7 @@ export const OverviewFacts: React.FC<{
     onOpenStudio?: StudioHandler;
 }> = ({ item, onOpenPerson, onOpenItem, onOpenStudio }) => {
     const { t, locale } = useDiscoverI18n();
+    const studioLogoPath = useStudioNetworkLogoPath(item);
     const aired = formatPlayerDate(item.originallyAvailableAt, locale);
     const added = formatPlayerDate(item.addedAt, locale);
     const lastPlayed = formatPlayerDate(item.lastViewedAt, locale);
@@ -184,6 +250,7 @@ export const OverviewFacts: React.FC<{
                         ) : row.studio ? (
                             <StudioPill
                                 name={row.studio}
+                                logoPath={studioLogoPath}
                                 onClick={onOpenStudio ? () => onOpenStudio({
                                     key: item.studioKey || item.studio || row.studio,
                                     name: item.studio || row.studio,

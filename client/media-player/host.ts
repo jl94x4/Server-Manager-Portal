@@ -11,6 +11,7 @@ export { useDiscoverGridSize } from '../discovery/useDiscoverGridSize';
 export { DiscoverSectionHeader } from '../discovery/DiscoverSectionHeader';
 export { Carousel } from '../discovery/Carousel';
 export { DiscoveryFactWidget } from '../discovery/DiscoveryFactWidget';
+export { DiscoveryLogo } from '../discovery/DiscoveryLogo';
 export { MediaRatingPills } from '../discovery/MediaRatingPills';
 export type { CombinedRatings } from '../discovery/mediaDetailUtils';
 export { PersonProfileHeader } from '../discovery/PersonProfileHeader';
