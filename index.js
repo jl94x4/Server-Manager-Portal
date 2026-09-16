@@ -296,6 +296,7 @@ import {
     toPublicPlexHomeUser,
 } from './lib/plex/homeUsers.js';
 import { resolvePlexSharedServerMemberToken } from './lib/plex/sharedServers.js';
+import { preferPmsMemberToken } from './lib/plex/memberMediaToken.js';
 
 const resolveAppVersion = () => {
     const pkgVersion = resolvePackageVersion();
@@ -8983,7 +8984,13 @@ const resolveLocalPlexAccountId = async (config, uri, sessionUser) => {
         storedAccountId,
         adminCloudId,
         accounts,
-        sessionUser,
+        sessionUser: {
+            ...sessionUser,
+            username: sessionUser?.username || portalUser?.username,
+            email: sessionUser?.email || portalUser?.email,
+            title: sessionUser?.title || portalUser?.title || portalUser?.username,
+            plexId: sessionUser?.plexId || portalUser?.plexId,
+        },
     });
 };
 
@@ -30059,50 +30066,55 @@ app.use('/api/media-player', createMediaPlayerRouter({
         if (!sessionUser) return null;
         const users = await loadFile(USERS_PATH, []);
         const local = findLocalUserForSession(users, sessionUser);
-        const fromLocal = decryptPlexAuthToken(local?.plexAuthToken);
-        if (fromLocal) return fromLocal;
         const impersonating = isImpersonatingSession(sessionUser) || !!sessionUser?.impersonatingUserId;
-        if (!impersonating) {
-            const fromSession = decryptPlexAuthToken(sessionUser?.plexAuthToken);
-            if (fromSession) return fromSession;
-        }
-        if (!impersonating && sessionUser?.isAdmin) {
-            const config = await loadFile(CONFIG_PATH, {});
-            const adminToken = String(config?.plexToken || '').trim();
-            if (adminToken && adminToken !== SECRET_MASK) return adminToken;
-        }
         const config = await loadFile(CONFIG_PATH, {});
         const ownerToken = String(config?.plexToken || '').trim();
-        if (!ownerToken || ownerToken === SECRET_MASK) return null;
-        const shared = await resolvePlexSharedServerMemberToken({
-            ownerToken,
-            machineId: config.serverIdentifier,
-            sessionUser,
-            localUser: local || {},
-            headers: plexClientHeaders(ownerToken),
-            cache: plexSharedServerTokenCache,
-        }).catch(() => '');
-        if (shared) return shared;
-        const remembered = impersonating ? null : readPlexHomeRemember(req);
-        const rememberedIds = [
-            sessionUser?.plexId,
-            sessionUser?.id,
-            local?.plexId,
-            local?.id,
-        ].map((value) => String(value || '').trim()).filter(Boolean);
-        const pin = remembered && rememberedIds.includes(String(remembered.userId || '').trim())
-            ? remembered.pin
-            : '';
-        const switched = await resolvePlexHomeMemberToken({
-            ownerToken,
-            machineId: config.serverIdentifier,
-            sessionUser,
-            localUser: local || {},
-            pin,
-            headers: plexClientHeaders(ownerToken),
-            cache: plexHomeMemberTokenCache,
-        }).catch(() => '');
-        return switched || null;
+        const usableOwner = ownerToken && ownerToken !== SECRET_MASK ? ownerToken : '';
+
+        // Prefer server-scoped shared/Home tokens over plexAuthToken. Account login
+        // tokens often 401 on this PMS, which left Continue Watching empty for everyone
+        // except the admin (who uses the owner token).
+        let shared = '';
+        let switched = '';
+        if (usableOwner) {
+            shared = await resolvePlexSharedServerMemberToken({
+                ownerToken: usableOwner,
+                machineId: config.serverIdentifier,
+                sessionUser,
+                localUser: local || {},
+                headers: plexClientHeaders(usableOwner),
+                cache: plexSharedServerTokenCache,
+            }).catch(() => '');
+            const remembered = impersonating ? null : readPlexHomeRemember(req);
+            const rememberedIds = [
+                sessionUser?.plexId,
+                sessionUser?.id,
+                local?.plexId,
+                local?.id,
+            ].map((value) => String(value || '').trim()).filter(Boolean);
+            const pin = remembered && rememberedIds.includes(String(remembered.userId || '').trim())
+                ? remembered.pin
+                : '';
+            switched = await resolvePlexHomeMemberToken({
+                ownerToken: usableOwner,
+                machineId: config.serverIdentifier,
+                sessionUser,
+                localUser: local || {},
+                pin,
+                headers: plexClientHeaders(usableOwner),
+                cache: plexHomeMemberTokenCache,
+            }).catch(() => '');
+        }
+
+        const fromLocal = decryptPlexAuthToken(local?.plexAuthToken);
+        const fromSession = (!impersonating && decryptPlexAuthToken(sessionUser?.plexAuthToken)) || '';
+        const adminOwner = (!impersonating && sessionUser?.isAdmin && usableOwner) ? usableOwner : '';
+        return preferPmsMemberToken({
+            sharedServerToken: shared,
+            homeSwitchToken: switched,
+            accountToken: fromLocal || fromSession,
+            adminOwnerToken: adminOwner,
+        }) || null;
     },
     resolveMemberAccountId: async (req, { config, uri } = {}) => {
         if (!req?.user || !config || !uri) return null;
