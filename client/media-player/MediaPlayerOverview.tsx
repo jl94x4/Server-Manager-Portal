@@ -100,9 +100,11 @@ const NetworkLogoRow: React.FC<{
     onOpenStudio?: StudioHandler;
     sectionKey?: string;
     mediaType?: 'movie' | 'show';
+    /** When true, search movie + show libraries (streaming brands). */
+    searchAllTypes?: boolean;
     size?: 'md' | 'sm';
     showPlate?: boolean;
-}> = ({ networks, onOpenStudio, sectionKey, mediaType, size = 'md', showPlate = true }) => (
+}> = ({ networks, onOpenStudio, sectionKey, mediaType, searchAllTypes = false, size = 'md', showPlate = true }) => (
     <div className="flex flex-wrap gap-2 items-stretch">
         {networks.filter((row) => row.logoPath).map((row) => (
             <StudioPill
@@ -112,10 +114,11 @@ const NetworkLogoRow: React.FC<{
                 size={size}
                 showPlate={showPlate}
                 onClick={onOpenStudio ? () => onOpenStudio({
-                    key: row.key || row.name,
+                    // Prefer the display name — TMDB catalog ids do not match Plex tag ids.
+                    key: row.name || row.key,
                     name: row.name,
                     sectionKey: sectionKey || '',
-                    mediaType: mediaType || 'show',
+                    mediaType: searchAllTypes ? undefined : (mediaType || 'show'),
                 }) : undefined}
             />
         ))}
@@ -264,10 +267,10 @@ export const OverviewFacts: React.FC<{
         : (item.collections || []).map((title) => ({ ratingKey: '', title }))
     ).filter((row) => row.title);
     const serviceSections = [
-        studio.length ? { label: t('media.studio'), networks: studio, size: 'sm' as const } : null,
-        network.length ? { label: t('mediaPlayerPage.network'), networks: network, size: 'sm' as const } : null,
-        streaming.length ? { label: t('mediaPlayerPage.streaming'), networks: streaming, size: 'sm' as const } : null,
-    ].filter(Boolean) as Array<{ label: string; networks: NetworkLogo[]; size: 'sm' | 'md' }>;
+        studio.length ? { label: t('media.studio'), networks: studio, size: 'sm' as const, searchAllTypes: false } : null,
+        network.length ? { label: t('mediaPlayerPage.network'), networks: network, size: 'sm' as const, searchAllTypes: false } : null,
+        streaming.length ? { label: t('mediaPlayerPage.streaming'), networks: streaming, size: 'sm' as const, searchAllTypes: true } : null,
+    ].filter(Boolean) as Array<{ label: string; networks: NetworkLogo[]; size: 'sm' | 'md'; searchAllTypes: boolean }>;
     const crewRows: Array<{
         label: string;
         people?: PlayerPersonCredit[];
@@ -329,6 +332,7 @@ export const OverviewFacts: React.FC<{
                     onOpenStudio={onOpenStudio}
                     sectionKey={item.librarySectionID || ''}
                     mediaType={item.type === 'movie' ? 'movie' : 'show'}
+                    searchAllTypes={section.searchAllTypes}
                     size={section.size}
                     showPlate={settings.serviceLogoPlates}
                 />

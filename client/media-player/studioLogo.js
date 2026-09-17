@@ -243,7 +243,7 @@ export const splitOverviewServiceLogos = ({
         const catalog = resolvePlayerStudioLogo(row?.name, mediaType, { networks, studios });
         // Prefer network catalog marks for streamers (Netflix, Peacock, Disney+).
         if (!catalog?.logoPath) continue;
-        const next = claim(catalog.name, catalog.logoPath, catalog.id || row?.key);
+        const next = claim(catalog.name, catalog.logoPath, catalog.name || row?.key);
         if (next) streaming.push(next);
     }
 
