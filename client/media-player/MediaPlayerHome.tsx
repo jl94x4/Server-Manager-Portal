@@ -78,6 +78,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
     const [gridSize, setGridSize] = useDiscoverGridSize();
     const [home, setHome] = useState<PlayerHome | null>(() => readPlayerHomeCache());
     const [heroSlides, setHeroSlides] = useState<HomeHeroSlide[]>(() => readHeroSlidesCache() || []);
+    const [heroEffectiveMode, setHeroEffectiveMode] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(() => !readPlayerHomeCache());
     const [query, setQuery] = useState('');
@@ -143,10 +144,18 @@ export const MediaPlayerHome: React.FC<Props> = ({
         fetchMediaPlayerHomeHero()
             .then((data) => {
                 if (cancelled) return;
+                const mode = data?.effectiveMode ? String(data.effectiveMode) : null;
+                if (mode) setHeroEffectiveMode(mode);
                 const items = data?.enabled && Array.isArray(data.items) ? data.items : [];
                 if (items.length) {
                     writeHeroSlidesCache(items);
                     setHeroSlides(items);
+                    return undefined;
+                }
+                // Don't reuse another mode's slides when disabled or Continue Watching (per-viewer).
+                if (!data?.enabled || mode === 'continue_watching') {
+                    writeHeroSlidesCache([]);
+                    setHeroSlides([]);
                     return undefined;
                 }
                 // Keep prior slides on empty short-cache; only force-refresh when we have nothing.
@@ -154,6 +163,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
                 if (data?.enabled && data?.reason !== 'disabled') {
                     return fetchMediaPlayerHomeHeroRefresh().then((retry) => {
                         if (cancelled) return;
+                        if (retry?.effectiveMode) setHeroEffectiveMode(String(retry.effectiveMode));
                         if (retry?.enabled && Array.isArray(retry.items) && retry.items.length) {
                             writeHeroSlidesCache(retry.items);
                             setHeroSlides(retry.items);
@@ -242,15 +252,18 @@ export const MediaPlayerHome: React.FC<Props> = ({
         })).filter((row) => row.items.length);
     }, [home, orderedLibraries, settings.mixLibraries, t]);
 
+    const hideContinueWatchingRail = heroEffectiveMode === 'continue_watching';
+    const showContinueWatchingRail = settings.showContinueWatching && !hideContinueWatchingRail;
+
     const plexHubs = useMemo(() => {
         const filtered = (home?.hubs || []).filter((hub) => {
             if (!hub.items?.length) return false;
-            if (!settings.showContinueWatching && isContinueWatchingHub(hub)) return false;
+            if (!showContinueWatchingRail && isContinueWatchingHub(hub)) return false;
             if (!settings.showPlaylists && isPlaylistHub(hub)) return false;
             return true;
         });
         return applyLibraryNavOrderToHubs(filtered, orderedLibraries, libraryNavOrder);
-    }, [home, libraryNavOrder, orderedLibraries, settings.showContinueWatching, settings.showPlaylists]);
+    }, [home, libraryNavOrder, orderedLibraries, showContinueWatchingRail, settings.showPlaylists]);
 
     const searchGroups = useMemo(() => {
         const shows: PlayerItem[] = [];
@@ -274,11 +287,11 @@ export const MediaPlayerHome: React.FC<Props> = ({
     const hasRails = useMemo(() => (
         !!home && (
             plexHubs.length
-            || (settings.showContinueWatching && home.continueWatching.length)
+            || (showContinueWatchingRail && home.continueWatching.length)
             || recentRails.some((row) => row.items.length)
             || (settings.showPlaylists && (home.playlists || []).length)
         )
-    ), [home, plexHubs, recentRails, settings.showContinueWatching, settings.showPlaylists]);
+    ), [home, plexHubs, recentRails, showContinueWatchingRail, settings.showPlaylists]);
 
     const patchWatched = (ratingKey: string, watched: boolean) => {
         setHome((prev) => {
@@ -379,7 +392,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
         settings.homeRowOrder,
     ).map((id, rowIndex) => {
         if (id === 'continueWatching') {
-            return settings.showContinueWatching ? (
+            return showContinueWatchingRail ? (
                 <PlayerRail
                     key="continueWatching"
                     title={t('mediaPlayerPage.continueWatching')}
@@ -446,6 +459,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
             {!query.trim() && heroSlides.length ? (
                 <MediaPlayerHomeHero
                     items={heroSlides}
+                    effectiveMode={heroEffectiveMode}
                     onOpenItem={onOpenItem}
                     onPlay={onPlay}
                 />

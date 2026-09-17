@@ -860,7 +860,14 @@ export const SettingsDashboard: React.FC = () => {
     const [isPushingAnnouncement, setIsPushingAnnouncement] = useState(false);
     const [use24HourClock, setUse24HourClock] = useState(initialSettings?.use24HourClock || false);
     const [showPosterQualityBadges, setShowPosterQualityBadges] = useState(initialSettings?.showPosterQualityBadges !== false);
-    const [mediaPlayerHomeHeroEnabled, setMediaPlayerHomeHeroEnabled] = useState(initialSettings?.mediaPlayerHomeHeroEnabled !== false);
+    const [mediaPlayerHomeHeroMode, setMediaPlayerHomeHeroMode] = useState(() => {
+        const mode = String(initialSettings?.mediaPlayerHomeHeroMode || '').trim();
+        if (mode) return mode;
+        return initialSettings?.mediaPlayerHomeHeroEnabled === false ? 'off' : 'trending_week';
+    });
+    const [mediaPlayerHomeHeroSeasonalInWindowOnly, setMediaPlayerHomeHeroSeasonalInWindowOnly] = useState(
+        initialSettings?.mediaPlayerHomeHeroSeasonalInWindowOnly === true,
+    );
     const [showDashboardWatchingBadge, setShowDashboardWatchingBadge] = useState(!!initialSettings?.showDashboardWatchingBadge);
     const [dashboardWatchingBadgePollSeconds, setDashboardWatchingBadgePollSeconds] = useState(
         Math.min(15, Math.max(1, Number(initialSettings?.dashboardWatchingBadgePollSeconds) || 15)),
@@ -1648,7 +1655,14 @@ export const SettingsDashboard: React.FC = () => {
             }
             if (initialSettings.use24HourClock !== undefined) setUse24HourClock(!!initialSettings.use24HourClock);
             if (initialSettings.showPosterQualityBadges !== undefined) setShowPosterQualityBadges(initialSettings.showPosterQualityBadges !== false);
-            if (initialSettings.mediaPlayerHomeHeroEnabled !== undefined) setMediaPlayerHomeHeroEnabled(initialSettings.mediaPlayerHomeHeroEnabled !== false);
+            if (initialSettings.mediaPlayerHomeHeroMode !== undefined || initialSettings.mediaPlayerHomeHeroEnabled !== undefined) {
+                const mode = String(initialSettings.mediaPlayerHomeHeroMode || '').trim();
+                if (mode) setMediaPlayerHomeHeroMode(mode);
+                else setMediaPlayerHomeHeroMode(initialSettings.mediaPlayerHomeHeroEnabled === false ? 'off' : 'trending_week');
+            }
+            if (initialSettings.mediaPlayerHomeHeroSeasonalInWindowOnly !== undefined) {
+                setMediaPlayerHomeHeroSeasonalInWindowOnly(initialSettings.mediaPlayerHomeHeroSeasonalInWindowOnly === true);
+            }
             if (initialSettings.showDashboardWatchingBadge !== undefined) setShowDashboardWatchingBadge(!!initialSettings.showDashboardWatchingBadge);
             if (initialSettings.dashboardWatchingBadgePollSeconds !== undefined) {
                 setDashboardWatchingBadgePollSeconds(Math.min(15, Math.max(1, Number(initialSettings.dashboardWatchingBadgePollSeconds) || 15)));
@@ -2348,7 +2362,9 @@ export const SettingsDashboard: React.FC = () => {
             use24HourClock,
             allowTemporaryAccess,
             showPosterQualityBadges,
-            mediaPlayerHomeHeroEnabled,
+            mediaPlayerHomeHeroMode,
+            mediaPlayerHomeHeroSeasonalInWindowOnly,
+            mediaPlayerHomeHeroEnabled: mediaPlayerHomeHeroMode !== 'off',
             showDashboardWatchingBadge,
             dashboardWatchingBadgePollSeconds,
             showPublicStatusMonitor,
@@ -2899,15 +2915,43 @@ export const SettingsDashboard: React.FC = () => {
                                     <div className="flex flex-col lg:flex-row lg:items-start gap-4">
                                         <div className="lg:w-52 shrink-0">
                                             <h4 className="font-bold text-text">Media Player Home</h4>
-                                            <p className="text-xs text-muted mt-1">Trending hero banner on the Media Player home screen.</p>
+                                            <p className="text-xs text-muted mt-1">Hero banner slideshow on the Media Player home screen.</p>
                                         </div>
-                                        <div className="flex-1 min-w-0">
+                                        <div className="flex-1 min-w-0 space-y-4">
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                                <div className="min-w-0">
+                                                    <h4 className="font-bold text-text">Hero mode</h4>
+                                                    <p className="text-sm text-muted">Server-wide hero for Media Player home. Seasonal themes can stay year-round or only within their date windows.</p>
+                                                    <SettingHint>Admin-only. TMDB-backed modes need a TMDB API key under Media Stack → TMDB. Continue Watching uses each viewer’s on-deck list and hides the Continue Watching row on home.</SettingHint>
+                                                </div>
+                                                <div className="w-64 ml-0 sm:ml-4 flex-shrink-0">
+                                                    <CustomSelect
+                                                        value={mediaPlayerHomeHeroMode}
+                                                        onChange={setMediaPlayerHomeHeroMode}
+                                                        options={[
+                                                            { label: 'Off', value: 'off' },
+                                                            { label: 'Trending this week', value: 'trending_week' },
+                                                            { label: 'Continue Watching', value: 'continue_watching' },
+                                                            { label: 'Halloween', value: 'seasonal_halloween' },
+                                                            { label: 'Christmas', value: 'seasonal_christmas' },
+                                                            { label: 'New Year’s Eve', value: 'seasonal_nye' },
+                                                            { label: 'Easter', value: 'seasonal_easter' },
+                                                            { label: 'Thanksgiving', value: 'seasonal_thanksgiving' },
+                                                            { label: 'Recently added', value: 'recently_added' },
+                                                            { label: 'Most watched', value: 'most_watched' },
+                                                            { label: 'Unwatched picks', value: 'unwatched_picks' },
+                                                            { label: 'New releases', value: 'new_releases' },
+                                                            { label: 'Random spotlight', value: 'random_spotlight' },
+                                                        ]}
+                                                    />
+                                                </div>
+                                            </div>
                                             <SettingsToggleRow
-                                                title="Trending Home Hero"
-                                                description="Slideshow of up to 15 TMDB trending-this-week titles that are already in your library. The set refreshes every 24 hours."
-                                                hint={<SettingHint>Admin-only. Requires a TMDB API key under Media Stack → TMDB. On by default.</SettingHint>}
-                                                checked={mediaPlayerHomeHeroEnabled}
-                                                onChange={setMediaPlayerHomeHeroEnabled}
+                                                title="Limit seasonal heroes to their date window"
+                                                description="When a seasonal theme is selected outside its dates, fall back to Trending this week. Off keeps the chosen seasonal theme year-round."
+                                                hint={<SettingHint>Halloween Oct 1–31 · Christmas Nov 20–Dec 26 · NYE Dec 28–Jan 2 · Thanksgiving Nov 15–30 · Easter Palm Sunday through Easter Monday.</SettingHint>}
+                                                checked={mediaPlayerHomeHeroSeasonalInWindowOnly}
+                                                onChange={setMediaPlayerHomeHeroSeasonalInWindowOnly}
                                                 border={false}
                                             />
                                         </div>

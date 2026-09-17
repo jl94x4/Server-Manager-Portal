@@ -43,7 +43,7 @@ export const SETTINGS_INDEX: SettingsIndexEntry[] = [
     { id: 'analytics/cache', tabId: 'analytics', sectionId: 'cache', label: 'Analytics Cache', labelKey: 'settings.search.entries.analyticsCache', group: 'Portal', keywords: ['rebuild', 'cache', 'source', 'tautulli'] },
 
     { id: 'plex', tabId: 'plex', label: 'Media Player', group: 'Media Stack', keywords: ['plex', 'jellyfin', 'media', 'player', 'server'] },
-    { id: 'plex/home-hero', tabId: 'plex', sectionId: 'home-hero', label: 'Media Player Home Hero', labelKey: 'settings.search.entries.mediaPlayerHomeHero', group: 'Media Stack', keywords: ['hero', 'slideshow', 'trending', 'tmdb', 'media player', 'home'] },
+    { id: 'plex/home-hero', tabId: 'plex', sectionId: 'home-hero', label: 'Media Player Home Hero', labelKey: 'settings.search.entries.mediaPlayerHomeHero', group: 'Media Stack', keywords: ['hero', 'slideshow', 'trending', 'tmdb', 'media player', 'home', 'seasonal', 'halloween', 'christmas', 'continue watching', 'hero mode'] },
     { id: 'plex/connection', tabId: 'plex', sectionId: 'connection', label: 'Media Server Connection', labelKey: 'settings.search.entries.mediaServerConnection', group: 'Media Stack', keywords: ['token', 'server', 'docker', 'url', 'jellyfin', 'plex'] },
     { id: 'plex/privacy', tabId: 'plex', sectionId: 'privacy', label: 'Stream User Privacy', labelKey: 'settings.search.entries.streamUserPrivacy', group: 'Media Stack', keywords: ['privacy', 'anonymous', 'hide', 'stream', 'users', 'player', 'device', 'achievements', 'leaderboard'] },
     { id: 'plex/libraries', tabId: 'plex', sectionId: 'libraries', label: 'Default Libraries', labelKey: 'settings.search.entries.defaultLibraries', group: 'Media Stack', keywords: ['libraries', 'share', 'temporary', 'access'] },

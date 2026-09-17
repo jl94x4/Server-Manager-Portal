@@ -27,6 +27,7 @@ export type HomeHeroSlide = {
 
 type Props = {
     items: HomeHeroSlide[];
+    effectiveMode?: string | null;
     onOpenItem: (item: PlayerItem) => void;
     onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
 };
@@ -90,8 +91,14 @@ const HeroTitle: React.FC<{ slide: HomeHeroSlide }> = ({ slide }) => {
     );
 };
 
-export const MediaPlayerHomeHero: React.FC<Props> = ({ items, onOpenItem, onPlay }) => {
+export const MediaPlayerHomeHero: React.FC<Props> = ({ items, effectiveMode, onOpenItem, onPlay }) => {
     const { t } = useDiscoverI18n();
+    const modeKey = String(effectiveMode || 'trending_week').trim() || 'trending_week';
+    const modeEyebrowKey = `mediaPlayerPage.homeHeroEyebrowModes.${modeKey}`;
+    const modeEyebrow = t(modeEyebrowKey);
+    const eyebrow = modeEyebrow === modeEyebrowKey
+        ? t('mediaPlayerPage.homeHeroEyebrow')
+        : modeEyebrow;
     const [index, setIndex] = useState(0);
     const [paused, setPaused] = useState(false);
     const [focalByUrl, setFocalByUrl] = useState<Record<string, FocalPoint>>({});
@@ -181,7 +188,7 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, onOpenItem, onPlay
             onTouchEnd={onTouchEnd}
             onTouchCancel={onTouchCancel}
             aria-roledescription="carousel"
-            aria-label={t('mediaPlayerPage.homeHeroEyebrow')}
+            aria-label={eyebrow}
         >
             <div className="relative aspect-[21/9] min-h-[220px] max-h-[420px] w-full overflow-hidden sm:min-h-[280px]">
                 {slides.map((slide, slideIndex) => {
@@ -214,7 +221,7 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, onOpenItem, onPlay
                 <div className="absolute inset-0 flex flex-col justify-end gap-3 p-4 sm:gap-4 sm:p-7 lg:p-8">
                     <div className="max-w-2xl">
                         <p className="text-[10px] font-black uppercase tracking-[0.22em] text-plex">
-                            {t('mediaPlayerPage.homeHeroEyebrow')}
+                            {eyebrow}
                         </p>
                         <HeroTitle key={active.ratingKey} slide={active} />
                         <p className="mt-1 text-xs font-semibold text-white/65 sm:text-sm">

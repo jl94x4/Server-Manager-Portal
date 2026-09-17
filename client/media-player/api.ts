@@ -24,6 +24,8 @@ export const fetchMediaPlayerHome = () => apiFetch(`${PLAYER_API_ROOT}/home`) as
 
 export type MediaPlayerHomeHeroPayload = {
     enabled: boolean;
+    mode?: string;
+    effectiveMode?: string;
     refreshedAt?: number | null;
     expiresAt?: number | null;
     items: Array<{
