@@ -317,29 +317,53 @@ export const OverviewFacts: React.FC<{
         </div>
     );
 
+    const detailBlocks: React.ReactNode[] = [
+        ...crewRows.map((row) => renderMetaRow(row)),
+        ...serviceSections.map((section) => (
+            <div key={section.label} className="flex flex-col gap-1 min-w-0">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted">{section.label}</span>
+                <NetworkLogoRow
+                    networks={section.networks}
+                    onOpenStudio={onOpenStudio}
+                    sectionKey={item.librarySectionID || ''}
+                    mediaType={item.type === 'movie' ? 'movie' : 'show'}
+                    size={section.size}
+                    showPlate={settings.serviceLogoPlates}
+                />
+            </div>
+        )),
+        ...metaRows.map((row) => renderMetaRow(row)),
+    ];
+
+    const packColumns = (count: number) => {
+        const cols: React.ReactNode[][] = Array.from({ length: count }, () => []);
+        detailBlocks.forEach((block, index) => {
+            cols[index % count].push(block);
+        });
+        return cols;
+    };
+
     return (
         <div className="flex flex-col gap-3">
             <SectionHeading>{t('media.details')}</SectionHeading>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-10 gap-y-3">
-                {crewRows.map((row) => renderMetaRow(row))}
-                {serviceSections.length ? (
-                    <div className="flex flex-col gap-3 min-w-0">
-                        {serviceSections.map((section) => (
-                            <div key={section.label} className="flex flex-col gap-1 min-w-0">
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-muted">{section.label}</span>
-                                <NetworkLogoRow
-                                    networks={section.networks}
-                                    onOpenStudio={onOpenStudio}
-                                    sectionKey={item.librarySectionID || ''}
-                                    mediaType={item.type === 'movie' ? 'movie' : 'show'}
-                                    size={section.size}
-                                    showPlate={settings.serviceLogoPlates}
-                                />
-                            </div>
-                        ))}
+            {/* Round-robin columns so short fields (Streaming, Released) sit under
+                Directed / Written instead of waiting below a tall Produced By row. */}
+            <div className="flex flex-col gap-3 sm:hidden">
+                {detailBlocks}
+            </div>
+            <div className="hidden gap-x-10 sm:flex xl:hidden">
+                {packColumns(2).map((column, index) => (
+                    <div key={`sm-${index}`} className="flex min-w-0 flex-1 flex-col gap-3">
+                        {column}
                     </div>
-                ) : null}
-                {metaRows.map((row) => renderMetaRow(row))}
+                ))}
+            </div>
+            <div className="hidden gap-x-10 xl:flex">
+                {packColumns(3).map((column, index) => (
+                    <div key={`xl-${index}`} className="flex min-w-0 flex-1 flex-col gap-3">
+                        {column}
+                    </div>
+                ))}
             </div>
         </div>
     );

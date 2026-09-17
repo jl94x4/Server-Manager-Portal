@@ -12,7 +12,7 @@ import {
     upgraderPosterGridClass,
     upgraderPosterGridStyle,
 } from './host';
-import { fetchMediaPlayerHome, fetchMediaPlayerHomeHero, searchMediaPlayer, setMediaPlayerWatched } from './api';
+import { fetchMediaPlayerHome, fetchMediaPlayerHomeHero, fetchMediaPlayerHomeHeroRefresh, searchMediaPlayer, setMediaPlayerWatched } from './api';
 import { MediaPlayerHomeHero, type HomeHeroSlide } from './MediaPlayerHomeHero';
 import { PlayerPosterCard } from './PlayerPosterCard';
 import { PlayerRail } from './PlayerRail';
@@ -118,7 +118,18 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
         fetchMediaPlayerHomeHero()
             .then((data) => {
                 if (cancelled) return;
-                setHeroSlides(data?.enabled && Array.isArray(data.items) ? data.items : []);
+                const items = data?.enabled && Array.isArray(data.items) ? data.items : [];
+                setHeroSlides(items);
+                // Empty results may be a short-lived cache miss after deploy — retry once with refresh.
+                if (data?.enabled && !items.length && data?.reason !== 'disabled') {
+                    return fetchMediaPlayerHomeHeroRefresh().then((retry) => {
+                        if (cancelled) return;
+                        if (retry?.enabled && Array.isArray(retry.items) && retry.items.length) {
+                            setHeroSlides(retry.items);
+                        }
+                    }).catch(() => undefined);
+                }
+                return undefined;
             })
             .catch(() => {
                 if (!cancelled) setHeroSlides([]);

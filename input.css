@@ -755,15 +755,6 @@ html[data-theme="light"] .media-details-hero-scrim-left {
     animation: fade-in 0.22s ease-out;
   }
 
-  .player-poster-card {
-    @apply transition-transform duration-300 ease-out;
-  }
-
-  .player-poster-card:hover,
-  .player-poster-card:focus-within {
-    transform: translateY(-2px) scale(1.03);
-  }
-
   .animate-slide-up {
     animation: slide-up 0.25s ease-out;
   }
@@ -1017,15 +1008,6 @@ html[data-theme="light"] .media-details-hero-scrim-left {
 
   .player-nav-label {
     animation: fade-in 0.22s ease-out;
-  }
-
-  .player-poster-card {
-    @apply transition-transform duration-300 ease-out;
-  }
-
-  .player-poster-card:hover,
-  .player-poster-card:focus-within {
-    transform: translateY(-2px) scale(1.03);
   }
 
   .animate-slide-up {

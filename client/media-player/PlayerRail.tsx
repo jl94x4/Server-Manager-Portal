@@ -26,7 +26,7 @@ export const PlayerRail: React.FC<{
                 {items.map((item, idx) => (
                     <div
                         key={item.ratingKey || `${title}-${idx}`}
-                        className={`${discoverRowCardWidthClass(density)} flex-shrink-0 relative group snap-start`}
+                        className={`${discoverRowCardWidthClass(density)} relative z-0 flex-shrink-0 snap-start group hover:z-20 focus-within:z-20`}
                         style={posterGridCardWidthStyle(density)}
                     >
                         <PlayerPosterCard

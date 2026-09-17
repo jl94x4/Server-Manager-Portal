@@ -38,10 +38,15 @@ export type MediaPlayerHomeHeroPayload = {
         tmdbId?: number | null;
         canPlay?: boolean;
     }>;
+    reason?: string;
 };
 
 export const fetchMediaPlayerHomeHero = () => (
     apiFetch(`${PLAYER_API_ROOT}/home-hero`) as Promise<MediaPlayerHomeHeroPayload>
+);
+
+export const fetchMediaPlayerHomeHeroRefresh = () => (
+    apiFetch(`${PLAYER_API_ROOT}/home-hero?refresh=1`) as Promise<MediaPlayerHomeHeroPayload>
 );
 
 export const fetchMediaPlayerLibraries = () => (

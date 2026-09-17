@@ -31,7 +31,7 @@ export const PlayerPosterCard: React.FC<Props> = ({
     const episodeCode = formatEpisodeCode(item);
     return (
         <DiscoverPosterCard
-            className={`player-poster-card ${className || ''}`.trim()}
+            className={className}
             item={toPosterCardItem(item)}
             aspect={resolvedAspect}
             posterWidth={resolvedAspect === '16/9' ? 640 : 300}
@@ -60,7 +60,7 @@ export const PlayerPosterCard: React.FC<Props> = ({
                                     role="button"
                                     tabIndex={-1}
                                     aria-label={t('mediaPlayerPage.play')}
-                                    className="pointer-events-auto flex h-12 w-12 translate-y-1 scale-95 items-center justify-center rounded-full bg-plex text-black shadow-lg transition duration-200 group-hover:translate-y-0 group-hover:scale-100"
+                                    className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full bg-plex text-black shadow-lg transition duration-200 group-hover:scale-105"
                                     onClick={(event) => {
                                         event.preventDefault();
                                         event.stopPropagation();

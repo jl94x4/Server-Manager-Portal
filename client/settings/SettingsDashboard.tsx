@@ -2858,17 +2858,6 @@ export const SettingsDashboard: React.FC = () => {
                                     <input className="w-full appearance-none p-3 rounded-lg border border-border bg-background text-[16px] leading-5 text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="checkInterval" type="number" value={checkInterval} onChange={e => setCheckInterval(Number(e.target.value))} min="1" />
                                 </div>
 
-                                <div id={getSettingsSectionElementId('home-hero')} className="mb-4 mt-4 scroll-mt-24">
-                                    <SettingsToggleRow
-                                        title="Media Player Home Hero"
-                                        description="Show a trending slideshow (TMDB week, refreshed daily) on Media Player Home. Only titles already in the library appear."
-                                        hint={<SettingHint>Requires a TMDB API key in Integrations. On by default.</SettingHint>}
-                                        checked={mediaPlayerHomeHeroEnabled}
-                                        onChange={setMediaPlayerHomeHeroEnabled}
-                                        border={false}
-                                    />
-                                </div>
-
                                 {libraries.length > 0 && (
                                     <div id={getSettingsSectionElementId('libraries')} className="mb-4 mt-4 scroll-mt-24">
                                         <SettingFieldLabel
@@ -2905,6 +2894,25 @@ export const SettingsDashboard: React.FC = () => {
                                     </>
                                 )}
                                 </div>
+
+                                <section id={getSettingsSectionElementId('home-hero')} className="mb-6 mt-2 scroll-mt-24 rounded-xl border border-border/70 p-4">
+                                    <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                                        <div className="lg:w-52 shrink-0">
+                                            <h4 className="font-bold text-text">Media Player Home</h4>
+                                            <p className="text-xs text-muted mt-1">Trending hero banner on the Media Player home screen.</p>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <SettingsToggleRow
+                                                title="Trending Home Hero"
+                                                description="Slideshow of up to 5 TMDB trending-this-week titles that are already in your library. The set refreshes every 24 hours."
+                                                hint={<SettingHint>Admin-only. Requires a TMDB API key under Media Stack → TMDB. On by default.</SettingHint>}
+                                                checked={mediaPlayerHomeHeroEnabled}
+                                                onChange={setMediaPlayerHomeHeroEnabled}
+                                                border={false}
+                                            />
+                                        </div>
+                                    </div>
+                                </section>
 
                                 <div id={getSettingsSectionElementId('privacy')} className="mb-4 mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-4 border-b border-border/40 scroll-mt-24">
                                         <div>
