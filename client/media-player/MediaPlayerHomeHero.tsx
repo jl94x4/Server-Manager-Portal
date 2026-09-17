@@ -78,12 +78,12 @@ const HeroTitle: React.FC<{ slide: HomeHeroSlide }> = ({ slide }) => {
             <img
                 src={logoUrl}
                 alt={slide.title}
-                className="mt-2 max-h-16 w-auto max-w-[min(100%,28rem)] object-contain object-left drop-shadow-[0_8px_24px_rgba(0,0,0,0.55)] sm:max-h-20 lg:max-h-24"
+                className="mt-1.5 max-h-10 w-auto max-w-[min(100%,14rem)] object-contain object-left drop-shadow-[0_8px_24px_rgba(0,0,0,0.55)] sm:mt-2 sm:max-h-20 sm:max-w-[min(100%,28rem)] lg:max-h-24"
             />
         );
     }
     return (
-        <h2 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl lg:text-4xl">
+        <h2 className="mt-1.5 text-lg font-black tracking-tight text-white sm:mt-2 sm:text-3xl lg:text-4xl">
             {slide.title}
         </h2>
     );
@@ -177,13 +177,13 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, onOpenItem, onPlay
                     );
                 })}
 
-                <div className="absolute inset-0 flex flex-col justify-end gap-4 p-5 sm:p-7 lg:p-8">
+                <div className="absolute inset-0 flex flex-col justify-end gap-3 p-4 sm:gap-4 sm:p-7 lg:p-8">
                     <div className="max-w-2xl">
                         <p className="text-[10px] font-black uppercase tracking-[0.22em] text-plex">
                             {t('mediaPlayerPage.homeHeroEyebrow')}
                         </p>
                         <HeroTitle key={active.ratingKey} slide={active} />
-                        <p className="mt-1 text-sm font-semibold text-white/65">
+                        <p className="mt-1 text-xs font-semibold text-white/65 sm:text-sm">
                             {[active.year, active.type === 'show' ? t('mediaPlayerPage.searchShows') : t('mediaPlayerPage.searchMovies')]
                                 .filter(Boolean)
                                 .join(' · ')}
@@ -193,21 +193,21 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, onOpenItem, onPlay
                                 {active.summary}
                             </p>
                         ) : null}
-                        <div className="mt-4 flex flex-wrap items-center gap-2">
+                        <div className="mt-2.5 flex flex-wrap items-center gap-1.5 sm:mt-4 sm:gap-2">
                             {active.canPlay !== false ? (
                                 <button
                                     type="button"
                                     onClick={() => onPlay(toPlayerItem(active))}
-                                    className="inline-flex items-center gap-2 rounded-full bg-plex px-4 py-2.5 text-sm font-black text-zinc-950 shadow-lg shadow-plex/25 transition hover:bg-plex-hover"
+                                    className="inline-flex items-center gap-1.5 rounded-full bg-plex px-3 py-1.5 text-xs font-black text-zinc-950 shadow-lg shadow-plex/25 transition hover:bg-plex-hover sm:gap-2 sm:px-4 sm:py-2.5 sm:text-sm"
                                 >
-                                    <Play className="h-4 w-4 fill-current" />
+                                    <Play className="h-3.5 w-3.5 fill-current sm:h-4 sm:w-4" />
                                     {t('mediaPlayerPage.homeHeroPlay')}
                                 </button>
                             ) : null}
                             <button
                                 type="button"
                                 onClick={() => onOpenItem(toPlayerItem(active))}
-                                className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold text-white backdrop-blur transition hover:bg-white/15"
+                                className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold text-white backdrop-blur transition hover:bg-white/15 sm:gap-2 sm:px-4 sm:py-2.5 sm:text-sm"
                             >
                                 {t('mediaPlayerPage.homeHeroOpen')}
                             </button>
