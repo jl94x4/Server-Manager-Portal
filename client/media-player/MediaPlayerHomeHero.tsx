@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import {
     formatBackgroundPosition,
@@ -32,6 +32,7 @@ type Props = {
 };
 
 const SLIDE_MS = 10000;
+const SWIPE_MIN_DX = 48;
 
 const toPlayerItem = (slide: HomeHeroSlide): PlayerItem => ({
     ratingKey: slide.ratingKey,
@@ -94,6 +95,7 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, onOpenItem, onPlay
     const [index, setIndex] = useState(0);
     const [paused, setPaused] = useState(false);
     const [focalByUrl, setFocalByUrl] = useState<Record<string, FocalPoint>>({});
+    const swipeRef = useRef<{ x: number; y: number } | null>(null);
     const slides = Array.isArray(items) ? items.filter((row) => row?.ratingKey && row?.title) : [];
     const slideKey = slides.map((row) => row.ratingKey).join('|');
     const backdropKey = slides.map((row) => row.backdropUrl || '').join('|');
@@ -143,11 +145,41 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, onOpenItem, onPlay
         setIndex((current) => (current + delta + slides.length) % slides.length);
     };
 
+    const onTouchStart = (event: React.TouchEvent) => {
+        if (slides.length < 2) return;
+        const touch = event.touches[0];
+        if (!touch) return;
+        swipeRef.current = { x: touch.clientX, y: touch.clientY };
+        setPaused(true);
+    };
+
+    const onTouchEnd = (event: React.TouchEvent) => {
+        const start = swipeRef.current;
+        swipeRef.current = null;
+        setPaused(false);
+        if (!start || slides.length < 2) return;
+        const touch = event.changedTouches[0];
+        if (!touch) return;
+        const dx = touch.clientX - start.x;
+        const dy = touch.clientY - start.y;
+        if (Math.abs(dx) < SWIPE_MIN_DX) return;
+        if (Math.abs(dx) < Math.abs(dy) * 1.15) return;
+        go(dx < 0 ? 1 : -1);
+    };
+
+    const onTouchCancel = () => {
+        swipeRef.current = null;
+        setPaused(false);
+    };
+
     return (
         <section
-            className="player-home-hero relative overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-[0_18px_50px_rgba(0,0,0,0.35)]"
+            className="player-home-hero relative touch-pan-y overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-[0_18px_50px_rgba(0,0,0,0.35)]"
             onMouseEnter={() => setPaused(true)}
             onMouseLeave={() => setPaused(false)}
+            onTouchStart={onTouchStart}
+            onTouchEnd={onTouchEnd}
+            onTouchCancel={onTouchCancel}
             aria-roledescription="carousel"
             aria-label={t('mediaPlayerPage.homeHeroEyebrow')}
         >
