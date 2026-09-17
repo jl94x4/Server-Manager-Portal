@@ -33,6 +33,7 @@ export type MediaPlayerHomeHeroPayload = {
         summary?: string;
         thumb?: string | null;
         art?: string | null;
+        logo?: string | null;
         backdropUrl?: string | null;
         posterUrl?: string | null;
         tmdbId?: number | null;

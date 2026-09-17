@@ -5,7 +5,6 @@ import {
     DiscoverHomeRowSkeleton,
     DiscoverSectionHeader,
     discoveryTheme,
-    MediaPlayerAlphaBanner,
     useDiscoverGridSize,
     useDiscoverI18n,
     upgraderLandscapeGridStyle,
@@ -362,7 +361,6 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
 
     return (
         <div className="flex flex-col gap-6 pb-8">
-            <MediaPlayerAlphaBanner />
             {!query.trim() && heroSlides.length ? (
                 <MediaPlayerHomeHero
                     items={heroSlides}

@@ -2904,7 +2904,7 @@ export const SettingsDashboard: React.FC = () => {
                                         <div className="flex-1 min-w-0">
                                             <SettingsToggleRow
                                                 title="Trending Home Hero"
-                                                description="Slideshow of up to 5 TMDB trending-this-week titles that are already in your library. The set refreshes every 24 hours."
+                                                description="Slideshow of up to 15 TMDB trending-this-week titles that are already in your library. The set refreshes every 24 hours."
                                                 hint={<SettingHint>Admin-only. Requires a TMDB API key under Media Stack → TMDB. On by default.</SettingHint>}
                                                 checked={mediaPlayerHomeHeroEnabled}
                                                 onChange={setMediaPlayerHomeHeroEnabled}

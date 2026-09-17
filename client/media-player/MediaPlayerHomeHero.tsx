@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
+import {
+    formatBackgroundPosition,
+    prefetchImageFocalPoints,
+    resolveImageFocalPoint,
+    type FocalPoint,
+} from '../shared/imageFocalPoint';
 import { useDiscoverI18n } from './host';
+import { plexLogoUrl } from './playerUtils';
 import type { PlayerItem, PlayerPlayOptions } from './types';
 
 export type HomeHeroSlide = {
@@ -11,6 +18,7 @@ export type HomeHeroSlide = {
     summary?: string;
     thumb?: string | null;
     art?: string | null;
+    logo?: string | null;
     backdropUrl?: string | null;
     posterUrl?: string | null;
     tmdbId?: number | null;
@@ -23,7 +31,7 @@ type Props = {
     onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
 };
 
-const SLIDE_MS = 8000;
+const SLIDE_MS = 10000;
 
 const toPlayerItem = (slide: HomeHeroSlide): PlayerItem => ({
     ratingKey: slide.ratingKey,
@@ -33,17 +41,62 @@ const toPlayerItem = (slide: HomeHeroSlide): PlayerItem => ({
     summary: slide.summary,
     thumb: slide.thumb,
     art: slide.art,
+    logo: slide.logo,
     tmdbId: slide.tmdbId,
     canPlay: slide.canPlay !== false,
 });
+
+const HeroTitle: React.FC<{ slide: HomeHeroSlide }> = ({ slide }) => {
+    const logoUrl = plexLogoUrl(slide.logo);
+    const [logoFailed, setLogoFailed] = useState(false);
+    const [logoReady, setLogoReady] = useState(false);
+
+    useEffect(() => {
+        setLogoFailed(false);
+        setLogoReady(false);
+        if (!logoUrl) {
+            setLogoFailed(true);
+            return undefined;
+        }
+        let cancelled = false;
+        const img = new Image();
+        const finish = (ok: boolean) => {
+            if (cancelled) return;
+            if (ok && img.naturalWidth > 0) setLogoReady(true);
+            else setLogoFailed(true);
+        };
+        img.onload = () => finish(true);
+        img.onerror = () => finish(false);
+        img.src = logoUrl;
+        if (img.complete) finish(img.naturalWidth > 0);
+        return () => { cancelled = true; };
+    }, [logoUrl, slide.ratingKey]);
+
+    const showLogo = Boolean(logoUrl) && !logoFailed && logoReady;
+    if (showLogo) {
+        return (
+            <img
+                src={logoUrl}
+                alt={slide.title}
+                className="mt-2 max-h-16 w-auto max-w-[min(100%,28rem)] object-contain object-left drop-shadow-[0_8px_24px_rgba(0,0,0,0.55)] sm:max-h-20 lg:max-h-24"
+            />
+        );
+    }
+    return (
+        <h2 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl lg:text-4xl">
+            {slide.title}
+        </h2>
+    );
+};
 
 export const MediaPlayerHomeHero: React.FC<Props> = ({ items, onOpenItem, onPlay }) => {
     const { t } = useDiscoverI18n();
     const [index, setIndex] = useState(0);
     const [paused, setPaused] = useState(false);
+    const [focalByUrl, setFocalByUrl] = useState<Record<string, FocalPoint>>({});
     const slides = Array.isArray(items) ? items.filter((row) => row?.ratingKey && row?.title) : [];
-
     const slideKey = slides.map((row) => row.ratingKey).join('|');
+    const backdropKey = slides.map((row) => row.backdropUrl || '').join('|');
 
     useEffect(() => {
         setIndex(0);
@@ -56,6 +109,32 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, onOpenItem, onPlay
         }, SLIDE_MS);
         return () => window.clearInterval(timer);
     }, [paused, slides.length]);
+
+    useEffect(() => {
+        if (!slides.length) return undefined;
+        let cancelled = false;
+        const urls = [
+            slides[index]?.backdropUrl,
+            slides[(index + 1) % slides.length]?.backdropUrl,
+            slides[(index + 2) % slides.length]?.backdropUrl,
+        ].filter((url): url is string => Boolean(url));
+
+        prefetchImageFocalPoints(urls);
+
+        const warm = async () => {
+            for (const url of urls) {
+                if (cancelled) return;
+                const focal = await resolveImageFocalPoint(url);
+                if (cancelled) return;
+                setFocalByUrl((prev) => (prev[url] ? prev : { ...prev, [url]: focal }));
+            }
+        };
+
+        void warm();
+        return () => { cancelled = true; };
+        // backdropKey captures URL identity; slides.length keeps modulo safe
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- slides rebuilt each render
+    }, [backdropKey, index, slides.length]);
 
     if (!slides.length) return null;
 
@@ -75,6 +154,7 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, onOpenItem, onPlay
             <div className="relative aspect-[21/9] min-h-[220px] max-h-[420px] w-full sm:min-h-[280px]">
                 {slides.map((slide, slideIndex) => {
                     const visible = slideIndex === index;
+                    const focal = slide.backdropUrl ? focalByUrl[slide.backdropUrl] : undefined;
                     return (
                         <div
                             key={slide.ratingKey}
@@ -85,7 +165,8 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, onOpenItem, onPlay
                                 <img
                                     src={slide.backdropUrl}
                                     alt=""
-                                    className={`h-full w-full object-cover transition-transform duration-[8s] ease-out ${visible ? 'scale-105' : 'scale-100'}`}
+                                    className={`h-full w-full object-cover transition-[transform,object-position] duration-[8s] ease-out ${visible ? 'scale-105' : 'scale-100'}`}
+                                    style={{ objectPosition: formatBackgroundPosition(focal) }}
                                 />
                             ) : (
                                 <div className="h-full w-full bg-gradient-to-br from-zinc-800 to-zinc-950" />
@@ -101,9 +182,7 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, onOpenItem, onPlay
                         <p className="text-[10px] font-black uppercase tracking-[0.22em] text-plex">
                             {t('mediaPlayerPage.homeHeroEyebrow')}
                         </p>
-                        <h2 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl lg:text-4xl">
-                            {active.title}
-                        </h2>
+                        <HeroTitle key={active.ratingKey} slide={active} />
                         <p className="mt-1 text-sm font-semibold text-white/65">
                             {[active.year, active.type === 'show' ? t('mediaPlayerPage.searchShows') : t('mediaPlayerPage.searchMovies')]
                                 .filter(Boolean)
