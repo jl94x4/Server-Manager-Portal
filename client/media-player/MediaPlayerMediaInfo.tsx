@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useDiscoverI18n } from './host';
@@ -54,25 +54,67 @@ const itemTitle = (part: PlayerMediaPartInfo, media: PlayerMediaInfo) => {
 export const MediaPlayerMediaInfo: React.FC<Props> = ({ item, onClose }) => {
     const { t } = useDiscoverI18n();
     const files = (item.mediaInfo || []).flatMap((media) => media.parts.map((part) => ({ media, part })));
+
+    useEffect(() => {
+        const previous = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = previous;
+        };
+    }, []);
+
+    useEffect(() => {
+        const onKey = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [onClose]);
+
     const overlay = (
-        <div className="fixed inset-0 z-[3500] flex items-start justify-center bg-black/70 p-4 sm:items-center" role="dialog" aria-modal="true" aria-label={t('mediaPlayerPage.mediaInfo')}>
-            <button type="button" className="absolute inset-0" aria-label={t('common.close')} onClick={onClose} />
-            <div className="relative z-10 max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
-                <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
-                    <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-plex">{item.title}</p>
+        <div
+            className="fixed inset-0 z-[3500] flex items-stretch justify-center bg-black/85 overscroll-none sm:items-center sm:bg-black/70 sm:p-4"
+            style={{
+                top: 0,
+                right: 0,
+                bottom: 0,
+                left: 0,
+                width: '100%',
+                minHeight: '100dvh',
+                height: '100dvh',
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('mediaPlayerPage.mediaInfo')}
+        >
+            <button
+                type="button"
+                className="absolute inset-0 hidden sm:block"
+                aria-label={t('common.close')}
+                onClick={onClose}
+            />
+            <div
+                className="relative z-10 flex h-full w-full max-w-3xl flex-col overflow-hidden border-0 bg-card shadow-2xl sm:h-auto sm:max-h-[min(90dvh,90vh)] sm:rounded-2xl sm:border sm:border-border"
+                style={{
+                    paddingTop: 'env(safe-area-inset-top, 0px)',
+                    paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+                }}
+            >
+                <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-5 py-4">
+                    <div className="min-w-0">
+                        <p className="truncate text-[10px] font-black uppercase tracking-[0.25em] text-plex">{item.title}</p>
                         <h2 className="text-lg font-black text-text">{t('mediaPlayerPage.mediaInfo')}</h2>
                     </div>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-full bg-white/5 p-2 text-muted hover:bg-white/10 hover:text-text"
+                        className="shrink-0 rounded-full bg-white/5 p-2 text-muted hover:bg-white/10 hover:text-text"
                         aria-label={t('common.close')}
                     >
                         <X className="h-4 w-4" />
                     </button>
                 </div>
-                <div className="max-h-[calc(90vh-4.5rem)] overflow-y-auto px-5 py-4">
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
                     {files.length ? (
                         <div className="mb-5">
                             <h3 className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted">{t('mediaPlayerPage.files')}</h3>
