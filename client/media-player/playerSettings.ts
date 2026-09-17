@@ -119,6 +119,114 @@ export const applyLibraryNavOrder = <T extends { key?: string | null }>(
     return out;
 };
 
+export type PlayerHomeHubMediaKind = 'continueWatching' | 'playlist' | 'movie' | 'show' | 'artist' | 'other';
+
+const normalizeLibraryMediaType = (value: unknown): 'movie' | 'show' | 'artist' | null => {
+    const type = String(value || '').trim().toLowerCase();
+    if (type === 'show' || type === 'tv' || type === 'episode' || type === 'season') return 'show';
+    if (type === 'artist' || type === 'album' || type === 'track' || type === 'music' || type === 'audio') return 'artist';
+    if (type === 'movie' || type === 'film') return 'movie';
+    return null;
+};
+
+/** Classify a home hub so library nav order can regroup movie / TV / music rows. */
+export const classifyPlayerHomeHub = (hub: {
+    identifier?: string | null;
+    title?: string | null;
+    playlistRatingKey?: string | null;
+    items?: Array<{ type?: string | null; librarySectionID?: string | null }> | null;
+} = {}): PlayerHomeHubMediaKind => {
+    const blob = `${hub.identifier || ''} ${hub.title || ''}`.toLowerCase();
+    if (/continue\s*watch|ondeck|on[.\s_-]?deck|in[.\s_-]?progress/.test(blob)) return 'continueWatching';
+    if (hub.playlistRatingKey || /playlist/.test(blob)) return 'playlist';
+    if (/(^|[.\s_-])(tv|show)([.\s_-]|$)/.test(blob) || /\b(series|episode)\b/.test(blob)) return 'show';
+    if (/(^|[.\s_-])(music|artist|album|track|audio)([.\s_-]|$)/.test(blob)) return 'artist';
+    if (/(^|[.\s_-])(movie|film)([.\s_-]|$)/.test(blob)) return 'movie';
+    const counts: Record<'movie' | 'show' | 'artist', number> = { movie: 0, show: 0, artist: 0 };
+    for (const item of hub.items || []) {
+        const kind = normalizeLibraryMediaType(item?.type);
+        if (kind) counts[kind] += 1;
+    }
+    const ranked = (Object.entries(counts) as Array<['movie' | 'show' | 'artist', number]>)
+        .sort((a, b) => b[1] - a[1]);
+    if (ranked[0]?.[1]) return ranked[0][0];
+    return 'other';
+};
+
+const dominantLibrarySectionId = (
+    items: Array<{ librarySectionID?: string | null }> = [],
+): string | null => {
+    const counts = new Map<string, number>();
+    for (const item of items) {
+        const id = String(item?.librarySectionID || '').trim();
+        if (!id) continue;
+        counts.set(id, (counts.get(id) || 0) + 1);
+    }
+    let best: string | null = null;
+    let bestCount = 0;
+    for (const [id, count] of counts) {
+        if (count > bestCount) {
+            best = id;
+            bestCount = count;
+        }
+    }
+    return best;
+};
+
+/**
+ * Reorder Plex home hubs to follow library sidebar order.
+ * Continue Watching stays first; playlists/unknown stay last; typed rows follow nav.
+ */
+export const applyLibraryNavOrderToHubs = <T extends {
+    identifier?: string | null;
+    title?: string | null;
+    playlistRatingKey?: string | null;
+    items?: Array<{ type?: string | null; librarySectionID?: string | null }> | null;
+}>(
+    hubs: T[] = [],
+    libraries: Array<{ key?: string | null; type?: string | null }> = [],
+    order: string[] = [],
+): T[] => {
+    const list = Array.isArray(hubs) ? hubs.filter(Boolean) : [];
+    if (list.length < 2) return list.slice();
+    const orderedLibraries = applyLibraryNavOrder(libraries, order);
+    if (!orderedLibraries.length) return list.slice();
+
+    const libraryRank = new Map<string, number>();
+    const typeRank = new Map<'movie' | 'show' | 'artist', number>();
+    orderedLibraries.forEach((library, index) => {
+        const key = String(library.key || '').trim();
+        if (key) libraryRank.set(key, index);
+        const kind = normalizeLibraryMediaType(library.type);
+        if (kind && !typeRank.has(kind)) typeRank.set(kind, index);
+    });
+
+    const rankFor = (hub: T, index: number): [number, number, number] => {
+        const kind = classifyPlayerHomeHub(hub);
+        if (kind === 'continueWatching') return [-2, 0, index];
+        if (kind === 'playlist') return [1, 0, index];
+        if (kind === 'other') return [1, 1, index];
+
+        const sectionId = dominantLibrarySectionId(hub.items || []);
+        if (sectionId && libraryRank.has(sectionId)) {
+            return [0, libraryRank.get(sectionId) as number, index];
+        }
+        if (typeRank.has(kind)) {
+            return [0, typeRank.get(kind) as number, index];
+        }
+        return [1, 2, index];
+    };
+
+    return list
+        .map((hub, index) => ({ hub, index, rank: rankFor(hub, index) }))
+        .sort((a, b) => (
+            a.rank[0] - b.rank[0]
+            || a.rank[1] - b.rank[1]
+            || a.rank[2] - b.rank[2]
+        ))
+        .map((row) => row.hub);
+};
+
 export const normalizeHomeRowOrder = (raw: unknown): string[] => {
     if (!Array.isArray(raw)) return [];
     const seen = new Set<string>();

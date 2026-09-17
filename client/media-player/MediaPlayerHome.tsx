@@ -15,7 +15,13 @@ import {
 import { fetchMediaPlayerHome, searchMediaPlayer, setMediaPlayerWatched } from './api';
 import { PlayerPosterCard } from './PlayerPosterCard';
 import { PlayerRail } from './PlayerRail';
-import { applyHomeRowOrder, applyLibraryNavOrder } from './playerSettings';
+import {
+    applyHomeRowOrder,
+    applyLibraryNavOrder,
+    applyLibraryNavOrderToHubs,
+    PLAYER_SETTINGS_DRAFT_EVENT,
+    PLAYER_SETTINGS_EVENT,
+} from './playerSettings';
 import { consumePlayerSearchFocus, PLAYER_SEARCH_INPUT_ID, readPlayerHomeCache, writePlayerHomeCache } from './playerMemory';
 import { usePlayerSettings } from './usePlayerSettings';
 import type { PlayerHome, PlayerItem, PlayerLibraryHub, PlayerPlayOptions } from './types';
@@ -47,6 +53,8 @@ const dedupeItems = (list: PlayerItem[]) => {
 export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, onPlay }) => {
     const { t } = useDiscoverI18n();
     const [settings] = usePlayerSettings();
+    const [draftLibraryOrder, setDraftLibraryOrder] = useState<string[] | null>(null);
+    const libraryNavOrder = draftLibraryOrder || settings.libraryNavOrder;
     const [gridSize, setGridSize] = useDiscoverGridSize();
     const [home, setHome] = useState<PlayerHome | null>(() => readPlayerHomeCache());
     const [error, setError] = useState<string | null>(null);
@@ -61,6 +69,24 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
         searchRef.current?.focus();
         searchRef.current?.select();
     }, []);
+
+    useEffect(() => {
+        const onDraft = (event: Event) => {
+            const detail = (event as CustomEvent<{ libraryNavOrder?: string[] }>).detail;
+            setDraftLibraryOrder(Array.isArray(detail?.libraryNavOrder) ? detail.libraryNavOrder : null);
+        };
+        const clearDraft = () => setDraftLibraryOrder(null);
+        window.addEventListener(PLAYER_SETTINGS_DRAFT_EVENT, onDraft);
+        window.addEventListener(PLAYER_SETTINGS_EVENT, clearDraft);
+        return () => {
+            window.removeEventListener(PLAYER_SETTINGS_DRAFT_EVENT, onDraft);
+            window.removeEventListener(PLAYER_SETTINGS_EVENT, clearDraft);
+        };
+    }, []);
+
+    useEffect(() => {
+        setDraftLibraryOrder(null);
+    }, [settings.libraryNavOrder]);
 
     useEffect(() => {
         if (!active) return undefined;
@@ -111,8 +137,8 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
     }, [query]);
 
     const orderedLibraries = useMemo(
-        () => applyLibraryNavOrder(home?.libraries || [], settings.libraryNavOrder),
-        [home?.libraries, settings.libraryNavOrder],
+        () => applyLibraryNavOrder(home?.libraries || [], libraryNavOrder),
+        [home?.libraries, libraryNavOrder],
     );
 
     const recentRails = useMemo(() => {
@@ -157,14 +183,15 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
         })).filter((row) => row.items.length);
     }, [home, orderedLibraries, settings.mixLibraries, t]);
 
-    const plexHubs = useMemo(() => (
-        (home?.hubs || []).filter((hub) => {
+    const plexHubs = useMemo(() => {
+        const filtered = (home?.hubs || []).filter((hub) => {
             if (!hub.items?.length) return false;
             if (!settings.showContinueWatching && isContinueWatchingHub(hub)) return false;
             if (!settings.showPlaylists && isPlaylistHub(hub)) return false;
             return true;
-        })
-    ), [home, settings.showContinueWatching, settings.showPlaylists]);
+        });
+        return applyLibraryNavOrderToHubs(filtered, orderedLibraries, libraryNavOrder);
+    }, [home, libraryNavOrder, orderedLibraries, settings.showContinueWatching, settings.showPlaylists]);
 
     const searchGroups = useMemo(() => {
         const shows: PlayerItem[] = [];
