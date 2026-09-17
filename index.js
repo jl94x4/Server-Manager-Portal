@@ -6640,6 +6640,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 mediaPlayerHomeHeroMode: normalizeMediaPlayerHomeHeroMode(config),
                 mediaPlayerHomeHeroSeasonalInWindowOnly: config.mediaPlayerHomeHeroSeasonalInWindowOnly === true,
                 mediaPlayerHomeHeroEnabled: normalizeMediaPlayerHomeHeroMode(config) !== 'off',
+                mediaPlayerContinueWatchingSeasonPoster: config.mediaPlayerContinueWatchingSeasonPoster === true,
                 showDashboardWatchingBadge: !!config.showDashboardWatchingBadge,
                 discoverNowPlayingEnabled: config.discoverNowPlayingEnabled !== false,
                 homeNowPlayingCompanionEnabled: config.homeNowPlayingCompanionEnabled !== false,
@@ -6853,6 +6854,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 mediaPlayerHomeHeroEnabled: true,
                 mediaPlayerHomeHeroMode: 'trending_week',
                 mediaPlayerHomeHeroSeasonalInWindowOnly: false,
+                mediaPlayerContinueWatchingSeasonPoster: false,
                 showDashboardWatchingBadge: false,
                 discoverNowPlayingEnabled: true,
                 homeNowPlayingCompanionEnabled: true,
@@ -6976,7 +6978,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         autoApproveMovies4k, autoApproveTv4k, portalAutoRequestMovies, portalAutoRequestTv,
         seriesMetadataProvider, animeMetadataProvider, tvdbApiKey,
         inactiveCleanupEnabled, inactiveCleanupDays,
-        primaryColor, customLogoUrl, customLoginLogoUrl, loginLogoCircleFrame, customFaviconUrl, customBadgeUrl, brandingTheme, sidebarIdentityPosition, pwaIconSource, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, expiredPortalTitle, expiredPortalMessage, navOrder, navHiddenKeys, memberNavOrder, memberNavHiddenKeys, customNavTabs, navItemIcons, customNavDisplay, arrOpenInPortalEmbed, homeCustomModules, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges, mediaPlayerHomeHeroEnabled, mediaPlayerHomeHeroMode, mediaPlayerHomeHeroSeasonalInWindowOnly, showDashboardWatchingBadge, dashboardWatchingBadgePollSeconds,
+        primaryColor, customLogoUrl, customLoginLogoUrl, loginLogoCircleFrame, customFaviconUrl, customBadgeUrl, brandingTheme, sidebarIdentityPosition, pwaIconSource, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, expiredPortalTitle, expiredPortalMessage, navOrder, navHiddenKeys, memberNavOrder, memberNavHiddenKeys, customNavTabs, navItemIcons, customNavDisplay, arrOpenInPortalEmbed, homeCustomModules, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges, mediaPlayerHomeHeroEnabled, mediaPlayerHomeHeroMode, mediaPlayerHomeHeroSeasonalInWindowOnly, mediaPlayerContinueWatchingSeasonPoster, showDashboardWatchingBadge, dashboardWatchingBadgePollSeconds,
         showPublicStatusMonitor, showPublicLibraryStats,
         autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, upgraderEnabled, collexionsEnabled, spotifyToPlexEnabled, scannerEnabled, scannerHomeWidgetEnabled, scannerWebhooksVisible, scannerManualPathVisible, scanner, mediaAutomationEnabled, mediaAutomationHomeWidgetEnabled, mediaAutomation, posterSetsEnabled, overlaysEnabled, editionsEnabled, achievementsEnabled, supportTicketsEnabled, chatEnabled, chatMentionNotifyInApp, achievementsLeaderboardEnabled, achievementsHomeWidgetEnabled, achievementsShowOnProfile, achievementsXpWeights, achievementsDisabledBadgeIds, achievementsMinPercentComplete, achievementsSeasons, requestAvailableNotifyEnabled, requestAvailableNotifyEmail, requestAvailableNotifyInApp, requestAvailableNotifyWebPush, requestAvailableNotifyDiscord, requestAvailableDiscordWebhookUrl, requestNotReleasedNotifyEnabled, requestNotReleasedNotifyEmail, requestNotReleasedNotifyInApp, requestNotReleasedNotifyWebPush, notifyReleaseDatePreference, scannerNotifyDeleted, scannerNotifyUpgrade, scannerNotifyImport, scannerNotifyGrab, scannerNotifyUpdate, scannerNotifyInteraction, notificationTemplates, emailTemplates, ntfyEnabled, ntfyServerUrl, ntfyTopic, ntfyToken, ntfyPriority, ntfyEvents, webhookEnabled, webhookUrl, webhookHeadersJson, webhookEvents, webPushEnabled, watchHistorySource, collexionsAutostart, collexionsInternalUrl, collexionsServiceKey, spotifyToPlexInternalUrl, spotifyToPlexClientId, spotifyToPlexClientSecret, spotifyToPlexEncryptionKey, spotifyToPlexHomeWidgetEnabled, spotifyToPlexScheduleMode, spotifyToPlexScheduledSyncEnabled, spotifyToPlexScheduledSyncIntervalHours, upgraderDefaultPreset, upgraderMinSizeGB, upgraderAutomationEnabled, upgraderProfileMap, upgraderMaxActionsPerHour, upgraderDefaultSort, upgraderDrawerPosition, dashboardLayout,
         showUsernamesInAnalytics, useTrendingSlideshowOnLogin, downloadsVisibleToMembers
@@ -7467,6 +7469,9 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
             });
             return mode !== 'off';
         })(),
+        mediaPlayerContinueWatchingSeasonPoster: mediaPlayerContinueWatchingSeasonPoster !== undefined
+            ? !!mediaPlayerContinueWatchingSeasonPoster
+            : existingConfig.mediaPlayerContinueWatchingSeasonPoster === true,
         showDashboardWatchingBadge: !!showDashboardWatchingBadge,
         dashboardWatchingBadgePollSeconds: Math.min(15, Math.max(1, parseInt(dashboardWatchingBadgePollSeconds, 10) || 15)),
         showPublicStatusMonitor: showPublicStatusMonitor !== undefined ? !!showPublicStatusMonitor : isPublicStatusVisible(existingConfig),

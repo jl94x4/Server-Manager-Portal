@@ -204,6 +204,8 @@ export const en = {
         homeHeroModeNewReleases: 'New releases',
         homeHeroModeRandomSpotlight: 'Random spotlight',
         homeHeroAdminOnly: 'Admin only',
+        continueWatchingSeasonPoster: 'Season posters on Continue Watching',
+        continueWatchingSeasonPosterHint: 'Use each episode’s season poster instead of the series poster. Show posters stay the default.',
         jumpToLibrary: 'Jump to library',
         signedInAs: 'Signed in as {name}',
         openNav: 'Open menu',

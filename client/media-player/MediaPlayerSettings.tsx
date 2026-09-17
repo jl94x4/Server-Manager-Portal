@@ -46,7 +46,12 @@ export const MediaPlayerSettings: React.FC<Props> = ({ onBack, isAdmin = false }
     const [saveState, setSaveState] = useState<'idle' | 'saved' | 'error'>('idle');
     const [heroMode, setHeroMode] = useState<HeroMode>('trending_week');
     const [heroSeasonalOnly, setHeroSeasonalOnly] = useState(false);
-    const [heroBaseline, setHeroBaseline] = useState<{ mode: HeroMode; seasonalInWindowOnly: boolean } | null>(null);
+    const [cwSeasonPoster, setCwSeasonPoster] = useState(false);
+    const [heroBaseline, setHeroBaseline] = useState<{
+        mode: HeroMode;
+        seasonalInWindowOnly: boolean;
+        continueWatchingSeasonPoster: boolean;
+    } | null>(null);
     const [heroSaving, setHeroSaving] = useState(false);
     const qualityOptions = [
         { id: 'auto', label: t('mediaPlayerPage.qualityAuto') },
@@ -96,9 +101,11 @@ export const MediaPlayerSettings: React.FC<Props> = ({ onBack, isAdmin = false }
                     ? (data.mode as HeroMode)
                     : 'trending_week';
                 const seasonalInWindowOnly = data?.seasonalInWindowOnly === true;
+                const continueWatchingSeasonPoster = data?.continueWatchingSeasonPoster === true;
                 setHeroMode(mode);
                 setHeroSeasonalOnly(seasonalInWindowOnly);
-                setHeroBaseline({ mode, seasonalInWindowOnly });
+                setCwSeasonPoster(continueWatchingSeasonPoster);
+                setHeroBaseline({ mode, seasonalInWindowOnly, continueWatchingSeasonPoster });
             })
             .catch(() => {
                 if (!cancelled) setHeroBaseline(null);
@@ -122,6 +129,7 @@ export const MediaPlayerSettings: React.FC<Props> = ({ onBack, isAdmin = false }
     const heroDirty = !!heroBaseline && (
         heroMode !== heroBaseline.mode
         || heroSeasonalOnly !== heroBaseline.seasonalInWindowOnly
+        || cwSeasonPoster !== heroBaseline.continueWatchingSeasonPoster
     );
     const dirty = playerDirty || heroDirty;
     const saving = playerSaving || heroSaving;
@@ -135,6 +143,7 @@ export const MediaPlayerSettings: React.FC<Props> = ({ onBack, isAdmin = false }
         if (heroBaseline) {
             setHeroMode(heroBaseline.mode);
             setHeroSeasonalOnly(heroBaseline.seasonalInWindowOnly);
+            setCwSeasonPoster(heroBaseline.continueWatchingSeasonPoster);
         }
     };
 
@@ -146,14 +155,17 @@ export const MediaPlayerSettings: React.FC<Props> = ({ onBack, isAdmin = false }
                 const saved = await saveMediaPlayerHomeHeroConfig({
                     mode: heroMode,
                     seasonalInWindowOnly: heroSeasonalOnly,
+                    continueWatchingSeasonPoster: cwSeasonPoster,
                 });
                 const mode = HERO_MODE_VALUES.includes(saved?.mode as HeroMode)
                     ? (saved.mode as HeroMode)
                     : heroMode;
                 const seasonalInWindowOnly = saved?.seasonalInWindowOnly === true;
+                const continueWatchingSeasonPoster = saved?.continueWatchingSeasonPoster === true;
                 setHeroMode(mode);
                 setHeroSeasonalOnly(seasonalInWindowOnly);
-                setHeroBaseline({ mode, seasonalInWindowOnly });
+                setCwSeasonPoster(continueWatchingSeasonPoster);
+                setHeroBaseline({ mode, seasonalInWindowOnly, continueWatchingSeasonPoster });
             }
             setSaveState('saved');
         } catch {
@@ -209,6 +221,12 @@ export const MediaPlayerSettings: React.FC<Props> = ({ onBack, isAdmin = false }
                             description={t('mediaPlayerPage.homeHeroSeasonalWindowHint')}
                             checked={heroSeasonalOnly}
                             onChange={setHeroSeasonalOnly}
+                        />
+                        <SettingsToggleRow
+                            title={t('mediaPlayerPage.continueWatchingSeasonPoster')}
+                            description={t('mediaPlayerPage.continueWatchingSeasonPosterHint')}
+                            checked={cwSeasonPoster}
+                            onChange={setCwSeasonPoster}
                             border={false}
                         />
                     </div>
