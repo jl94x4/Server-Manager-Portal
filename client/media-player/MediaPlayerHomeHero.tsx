@@ -32,8 +32,17 @@ type Props = {
     onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
 };
 
-const SLIDE_MS = 10000;
-const SWIPE_MIN_DX = 48;
+const heroMediaKindLabel = (
+    type: string | undefined,
+    translate: (key: string) => string,
+): string => {
+    const kind = String(type || '').toLowerCase();
+    if (kind === 'show' || kind === 'episode' || kind === 'season') {
+        return translate('mediaPlayerPage.searchShows');
+    }
+    if (kind === 'movie') return translate('mediaPlayerPage.searchMovies');
+    return '';
+};
 
 const toPlayerItem = (slide: HomeHeroSlide): PlayerItem => ({
     ratingKey: slide.ratingKey,
@@ -225,7 +234,7 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, effectiveMode, onO
                         </p>
                         <HeroTitle key={active.ratingKey} slide={active} />
                         <p className="mt-1 text-xs font-semibold text-white/65 sm:text-sm">
-                            {[active.year, active.type === 'show' ? t('mediaPlayerPage.searchShows') : t('mediaPlayerPage.searchMovies')]
+                            {[active.year, heroMediaKindLabel(active.type, t)]
                                 .filter(Boolean)
                                 .join(' · ')}
                         </p>
