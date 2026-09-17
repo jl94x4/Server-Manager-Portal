@@ -174,7 +174,7 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, onOpenItem, onPlay
 
     return (
         <section
-            className="player-home-hero relative touch-pan-y overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-[0_18px_50px_rgba(0,0,0,0.35)]"
+            className="player-home-hero relative touch-pan-y overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 shadow-[0_18px_50px_rgba(0,0,0,0.35)]"
             onMouseEnter={() => setPaused(true)}
             onMouseLeave={() => setPaused(false)}
             onTouchStart={onTouchStart}
@@ -205,8 +205,8 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, onOpenItem, onPlay
                             ) : (
                                 <div className="h-full w-full bg-gradient-to-br from-zinc-800 to-zinc-950" />
                             )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/15" />
-                            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/35 to-transparent" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                            <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/15 to-transparent" />
                         </div>
                     );
                 })}
