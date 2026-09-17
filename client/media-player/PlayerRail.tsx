@@ -11,10 +11,12 @@ export const PlayerRail: React.FC<{
     onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
     onToggleWatched?: (item: PlayerItem) => void;
     showProgress?: boolean;
+    /** Force card shape. Continue Watching should stay poster (`2/3`). */
+    aspect?: '2/3' | 'square' | '16/9';
     onViewAll?: () => void;
     viewAllLabel?: string;
     staggerIndex?: number;
-}> = ({ title, items, density, onOpenItem, onPlay, onToggleWatched, showProgress = false, onViewAll, viewAllLabel, staggerIndex = 0 }) => {
+}> = ({ title, items, density, onOpenItem, onPlay, onToggleWatched, showProgress = false, aspect, onViewAll, viewAllLabel, staggerIndex = 0 }) => {
     if (!items.length) return null;
     return (
         <div
@@ -24,7 +26,10 @@ export const PlayerRail: React.FC<{
             <DiscoverSectionHeader title={title} onViewAll={onViewAll} viewAllLabel={viewAllLabel} />
             <Carousel>
                 {items.map((item, idx) => {
-                    const landscape = item.type === 'episode';
+                    const cardAspect = aspect
+                        || (item.type === 'artist' || item.type === 'album' ? 'square' : null)
+                        || (item.type === 'episode' ? '16/9' : '2/3');
+                    const landscape = cardAspect === '16/9';
                     return (
                         <div
                             key={item.ratingKey || `${title}-${idx}`}
@@ -35,6 +40,7 @@ export const PlayerRail: React.FC<{
                         >
                             <PlayerPosterCard
                                 item={item}
+                                aspect={cardAspect}
                                 showProgress={showProgress}
                                 onOpenItem={onOpenItem}
                                 onPlay={onPlay}

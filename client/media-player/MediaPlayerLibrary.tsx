@@ -427,6 +427,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                                 onPlay={onPlay}
                                 onToggleWatched={toggleWatched}
                                 showProgress={/continue|ondeck/i.test(hub.identifier)}
+                                aspect={/continue|ondeck/i.test(hub.identifier) ? '2/3' : undefined}
                             />
                         ))}
                     </div>

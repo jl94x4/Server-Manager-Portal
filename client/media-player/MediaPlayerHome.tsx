@@ -296,6 +296,7 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
                 onPlay={onPlay}
                 onToggleWatched={toggleWatched}
                 showProgress={isContinueWatchingHub(hub)}
+                aspect={isContinueWatchingHub(hub) ? '2/3' : undefined}
                 onViewAll={viewAllKey ? () => onOpenItem({
                     ratingKey: viewAllKey,
                     title: hub.title,
@@ -320,6 +321,7 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
                     onPlay={onPlay}
                     onToggleWatched={toggleWatched}
                     showProgress
+                    aspect="2/3"
                 />
             ) : null;
         }
