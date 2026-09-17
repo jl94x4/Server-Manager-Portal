@@ -49,6 +49,31 @@ const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) =
     </div>
 );
 
+const CastAvatar: React.FC<{ name: string; thumb?: string | null }> = ({ name, thumb }) => {
+    const [failed, setFailed] = useState(false);
+    useEffect(() => {
+        setFailed(false);
+    }, [thumb]);
+    const src = thumb && !failed ? plexImageUrl(thumb, 400, 400) : '';
+    return (
+        <div className="w-36 h-36 rounded-full bg-white/5 border-2 border-border overflow-hidden transition-transform group-hover:scale-[1.03] group-hover:border-plex">
+            {src ? (
+                <img
+                    src={src}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    onError={() => setFailed(true)}
+                />
+            ) : (
+                <div className="w-full h-full flex items-center justify-center text-muted bg-white/5" aria-hidden>
+                    <Users className="w-12 h-12" />
+                    <span className="sr-only">{name}</span>
+                </div>
+            )}
+        </div>
+    );
+};
+
 const typeLabel = (type: string) => {
     if (type === 'movie') return 'movie';
     if (type === 'show') return 'tv';
@@ -733,19 +758,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                     })}
                                     className="group flex flex-col items-center gap-3 w-40 flex-shrink-0 snap-start text-center"
                                 >
-                                    <div className="w-36 h-36 rounded-full bg-white/5 border-2 border-border overflow-hidden transition-transform group-hover:scale-[1.03] group-hover:border-plex">
-                                        {actor.thumb ? (
-                                            <img
-                                                src={plexImageUrl(actor.thumb, 400, 400)}
-                                                alt=""
-                                                className="w-full h-full object-cover"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-muted bg-white/5">
-                                                <Users className="w-12 h-12" />
-                                            </div>
-                                        )}
-                                    </div>
+                                    <CastAvatar name={actor.name} thumb={actor.thumb} />
                                     <div className="w-full px-1">
                                         <div className="text-sm font-bold text-text leading-tight line-clamp-2 group-hover:text-plex">{actor.name}</div>
                                         {actor.role ? (
@@ -773,19 +786,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                     })}
                                     className="group flex flex-col items-center gap-3 w-40 flex-shrink-0 snap-start text-center"
                                 >
-                                    <div className="w-36 h-36 rounded-full bg-white/5 border-2 border-border overflow-hidden transition-transform group-hover:scale-[1.03] group-hover:border-plex">
-                                        {actor.thumb ? (
-                                            <img
-                                                src={plexImageUrl(actor.thumb, 400, 400)}
-                                                alt=""
-                                                className="w-full h-full object-cover"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-muted bg-white/5">
-                                                <Users className="w-12 h-12" />
-                                            </div>
-                                        )}
-                                    </div>
+                                    <CastAvatar name={actor.name} thumb={actor.thumb} />
                                     <div className="w-full px-1">
                                         <div className="text-sm font-bold text-text leading-tight line-clamp-2 group-hover:text-plex">{actor.name}</div>
                                         {actor.role ? (
