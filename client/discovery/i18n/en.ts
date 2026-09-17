@@ -312,6 +312,8 @@ export const en = {
         playNextQueued: 'Playing next: {title}',
         removeFromContinueWatching: 'Remove from Continue Watching',
         removedFromContinueWatching: 'Removed from Continue Watching',
+        removeFromContinueWatchingError: 'Could not remove from Continue Watching.',
+        actionError: 'Something went wrong. Please try again.',
         download: 'Download',
         downloadStarted: 'Download started',
         delete: 'Delete',

@@ -69,6 +69,8 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
         && (item.type === 'movie' || item.type === 'episode' || item.type === 'clip' || item.type === 'trailer');
     const canPlaylist = playlistsEnabled
         && (item.type === 'movie' || item.type === 'episode' || item.type === 'show' || item.type === 'season');
+    const canDownload = isAdmin
+        && (item.type === 'movie' || item.type === 'episode' || item.type === 'clip' || item.type === 'trailer');
 
     const close = () => {
         setOpen(false);
@@ -80,15 +82,11 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
     const placeMenu = (clientX?: number, clientY?: number) => {
         const pad = 8;
         const height = mode === 'playlist' ? 280 : 260;
-        let left = clientX ?? 0;
-        let top = clientY ?? 0;
-        if (clientX == null || clientY == null) {
-            const rect = triggerRef.current?.getBoundingClientRect();
-            if (rect) {
-                left = rect.right - MENU_WIDTH;
-                top = rect.bottom + 4;
-            }
-        }
+        const rect = triggerRef.current?.getBoundingClientRect();
+        // Anchor left edge to the ⋯ button; fall back to click/touch point.
+        let left = rect ? rect.left : (clientX ?? 0);
+        let top = rect ? rect.bottom + 4 : (clientY ?? 0);
+        if (!rect && clientY != null) top = clientY;
         left = Math.min(Math.max(pad, left), window.innerWidth - MENU_WIDTH - pad);
         top = Math.min(Math.max(pad, top), window.innerHeight - height - pad);
         setPos({ top, left });
@@ -158,7 +156,7 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
         <div
             ref={menuRef}
             role="menu"
-            className="fixed z-[400] min-w-[220px] overflow-hidden rounded-xl border border-white/15 bg-[#12161e]/96 py-1.5 text-sm text-white shadow-[0_18px_50px_rgba(0,0,0,0.55)] backdrop-blur-xl"
+            className="fixed z-[400] min-w-[220px] overflow-hidden rounded-lg border border-white/12 bg-[#1a1f2a] py-1.5 text-sm text-white shadow-lg"
             style={{ top: pos.top, left: pos.left, width: MENU_WIDTH }}
             onClick={(event) => event.stopPropagation()}
             onContextMenu={(event) => event.preventDefault()}
@@ -211,7 +209,7 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
                                     toast(next ? t('mediaPlayerPage.markedWatched') : t('mediaPlayerPage.markedUnwatched'));
                                     close();
                                 } catch {
-                                    toast(t('mediaPlayerPage.playError'), 'error');
+                                    toast(t('mediaPlayerPage.actionError'), 'error');
                                 }
                             })}
                         >
@@ -234,7 +232,7 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
                                     toast(t('mediaPlayerPage.removedFromContinueWatching'));
                                     close();
                                 } catch {
-                                    toast(t('mediaPlayerPage.playError'), 'error');
+                                    toast(t('mediaPlayerPage.removeFromContinueWatchingError'), 'error');
                                 }
                             })}
                         >
@@ -245,21 +243,29 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
                     {isAdmin ? (
                         <>
                             <div className="my-1.5 border-t border-white/10" />
-                            <button
-                                type="button"
-                                role="menuitem"
-                                disabled={busy}
-                                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left font-semibold hover:bg-white/10 disabled:opacity-50"
-                                onClick={() => {
-                                    const href = portalUrl(mediaPlayerDownloadUrl(item.ratingKey));
-                                    window.open(href, '_blank', 'noopener,noreferrer');
-                                    toast(t('mediaPlayerPage.downloadStarted'));
-                                    close();
-                                }}
-                            >
-                                <Download className="h-4 w-4 shrink-0 opacity-80" />
-                                {t('mediaPlayerPage.download')}
-                            </button>
+                            {canDownload ? (
+                                <button
+                                    type="button"
+                                    role="menuitem"
+                                    disabled={busy}
+                                    className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left font-semibold hover:bg-white/10 disabled:opacity-50"
+                                    onClick={() => {
+                                        const href = portalUrl(mediaPlayerDownloadUrl(item.ratingKey));
+                                        const anchor = document.createElement('a');
+                                        anchor.href = href;
+                                        anchor.download = '';
+                                        anchor.rel = 'noopener';
+                                        document.body.appendChild(anchor);
+                                        anchor.click();
+                                        anchor.remove();
+                                        toast(t('mediaPlayerPage.downloadStarted'));
+                                        close();
+                                    }}
+                                >
+                                    <Download className="h-4 w-4 shrink-0 opacity-80" />
+                                    {t('mediaPlayerPage.download')}
+                                </button>
+                            ) : null}
                             <button
                                 type="button"
                                 role="menuitem"
@@ -274,7 +280,7 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
                                         toast(t('mediaPlayerPage.deletedTitle', { title: item.title }));
                                         close();
                                     } catch {
-                                        toast(t('mediaPlayerPage.playError'), 'error');
+                                        toast(t('mediaPlayerPage.actionError'), 'error');
                                     }
                                 })}
                             >
@@ -306,7 +312,7 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
                                         toast(t('mediaPlayerPage.addedToPlaylist', { name: playlist.title }));
                                         close();
                                     } catch {
-                                        toast(t('mediaPlayerPage.playError'), 'error');
+                                        toast(t('mediaPlayerPage.actionError'), 'error');
                                     }
                                 })}
                             >
@@ -326,7 +332,7 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
                                     toast(t('mediaPlayerPage.addedToPlaylist', { name: created.item?.title || title }));
                                     close();
                                 } catch {
-                                    toast(t('mediaPlayerPage.playError'), 'error');
+                                    toast(t('mediaPlayerPage.actionError'), 'error');
                                 }
                             });
                         }}
