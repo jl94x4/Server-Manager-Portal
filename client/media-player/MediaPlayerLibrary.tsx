@@ -19,7 +19,7 @@ import {
     fetchMediaPlayerLibraryHome,
     setMediaPlayerWatched,
 } from './api';
-import { readLibraryBrowseState, writeLibraryBrowseState } from './playerMemory';
+import { readLibraryBrowseState, readLibraryHomeCache, writeLibraryBrowseState, writeLibraryHomeCache } from './playerMemory';
 import { MediaPlayerLibrariesPanel } from './MediaPlayerLibrariesPanel';
 import { PlayerPosterCard } from './PlayerPosterCard';
 import { PlayerRail } from './PlayerRail';
@@ -67,11 +67,11 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
     const { t } = useDiscoverI18n();
     const [gridSize, setGridSize] = useDiscoverGridSize();
     const [title, setTitle] = useState(t('mediaPlayerPage.libraries'));
-    const [hubs, setHubs] = useState<PlayerLibraryHub[]>([]);
+    const [hubs, setHubs] = useState<PlayerLibraryHub[]>(() => readLibraryHomeCache(sectionKey)?.hubs || []);
     const [items, setItems] = useState<PlayerItem[]>([]);
     const [collections, setCollections] = useState<PlayerItem[]>([]);
     const [total, setTotal] = useState(0);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(() => tab === 'home' ? !readLibraryHomeCache(sectionKey)?.hubs?.length : true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [hydrated, setHydrated] = useState(false);
@@ -98,14 +98,24 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
     }, [hubs]);
 
     const loadHome = useCallback(async () => {
-        setLoading(true);
+        const cached = readLibraryHomeCache(sectionKey);
+        if (cached?.hubs?.length) {
+            setTitle(cached.title || t('mediaPlayerPage.libraries'));
+            setHubs(cached.hubs);
+            setLoading(false);
+        } else {
+            setLoading(true);
+        }
         try {
             const data = await fetchMediaPlayerLibraryHome(sectionKey);
+            writeLibraryHomeCache(sectionKey, data);
             setTitle(data.title || t('mediaPlayerPage.libraries'));
             setHubs(data.hubs || []);
             setError(null);
         } catch (err: any) {
-            setError(String(err?.message || t('mediaPlayerPage.loadError')));
+            if (!cached?.hubs?.length) {
+                setError(String(err?.message || t('mediaPlayerPage.loadError')));
+            }
         } finally {
             setLoading(false);
         }
@@ -172,6 +182,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
     }, []);
 
     useEffect(() => {
+        if (tab !== 'browse') return undefined;
         let cancelled = false;
         fetchMediaPlayerLibraryFilters(sectionKey)
             .then((data) => {
@@ -192,10 +203,11 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                 }
             });
         return () => { cancelled = true; };
-    }, [sectionKey]);
+    }, [sectionKey, tab]);
 
     useEffect(() => {
         const saved = readLibraryBrowseState(sectionKey);
+        const cachedHome = readLibraryHomeCache(sectionKey);
         setHydrated(false);
         setSort(saved.sort);
         setGenre(saved.genre);
@@ -204,8 +216,14 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
         setStudio(saved.studio);
         setUnwatched(saved.unwatched);
         setInProgress(saved.inProgress);
+        if (cachedHome?.hubs?.length) {
+            setTitle(cachedHome.title || t('mediaPlayerPage.libraries'));
+            setHubs(cachedHome.hubs);
+        } else {
+            setHubs([]);
+        }
         setHydrated(true);
-    }, [sectionKey]);
+    }, [sectionKey, t]);
 
     useEffect(() => {
         if (!hydrated) return;

@@ -136,13 +136,20 @@ export const unwatchedCount = (item?: PlayerItem | null) => {
 
 export const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
-export const toPosterCardItem = (item: PlayerItem) => ({
-    title: item.title,
-    thumb: item.thumb || undefined,
-    plexUrl: item.plexUrl || '',
-    year: item.year || undefined,
-    parentTitle: item.showTitle || item.seasonTitle || undefined,
-});
+export const toPosterCardItem = (item: PlayerItem) => {
+    const thumb = item.thumb || (item.ratingKey ? `/library/metadata/${item.ratingKey}/thumb` : undefined);
+    const posterFallbackUrl = item.ratingKey && thumb !== `/library/metadata/${item.ratingKey}/thumb`
+        ? `/api/plex/image?path=${encodeURIComponent(`/library/metadata/${item.ratingKey}/thumb`)}&width=300&height=450`
+        : undefined;
+    return {
+        title: item.title,
+        thumb: thumb || undefined,
+        posterFallbackUrl,
+        plexUrl: item.plexUrl || '',
+        year: item.year || undefined,
+        parentTitle: item.showTitle || item.seasonTitle || undefined,
+    };
+};
 
 export const withPlayerStreamQuery = (src: string, updates: Record<string, string | number | null | undefined>) => {
     const qIndex = src.indexOf('?');

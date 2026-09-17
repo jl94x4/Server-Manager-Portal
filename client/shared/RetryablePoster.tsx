@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { NoPosterPlaceholder } from './NoPosterPlaceholder';
 
-const MAX_RETRIES = 2;
+const MAX_RETRIES = 3;
 
 const withRetryParam = (url: string, attempt: number) => {
     if (!url || attempt <= 0) return url;
@@ -31,24 +31,24 @@ export const RetryablePoster: React.FC<Props> = ({
     const [attempt, setAttempt] = useState(0);
     const [useFallback, setUseFallback] = useState(false);
     const [failed, setFailed] = useState(!src && !fallbackSrc);
+    const [displaySrc, setDisplaySrc] = useState(src || fallbackSrc);
 
     useEffect(() => {
         setAttempt(0);
         setUseFallback(false);
         setFailed(!src && !fallbackSrc);
+        setDisplaySrc(src || fallbackSrc);
     }, [src, fallbackSrc]);
 
     if (failed || (!src && !fallbackSrc)) {
         return <NoPosterPlaceholder compact={compactPlaceholder} />;
     }
 
-    const currentSrc = useFallback && fallbackSrc
-        ? withRetryParam(fallbackSrc, attempt)
-        : withRetryParam(src, attempt);
+    const currentSrc = withRetryParam(displaySrc, attempt);
 
     return (
         <img
-            key={`${useFallback ? 'fb' : 'src'}-${attempt}`}
+            key={`${useFallback ? 'fb' : 'src'}-${attempt}-${currentSrc}`}
             src={currentSrc}
             alt={alt}
             loading={loading}
@@ -59,10 +59,12 @@ export const RetryablePoster: React.FC<Props> = ({
                 if (!useFallback && fallbackSrc && fallbackSrc !== src) {
                     setUseFallback(true);
                     setAttempt(0);
+                    setDisplaySrc(fallbackSrc);
                     return;
                 }
                 if (attempt < MAX_RETRIES) {
-                    setAttempt((n) => n + 1);
+                    const next = attempt + 1;
+                    window.setTimeout(() => setAttempt(next), 180 * next);
                     return;
                 }
                 setFailed(true);

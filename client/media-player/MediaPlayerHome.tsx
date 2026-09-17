@@ -22,7 +22,7 @@ import {
     PLAYER_SETTINGS_DRAFT_EVENT,
     PLAYER_SETTINGS_EVENT,
 } from './playerSettings';
-import { consumePlayerSearchFocus, PLAYER_SEARCH_INPUT_ID, readPlayerHomeCache, writePlayerHomeCache } from './playerMemory';
+import { consumePlayerSearchFocus, PLAYER_SEARCH_INPUT_ID, readHeroSlidesCache, readPlayerHomeCache, writeHeroSlidesCache, writePlayerHomeCache } from './playerMemory';
 import { usePlayerSettings } from './usePlayerSettings';
 import type { PlayerHome, PlayerItem, PlayerLibraryHub, PlayerPlayOptions, PlayerSection } from './types';
 
@@ -64,7 +64,7 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
     const libraryNavOrder = draftLibraryOrder || settings.libraryNavOrder;
     const [gridSize, setGridSize] = useDiscoverGridSize();
     const [home, setHome] = useState<PlayerHome | null>(() => readPlayerHomeCache());
-    const [heroSlides, setHeroSlides] = useState<HomeHeroSlide[]>([]);
+    const [heroSlides, setHeroSlides] = useState<HomeHeroSlide[]>(() => readHeroSlidesCache() || []);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(() => !readPlayerHomeCache());
     const [query, setQuery] = useState('');
@@ -99,7 +99,8 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
     useEffect(() => {
         if (!active) return undefined;
         let cancelled = false;
-        if (!readPlayerHomeCache()) setLoading(true);
+        const cachedHome = readPlayerHomeCache();
+        if (!cachedHome) setLoading(true);
         fetchMediaPlayerHome()
             .then((data) => {
                 if (cancelled) return;
@@ -109,21 +110,28 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
             })
             .catch((err) => {
                 if (cancelled) return;
-                setError(String(err?.message || t('mediaPlayerPage.loadError')));
+                if (!cachedHome) setError(String(err?.message || t('mediaPlayerPage.loadError')));
             })
             .finally(() => {
                 if (!cancelled) setLoading(false);
             });
+        const cachedHero = readHeroSlidesCache();
         fetchMediaPlayerHomeHero()
             .then((data) => {
                 if (cancelled) return;
                 const items = data?.enabled && Array.isArray(data.items) ? data.items : [];
-                setHeroSlides(items);
-                // Empty results may be a short-lived cache miss after deploy — retry once with refresh.
-                if (data?.enabled && !items.length && data?.reason !== 'disabled') {
+                if (items.length) {
+                    writeHeroSlidesCache(items);
+                    setHeroSlides(items);
+                    return undefined;
+                }
+                // Keep prior slides on empty short-cache; only force-refresh when we have nothing.
+                if (cachedHero?.length) return undefined;
+                if (data?.enabled && data?.reason !== 'disabled') {
                     return fetchMediaPlayerHomeHeroRefresh().then((retry) => {
                         if (cancelled) return;
                         if (retry?.enabled && Array.isArray(retry.items) && retry.items.length) {
+                            writeHeroSlidesCache(retry.items);
                             setHeroSlides(retry.items);
                         }
                     }).catch(() => undefined);
@@ -131,7 +139,7 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
                 return undefined;
             })
             .catch(() => {
-                if (!cancelled) setHeroSlides([]);
+                if (!cancelled && !cachedHero?.length) setHeroSlides([]);
             });
         return () => { cancelled = true; };
     }, [active, t]);

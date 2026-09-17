@@ -212,7 +212,7 @@ export const focusPlayerSearchInput = () => {
     return true;
 };
 
-const PLAYER_HOME_CACHE_TTL_MS = 60_000;
+const PLAYER_HOME_CACHE_TTL_MS = 90_000;
 let playerHomeCache: { at: number; data: PlayerHome } | null = null;
 
 export const readPlayerHomeCache = (): PlayerHome | null => {
@@ -226,5 +226,70 @@ export const readPlayerHomeCache = (): PlayerHome | null => {
 
 export const writePlayerHomeCache = (data: PlayerHome) => {
     playerHomeCache = { at: Date.now(), data };
+};
+
+export const isPlayerHomeCacheFresh = (maxAgeMs = PLAYER_HOME_CACHE_TTL_MS) => (
+    Boolean(playerHomeCache && Date.now() - playerHomeCache.at <= maxAgeMs)
+);
+
+type LibraryHomePayload = {
+    title?: string;
+    type?: string;
+    hubs?: import('./types').PlayerLibraryHub[];
+};
+
+const libraryHomeCache = new Map<string, { at: number; data: LibraryHomePayload }>();
+const LIBRARY_HOME_CLIENT_TTL_MS = 90_000;
+
+export const readLibraryHomeCache = (sectionKey: string): LibraryHomePayload | null => {
+    const key = String(sectionKey || '');
+    if (!key) return null;
+    const row = libraryHomeCache.get(key);
+    if (!row) return null;
+    if (Date.now() - row.at > LIBRARY_HOME_CLIENT_TTL_MS * 5) {
+        libraryHomeCache.delete(key);
+        return null;
+    }
+    return row.data;
+};
+
+export const writeLibraryHomeCache = (sectionKey: string, data: LibraryHomePayload) => {
+    const key = String(sectionKey || '');
+    if (!key) return;
+    libraryHomeCache.set(key, { at: Date.now(), data });
+    if (libraryHomeCache.size <= 24) return;
+    const oldest = libraryHomeCache.keys().next().value;
+    if (oldest && oldest !== key) libraryHomeCache.delete(oldest);
+};
+
+type HeroSlidesPayload = Array<{
+    ratingKey: string;
+    title: string;
+    type: string;
+    year?: number | null;
+    summary?: string;
+    thumb?: string | null;
+    art?: string | null;
+    logo?: string | null;
+    backdropUrl?: string | null;
+    posterUrl?: string | null;
+    tmdbId?: number | null;
+    canPlay?: boolean;
+}>;
+
+let heroSlidesCache: { at: number; data: HeroSlidesPayload } | null = null;
+const HERO_CLIENT_TTL_MS = 10 * 60_000;
+
+export const readHeroSlidesCache = (): HeroSlidesPayload | null => {
+    if (!heroSlidesCache) return null;
+    if (Date.now() - heroSlidesCache.at > HERO_CLIENT_TTL_MS * 3) {
+        heroSlidesCache = null;
+        return null;
+    }
+    return heroSlidesCache.data;
+};
+
+export const writeHeroSlidesCache = (data: HeroSlidesPayload) => {
+    heroSlidesCache = { at: Date.now(), data: Array.isArray(data) ? data : [] };
 };
 
