@@ -1,5 +1,37 @@
 export type PlayerSubtitleMode = 'off' | 'forced' | 'always';
 
+export type PlayerWatchedTickPosition = 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
+
+export const PLAYER_WATCHED_TICK_POSITIONS: PlayerWatchedTickPosition[] = [
+    'top-right',
+    'top-left',
+    'bottom-right',
+    'bottom-left',
+];
+
+export const isPlayerWatchedTickPosition = (value: unknown): value is PlayerWatchedTickPosition => (
+    PLAYER_WATCHED_TICK_POSITIONS.includes(String(value || '') as PlayerWatchedTickPosition)
+);
+
+/** Absolute corner classes for watched ticks on posters (not episode thumbs). */
+export const watchedTickPositionClass = (
+    position: PlayerWatchedTickPosition | string | null | undefined,
+    { aboveProgress = false } = {},
+) => {
+    const corner = isPlayerWatchedTickPosition(position) ? position : 'top-right';
+    const bottom = aboveProgress ? 'bottom-3' : 'bottom-1.5';
+    switch (corner) {
+        case 'top-left':
+            return 'absolute left-1.5 top-1.5';
+        case 'bottom-left':
+            return `absolute left-1.5 ${bottom}`;
+        case 'bottom-right':
+            return `absolute right-1.5 ${bottom}`;
+        default:
+            return 'absolute right-1.5 top-1.5';
+    }
+};
+
 export type PlayerSettings = {
     mixLibraries: boolean;
     autoplayNext: boolean;
@@ -13,6 +45,8 @@ export type PlayerSettings = {
     playThemeTunes: boolean;
     /** Grey plate behind studio / network / streaming logos on overview. */
     serviceLogoPlates: boolean;
+    /** Corner for watched checkmarks on movie/show/season posters (not episodes). */
+    watchedTickPosition: PlayerWatchedTickPosition;
     homeRowOrder: string[];
     libraryNavOrder: string[];
 };
@@ -302,6 +336,7 @@ export const DEFAULT_PLAYER_SETTINGS: PlayerSettings = {
     autoSkipCredits: false,
     playThemeTunes: true,
     serviceLogoPlates: true,
+    watchedTickPosition: 'top-right',
     homeRowOrder: [],
     libraryNavOrder: [],
 };
@@ -324,6 +359,9 @@ export const normalizePlayerSettings = (raw: Partial<PlayerSettings> | Record<st
         autoSkipCredits: raw?.autoSkipCredits === true,
         playThemeTunes: raw?.playThemeTunes !== false,
         serviceLogoPlates: raw?.serviceLogoPlates !== false,
+        watchedTickPosition: isPlayerWatchedTickPosition(raw?.watchedTickPosition)
+            ? raw!.watchedTickPosition as PlayerWatchedTickPosition
+            : 'top-right',
         homeRowOrder: collapseHomeRowOrder(raw?.homeRowOrder),
         libraryNavOrder: normalizeLibraryNavOrder(
             Array.isArray(raw?.libraryNavOrder) && raw.libraryNavOrder.length
@@ -345,6 +383,7 @@ export const playerSettingsEqual = (a: PlayerSettings, b: PlayerSettings) => (
     && a.autoSkipCredits === b.autoSkipCredits
     && a.playThemeTunes === b.playThemeTunes
     && a.serviceLogoPlates === b.serviceLogoPlates
+    && a.watchedTickPosition === b.watchedTickPosition
     && a.homeRowOrder.join('\0') === b.homeRowOrder.join('\0')
     && a.libraryNavOrder.join('\0') === b.libraryNavOrder.join('\0')
 );

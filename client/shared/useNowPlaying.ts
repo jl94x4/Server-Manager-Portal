@@ -16,6 +16,14 @@ export type NowPlayingSession = {
     episode?: number | null;
     progress?: number;
     state?: string;
+    /** Plex library art path (prefer show backdrop for episodes). */
+    artPath?: string | null;
+    /** Plex poster/still path fallback. */
+    thumbPath?: string | null;
+    /** Absolute or portal-relative art URL when already resolved. */
+    artUrl?: string | null;
+    /** Jellyfin item id to use for series/movie art fallback. */
+    artItemId?: string | null;
 };
 
 type NowPlayingPayload = {

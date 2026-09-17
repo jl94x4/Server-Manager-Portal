@@ -2,7 +2,9 @@ import React, { useRef } from 'react';
 import { Check, Eye, Play } from 'lucide-react';
 import { DiscoverPosterCard, useDiscoverI18n } from './host';
 import { PlayerItemMenu, type PlayerItemMenuHandle } from './PlayerItemMenu';
+import { watchedTickPositionClass } from './playerSettings';
 import { formatEpisodeCode, progressPercent, toPosterCardItem } from './playerUtils';
+import { usePlayerSettings } from './usePlayerSettings';
 import type { PlayerItem, PlayerPlayOptions } from './types';
 
 type Props = {
@@ -43,6 +45,7 @@ export const PlayerPosterCard: React.FC<Props> = ({
     className,
 }) => {
     const { t } = useDiscoverI18n();
+    const [settings] = usePlayerSettings();
     const menuRef = useRef<PlayerItemMenuHandle | null>(null);
     const longPressRef = useRef<number | null>(null);
     const progress = progressPercent(item);
@@ -53,6 +56,13 @@ export const PlayerPosterCard: React.FC<Props> = ({
         || (item.type === 'episode' ? '16/9' : '2/3');
     const episodeCode = formatEpisodeCode(item);
     const menuEnabled = showMenu && item.type !== 'collection' && item.type !== 'artist' && item.type !== 'album' && item.type !== 'playlist';
+    // Episodes keep a fixed top-right tick; posters follow the user setting.
+    const tickCorner = item.type === 'episode'
+        ? 'top-right'
+        : settings.watchedTickPosition;
+    const tickPosClass = watchedTickPositionClass(tickCorner, { aboveProgress: progress > 0 || showProgress });
+    const tickClass = `${tickPosClass} z-30 flex h-8 w-8 items-center justify-center rounded-full bg-plex text-zinc-950 shadow-md`;
+    const markWatchedClass = `pointer-events-auto ${tickPosClass} flex h-8 w-8 items-center justify-center rounded-full bg-black/70 text-white hover:bg-black`;
 
     return (
         <div
@@ -106,13 +116,14 @@ export const PlayerPosterCard: React.FC<Props> = ({
                                 </div>
                             ) : null
                         ) : null}
-                        {item.watched ? (
+                        {/* Episodes keep an always-on tick; posters reveal on hover. */}
+                        {item.watched && item.type === 'episode' ? (
                             canToggleWatched ? (
                                 <button
                                     type="button"
                                     aria-label={t('mediaPlayerPage.markUnwatched')}
                                     title={t('mediaPlayerPage.watched')}
-                                    className="absolute right-1.5 top-1.5 z-30 flex h-8 w-8 items-center justify-center rounded-full bg-plex text-zinc-950 shadow-md"
+                                    className={tickClass}
                                     onClick={(event) => {
                                         event.preventDefault();
                                         event.stopPropagation();
@@ -122,15 +133,12 @@ export const PlayerPosterCard: React.FC<Props> = ({
                                     <Check className="h-4 w-4 stroke-[2.5]" />
                                 </button>
                             ) : (
-                                <span
-                                    title={t('mediaPlayerPage.watched')}
-                                    className="absolute right-1.5 top-1.5 z-30 flex h-8 w-8 items-center justify-center rounded-full bg-plex text-zinc-950 shadow-md"
-                                >
+                                <span title={t('mediaPlayerPage.watched')} className={tickClass}>
                                     <Check className="h-4 w-4 stroke-[2.5]" />
                                 </span>
                             )
                         ) : null}
-                        {canHoverPlay || canToggleWatched || menuEnabled ? (
+                        {canHoverPlay || canToggleWatched || menuEnabled || (item.watched && item.type !== 'episode') ? (
                             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100 max-md:opacity-100 max-md:bg-transparent max-md:group-hover:bg-black/40">
                                 {canHoverPlay ? (
                                     <span
@@ -147,11 +155,35 @@ export const PlayerPosterCard: React.FC<Props> = ({
                                         <Play className="h-5 w-5 fill-current" />
                                     </span>
                                 ) : null}
+                                {item.watched && item.type !== 'episode' ? (
+                                    canToggleWatched ? (
+                                        <button
+                                            type="button"
+                                            aria-label={t('mediaPlayerPage.markUnwatched')}
+                                            title={t('mediaPlayerPage.watched')}
+                                            className={`${tickClass} pointer-events-auto opacity-0 transition-opacity duration-200 group-hover:opacity-100 [@media(hover:none)]:opacity-100`}
+                                            onClick={(event) => {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+                                                onToggleWatched?.(item);
+                                            }}
+                                        >
+                                            <Check className="h-4 w-4 stroke-[2.5]" />
+                                        </button>
+                                    ) : (
+                                        <span
+                                            title={t('mediaPlayerPage.watched')}
+                                            className={`${tickClass} opacity-0 transition-opacity duration-200 group-hover:opacity-100 [@media(hover:none)]:opacity-100`}
+                                        >
+                                            <Check className="h-4 w-4 stroke-[2.5]" />
+                                        </span>
+                                    )
+                                ) : null}
                                 {!item.watched && canToggleWatched ? (
                                     <button
                                         type="button"
                                         aria-label={t('mediaPlayerPage.markWatched')}
-                                        className="pointer-events-auto absolute right-1.5 top-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-black/70 text-white hover:bg-black"
+                                        className={`${markWatchedClass} opacity-0 transition-opacity duration-200 group-hover:opacity-100 [@media(hover:none)]:opacity-100`}
                                         onClick={(event) => {
                                             event.preventDefault();
                                             event.stopPropagation();

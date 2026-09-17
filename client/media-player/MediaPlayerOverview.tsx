@@ -56,11 +56,11 @@ const StudioPill: React.FC<{
     const preserveColor = shouldPreserveColorLogo(String(logoPath), name);
     // Fixed plate height so wordmarks and square marks sit on one baseline.
     const plateClass = size === 'sm'
-        ? 'inline-flex h-10 items-center justify-center rounded-xl px-3'
-        : 'inline-flex h-12 items-center justify-center rounded-xl px-3.5';
+        ? 'inline-flex h-8 items-center justify-center rounded-lg px-2.5'
+        : 'inline-flex h-9 items-center justify-center rounded-lg px-3';
     const logoClass = size === 'sm'
-        ? 'h-6 max-w-[140px] sm:max-w-[160px] w-auto object-contain opacity-95'
-        : 'h-7 sm:h-8 max-w-[160px] sm:max-w-[200px] w-auto object-contain opacity-95';
+        ? 'h-5 max-w-[110px] sm:max-w-[130px] w-auto object-contain opacity-95'
+        : 'h-5 sm:h-6 max-w-[130px] sm:max-w-[150px] w-auto object-contain opacity-95';
     const className = !showPlate
         ? `${plateClass} border border-transparent hover:bg-white/5 transition-colors`
         : preserveColor
@@ -265,8 +265,8 @@ export const OverviewFacts: React.FC<{
     ).filter((row) => row.title);
     const serviceSections = [
         studio.length ? { label: t('media.studio'), networks: studio, size: 'sm' as const } : null,
-        network.length ? { label: t('mediaPlayerPage.network'), networks: network, size: 'md' as const } : null,
-        streaming.length ? { label: t('mediaPlayerPage.streaming'), networks: streaming, size: 'md' as const } : null,
+        network.length ? { label: t('mediaPlayerPage.network'), networks: network, size: 'sm' as const } : null,
+        streaming.length ? { label: t('mediaPlayerPage.streaming'), networks: streaming, size: 'sm' as const } : null,
     ].filter(Boolean) as Array<{ label: string; networks: NetworkLogo[]; size: 'sm' | 'md' }>;
     const crewRows: Array<{
         label: string;

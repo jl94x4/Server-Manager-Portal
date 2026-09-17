@@ -192,6 +192,26 @@ export const MediaPlayerSettings: React.FC<Props> = ({ onBack }) => {
                         onChange={(checked) => updateSettings({ serviceLogoPlates: checked })}
                     />
                     <div className="border-b border-border/40 py-4">
+                        <label className="mb-2 block text-sm font-bold text-text" htmlFor="media-player-watched-tick">
+                            {t('mediaPlayerPage.watchedTickPosition')}
+                        </label>
+                        <p className="mb-3 text-xs text-muted">{t('mediaPlayerPage.watchedTickPositionHint')}</p>
+                        <CustomSelect
+                            id="media-player-watched-tick"
+                            value={settings.watchedTickPosition}
+                            onChange={(value) => updateSettings({
+                                watchedTickPosition: value as typeof settings.watchedTickPosition,
+                            })}
+                            className="max-w-xl"
+                            options={[
+                                { value: 'top-right', label: t('mediaPlayerPage.watchedTickTopRight') },
+                                { value: 'top-left', label: t('mediaPlayerPage.watchedTickTopLeft') },
+                                { value: 'bottom-right', label: t('mediaPlayerPage.watchedTickBottomRight') },
+                                { value: 'bottom-left', label: t('mediaPlayerPage.watchedTickBottomLeft') },
+                            ]}
+                        />
+                    </div>
+                    <div className="border-b border-border/40 py-4">
                         <div className="mb-3 flex items-start justify-between gap-3">
                             <div>
                                 <p className="text-sm font-bold text-text">{t('mediaPlayerPage.homeRowOrder')}</p>

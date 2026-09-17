@@ -15,6 +15,7 @@ import { MediaPlayerMediaInfo } from './MediaPlayerMediaInfo';
 import { MediaPlayerThemeTune } from './MediaPlayerThemeTune';
 import { EpisodeNeighbors, OverviewFacts, OverviewGenres, OverviewLinks, OverviewSummary } from './MediaPlayerOverview';
 import { PlayerRail } from './PlayerRail';
+import { watchedTickPositionClass } from './playerSettings';
 import { usePlayerSettings } from './usePlayerSettings';
 import {
     formatBitrateMbps,
@@ -338,6 +339,15 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
         onOpenItem({ ratingKey: nextKey, title: '', type: nextKey === seasonKey ? 'season' : 'show' });
     };
     const tmdbScore = item.ratings?.tmdb?.percent != null ? `${item.ratings.tmdb.percent}%` : null;
+    const posterTickClass = `${watchedTickPositionClass(
+        item.type === 'episode' ? 'top-right' : settings.watchedTickPosition,
+        { aboveProgress: progressPercent(item) > 0 },
+    )} z-20 flex h-9 w-9 items-center justify-center rounded-full bg-plex text-zinc-950 shadow-lg ring-2 ring-black/30${
+        item.type === 'episode'
+            ? ''
+            : ' opacity-0 transition-opacity duration-200 group-hover:opacity-100 [@media(hover:none)]:opacity-100'
+    }`;
+    const seasonTickClass = `${watchedTickPositionClass(settings.watchedTickPosition)} z-10 flex h-7 w-7 items-center justify-center rounded-full bg-plex text-zinc-950 shadow-md opacity-0 transition-opacity duration-200 group-hover:opacity-100 [@media(hover:none)]:opacity-100`;
 
     const titleBlock = (
         <>
@@ -462,8 +472,8 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                 <div
                                     className={
                                         item.type === 'episode'
-                                            ? 'relative aspect-video w-[min(58%,14.5rem)] sm:w-full sm:max-w-[18rem] md:max-w-none flex-shrink-0 overflow-hidden rounded-xl border border-white/15 bg-black/50 shadow-[0_20px_60px_rgba(0,0,0,0.55)] ring-1 ring-white/10'
-                                            : 'relative aspect-[2/3] w-[42%] max-w-[12rem] sm:max-w-[14rem] md:w-full md:max-w-none flex-shrink-0 overflow-hidden rounded-xl border border-white/15 bg-black/50 shadow-[0_20px_60px_rgba(0,0,0,0.55)] ring-1 ring-white/10'
+                                            ? 'group relative aspect-video w-[min(58%,14.5rem)] sm:w-full sm:max-w-[18rem] md:max-w-none flex-shrink-0 overflow-hidden rounded-xl border border-white/15 bg-black/50 shadow-[0_20px_60px_rgba(0,0,0,0.55)] ring-1 ring-white/10'
+                                            : 'group relative aspect-[2/3] w-[42%] max-w-[12rem] sm:max-w-[14rem] md:w-full md:max-w-none flex-shrink-0 overflow-hidden rounded-xl border border-white/15 bg-black/50 shadow-[0_20px_60px_rgba(0,0,0,0.55)] ring-1 ring-white/10'
                                     }
                                 >
                                     <div className="absolute -inset-4 bg-plex/10 blur-3xl opacity-40 pointer-events-none" />
@@ -484,7 +494,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                     {item.watched ? (
                                         <span
                                             title={t('mediaPlayerPage.watched')}
-                                            className="absolute right-2 top-2 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-plex text-zinc-950 shadow-lg ring-2 ring-black/30"
+                                            className={posterTickClass}
                                         >
                                             <Check className="h-5 w-5 stroke-[2.5]" />
                                         </span>
@@ -731,7 +741,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                         {seasonWatched ? (
                                             <span
                                                 title={t('mediaPlayerPage.watched')}
-                                                className="absolute right-1.5 top-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-plex text-zinc-950 shadow-md"
+                                                className={seasonTickClass}
                                             >
                                                 <Check className="h-3.5 w-3.5 stroke-[2.5]" />
                                             </span>

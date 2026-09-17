@@ -18107,6 +18107,7 @@ app.get('/api/streams/now-playing', requireAuth, requireMember, async (req, res)
                         episode: mapped.episode,
                         progress: mapped.progress,
                         state: mapped.state,
+                        artItemId: mapped.artItemId || null,
                     }
                     : null,
                 others: mapped
@@ -18205,6 +18206,8 @@ app.get('/api/streams/now-playing', requireAuth, requireMember, async (req, res)
                     episode: mapped.episode,
                     progress: mapped.progress,
                     state: mapped.state,
+                    artPath: mapped.artPath || null,
+                    thumbPath: mapped.thumbPath || null,
                 }
                 : null,
             others: mapped

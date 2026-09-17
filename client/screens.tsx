@@ -98,6 +98,7 @@ import { ANALYTICS_PERIOD_OPTIONS, persistAnalyticsDays, readPersistedAnalyticsD
 import { UserDashboardLayout } from './home/UserDashboardLayout';
 import { HomeCustomModuleSection } from './home/HomeCustomModuleSection';
 import { HomeHeroMovieBackdrop } from './home/HomeHeroMovieBackdrop';
+import { HomeHeroPlaybackBackdrop, useNowPlayingHeroArt } from './home/HomeHeroPlaybackBackdrop';
 import { BecauseYouWatchedHomeRail } from './home/BecauseYouWatchedHomeRail';
 import { userAllowsHomeBecauseYouWatched } from './home/becauseYouWatchedPref.js';
 import { createBazarrToolsSectionRenderer, createMainGridWidgetRenderer, createMediaAutomationSectionRenderer, createPendingRequestsSectionRenderer, createRecentlyAddedWidgetRenderer, createScannerSectionRenderer, createSpotifySyncSectionRenderer } from './home/userDashboardWidgetRenderers';
@@ -7905,6 +7906,7 @@ export const UserDashboard: React.FC<{
     // Members can hide Now Playing in Preferences; admins honor the same switch.
     const nowPlayingEnabled = !user || user.showDiscoverNowPlaying !== false;
     const { session: nowPlaying, others: nowPlayingOthers } = useNowPlaying(nowPlayingEnabled);
+    const nowPlayingHeroArt = useNowPlayingHeroArt(nowPlaying);
     const showQualityBadges = publicConfig?.showPosterQualityBadges !== false;
     const mediaServerType = String(publicConfig?.mediaServerType || 'plex').toLowerCase();
     const homeNowPlayingCompanionEnabled = publicConfig?.homeNowPlayingCompanionEnabled !== false;
@@ -8589,7 +8591,9 @@ export const UserDashboard: React.FC<{
             <div className="home-hero-banner relative w-full rounded-2xl overflow-hidden shadow-2xl bg-card border border-border">
                 {/* Blurred Background */}
                 <div className="absolute inset-0 bg-background overflow-hidden">
-                    {publicConfig?.useTrendingSlideshow && publicConfig?.trendingBackgrounds?.length > 0 ? (
+                    {nowPlayingHeroArt ? (
+                        <HomeHeroPlaybackBackdrop artUrl={nowPlayingHeroArt} />
+                    ) : publicConfig?.useTrendingSlideshow && publicConfig?.trendingBackgrounds?.length > 0 ? (
                         <>
                             <div className="absolute inset-0 opacity-100">
                                 <SlideshowBackground
