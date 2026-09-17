@@ -11,15 +11,15 @@ import {
     Trash2,
     XCircle,
 } from 'lucide-react';
-import { portalUrl, useDiscoverI18n } from './host';
+import { useDiscoverI18n } from './host';
 import {
     addMediaPlayerPlaylistItem,
     createMediaPlayerPlaylist,
     deleteMediaPlayerItem,
     fetchMediaPlayerPlaylists,
-    mediaPlayerDownloadUrl,
     removeMediaPlayerProgress,
     setMediaPlayerWatched,
+    startMediaPlayerDownload,
 } from './api';
 import type { PlayerItem } from './types';
 
@@ -249,18 +249,15 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
                                     role="menuitem"
                                     disabled={busy}
                                     className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left font-semibold hover:bg-white/10 disabled:opacity-50"
-                                    onClick={() => {
-                                        const href = portalUrl(mediaPlayerDownloadUrl(item.ratingKey));
-                                        const anchor = document.createElement('a');
-                                        anchor.href = href;
-                                        anchor.download = '';
-                                        anchor.rel = 'noopener';
-                                        document.body.appendChild(anchor);
-                                        anchor.click();
-                                        anchor.remove();
-                                        toast(t('mediaPlayerPage.downloadStarted'));
-                                        close();
-                                    }}
+                                    onClick={() => run(async () => {
+                                        try {
+                                            await startMediaPlayerDownload(item.ratingKey);
+                                            toast(t('mediaPlayerPage.downloadStarted'));
+                                            close();
+                                        } catch {
+                                            toast(t('mediaPlayerPage.downloadError'), 'error');
+                                        }
+                                    })}
                                 >
                                     <Download className="h-4 w-4 shrink-0 opacity-80" />
                                     {t('mediaPlayerPage.download')}

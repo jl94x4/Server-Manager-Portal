@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Calendar, ChevronDown, Clock, Eye, EyeOff, Film, Info, ListPlus, Loader2, Play, Star, Tv, Users } from 'lucide-react';
+import { ArrowLeft, Calendar, Check, ChevronDown, Clock, Eye, EyeOff, Film, Info, ListPlus, Loader2, Play, Star, Tv, Users } from 'lucide-react';
 import {
     Carousel,
     CustomSelect,
@@ -10,7 +10,7 @@ import {
     useDiscoverI18n,
     type CombinedRatings,
 } from './host';
-import { addMediaPlayerPlaylistItem, createMediaPlayerPlaylist, fetchMediaPlayerItem, fetchMediaPlayerNeighbors, fetchMediaPlayerPlaylists, setMediaPlayerWatched } from './api';
+import { addMediaPlayerPlaylistItem, createMediaPlayerPlaylist, fetchMediaPlayerItem, fetchMediaPlayerItemMore, fetchMediaPlayerNeighbors, fetchMediaPlayerPlaylists, setMediaPlayerWatched } from './api';
 import { MediaPlayerMediaInfo } from './MediaPlayerMediaInfo';
 import { MediaPlayerThemeTune } from './MediaPlayerThemeTune';
 import { EpisodeNeighbors, OverviewFacts, OverviewGenres, OverviewLinks, OverviewSummary } from './MediaPlayerOverview';
@@ -116,6 +116,8 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
     const [error, setError] = useState<string | null>(null);
     const [posterFailed, setPosterFailed] = useState(false);
     const [backdropFailed, setBackdropFailed] = useState(false);
+    const [posterReady, setPosterReady] = useState(false);
+    const [backdropReady, setBackdropReady] = useState(false);
     const [logoFailed, setLogoFailed] = useState(false);
     const [logoReady, setLogoReady] = useState(false);
     const [mediaInfoOpen, setMediaInfoOpen] = useState(false);
@@ -132,33 +134,53 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
 
     useEffect(() => {
         let cancelled = false;
+        // Drop the previous title immediately so old art never lingers under a veil.
+        setItem(null);
+        setChildren([]);
+        setExtras([]);
+        setRelated([]);
+        setOnDeck(null);
+        setNeighbors({ previous: null, next: null });
         setLoading(true);
         setError(null);
         setPosterFailed(false);
         setBackdropFailed(false);
+        setPosterReady(false);
+        setBackdropReady(false);
         setLogoFailed(false);
         setLogoReady(false);
         setMediaInfoOpen(false);
         setMediaInfoExpanded(false);
-        fetchMediaPlayerItem(ratingKey)
+        setMediaIndex(0);
+        setPlaylistOpen(false);
+        setPlaylistMessage('');
+        // Core first (title + seasons/episodes + on-deck). Kick off extras/related in
+        // parallel so they are ready soon after paint without blocking the spinner.
+        const morePromise = fetchMediaPlayerItemMore(ratingKey).catch(() => null);
+        fetchMediaPlayerItem(ratingKey, { core: true })
             .then((data) => {
-                if (cancelled) return;
+                if (cancelled) return false;
                 setItem(data.item);
                 setChildren(data.children || []);
                 setExtras(data.extras || []);
                 setRelated(data.related || []);
                 setOnDeck(data.onDeck || null);
-                setMediaIndex(0);
-                setPlaylistOpen(false);
-                setPlaylistMessage('');
                 setError(null);
+                setLoading(false);
+                return true;
             })
             .catch((err) => {
-                if (cancelled) return;
+                if (cancelled) return false;
                 setError(String(err?.message || t('mediaPlayerPage.loadError')));
+                setLoading(false);
+                return false;
             })
-            .finally(() => {
-                if (!cancelled) setLoading(false);
+            .then(async (ok) => {
+                if (!ok || cancelled) return;
+                const more = await morePromise;
+                if (cancelled || !more) return;
+                setExtras(more.extras || []);
+                setRelated(more.related || []);
             });
         return () => { cancelled = true; };
     }, [ratingKey, t]);
@@ -239,10 +261,16 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
         };
     }, [item, t]);
 
+    useEffect(() => {
+        setPosterReady(false);
+        setBackdropReady(false);
+    }, [item?.ratingKey, item?.thumb, item?.art]);
+
     if (loading && !item) {
         return (
-            <div className="flex min-h-[40vh] items-center justify-center text-muted">
-                <Loader2 className="h-8 w-8 animate-spin" />
+            <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-muted animate-fade-in">
+                <Loader2 className="h-8 w-8 animate-spin text-plex" />
+                <span className="text-sm font-bold">{t('mediaPlayerPage.loading')}</span>
             </div>
         );
     }
@@ -302,10 +330,12 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
     const showKey = item.type === 'season' ? item.parentRatingKey : item.grandparentRatingKey;
     const seasonKey = item.type === 'episode' ? item.parentRatingKey : (item.type === 'season' ? item.ratingKey : null);
     const showName = item.type === 'season' || item.type === 'episode' ? item.showTitle : null;
-    const seasonName = item.type === 'episode' ? item.seasonTitle : null;
+    const seasonLabel = item.type === 'episode'
+        ? (item.seasonTitle || null)
+        : (item.type === 'season' ? item.title : null);
     const openCrumb = (nextKey?: string | null) => {
         if (!nextKey || nextKey === item.ratingKey) return;
-        onOpenItem({ ratingKey: nextKey, title: '', type: 'show' });
+        onOpenItem({ ratingKey: nextKey, title: '', type: nextKey === seasonKey ? 'season' : 'show' });
     };
     const tmdbScore = item.ratings?.tmdb?.percent != null ? `${item.ratings.tmdb.percent}%` : null;
 
@@ -340,17 +370,22 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                     </button>
                 )
             ) : null}
-            {seasonName ? (
-                <button
-                    type="button"
-                    onClick={() => openCrumb(seasonKey)}
-                    disabled={!seasonKey}
-                    className="text-sm font-bold text-white/70 hover:text-plex transition-colors text-left disabled:hover:text-white/70 disabled:cursor-default"
-                >
-                    {seasonName}
-                </button>
+            {seasonLabel ? (
+                item.type === 'episode' && seasonKey ? (
+                    <button
+                        type="button"
+                        onClick={() => openCrumb(seasonKey)}
+                        className="text-sm sm:text-base font-bold text-white/75 hover:text-plex transition-colors text-left"
+                    >
+                        {seasonLabel}
+                    </button>
+                ) : (
+                    <p className="text-sm sm:text-base font-bold text-white/85">{seasonLabel}</p>
+                )
             ) : null}
-            {showLogo && !showName ? (
+            {item.type === 'season' ? (
+                <h1 className="sr-only">{item.title}</h1>
+            ) : showLogo && !showName ? (
                 <>
                     <img
                         src={logoUrl}
@@ -383,27 +418,24 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
         </>
     );
 
-    const waitingForItem = item.ratingKey !== ratingKey;
-
     return (
-        <div className="relative page-bleed-x md:w-full flex flex-col min-h-screen bg-card animate-fade-in pb-24 md:pb-16 rounded-none md:rounded-2xl lg:rounded-3xl overflow-x-hidden border-0 md:border border-white/5 shadow-2xl">
-            {waitingForItem ? (
-                <div className="absolute inset-0 z-30 bg-card/80 backdrop-blur-sm" aria-busy="true" aria-live="polite">
-                    <div className="sticky top-0 flex min-h-[70vh] flex-col items-center justify-center gap-3 text-muted">
-                        <Loader2 className="h-10 w-10 animate-spin text-plex" />
-                        <span className="text-sm font-bold">{t('mediaPlayerPage.loading')}</span>
-                    </div>
-                </div>
-            ) : null}
+        <div
+            key={ratingKey}
+            className="relative page-bleed-x md:w-full flex flex-col min-h-screen bg-card animate-fade-in pb-24 md:pb-16 rounded-none md:rounded-2xl lg:rounded-3xl overflow-x-hidden border-0 md:border border-white/5 shadow-2xl"
+        >
             <div className="relative isolate">
                 <div className="media-details-hero-backdrop absolute inset-x-0 top-0 h-[34rem] max-h-[72vh] sm:h-[36rem] md:h-[min(72vh,52rem)] md:max-h-none overflow-hidden pointer-events-none" aria-hidden>
                     {backdropUrl && !backdropFailed ? (
                         <img
+                            key={backdropUrl}
                             src={backdropUrl}
                             alt=""
-                            className="absolute inset-0 w-full h-full object-cover object-[28%_30%] opacity-45 md:object-[20%_28%] md:opacity-90"
+                            className={`absolute inset-0 w-full h-full object-cover object-[28%_30%] transition-opacity duration-700 ease-out md:object-[20%_28%] ${
+                                backdropReady ? 'opacity-45 md:opacity-90' : 'opacity-0'
+                            }`}
                             fetchPriority="high"
                             decoding="async"
+                            onLoad={() => setBackdropReady(true)}
                             onError={() => setBackdropFailed(true)}
                         />
                     ) : (
@@ -436,16 +468,33 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                 >
                                     <div className="absolute -inset-4 bg-plex/10 blur-3xl opacity-40 pointer-events-none" />
                                     {posterUrl && !posterFailed ? (
-                                        <img src={posterUrl} alt="" className="relative w-full h-full object-cover" onError={() => setPosterFailed(true)} />
+                                        <img
+                                            key={posterUrl}
+                                            src={posterUrl}
+                                            alt=""
+                                            className={`relative w-full h-full object-cover transition-opacity duration-500 ease-out ${
+                                                posterReady ? 'opacity-100' : 'opacity-0'
+                                            }`}
+                                            onLoad={() => setPosterReady(true)}
+                                            onError={() => setPosterFailed(true)}
+                                        />
                                     ) : (
                                         <NoPosterPlaceholder />
                                     )}
+                                    {item.watched ? (
+                                        <span
+                                            title={t('mediaPlayerPage.watched')}
+                                            className="absolute right-2 top-2 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-plex text-zinc-950 shadow-lg ring-2 ring-black/30"
+                                        >
+                                            <Check className="h-5 w-5 stroke-[2.5]" />
+                                        </span>
+                                    ) : null}
                                     {progressPercent(item) > 0 ? (
                                         <div className="absolute inset-x-0 bottom-0 h-1.5 bg-black/70">
                                             <div className="h-full bg-plex" style={{ width: `${progressPercent(item)}%` }} />
                                         </div>
                                     ) : null}
-                                    {!waitingForItem && item.themeKey && settings.playThemeTunes ? (
+                                    {item.themeKey && settings.playThemeTunes ? (
                                         <MediaPlayerThemeTune
                                             themeKey={item.themeKey}
                                             enabled
@@ -657,15 +706,19 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                     {children.length && !isEpisodeGrid ? (
                     <section className="mt-6">
                         <SectionHeading>{t('mediaPlayerPage.seasons')}</SectionHeading>
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-                            {children.map((row) => (
+                        <div className="flex flex-wrap gap-2.5 sm:gap-3">
+                            {children.map((row) => {
+                                const leaf = Number(row.leafCount || 0);
+                                const viewed = Number(row.viewedLeafCount || 0);
+                                const seasonWatched = Boolean(row.watched) || (leaf > 0 && viewed >= leaf);
+                                return (
                                 <button
                                     key={row.ratingKey}
                                     type="button"
                                     onClick={() => onOpenItem(row)}
-                                    className="group min-w-0 w-[85%] text-left"
+                                    className="group w-[7.25rem] sm:w-[8.25rem] lg:w-[9rem] shrink-0 text-left"
                                 >
-                                    <div className="overflow-hidden rounded-xl border border-white/10 bg-black/30">
+                                    <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black/30">
                                         {row.thumb ? (
                                             <img
                                                 src={plexImageUrl(row.thumb, 400, 600)}
@@ -675,13 +728,22 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                         ) : (
                                             <NoPosterPlaceholder />
                                         )}
+                                        {seasonWatched ? (
+                                            <span
+                                                title={t('mediaPlayerPage.watched')}
+                                                className="absolute right-1.5 top-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-plex text-zinc-950 shadow-md"
+                                            >
+                                                <Check className="h-3.5 w-3.5 stroke-[2.5]" />
+                                            </span>
+                                        ) : null}
                                     </div>
-                                    <div className="mt-2 truncate text-sm font-bold text-text group-hover:text-plex">{row.title}</div>
+                                    <div className="mt-1.5 truncate text-xs font-bold text-text group-hover:text-plex sm:text-sm">{row.title}</div>
                                     {row.leafCount ? (
-                                        <div className="text-[11px] text-muted">{t('common.episodeCount', { count: row.leafCount })}</div>
+                                        <div className="text-[10px] text-muted sm:text-[11px]">{t('common.episodeCount', { count: row.leafCount })}</div>
                                     ) : null}
                                 </button>
-                            ))}
+                                );
+                            })}
                         </div>
                     </section>
                     ) : null}
@@ -709,6 +771,14 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                                 {t('mediaPlayerPage.episodes')}
                                             </div>
                                         )}
+                                        {row.watched ? (
+                                            <span
+                                                title={t('mediaPlayerPage.watched')}
+                                                className="absolute right-1.5 top-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-plex text-zinc-950 shadow-md"
+                                            >
+                                                <Check className="h-3.5 w-3.5 stroke-[2.5]" />
+                                            </span>
+                                        ) : null}
                                         {progressPercent(row) > 0 ? (
                                             <div className="absolute inset-x-0 bottom-0 h-1 bg-black/50">
                                                 <div className="h-full bg-plex" style={{ width: `${progressPercent(row)}%` }} />

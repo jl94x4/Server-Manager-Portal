@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Eye, EyeOff, Play } from 'lucide-react';
+import { Check, Eye, Play } from 'lucide-react';
 import { DiscoverPosterCard, useDiscoverI18n } from './host';
 import { PlayerItemMenu, type PlayerItemMenuHandle } from './PlayerItemMenu';
 import { formatEpisodeCode, progressPercent, toPosterCardItem } from './playerUtils';
@@ -106,6 +106,30 @@ export const PlayerPosterCard: React.FC<Props> = ({
                                 </div>
                             ) : null
                         ) : null}
+                        {item.watched ? (
+                            canToggleWatched ? (
+                                <button
+                                    type="button"
+                                    aria-label={t('mediaPlayerPage.markUnwatched')}
+                                    title={t('mediaPlayerPage.watched')}
+                                    className="absolute right-1.5 top-1.5 z-30 flex h-8 w-8 items-center justify-center rounded-full bg-plex text-zinc-950 shadow-md"
+                                    onClick={(event) => {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        onToggleWatched?.(item);
+                                    }}
+                                >
+                                    <Check className="h-4 w-4 stroke-[2.5]" />
+                                </button>
+                            ) : (
+                                <span
+                                    title={t('mediaPlayerPage.watched')}
+                                    className="absolute right-1.5 top-1.5 z-30 flex h-8 w-8 items-center justify-center rounded-full bg-plex text-zinc-950 shadow-md"
+                                >
+                                    <Check className="h-4 w-4 stroke-[2.5]" />
+                                </span>
+                            )
+                        ) : null}
                         {canHoverPlay || canToggleWatched || menuEnabled ? (
                             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100 max-md:opacity-100 max-md:bg-transparent max-md:group-hover:bg-black/40">
                                 {canHoverPlay ? (
@@ -123,10 +147,10 @@ export const PlayerPosterCard: React.FC<Props> = ({
                                         <Play className="h-5 w-5 fill-current" />
                                     </span>
                                 ) : null}
-                                {canToggleWatched ? (
+                                {!item.watched && canToggleWatched ? (
                                     <button
                                         type="button"
-                                        aria-label={item.watched ? t('mediaPlayerPage.markUnwatched') : t('mediaPlayerPage.markWatched')}
+                                        aria-label={t('mediaPlayerPage.markWatched')}
                                         className="pointer-events-auto absolute right-1.5 top-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-black/70 text-white hover:bg-black"
                                         onClick={(event) => {
                                             event.preventDefault();
@@ -134,7 +158,7 @@ export const PlayerPosterCard: React.FC<Props> = ({
                                             onToggleWatched?.(item);
                                         }}
                                     >
-                                        {item.watched ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                        <Eye className="h-4 w-4" />
                                     </button>
                                 ) : null}
                                 {menuEnabled ? (

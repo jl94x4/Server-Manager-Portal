@@ -1,4 +1,5 @@
-import { apiFetch } from '../shared/api';
+import { apiErrorMessage, apiFetch, PORTAL_CSRF_HEADER, PORTAL_CSRF_VALUE } from '../shared/api';
+import { portalUrl } from '../shared/basePath';
 import { pickTmdbPersonMatch } from '../discovery/personCredits';
 import { PLAYER_API_ROOT } from './paths';
 import { browserPlaybackCaps } from './playerUtils';
@@ -145,6 +146,43 @@ export const mediaPlayerDownloadUrl = (ratingKey: string, mediaIndex = 0) => {
     return `${PLAYER_API_ROOT}/file/${encodeURIComponent(ratingKey)}?${qs}`;
 };
 
+/** Trigger a browser file download without navigating away (large media-safe). */
+export const startMediaPlayerDownload = async (ratingKey: string, mediaIndex = 0) => {
+    const href = portalUrl(mediaPlayerDownloadUrl(ratingKey, mediaIndex));
+    const probe = await fetch(href, {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: {
+            Accept: '*/*',
+            Range: 'bytes=0-0',
+            [PORTAL_CSRF_HEADER]: PORTAL_CSRF_VALUE,
+        },
+    });
+    if (!probe.ok && probe.status !== 206) {
+        const text = await probe.text().catch(() => '');
+        throw new Error(apiErrorMessage(probe.status, text));
+    }
+    try {
+        if (probe.body && typeof probe.body.cancel === 'function') await probe.body.cancel();
+    } catch {
+        /* ignore */
+    }
+
+    // Prefer a real navigation download. Keep the element briefly — removing it
+    // immediately can cancel the browser's download in some engines.
+    const anchor = document.createElement('a');
+    anchor.href = href;
+    anchor.target = '_blank';
+    anchor.rel = 'noopener';
+    anchor.style.display = 'none';
+    document.body.appendChild(anchor);
+    anchor.click();
+    window.setTimeout(() => {
+        try { anchor.remove(); } catch { /* ignore */ }
+    }, 2000);
+};
+
 export const fetchMediaPlayerNext = (ratingKey: string) => (
     apiFetch(`${PLAYER_API_ROOT}/next/${encodeURIComponent(ratingKey)}`) as Promise<{ item: PlayerItem | null }>
 );
@@ -156,8 +194,16 @@ export const fetchMediaPlayerNeighbors = (ratingKey: string) => (
     }>
 );
 
-export const fetchMediaPlayerItem = (ratingKey: string) => (
-    apiFetch(`${PLAYER_API_ROOT}/item/${encodeURIComponent(ratingKey)}`) as Promise<PlayerItemPage>
+export const fetchMediaPlayerItem = (ratingKey: string, opts: { core?: boolean } = {}) => {
+    const qs = opts.core ? '?core=1' : '';
+    return apiFetch(`${PLAYER_API_ROOT}/item/${encodeURIComponent(ratingKey)}${qs}`) as Promise<PlayerItemPage>;
+};
+
+export const fetchMediaPlayerItemMore = (ratingKey: string) => (
+    apiFetch(`${PLAYER_API_ROOT}/item/${encodeURIComponent(ratingKey)}/more`) as Promise<{
+        extras: PlayerItemPage['extras'];
+        related: PlayerItemPage['related'];
+    }>
 );
 
 export const fetchMediaPlayerPerson = (actorId: string, name = '') => {
