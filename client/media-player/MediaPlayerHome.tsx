@@ -381,15 +381,20 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
                     <p className={discoveryTheme.personalEyebrow}>{t('navigation.mediaPlayer')}</p>
                     <h1 className={discoveryTheme.heading}>{t('mediaPlayerPage.navHome')}</h1>
                 </div>
-                <DiscoverGridSizeSelect value={gridSize} onChange={setGridSize} />
+                {query.trim() || !orderedLibraries.length || !onOpenLibrary ? (
+                    <DiscoverGridSizeSelect value={gridSize} onChange={setGridSize} />
+                ) : null}
             </div>
 
             {!query.trim() && orderedLibraries.length && onOpenLibrary ? (
                 <section className="flex flex-col gap-2" aria-label={t('mediaPlayerPage.jumpToLibrary')}>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted">
-                        {t('mediaPlayerPage.jumpToLibrary')}
-                    </p>
-                    <div className="flex gap-2 overflow-x-auto pb-1 custom-scrollbar">
+                    <div className="flex items-center justify-between gap-3">
+                        <p className="min-w-0 text-[10px] font-bold uppercase tracking-[0.18em] text-muted">
+                            {t('mediaPlayerPage.jumpToLibrary')}
+                        </p>
+                        <DiscoverGridSizeSelect className="shrink-0" value={gridSize} onChange={setGridSize} />
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
                         {orderedLibraries.map((library) => {
                             const Icon = libraryChipIcon(library.type);
                             return (
