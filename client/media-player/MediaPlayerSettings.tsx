@@ -185,6 +185,12 @@ export const MediaPlayerSettings: React.FC<Props> = ({ onBack }) => {
                         checked={settings.playThemeTunes}
                         onChange={(checked) => updateSettings({ playThemeTunes: checked })}
                     />
+                    <SettingsToggleRow
+                        title={t('mediaPlayerPage.serviceLogoPlates')}
+                        description={t('mediaPlayerPage.serviceLogoPlatesHint')}
+                        checked={settings.serviceLogoPlates}
+                        onChange={(checked) => updateSettings({ serviceLogoPlates: checked })}
+                    />
                     <div className="border-b border-border/40 py-4">
                         <div className="mb-3 flex items-start justify-between gap-3">
                             <div>

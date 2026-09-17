@@ -11,6 +11,8 @@ export type PlayerSettings = {
     autoSkipIntro: boolean;
     autoSkipCredits: boolean;
     playThemeTunes: boolean;
+    /** Grey plate behind studio / network / streaming logos on overview. */
+    serviceLogoPlates: boolean;
     homeRowOrder: string[];
     libraryNavOrder: string[];
 };
@@ -299,6 +301,7 @@ export const DEFAULT_PLAYER_SETTINGS: PlayerSettings = {
     autoSkipIntro: false,
     autoSkipCredits: false,
     playThemeTunes: true,
+    serviceLogoPlates: true,
     homeRowOrder: [],
     libraryNavOrder: [],
 };
@@ -320,6 +323,7 @@ export const normalizePlayerSettings = (raw: Partial<PlayerSettings> | Record<st
         autoSkipIntro: raw?.autoSkipIntro === true,
         autoSkipCredits: raw?.autoSkipCredits === true,
         playThemeTunes: raw?.playThemeTunes !== false,
+        serviceLogoPlates: raw?.serviceLogoPlates !== false,
         homeRowOrder: collapseHomeRowOrder(raw?.homeRowOrder),
         libraryNavOrder: normalizeLibraryNavOrder(
             Array.isArray(raw?.libraryNavOrder) && raw.libraryNavOrder.length
@@ -340,6 +344,7 @@ export const playerSettingsEqual = (a: PlayerSettings, b: PlayerSettings) => (
     && a.autoSkipIntro === b.autoSkipIntro
     && a.autoSkipCredits === b.autoSkipCredits
     && a.playThemeTunes === b.playThemeTunes
+    && a.serviceLogoPlates === b.serviceLogoPlates
     && a.homeRowOrder.join('\0') === b.homeRowOrder.join('\0')
     && a.libraryNavOrder.join('\0') === b.libraryNavOrder.join('\0')
 );

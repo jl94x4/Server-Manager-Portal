@@ -137,6 +137,8 @@ export const en = {
         autoplayNextHint: 'Start the next episode when the current one ends.',
         playThemeTunes: 'Play theme music',
         playThemeTunesHint: 'Play a show or movie theme when you open its overview. Turn this off to browse in silence.',
+        serviceLogoPlates: 'Logo backgrounds',
+        serviceLogoPlatesHint: 'Show the grey plate behind studio, network, and streaming logos on title overviews. Turn off for plain logos.',
         playTheme: 'Play theme',
         showContinueWatching: 'Show Continue Watching',
         showContinueWatchingHint: 'Keep the in-progress row on Media Player home.',

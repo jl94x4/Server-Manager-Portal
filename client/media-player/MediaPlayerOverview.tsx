@@ -11,6 +11,7 @@ import {
 } from './studioLogo.js';
 import type { PlayerCollectionRef, PlayerItem, PlayerPersonCredit } from './types';
 import { useDiscoveryPreferences } from '../discovery/useDiscoveryPreferences';
+import { usePlayerSettings } from './usePlayerSettings';
 
 type PersonHandler = (person: { id: string; name: string; thumb?: string | null }) => void;
 type StudioHandler = (studio: { key: string; name: string; sectionKey?: string; mediaType?: 'movie' | 'show' }) => void;
@@ -45,8 +46,9 @@ const StudioPill: React.FC<{
     name: string;
     logoPath?: string | null;
     size?: 'md' | 'sm';
+    showPlate?: boolean;
     onClick?: () => void;
-}> = ({ name, logoPath, size = 'md', onClick }) => {
+}> = ({ name, logoPath, size = 'md', showPlate = true, onClick }) => {
     const [failed, setFailed] = useState(false);
     const showLogo = Boolean(logoPath) && !failed;
     if (!showLogo) return null;
@@ -59,9 +61,11 @@ const StudioPill: React.FC<{
     const logoClass = size === 'sm'
         ? 'h-6 max-w-[140px] sm:max-w-[160px] w-auto object-contain opacity-95'
         : 'h-7 sm:h-8 max-w-[160px] sm:max-w-[200px] w-auto object-contain opacity-95';
-    const className = preserveColor
-        ? `${plateClass} border border-transparent hover:border-border/50 hover:bg-white/5 transition-colors`
-        : `${plateClass} border border-border/60 bg-white/5 hover:bg-white/10 hover:border-plex/40 transition-colors`;
+    const className = !showPlate
+        ? `${plateClass} border border-transparent hover:bg-white/5 transition-colors`
+        : preserveColor
+            ? `${plateClass} border border-transparent hover:border-border/50 hover:bg-white/5 transition-colors`
+            : `${plateClass} border border-border/60 bg-white/5 hover:bg-white/10 hover:border-plex/40 transition-colors`;
     const body = (
         <DiscoveryLogo
             logoPath={String(logoPath)}
@@ -97,7 +101,8 @@ const NetworkLogoRow: React.FC<{
     sectionKey?: string;
     mediaType?: 'movie' | 'show';
     size?: 'md' | 'sm';
-}> = ({ networks, onOpenStudio, sectionKey, mediaType, size = 'md' }) => (
+    showPlate?: boolean;
+}> = ({ networks, onOpenStudio, sectionKey, mediaType, size = 'md', showPlate = true }) => (
     <div className="flex flex-wrap gap-2 items-stretch">
         {networks.filter((row) => row.logoPath).map((row) => (
             <StudioPill
@@ -105,6 +110,7 @@ const NetworkLogoRow: React.FC<{
                 name={row.name}
                 logoPath={row.logoPath}
                 size={size}
+                showPlate={showPlate}
                 onClick={onOpenStudio ? () => onOpenStudio({
                     key: row.key || row.name,
                     name: row.name,
@@ -241,6 +247,7 @@ export const OverviewFacts: React.FC<{
 }> = ({ item, onOpenPerson, onOpenItem, onOpenStudio }) => {
     const { t, locale } = useDiscoverI18n();
     const { preferences } = useDiscoveryPreferences();
+    const [settings] = usePlayerSettings();
     const { studio, network, streaming } = useOverviewServiceLogos(
         item,
         preferences.discoverRegion || 'US',
@@ -326,6 +333,7 @@ export const OverviewFacts: React.FC<{
                                     sectionKey={item.librarySectionID || ''}
                                     mediaType={item.type === 'movie' ? 'movie' : 'show'}
                                     size={section.size}
+                                    showPlate={settings.serviceLogoPlates}
                                 />
                             </div>
                         ))}
