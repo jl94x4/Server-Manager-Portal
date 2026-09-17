@@ -183,23 +183,25 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, onOpenItem, onPlay
             aria-roledescription="carousel"
             aria-label={t('mediaPlayerPage.homeHeroEyebrow')}
         >
-            <div className="relative aspect-[21/9] min-h-[220px] max-h-[420px] w-full sm:min-h-[280px]">
+            <div className="relative aspect-[21/9] min-h-[220px] max-h-[420px] w-full overflow-hidden sm:min-h-[280px]">
                 {slides.map((slide, slideIndex) => {
                     const visible = slideIndex === index;
                     const focal = slide.backdropUrl ? focalByUrl[slide.backdropUrl] : undefined;
                     return (
                         <div
                             key={slide.ratingKey}
-                            className={`absolute inset-0 transition-opacity duration-700 ease-out ${visible ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+                            className={`absolute inset-0 overflow-hidden transition-opacity duration-700 ease-out ${visible ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
                             aria-hidden={!visible}
                         >
                             {slide.backdropUrl ? (
-                                <img
-                                    src={slide.backdropUrl}
-                                    alt=""
-                                    className={`h-full w-full object-cover transition-[transform,object-position] duration-[8s] ease-out ${visible ? 'scale-105' : 'scale-100'}`}
-                                    style={{ objectPosition: formatBackgroundPosition(focal) }}
-                                />
+                                <div className="absolute inset-0 overflow-hidden">
+                                    <img
+                                        src={slide.backdropUrl}
+                                        alt=""
+                                        className={`h-full w-full object-cover transition-[transform,object-position] duration-[8s] ease-out will-change-transform ${visible ? 'scale-105' : 'scale-100'}`}
+                                        style={{ objectPosition: formatBackgroundPosition(focal) }}
+                                    />
+                                </div>
                             ) : (
                                 <div className="h-full w-full bg-gradient-to-br from-zinc-800 to-zinc-950" />
                             )}
