@@ -62,22 +62,15 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
     const scroll = (direction: 'left' | 'right') => {
         const node = scrollContainerRef.current;
         if (!node || !canScroll) return;
-        const { clientWidth, scrollWidth } = node;
-        const maxScroll = Math.max(0, scrollWidth - clientWidth);
+        const { clientWidth } = node;
         const page = Math.max(clientWidth - 100, 160);
 
         if (direction === 'right') {
-            if (atEnd) {
-                node.scrollTo({ left: 0, behavior: 'smooth' });
-                return;
-            }
+            if (atEnd) return;
             node.scrollBy({ left: page, behavior: 'smooth' });
             return;
         }
-        if (atStart) {
-            node.scrollTo({ left: maxScroll, behavior: 'smooth' });
-            return;
-        }
+        if (atStart) return;
         node.scrollBy({ left: -page, behavior: 'smooth' });
     };
 
@@ -87,8 +80,8 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
                 <button
                     type="button"
                     onClick={() => scroll('left')}
-                    disabled={!canScroll}
-                    className={`p-0.5 transition-colors ${!canScroll ? 'text-muted/30 cursor-default' : 'hover:text-text'}`}
+                    disabled={!canScroll || atStart}
+                    className={`p-0.5 transition-colors ${!canScroll || atStart ? 'text-muted/30 cursor-default' : 'hover:text-text'}`}
                     aria-label={t('common.scrollLeft')}
                 >
                     <ChevronLeft className="w-6 h-6" />
@@ -96,8 +89,8 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
                 <button
                     type="button"
                     onClick={() => scroll('right')}
-                    disabled={!canScroll}
-                    className={`p-0.5 transition-colors ${!canScroll ? 'text-muted/30 cursor-default' : 'hover:text-text'}`}
+                    disabled={!canScroll || atEnd}
+                    className={`p-0.5 transition-colors ${!canScroll || atEnd ? 'text-muted/30 cursor-default' : 'hover:text-text'}`}
                     aria-label={t('common.scrollRight')}
                 >
                     <ChevronRight className="w-6 h-6" />
