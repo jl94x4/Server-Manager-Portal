@@ -30257,6 +30257,7 @@ app.use('/api/media-player', createMediaPlayerRouter({
     requireMember,
     requireAdmin,
     loadPortalConfig: async () => loadFile(CONFIG_PATH, {}),
+    savePortalConfig: async (config) => saveFile(CONFIG_PATH, config),
     getPlexConnectionUri,
     plexClientHeaders,
     fetchImpl: fetch,

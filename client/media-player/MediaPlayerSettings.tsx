@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ChevronDown, ChevronUp, Loader2, Save } from 'lucide-react';
 import { CustomSelect, discoveryTheme, MediaPlayerAlphaBanner, SettingsToggleRow, StickySaveBar, useDiscoverI18n } from './host';
-import { fetchMediaPlayerLibraries } from './api';
+import { fetchMediaPlayerHomeHeroConfig, fetchMediaPlayerLibraries, saveMediaPlayerHomeHeroConfig } from './api';
 import {
     PLAYER_AUDIO_LANGUAGES,
     PLAYER_QUALITY_CHOICES,
@@ -16,15 +16,38 @@ import type { PlayerSection } from './types';
 
 type Props = {
     onBack: () => void;
+    isAdmin?: boolean;
 };
 
 const sectionClass = 'w-full overflow-hidden rounded-2xl border border-border bg-card';
 
-export const MediaPlayerSettings: React.FC<Props> = ({ onBack }) => {
+const HERO_MODE_VALUES = [
+    'off',
+    'trending_week',
+    'continue_watching',
+    'seasonal_halloween',
+    'seasonal_christmas',
+    'seasonal_nye',
+    'seasonal_easter',
+    'seasonal_thanksgiving',
+    'recently_added',
+    'most_watched',
+    'unwatched_picks',
+    'new_releases',
+    'random_spotlight',
+] as const;
+
+type HeroMode = typeof HERO_MODE_VALUES[number];
+
+export const MediaPlayerSettings: React.FC<Props> = ({ onBack, isAdmin = false }) => {
     const { t } = useDiscoverI18n();
-    const [settings, updateSettings, { dirty, saving, saveSettings, discardSettings }] = usePlayerSettings();
+    const [settings, updateSettings, { dirty: playerDirty, saving: playerSaving, saveSettings, discardSettings }] = usePlayerSettings();
     const [libraries, setLibraries] = useState<PlayerSection[]>([]);
     const [saveState, setSaveState] = useState<'idle' | 'saved' | 'error'>('idle');
+    const [heroMode, setHeroMode] = useState<HeroMode>('trending_week');
+    const [heroSeasonalOnly, setHeroSeasonalOnly] = useState(false);
+    const [heroBaseline, setHeroBaseline] = useState<{ mode: HeroMode; seasonalInWindowOnly: boolean } | null>(null);
+    const [heroSaving, setHeroSaving] = useState(false);
     const qualityOptions = [
         { id: 'auto', label: t('mediaPlayerPage.qualityAuto') },
         { id: 'original', label: t('mediaPlayerPage.qualityOriginal') },
@@ -35,6 +58,21 @@ export const MediaPlayerSettings: React.FC<Props> = ({ onBack }) => {
         { id: 'forced', label: t('mediaPlayerPage.subtitleModeForced') },
         { id: 'always', label: t('mediaPlayerPage.subtitleModeAlways') },
     ];
+    const heroModeOptions = useMemo(() => ([
+        { value: 'off', label: t('mediaPlayerPage.homeHeroModeOff') },
+        { value: 'trending_week', label: t('mediaPlayerPage.homeHeroModeTrending') },
+        { value: 'continue_watching', label: t('mediaPlayerPage.homeHeroModeContinueWatching') },
+        { value: 'seasonal_halloween', label: t('mediaPlayerPage.homeHeroModeHalloween') },
+        { value: 'seasonal_christmas', label: t('mediaPlayerPage.homeHeroModeChristmas') },
+        { value: 'seasonal_nye', label: t('mediaPlayerPage.homeHeroModeNye') },
+        { value: 'seasonal_easter', label: t('mediaPlayerPage.homeHeroModeEaster') },
+        { value: 'seasonal_thanksgiving', label: t('mediaPlayerPage.homeHeroModeThanksgiving') },
+        { value: 'recently_added', label: t('mediaPlayerPage.homeHeroModeRecentlyAdded') },
+        { value: 'most_watched', label: t('mediaPlayerPage.homeHeroModeMostWatched') },
+        { value: 'unwatched_picks', label: t('mediaPlayerPage.homeHeroModeUnwatchedPicks') },
+        { value: 'new_releases', label: t('mediaPlayerPage.homeHeroModeNewReleases') },
+        { value: 'random_spotlight', label: t('mediaPlayerPage.homeHeroModeRandomSpotlight') },
+    ]), [t]);
 
     useEffect(() => {
         let cancelled = false;
@@ -47,6 +85,26 @@ export const MediaPlayerSettings: React.FC<Props> = ({ onBack }) => {
             });
         return () => { cancelled = true; };
     }, []);
+
+    useEffect(() => {
+        if (!isAdmin) return undefined;
+        let cancelled = false;
+        fetchMediaPlayerHomeHeroConfig()
+            .then((data) => {
+                if (cancelled) return;
+                const mode = HERO_MODE_VALUES.includes(data?.mode as HeroMode)
+                    ? (data.mode as HeroMode)
+                    : 'trending_week';
+                const seasonalInWindowOnly = data?.seasonalInWindowOnly === true;
+                setHeroMode(mode);
+                setHeroSeasonalOnly(seasonalInWindowOnly);
+                setHeroBaseline({ mode, seasonalInWindowOnly });
+            })
+            .catch(() => {
+                if (!cancelled) setHeroBaseline(null);
+            });
+        return () => { cancelled = true; };
+    }, [isAdmin]);
 
     const rowLabels = useMemo(() => ({
         continueWatching: t('mediaPlayerPage.continueWatching'),
@@ -61,16 +119,47 @@ export const MediaPlayerSettings: React.FC<Props> = ({ onBack }) => {
     if (!settings.showContinueWatching) hiddenRows.add('continueWatching');
     if (!settings.showPlaylists) hiddenRows.add('playlists');
 
+    const heroDirty = !!heroBaseline && (
+        heroMode !== heroBaseline.mode
+        || heroSeasonalOnly !== heroBaseline.seasonalInWindowOnly
+    );
+    const dirty = playerDirty || heroDirty;
+    const saving = playerSaving || heroSaving;
+
     useEffect(() => {
         if (dirty) setSaveState('idle');
     }, [dirty]);
 
+    const discardAll = () => {
+        discardSettings();
+        if (heroBaseline) {
+            setHeroMode(heroBaseline.mode);
+            setHeroSeasonalOnly(heroBaseline.seasonalInWindowOnly);
+        }
+    };
+
     const handleSave = async () => {
         try {
-            await saveSettings();
+            if (playerDirty) await saveSettings();
+            if (heroDirty && isAdmin) {
+                setHeroSaving(true);
+                const saved = await saveMediaPlayerHomeHeroConfig({
+                    mode: heroMode,
+                    seasonalInWindowOnly: heroSeasonalOnly,
+                });
+                const mode = HERO_MODE_VALUES.includes(saved?.mode as HeroMode)
+                    ? (saved.mode as HeroMode)
+                    : heroMode;
+                const seasonalInWindowOnly = saved?.seasonalInWindowOnly === true;
+                setHeroMode(mode);
+                setHeroSeasonalOnly(seasonalInWindowOnly);
+                setHeroBaseline({ mode, seasonalInWindowOnly });
+            }
             setSaveState('saved');
         } catch {
             setSaveState('error');
+        } finally {
+            setHeroSaving(false);
         }
     };
 
@@ -90,6 +179,41 @@ export const MediaPlayerSettings: React.FC<Props> = ({ onBack }) => {
                 <h1 className={discoveryTheme.heading}>{t('mediaPlayerPage.settings')}</h1>
                 <p className="mt-1 text-sm text-muted">{t('mediaPlayerPage.settingsHint')}</p>
             </div>
+
+            {isAdmin ? (
+                <section className={sectionClass}>
+                    <div className="border-b border-border px-5 py-4 sm:px-6">
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-sm font-black uppercase tracking-widest text-muted">{t('mediaPlayerPage.homeHeroMode')}</h2>
+                            <span className="rounded-md bg-plex/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-plex">
+                                {t('mediaPlayerPage.homeHeroAdminOnly')}
+                            </span>
+                        </div>
+                        <p className="mt-1 text-xs text-muted">{t('mediaPlayerPage.homeHeroModeHint')}</p>
+                    </div>
+                    <div className="px-5 py-2 sm:px-6">
+                        <div className="border-b border-border/40 py-4">
+                            <label className="mb-2 block text-sm font-bold text-text" htmlFor="media-player-home-hero-mode">
+                                {t('mediaPlayerPage.homeHeroMode')}
+                            </label>
+                            <CustomSelect
+                                id="media-player-home-hero-mode"
+                                value={heroMode}
+                                onChange={(value) => setHeroMode(value as HeroMode)}
+                                className="max-w-xl"
+                                options={heroModeOptions}
+                            />
+                        </div>
+                        <SettingsToggleRow
+                            title={t('mediaPlayerPage.homeHeroSeasonalWindow')}
+                            description={t('mediaPlayerPage.homeHeroSeasonalWindowHint')}
+                            checked={heroSeasonalOnly}
+                            onChange={setHeroSeasonalOnly}
+                            border={false}
+                        />
+                    </div>
+                </section>
+            ) : null}
 
             <section className={sectionClass}>
                 <div className="border-b border-border px-5 py-4 sm:px-6">
@@ -344,7 +468,7 @@ export const MediaPlayerSettings: React.FC<Props> = ({ onBack }) => {
                 ) : null}
                 <button
                     type="button"
-                    onClick={discardSettings}
+                    onClick={discardAll}
                     disabled={!dirty || saving}
                     className="inline-flex items-center justify-center rounded-xl bg-white/[0.06] px-3.5 py-2.5 text-sm font-bold text-text transition-colors hover:bg-white/10 disabled:opacity-40"
                 >

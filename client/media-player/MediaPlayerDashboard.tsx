@@ -349,7 +349,7 @@ export const MediaPlayerDashboard: React.FC = () => {
                 </div>
             ) : null}
             {view.kind === 'settings' ? (
-                <MediaPlayerSettings onBack={goHome} />
+                <MediaPlayerSettings onBack={goHome} isAdmin={isAdmin} />
             ) : null}
             {view.kind === 'library' ? (
                 <MediaPlayerLibrary

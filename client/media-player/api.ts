@@ -53,6 +53,23 @@ export const fetchMediaPlayerHomeHeroRefresh = () => (
     apiFetch(`${PLAYER_API_ROOT}/home-hero?refresh=1`) as Promise<MediaPlayerHomeHeroPayload>
 );
 
+export const fetchMediaPlayerHomeHeroConfig = () => (
+    apiFetch(`${PLAYER_API_ROOT}/home-hero-config`) as Promise<{
+        mode: string;
+        seasonalInWindowOnly: boolean;
+    }>
+);
+
+export const saveMediaPlayerHomeHeroConfig = (payload: {
+    mode: string;
+    seasonalInWindowOnly: boolean;
+}) => (
+    apiFetch(`${PLAYER_API_ROOT}/home-hero-config`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+    }) as Promise<{ mode: string; seasonalInWindowOnly: boolean; saved?: boolean }>
+);
+
 export const fetchMediaPlayerLibraries = () => (
     apiFetch(`${PLAYER_API_ROOT}/libraries`) as Promise<{ libraries: PlayerSection[] }>
 );
