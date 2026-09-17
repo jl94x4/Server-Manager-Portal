@@ -7,7 +7,7 @@ import {
     useDiscoverI18n,
     type ToastMessage,
 } from './host';
-import { fetchMediaPlayerLibraries, startMediaPlayerPlayback } from './api';
+import { fetchMediaPlayerLibraries, fetchMediaPlayerMe, startMediaPlayerPlayback } from './api';
 import { MediaPlayerHome } from './MediaPlayerHome';
 import { MediaPlayerLibrary } from './MediaPlayerLibrary';
 import { MediaPlayerCollection } from './MediaPlayerCollection';
@@ -105,6 +105,8 @@ export const MediaPlayerDashboard: React.FC = () => {
     const [libraries, setLibraries] = useState<PlayerSection[]>([]);
     const [toasts, setToasts] = useState<ToastMessage[]>([]);
     const [playSession, setPlaySession] = useState<PlayerPlaySession | null>(null);
+    const [playNextQueue, setPlayNextQueue] = useState<PlayerItem[]>([]);
+    const [isAdmin, setIsAdmin] = useState(false);
     const [startingPlay, setStartingPlay] = useState(false);
     const [pendingResume, setPendingResume] = useState<PendingResume | null>(null);
     const [navExpanded, setNavExpanded] = useState(() => readPlayerNavExpanded());
@@ -142,7 +144,30 @@ export const MediaPlayerDashboard: React.FC = () => {
             .catch(() => {
                 if (!cancelled) setLibraries([]);
             });
+        fetchMediaPlayerMe()
+            .then((me) => {
+                if (!cancelled) setIsAdmin(Boolean(me?.isAdmin));
+            })
+            .catch(() => {
+                if (!cancelled) setIsAdmin(false);
+            });
         return () => { cancelled = true; };
+    }, []);
+
+    const notify = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
+        setToasts((prev) => appendToast(prev, message, type));
+    }, []);
+
+    const enqueuePlayNext = useCallback((item: PlayerItem) => {
+        if (!item?.ratingKey) return;
+        setPlayNextQueue((prev) => {
+            const without = prev.filter((row) => row.ratingKey !== item.ratingKey);
+            return [item, ...without];
+        });
+    }, []);
+
+    const consumePlayNext = useCallback(() => {
+        setPlayNextQueue((prev) => prev.slice(1));
     }, []);
 
     const navigate = useCallback((path: string) => {
@@ -312,6 +337,10 @@ export const MediaPlayerDashboard: React.FC = () => {
                         onOpenItem={openItem}
                         onPlay={playItem}
                         onOpenLibrary={openLibrary}
+                        onPlayNext={enqueuePlayNext}
+                        onToast={notify}
+                        isAdmin={isAdmin}
+                        playlistsEnabled={settings.showPlaylists}
                     />
                 </div>
             ) : null}
@@ -328,6 +357,10 @@ export const MediaPlayerDashboard: React.FC = () => {
                     onOpenCollection={openCollection}
                     onChangeTab={(tab) => navigate(libraryPath(view.sectionKey, tab))}
                     onPlay={playItem}
+                    onPlayNext={enqueuePlayNext}
+                    onToast={notify}
+                    isAdmin={isAdmin}
+                    playlistsEnabled={settings.showPlaylists}
                 />
             ) : null}
             {view.kind === 'collection' ? (
@@ -433,6 +466,8 @@ export const MediaPlayerDashboard: React.FC = () => {
                     autoplayNext={settings.autoplayNext}
                     autoSkipIntro={settings.autoSkipIntro}
                     autoSkipCredits={settings.autoSkipCredits}
+                    playNextQueue={playNextQueue}
+                    onConsumePlayNext={consumePlayNext}
                     onPlayItem={playItem}
                 />
             ) : null}

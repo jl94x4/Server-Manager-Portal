@@ -31,6 +31,10 @@ type Props = {
     onOpenItem: (item: PlayerItem) => void;
     onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
     onOpenLibrary?: (section: PlayerSection) => void;
+    onPlayNext?: (item: PlayerItem) => void;
+    onToast?: (message: string, type?: 'success' | 'error' | 'info') => void;
+    isAdmin?: boolean;
+    playlistsEnabled?: boolean;
 };
 
 const libraryChipIcon = (type: string) => {
@@ -57,7 +61,16 @@ const dedupeItems = (list: PlayerItem[]) => {
     }).slice(0, 24);
 };
 
-export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, onPlay, onOpenLibrary }) => {
+export const MediaPlayerHome: React.FC<Props> = ({
+    active = true,
+    onOpenItem,
+    onPlay,
+    onOpenLibrary,
+    onPlayNext,
+    onToast,
+    isAdmin = false,
+    playlistsEnabled = true,
+}) => {
     const { t } = useDiscoverI18n();
     const [settings] = usePlayerSettings();
     const [draftLibraryOrder, setDraftLibraryOrder] = useState<string[] | null>(null);
@@ -273,6 +286,38 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
         setResults((prev) => prev.map((row) => (row.ratingKey === ratingKey ? { ...row, watched } : row)));
     };
 
+    const removeFromContinueWatching = (item: PlayerItem) => {
+        const key = item.ratingKey;
+        setHome((prev) => {
+            if (!prev) return prev;
+            const filterItems = (list: PlayerItem[]) => list.filter((row) => row.ratingKey !== key);
+            return {
+                ...prev,
+                continueWatching: filterItems(prev.continueWatching),
+                hubs: (prev.hubs || []).map((hub) => (
+                    isContinueWatchingHub(hub) ? { ...hub, items: filterItems(hub.items) } : hub
+                )),
+            };
+        });
+    };
+
+    const removeItemEverywhere = (item: PlayerItem) => {
+        const key = item.ratingKey;
+        setHome((prev) => {
+            if (!prev) return prev;
+            const filterItems = (list: PlayerItem[]) => list.filter((row) => row.ratingKey !== key);
+            return {
+                ...prev,
+                continueWatching: filterItems(prev.continueWatching),
+                playlists: filterItems(prev.playlists || []),
+                recentByLibrary: prev.recentByLibrary.map((row) => ({ ...row, items: filterItems(row.items) })),
+                hubs: (prev.hubs || []).map((hub) => ({ ...hub, items: filterItems(hub.items) })),
+            };
+        });
+        setResults((prev) => prev.filter((row) => row.ratingKey !== key));
+        setHeroSlides((prev) => prev.filter((row) => row.ratingKey !== key));
+    };
+
     const toggleWatched = async (item: PlayerItem) => {
         const next = !item.watched;
         patchWatched(item.ratingKey, next);
@@ -283,8 +328,19 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
         }
     };
 
+    const railMenuProps = {
+        onPlayNext,
+        onWatchedChange: (item: PlayerItem, watched: boolean) => patchWatched(item.ratingKey, watched),
+        onRemovedFromContinueWatching: removeFromContinueWatching,
+        onDeleted: removeItemEverywhere,
+        onToast,
+        isAdmin,
+        playlistsEnabled,
+    };
+
     const homeSections = !home ? [] : plexHubs.length ? plexHubs.map((hub, hubIndex) => {
         const viewAllKey = hub.collectionRatingKey || hub.playlistRatingKey;
+        const isCw = isContinueWatchingHub(hub);
         return (
             <PlayerRail
                 key={hub.identifier}
@@ -295,14 +351,16 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
                 onOpenItem={onOpenItem}
                 onPlay={onPlay}
                 onToggleWatched={toggleWatched}
-                showProgress={isContinueWatchingHub(hub)}
-                aspect={isContinueWatchingHub(hub) ? '2/3' : undefined}
+                showProgress={isCw}
+                showRemoveFromContinueWatching={isCw}
+                aspect={isCw ? '2/3' : undefined}
                 onViewAll={viewAllKey ? () => onOpenItem({
                     ratingKey: viewAllKey,
                     title: hub.title,
                     type: hub.collectionRatingKey ? 'collection' : 'playlist',
                 }) : undefined}
                 viewAllLabel={viewAllKey ? t('common.viewAll') : undefined}
+                {...railMenuProps}
             />
         );
     }) : applyHomeRowOrder(
@@ -321,7 +379,9 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
                     onPlay={onPlay}
                     onToggleWatched={toggleWatched}
                     showProgress
+                    showRemoveFromContinueWatching
                     aspect="2/3"
+                    {...railMenuProps}
                 />
             ) : null;
         }
@@ -351,6 +411,7 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
                         onOpenItem={onOpenItem}
                         onPlay={onPlay}
                         onToggleWatched={toggleWatched}
+                        {...railMenuProps}
                     />
                 ))}
             </React.Fragment>
@@ -447,6 +508,13 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
                                         onOpenItem={onOpenItem}
                                         onPlay={onPlay}
                                         onToggleWatched={toggleWatched}
+                                        onPlayNext={onPlayNext}
+                                        onWatchedChange={(row, watched) => patchWatched(row.ratingKey, watched)}
+                                        onRemovedFromContinueWatching={removeFromContinueWatching}
+                                        onDeleted={removeItemEverywhere}
+                                        onToast={onToast}
+                                        isAdmin={isAdmin}
+                                        playlistsEnabled={playlistsEnabled}
                                     />
                                 ))}
                             </div>

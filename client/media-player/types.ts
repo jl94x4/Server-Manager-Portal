@@ -178,6 +178,7 @@ export type PlayerSection = {
 export type PlayerProfile = {
     username: string;
     thumb?: string | null;
+    isAdmin?: boolean;
 };
 
 export type PlayerHomeRail = {

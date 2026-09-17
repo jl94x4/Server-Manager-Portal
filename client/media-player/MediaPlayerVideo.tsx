@@ -59,6 +59,8 @@ type Props = {
     autoplayNext?: boolean;
     autoSkipIntro?: boolean;
     autoSkipCredits?: boolean;
+    playNextQueue?: PlayerItem[];
+    onConsumePlayNext?: () => void;
     onPlayItem?: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
 };
 
@@ -244,6 +246,8 @@ export const MediaPlayerVideo: React.FC<Props> = ({
     autoplayNext = false,
     autoSkipIntro = false,
     autoSkipCredits = false,
+    playNextQueue = [],
+    onConsumePlayNext,
     onPlayItem,
 }) => {
     const { t } = useDiscoverI18n();
@@ -284,8 +288,12 @@ export const MediaPlayerVideo: React.FC<Props> = ({
     const speedRef = useRef(localPrefs.current.speed);
     const sendTimelineRef = useRef<(state: 'playing' | 'paused' | 'buffering' | 'stopped') => void>(() => {});
     const onPlayItemRef = useRef(onPlayItem);
+    const onConsumePlayNextRef = useRef(onConsumePlayNext);
+    const queuedNextKeyRef = useRef<string | null>(null);
     const nextItemRef = useRef<PlayerItem | null>(null);
     const previousItemRef = useRef<PlayerItem | null>(null);
+    const queuedNext = playNextQueue[0] || null;
+    const upNextItem = queuedNext || nextItem;
     const fallbackUsedRef = useRef(false);
     const clickTimerRef = useRef<number>(0);
     const lastTapRef = useRef<{ at: number; x: number } | null>(null);
@@ -315,11 +323,20 @@ export const MediaPlayerVideo: React.FC<Props> = ({
         onPlayItemRef.current = onPlayItem;
     }, [onPlayItem]);
     useEffect(() => {
-        nextItemRef.current = nextItem;
-    }, [nextItem]);
+        onConsumePlayNextRef.current = onConsumePlayNext;
+    }, [onConsumePlayNext]);
+    useEffect(() => {
+        queuedNextKeyRef.current = queuedNext?.ratingKey || null;
+    }, [queuedNext?.ratingKey]);
+    useEffect(() => {
+        nextItemRef.current = upNextItem;
+    }, [upNextItem]);
     useEffect(() => {
         previousItemRef.current = previousItem;
     }, [previousItem]);
+    useEffect(() => {
+        if (queuedNext) setDismissedUpNext(false);
+    }, [queuedNext?.ratingKey]);
     useEffect(() => {
         currentMsRef.current = currentMs;
     }, [currentMs]);
@@ -609,6 +626,9 @@ export const MediaPlayerVideo: React.FC<Props> = ({
         });
         const playCurrent = (item: PlayerItem | null) => {
             if (!item) return;
+            if (queuedNextKeyRef.current && queuedNextKeyRef.current === item.ratingKey) {
+                onConsumePlayNextRef.current?.();
+            }
             onPlayItemRef.current?.(item, { offsetMs: 0, skipResume: true });
         };
         try {
@@ -673,12 +693,22 @@ export const MediaPlayerVideo: React.FC<Props> = ({
     const remaining = Math.max(0, durationMs - currentMs);
     const inIntro = !!(markers.intro && !skippedIntro && currentMs >= markers.intro.startMs && currentMs < markers.intro.endMs);
     const inCredits = !!(markers.credits && !skippedCredits && currentMs >= markers.credits.startMs);
-    const showUpNext = !!nextItem && !dismissedUpNext && session.item.type === 'episode' && durationMs > 30000 && (
+    const showUpNext = !!upNextItem && !dismissedUpNext && durationMs > 30000 && (
+        !!queuedNext || session.item.type === 'episode'
+    ) && (
         inCredits || (remaining > 0 && remaining <= 15000)
     );
 
+    const playUpNext = useCallback((item: PlayerItem | null) => {
+        if (!item) return;
+        if (queuedNext && queuedNext.ratingKey === item.ratingKey) {
+            onConsumePlayNextRef.current?.();
+        }
+        onPlayItem?.(item, { offsetMs: 0, skipResume: true });
+    }, [onPlayItem, queuedNext]);
+
     useEffect(() => {
-        if (!showUpNext || !autoplayNext || !nextItem) {
+        if (!showUpNext || !autoplayNext || !upNextItem) {
             setUpNextIn(10);
             return undefined;
         }
@@ -687,14 +717,20 @@ export const MediaPlayerVideo: React.FC<Props> = ({
             setUpNextIn((n) => {
                 if (n <= 1) {
                     window.clearInterval(timer);
-                    onPlayItemRef.current?.(nextItem, { offsetMs: 0, skipResume: true });
+                    const next = nextItemRef.current;
+                    if (next) {
+                        if (queuedNextKeyRef.current && queuedNextKeyRef.current === next.ratingKey) {
+                            onConsumePlayNextRef.current?.();
+                        }
+                        onPlayItemRef.current?.(next, { offsetMs: 0, skipResume: true });
+                    }
                     return 0;
                 }
                 return n - 1;
             });
         }, 1000);
         return () => window.clearInterval(timer);
-    }, [showUpNext, autoplayNext, nextItem]);
+    }, [showUpNext, autoplayNext, upNextItem]);
 
     useEffect(() => {
         const onKey = (event: KeyboardEvent) => {
@@ -800,8 +836,8 @@ export const MediaPlayerVideo: React.FC<Props> = ({
 
     const skipCredits = () => {
         setSkippedCredits(true);
-        if (nextItem) {
-            onPlayItem?.(nextItem, { offsetMs: 0, skipResume: true });
+        if (upNextItem) {
+            playUpNext(upNextItem);
             return;
         }
         const video = videoRef.current;
@@ -817,7 +853,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({
     useEffect(() => {
         if (!autoSkipCredits || !inCredits || !ready) return;
         skipCredits();
-    }, [autoSkipCredits, inCredits, nextItem, ready]);
+    }, [autoSkipCredits, inCredits, upNextItem, ready]);
 
     const theater = chrome === 'theater';
     const showBars = !theater || controlsVisible || paused || !!error || !!openMenu;
@@ -985,8 +1021,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({
         lastTapRef.current = { at: now, x };
     };
     const playNeighbor = (item: PlayerItem | null) => {
-        if (!item) return;
-        onPlayItem?.(item, { offsetMs: 0, skipResume: true });
+        playUpNext(item);
     };
     const overlay = (
         <div
@@ -1130,7 +1165,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({
                     }}
                     onEnded={() => {
                         sendTimelineRef.current('stopped');
-                        if (autoplayNext && nextItem) onPlayItem?.(nextItem, { offsetMs: 0, skipResume: true });
+                        if (autoplayNext && upNextItem) playUpNext(upNextItem);
                     }}
                 />
 
@@ -1186,21 +1221,21 @@ export const MediaPlayerVideo: React.FC<Props> = ({
                     </button>
                 ) : null}
 
-                {showUpNext && nextItem && theater ? (
+                {showUpNext && upNextItem && theater ? (
                     <div className="absolute right-4 bottom-28 z-20 w-72 overflow-hidden rounded-2xl border border-white/15 bg-black/90 shadow-2xl">
-                        {nextItem.thumb ? (
-                            <img src={plexImageUrl(nextItem.thumb, 640, 360)} alt="" className="aspect-video w-full object-cover" />
+                        {upNextItem.thumb ? (
+                            <img src={plexImageUrl(upNextItem.thumb, 640, 360)} alt="" className="aspect-video w-full object-cover" />
                         ) : null}
                         <div className="p-3">
                             <p className="text-[10px] font-black uppercase tracking-widest text-white/50">{t('mediaPlayerPage.upNext')}</p>
-                            <p className="mt-1 truncate text-sm font-bold text-white">{nextItem.title}</p>
+                            <p className="mt-1 truncate text-sm font-bold text-white">{upNextItem.title}</p>
                             {autoplayNext ? (
                                 <p className="text-xs text-white/70">{t('mediaPlayerPage.nextEpisodeIn', { seconds: upNextIn })}</p>
                             ) : null}
                             <div className="mt-3 flex gap-2">
                                 <button
                                     type="button"
-                                    onClick={() => onPlayItem?.(nextItem, { offsetMs: 0, skipResume: true })}
+                                    onClick={() => playUpNext(upNextItem)}
                                     className="rounded-lg bg-plex px-3 py-1.5 text-xs font-black text-black"
                                 >
                                     {t('mediaPlayerPage.playNow')}
@@ -1268,10 +1303,10 @@ export const MediaPlayerVideo: React.FC<Props> = ({
                                     10
                                     <ChevronsRight className="h-4 w-4" />
                                 </button>
-                                {nextItem ? (
+                                {upNextItem ? (
                                     <button
                                         type="button"
-                                        onClick={() => playNeighbor(nextItem)}
+                                        onClick={() => playNeighbor(upNextItem)}
                                         className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1.5 text-white hover:bg-white/20"
                                         aria-label={t('mediaPlayerPage.nextEpisode')}
                                     >

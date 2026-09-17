@@ -10,13 +10,41 @@ export const PlayerRail: React.FC<{
     onOpenItem: (item: PlayerItem) => void;
     onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
     onToggleWatched?: (item: PlayerItem) => void;
+    onPlayNext?: (item: PlayerItem) => void;
+    onWatchedChange?: (item: PlayerItem, watched: boolean) => void;
+    onRemovedFromContinueWatching?: (item: PlayerItem) => void;
+    onDeleted?: (item: PlayerItem) => void;
+    onToast?: (message: string, type?: 'success' | 'error' | 'info') => void;
     showProgress?: boolean;
+    showRemoveFromContinueWatching?: boolean;
+    isAdmin?: boolean;
+    playlistsEnabled?: boolean;
     /** Force card shape. Continue Watching should stay poster (`2/3`). */
     aspect?: '2/3' | 'square' | '16/9';
     onViewAll?: () => void;
     viewAllLabel?: string;
     staggerIndex?: number;
-}> = ({ title, items, density, onOpenItem, onPlay, onToggleWatched, showProgress = false, aspect, onViewAll, viewAllLabel, staggerIndex = 0 }) => {
+}> = ({
+    title,
+    items,
+    density,
+    onOpenItem,
+    onPlay,
+    onToggleWatched,
+    onPlayNext,
+    onWatchedChange,
+    onRemovedFromContinueWatching,
+    onDeleted,
+    onToast,
+    showProgress = false,
+    showRemoveFromContinueWatching = false,
+    isAdmin = false,
+    playlistsEnabled = true,
+    aspect,
+    onViewAll,
+    viewAllLabel,
+    staggerIndex = 0,
+}) => {
     if (!items.length) return null;
     return (
         <div
@@ -42,9 +70,17 @@ export const PlayerRail: React.FC<{
                                 item={item}
                                 aspect={cardAspect}
                                 showProgress={showProgress}
+                                showRemoveFromContinueWatching={showRemoveFromContinueWatching}
+                                isAdmin={isAdmin}
+                                playlistsEnabled={playlistsEnabled}
                                 onOpenItem={onOpenItem}
                                 onPlay={onPlay}
                                 onToggleWatched={onToggleWatched}
+                                onPlayNext={onPlayNext}
+                                onWatchedChange={onWatchedChange}
+                                onRemovedFromContinueWatching={onRemovedFromContinueWatching}
+                                onDeleted={onDeleted}
+                                onToast={onToast}
                             />
                         </div>
                     );

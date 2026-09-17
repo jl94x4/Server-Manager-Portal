@@ -127,6 +127,24 @@ export const setMediaPlayerWatched = (ratingKey: string, watched: boolean) => (
     })
 );
 
+export const removeMediaPlayerProgress = (ratingKey: string) => (
+    apiFetch(`${PLAYER_API_ROOT}/progress/${encodeURIComponent(ratingKey)}`, {
+        method: 'DELETE',
+    })
+);
+
+export const deleteMediaPlayerItem = (ratingKey: string) => (
+    apiFetch(`${PLAYER_API_ROOT}/item/${encodeURIComponent(ratingKey)}`, {
+        method: 'DELETE',
+    })
+);
+
+export const mediaPlayerDownloadUrl = (ratingKey: string, mediaIndex = 0) => {
+    const qs = new URLSearchParams({ download: '1' });
+    if (mediaIndex) qs.set('mediaIndex', String(mediaIndex));
+    return `${PLAYER_API_ROOT}/file/${encodeURIComponent(ratingKey)}?${qs}`;
+};
+
 export const fetchMediaPlayerNext = (ratingKey: string) => (
     apiFetch(`${PLAYER_API_ROOT}/next/${encodeURIComponent(ratingKey)}`) as Promise<{ item: PlayerItem | null }>
 );

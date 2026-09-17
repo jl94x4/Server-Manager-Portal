@@ -9207,27 +9207,49 @@ const isSafePlexMediaPath = (rawPath) => {
 };
 
 const fetchPlexPosterBuffer = async (config, thumbPath, width, height, { minSize = 1 } = {}) => {
-    const fetchPoster = async () => {
-        const uri = await getPlexConnectionUri(config);
-        const fit = minSize === 0 ? 0 : 1;
-        const url = `${uri}/photo/:/transcode?url=${encodeURIComponent(thumbPath)}&width=${encodeURIComponent(width)}&height=${encodeURIComponent(height)}&minSize=${fit}&upscale=0&quality=90&X-Plex-Token=${config.plexToken}`;
-        return fetchWithTimeout(url, { headers: plexClientHeaders(config.plexToken) }, 15000);
+    const uri = await getPlexConnectionUri(config);
+    if (!uri) return null;
+    const token = normalizePlexToken(config.plexToken);
+    if (!token) return null;
+    const fit = minSize === 0 ? 0 : 1;
+    const headers = plexClientHeaders(config.plexToken);
+
+    const fetchTranscode = () => {
+        const url = `${uri}/photo/:/transcode?url=${encodeURIComponent(thumbPath)}&width=${encodeURIComponent(width)}&height=${encodeURIComponent(height)}&minSize=${fit}&upscale=0&quality=90&X-Plex-Token=${encodeURIComponent(token)}`;
+        return fetchWithTimeout(url, { headers }, 15000);
     };
-    let response = null;
-    try {
-        response = await fetchPoster();
-    } catch {
-        response = null;
-    }
-    if (!response?.ok) {
-        if (response) discardFetchBody(response);
+
+    // clearLogo (and some art) often fail photo/transcode but still serve as raw library media.
+    const fetchDirect = () => {
+        const raw = String(thumbPath || '').trim();
+        if (!raw.startsWith('/library/') && !raw.startsWith('/photo/')) return null;
+        const join = raw.includes('?') ? '&' : '?';
+        const url = `${uri}${raw}${join}X-Plex-Token=${encodeURIComponent(token)}`;
+        return fetchWithTimeout(url, { headers }, 15000);
+    };
+
+    const tryBuffer = async (factory) => {
+        if (!factory) return null;
+        let response = null;
         try {
-            response = await fetchPoster();
+            response = await factory();
         } catch {
-            return null;
+            response = null;
         }
-    }
-    return bufferFetchImage(response);
+        if (!response?.ok) {
+            if (response) discardFetchBody(response);
+            try {
+                response = await factory();
+            } catch {
+                return null;
+            }
+        }
+        return bufferFetchImage(response);
+    };
+
+    const viaTranscode = await tryBuffer(fetchTranscode);
+    if (viaTranscode?.body?.length) return viaTranscode;
+    return tryBuffer(fetchDirect);
 };
 
 const fetchJellyfinPosterBuffer = async (config, itemId, width, height) => {
@@ -9257,13 +9279,13 @@ const fetchJellyfinPosterBuffer = async (config, itemId, width, height) => {
 const serveMediaImage = async (res, key, fetchBuffer, failImage) => {
     try {
         const result = await getOrFetchMediaImage(key, fetchBuffer);
-        if (!result?.body?.length) return failImage(500);
+        if (!result?.body?.length) return failImage(404);
         sendImageBuffer(res, result, {
             cacheControl: 'private, max-age=86400',
             cacheStatus: result.cacheStatus,
         });
     } catch {
-        failImage(500);
+        failImage(404);
     }
 };
 
@@ -9286,7 +9308,7 @@ app.get('/api/plex/image', requireAuth, requireMember, async (req, res) => {
     if (!isSafePlexMediaPath(thumbPath)) {
         return res.status(400).send('Invalid path');
     }
-    const failImage = (status = 500) => {
+    const failImage = (status = 404) => {
         if (res.headersSent) {
             if (!res.writableEnded) res.destroy();
             return;
@@ -9314,7 +9336,7 @@ app.get('/api/plex/image', requireAuth, requireMember, async (req, res) => {
             failImage,
         );
     } catch (e) {
-        failImage(500);
+        failImage(404);
     }
 });
 
@@ -30205,6 +30227,7 @@ app.use('/api/media-player', createMediaPlayerRouter({
     Router: express.Router,
     requireAuth,
     requireMember,
+    requireAdmin,
     loadPortalConfig: async () => loadFile(CONFIG_PATH, {}),
     getPlexConnectionUri,
     plexClientHeaders,
@@ -30287,6 +30310,7 @@ app.use('/api/media-player', createMediaPlayerRouter({
         return {
             username: local?.username || req.user?.username || req.user?.title || '',
             thumb: req.user?.thumb || local?.thumb || null,
+            isAdmin: !!req.user?.isAdmin,
         };
     },
     saveMediaPlayerSettings: async (req, settings) => {

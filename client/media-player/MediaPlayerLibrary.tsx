@@ -36,6 +36,10 @@ type Props = {
     onOpenCollection: (sectionKey: string, item: PlayerItem) => void;
     onChangeTab: (tab: LibraryTab) => void;
     onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
+    onPlayNext?: (item: PlayerItem) => void;
+    onToast?: (message: string, type?: 'success' | 'error' | 'info') => void;
+    isAdmin?: boolean;
+    playlistsEnabled?: boolean;
 };
 
 const PAGE_SIZE = 50;
@@ -63,6 +67,10 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
     onOpenCollection,
     onChangeTab,
     onPlay,
+    onPlayNext,
+    onToast,
+    isAdmin = false,
+    playlistsEnabled = true,
 }) => {
     const { t } = useDiscoverI18n();
     const [gridSize, setGridSize] = useDiscoverGridSize();
@@ -247,6 +255,24 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
         setHubs((prev) => prev.map((hub) => ({ ...hub, items: mapItems(hub.items) })));
     };
 
+    const removeFromContinueWatching = (item: PlayerItem) => {
+        const key = item.ratingKey;
+        const filterItems = (list: PlayerItem[]) => list.filter((row) => row.ratingKey !== key);
+        setHubs((prev) => prev.map((hub) => (
+            isContinueWatchingHub(hub) ? { ...hub, items: filterItems(hub.items) } : hub
+        )));
+        setItems((prev) => filterItems(prev));
+    };
+
+    const removeItemEverywhere = (item: PlayerItem) => {
+        const key = item.ratingKey;
+        const filterItems = (list: PlayerItem[]) => list.filter((row) => row.ratingKey !== key);
+        setItems((prev) => filterItems(prev));
+        setCollections((prev) => filterItems(prev));
+        setHubs((prev) => prev.map((hub) => ({ ...hub, items: filterItems(hub.items) })));
+        setTotal((prev) => Math.max(0, prev - 1));
+    };
+
     const toggleWatched = async (item: PlayerItem) => {
         const next = !item.watched;
         patchWatched(item.ratingKey, next);
@@ -255,6 +281,16 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
         } catch {
             patchWatched(item.ratingKey, !!item.watched);
         }
+    };
+
+    const menuProps = {
+        onPlayNext,
+        onWatchedChange: (item: PlayerItem, watched: boolean) => patchWatched(item.ratingKey, watched),
+        onRemovedFromContinueWatching: removeFromContinueWatching,
+        onDeleted: removeItemEverywhere,
+        onToast,
+        isAdmin,
+        playlistsEnabled,
     };
 
     const tabs: Array<{ id: LibraryTab; label: string }> = [
@@ -417,7 +453,9 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
             ) : tab === 'home' ? (
                 homeHubs.length ? (
                     <div className="flex flex-col gap-6">
-                        {homeHubs.map((hub) => (
+                        {homeHubs.map((hub) => {
+                            const isCw = isContinueWatchingHub(hub) || /continue|ondeck/i.test(hub.identifier);
+                            return (
                             <PlayerRail
                                 key={hub.identifier || hub.title}
                                 title={hub.title}
@@ -426,10 +464,13 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                                 onOpenItem={onOpenItem}
                                 onPlay={onPlay}
                                 onToggleWatched={toggleWatched}
-                                showProgress={/continue|ondeck/i.test(hub.identifier)}
-                                aspect={/continue|ondeck/i.test(hub.identifier) ? '2/3' : undefined}
+                                showProgress={isCw}
+                                showRemoveFromContinueWatching={isCw}
+                                aspect={isCw ? '2/3' : undefined}
+                                {...menuProps}
                             />
-                        ))}
+                            );
+                        })}
                     </div>
                 ) : (
                     <div className={discoveryTheme.emptyState}>
@@ -466,6 +507,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                                 onOpenItem={onOpenItem}
                                 onPlay={onPlay}
                                 onToggleWatched={toggleWatched}
+                                {...menuProps}
                             />
                         ))}
                     </div>
