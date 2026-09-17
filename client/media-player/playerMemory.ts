@@ -212,6 +212,14 @@ export const focusPlayerSearchInput = () => {
     return true;
 };
 
+/** Clear home search and return to rails (e.g. sidebar Home while a query is active). */
+export const PLAYER_HOME_RESET_EVENT = 'portal-media-player-home-reset';
+
+export const requestPlayerHomeReset = () => {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new Event(PLAYER_HOME_RESET_EVENT));
+};
+
 const PLAYER_HOME_CACHE_TTL_MS = 90_000;
 let playerHomeCache: { at: number; data: PlayerHome } | null = null;
 

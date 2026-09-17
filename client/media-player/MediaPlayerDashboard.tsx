@@ -25,6 +25,7 @@ import {
     consumePlayerSearchFocus,
     focusPlayerSearchInput,
     readPlayerNavExpanded,
+    requestPlayerHomeReset,
     requestPlayerSearchFocus,
     restorePlayerHomeScrollWhenReady,
     stashPlayerHomeScroll,
@@ -225,7 +226,10 @@ export const MediaPlayerDashboard: React.FC = () => {
         navigate(`${PLAYER_APP_BASE}/studio/${encodeURIComponent(studioKey)}${suffix}`);
     }, [navigate]);
 
-    const goHome = useCallback(() => navigate(PLAYER_APP_BASE), [navigate]);
+    const goHome = useCallback(() => {
+        requestPlayerHomeReset();
+        navigate(PLAYER_APP_BASE);
+    }, [navigate]);
 
     const openSearch = useCallback(() => {
         requestPlayerSearchFocus();

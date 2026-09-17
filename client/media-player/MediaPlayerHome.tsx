@@ -22,7 +22,7 @@ import {
     PLAYER_SETTINGS_DRAFT_EVENT,
     PLAYER_SETTINGS_EVENT,
 } from './playerSettings';
-import { consumePlayerSearchFocus, PLAYER_SEARCH_INPUT_ID, readHeroSlidesCache, readPlayerHomeCache, writeHeroSlidesCache, writePlayerHomeCache } from './playerMemory';
+import { consumePlayerSearchFocus, PLAYER_HOME_RESET_EVENT, PLAYER_SEARCH_INPUT_ID, readHeroSlidesCache, readPlayerHomeCache, writeHeroSlidesCache, writePlayerHomeCache } from './playerMemory';
 import { usePlayerSettings } from './usePlayerSettings';
 import type { PlayerHome, PlayerItem, PlayerLibraryHub, PlayerPlayOptions, PlayerSection } from './types';
 
@@ -89,6 +89,17 @@ export const MediaPlayerHome: React.FC<Props> = ({
         if (!consumePlayerSearchFocus()) return;
         searchRef.current?.focus();
         searchRef.current?.select();
+    }, []);
+
+    useEffect(() => {
+        const clearSearch = () => {
+            setQuery('');
+            setResults([]);
+            setSearching(false);
+            searchRef.current?.blur();
+        };
+        window.addEventListener(PLAYER_HOME_RESET_EVENT, clearSearch);
+        return () => window.removeEventListener(PLAYER_HOME_RESET_EVENT, clearSearch);
     }, []);
 
     useEffect(() => {

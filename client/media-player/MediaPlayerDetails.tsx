@@ -541,6 +541,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                 />
                             ) : null}
                             {item.type === 'movie' || item.type === 'episode' || item.type === 'show' || item.type === 'season' ? (
+                                settings.showPlaylists ? (
                                 <div className="grid grid-cols-2 gap-2">
                                     <button
                                         type="button"
@@ -558,8 +559,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                         {item.watched ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                                         {item.watched ? t('mediaPlayerPage.markUnwatched') : t('mediaPlayerPage.markWatched')}
                                     </button>
-                                    {settings.showPlaylists ? (
-                                        <div className="relative">
+                                    <div className="relative">
                                             <button
                                                 type="button"
                                                 onClick={() => setPlaylistOpen((open) => !open)}
@@ -620,8 +620,8 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                             </div>
                                         ) : null}
                                     </div>
-                                    ) : null}
                                 </div>
+                                ) : null
                             ) : null}
                             {settings.showPlaylists && playlistMessage ? (
                                 <p className="text-[11px] font-bold text-plex">{playlistMessage}</p>
@@ -669,6 +669,29 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                         onOpenItem={onOpenItem}
                                         onPlay={(row) => onPlay(row, { mediaIndex })}
                                     />
+                                ) : null}
+                                {!settings.showPlaylists
+                                    && (item.type === 'movie' || item.type === 'episode' || item.type === 'show' || item.type === 'season') ? (
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            const next = !item.watched;
+                                            setItem({ ...item, watched: next });
+                                            try {
+                                                await setMediaPlayerWatched(item.ratingKey, next);
+                                            } catch {
+                                                setItem({ ...item, watched: item.watched });
+                                            }
+                                        }}
+                                        className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3.5 text-left transition-colors hover:border-plex/40 hover:bg-plex/10"
+                                    >
+                                        {item.watched
+                                            ? <EyeOff className="h-4 w-4 shrink-0 text-plex" />
+                                            : <Eye className="h-4 w-4 shrink-0 text-plex" />}
+                                        <span className="min-w-0 flex-1 text-sm font-bold text-text">
+                                            {item.watched ? t('mediaPlayerPage.markUnwatched') : t('mediaPlayerPage.markWatched')}
+                                        </span>
+                                    </button>
                                 ) : null}
                                 {streamRows.length ? (
                                     <div className="flex flex-col gap-3">
