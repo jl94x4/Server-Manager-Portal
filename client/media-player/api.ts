@@ -21,6 +21,29 @@ export const fetchMediaPlayerMe = () => apiFetch(`${PLAYER_API_ROOT}/me`) as Pro
 
 export const fetchMediaPlayerHome = () => apiFetch(`${PLAYER_API_ROOT}/home`) as Promise<PlayerHome>;
 
+export type MediaPlayerHomeHeroPayload = {
+    enabled: boolean;
+    refreshedAt?: number | null;
+    expiresAt?: number | null;
+    items: Array<{
+        ratingKey: string;
+        title: string;
+        type: string;
+        year?: number | null;
+        summary?: string;
+        thumb?: string | null;
+        art?: string | null;
+        backdropUrl?: string | null;
+        posterUrl?: string | null;
+        tmdbId?: number | null;
+        canPlay?: boolean;
+    }>;
+};
+
+export const fetchMediaPlayerHomeHero = () => (
+    apiFetch(`${PLAYER_API_ROOT}/home-hero`) as Promise<MediaPlayerHomeHeroPayload>
+);
+
 export const fetchMediaPlayerLibraries = () => (
     apiFetch(`${PLAYER_API_ROOT}/libraries`) as Promise<{ libraries: PlayerSection[] }>
 );

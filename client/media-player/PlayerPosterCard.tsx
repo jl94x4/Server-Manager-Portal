@@ -31,7 +31,7 @@ export const PlayerPosterCard: React.FC<Props> = ({
     const episodeCode = formatEpisodeCode(item);
     return (
         <DiscoverPosterCard
-            className={className}
+            className={`player-poster-card ${className || ''}`.trim()}
             item={toPosterCardItem(item)}
             aspect={resolvedAspect}
             posterWidth={resolvedAspect === '16/9' ? 640 : 300}
@@ -54,13 +54,13 @@ export const PlayerPosterCard: React.FC<Props> = ({
                         </div>
                     ) : null}
                     {canHoverPlay || canToggleWatched ? (
-                        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                             {canHoverPlay ? (
                                 <span
                                     role="button"
                                     tabIndex={-1}
                                     aria-label={t('mediaPlayerPage.play')}
-                                    className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full bg-plex text-black shadow-lg"
+                                    className="pointer-events-auto flex h-12 w-12 translate-y-1 scale-95 items-center justify-center rounded-full bg-plex text-black shadow-lg transition duration-200 group-hover:translate-y-0 group-hover:scale-100"
                                     onClick={(event) => {
                                         event.preventDefault();
                                         event.stopPropagation();

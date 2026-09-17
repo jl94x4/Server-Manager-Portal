@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Film, Music, Search, Tv } from 'lucide-react';
 import {
     DiscoverGridSizeSelect,
     DiscoverHomeRowSkeleton,
@@ -12,7 +12,8 @@ import {
     upgraderPosterGridClass,
     upgraderPosterGridStyle,
 } from './host';
-import { fetchMediaPlayerHome, searchMediaPlayer, setMediaPlayerWatched } from './api';
+import { fetchMediaPlayerHome, fetchMediaPlayerHomeHero, searchMediaPlayer, setMediaPlayerWatched } from './api';
+import { MediaPlayerHomeHero, type HomeHeroSlide } from './MediaPlayerHomeHero';
 import { PlayerPosterCard } from './PlayerPosterCard';
 import { PlayerRail } from './PlayerRail';
 import {
@@ -24,12 +25,19 @@ import {
 } from './playerSettings';
 import { consumePlayerSearchFocus, PLAYER_SEARCH_INPUT_ID, readPlayerHomeCache, writePlayerHomeCache } from './playerMemory';
 import { usePlayerSettings } from './usePlayerSettings';
-import type { PlayerHome, PlayerItem, PlayerLibraryHub, PlayerPlayOptions } from './types';
+import type { PlayerHome, PlayerItem, PlayerLibraryHub, PlayerPlayOptions, PlayerSection } from './types';
 
 type Props = {
     active?: boolean;
     onOpenItem: (item: PlayerItem) => void;
     onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
+    onOpenLibrary?: (section: PlayerSection) => void;
+};
+
+const libraryChipIcon = (type: string) => {
+    if (type === 'show') return Tv;
+    if (type === 'artist') return Music;
+    return Film;
 };
 
 const isContinueWatchingHub = (hub: PlayerLibraryHub) => (
@@ -50,13 +58,14 @@ const dedupeItems = (list: PlayerItem[]) => {
     }).slice(0, 24);
 };
 
-export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, onPlay }) => {
+export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, onPlay, onOpenLibrary }) => {
     const { t } = useDiscoverI18n();
     const [settings] = usePlayerSettings();
     const [draftLibraryOrder, setDraftLibraryOrder] = useState<string[] | null>(null);
     const libraryNavOrder = draftLibraryOrder || settings.libraryNavOrder;
     const [gridSize, setGridSize] = useDiscoverGridSize();
     const [home, setHome] = useState<PlayerHome | null>(() => readPlayerHomeCache());
+    const [heroSlides, setHeroSlides] = useState<HomeHeroSlide[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(() => !readPlayerHomeCache());
     const [query, setQuery] = useState('');
@@ -105,6 +114,14 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
             })
             .finally(() => {
                 if (!cancelled) setLoading(false);
+            });
+        fetchMediaPlayerHomeHero()
+            .then((data) => {
+                if (cancelled) return;
+                setHeroSlides(data?.enabled && Array.isArray(data.items) ? data.items : []);
+            })
+            .catch(() => {
+                if (!cancelled) setHeroSlides([]);
             });
         return () => { cancelled = true; };
     }, [active, t]);
@@ -248,7 +265,7 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
         }
     };
 
-    const homeSections = !home ? [] : plexHubs.length ? plexHubs.map((hub) => {
+    const homeSections = !home ? [] : plexHubs.length ? plexHubs.map((hub, hubIndex) => {
         const viewAllKey = hub.collectionRatingKey || hub.playlistRatingKey;
         return (
             <PlayerRail
@@ -256,6 +273,7 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
                 title={hub.title}
                 items={hub.items}
                 density={gridSize}
+                staggerIndex={hubIndex}
                 onOpenItem={onOpenItem}
                 onPlay={onPlay}
                 onToggleWatched={toggleWatched}
@@ -271,7 +289,7 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
     }) : applyHomeRowOrder(
         ['continueWatching', 'recents', 'playlists'],
         settings.homeRowOrder,
-    ).map((id) => {
+    ).map((id, rowIndex) => {
         if (id === 'continueWatching') {
             return settings.showContinueWatching ? (
                 <PlayerRail
@@ -279,6 +297,7 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
                     title={t('mediaPlayerPage.continueWatching')}
                     items={home.continueWatching}
                     density={gridSize}
+                    staggerIndex={rowIndex}
                     onOpenItem={onOpenItem}
                     onPlay={onPlay}
                     onToggleWatched={toggleWatched}
@@ -293,6 +312,7 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
                     title={t('mediaPlayerPage.playlists')}
                     items={home.playlists || []}
                     density={gridSize}
+                    staggerIndex={rowIndex}
                     onOpenItem={onOpenItem}
                     onPlay={onPlay}
                 />
@@ -301,12 +321,13 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
         if (id !== 'recents') return null;
         return (
             <React.Fragment key="recents">
-                {recentRails.map((row) => (
+                {recentRails.map((row, recentIndex) => (
                     <PlayerRail
                         key={row.id}
                         title={row.title}
                         items={row.items}
                         density={gridSize}
+                        staggerIndex={rowIndex + recentIndex}
                         onOpenItem={onOpenItem}
                         onPlay={onPlay}
                         onToggleWatched={toggleWatched}
@@ -319,6 +340,7 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
     if (loading && !home) {
         return (
             <div className="flex flex-col gap-6 pb-8" aria-busy="true" aria-label={t('mediaPlayerPage.navHome')}>
+                <div className="h-[220px] animate-pulse rounded-2xl bg-white/5 sm:h-[280px]" />
                 <DiscoverHomeRowSkeleton />
                 <DiscoverHomeRowSkeleton showViewAll />
                 <DiscoverHomeRowSkeleton />
@@ -330,6 +352,13 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
     return (
         <div className="flex flex-col gap-6 pb-8">
             <MediaPlayerAlphaBanner />
+            {!query.trim() && heroSlides.length ? (
+                <MediaPlayerHomeHero
+                    items={heroSlides}
+                    onOpenItem={onOpenItem}
+                    onPlay={onPlay}
+                />
+            ) : null}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                     <p className={discoveryTheme.personalEyebrow}>{t('navigation.mediaPlayer')}</p>
@@ -337,6 +366,30 @@ export const MediaPlayerHome: React.FC<Props> = ({ active = true, onOpenItem, on
                 </div>
                 <DiscoverGridSizeSelect value={gridSize} onChange={setGridSize} />
             </div>
+
+            {!query.trim() && orderedLibraries.length && onOpenLibrary ? (
+                <section className="flex flex-col gap-2" aria-label={t('mediaPlayerPage.jumpToLibrary')}>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted">
+                        {t('mediaPlayerPage.jumpToLibrary')}
+                    </p>
+                    <div className="flex gap-2 overflow-x-auto pb-1 custom-scrollbar">
+                        {orderedLibraries.map((library) => {
+                            const Icon = libraryChipIcon(library.type);
+                            return (
+                                <button
+                                    key={library.key}
+                                    type="button"
+                                    onClick={() => onOpenLibrary(library)}
+                                    className="inline-flex shrink-0 items-center gap-2 rounded-full border border-border bg-white/[0.04] px-3.5 py-2 text-sm font-bold text-text transition hover:border-plex/40 hover:bg-plex/10 hover:text-plex"
+                                >
+                                    <Icon className="h-3.5 w-3.5 shrink-0 opacity-80" />
+                                    <span className="max-w-[10rem] truncate sm:max-w-[14rem]">{library.title}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </section>
+            ) : null}
 
             <div className="relative">
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />

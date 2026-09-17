@@ -860,6 +860,7 @@ export const SettingsDashboard: React.FC = () => {
     const [isPushingAnnouncement, setIsPushingAnnouncement] = useState(false);
     const [use24HourClock, setUse24HourClock] = useState(initialSettings?.use24HourClock || false);
     const [showPosterQualityBadges, setShowPosterQualityBadges] = useState(initialSettings?.showPosterQualityBadges !== false);
+    const [mediaPlayerHomeHeroEnabled, setMediaPlayerHomeHeroEnabled] = useState(initialSettings?.mediaPlayerHomeHeroEnabled !== false);
     const [showDashboardWatchingBadge, setShowDashboardWatchingBadge] = useState(!!initialSettings?.showDashboardWatchingBadge);
     const [dashboardWatchingBadgePollSeconds, setDashboardWatchingBadgePollSeconds] = useState(
         Math.min(15, Math.max(1, Number(initialSettings?.dashboardWatchingBadgePollSeconds) || 15)),
@@ -1647,6 +1648,7 @@ export const SettingsDashboard: React.FC = () => {
             }
             if (initialSettings.use24HourClock !== undefined) setUse24HourClock(!!initialSettings.use24HourClock);
             if (initialSettings.showPosterQualityBadges !== undefined) setShowPosterQualityBadges(initialSettings.showPosterQualityBadges !== false);
+            if (initialSettings.mediaPlayerHomeHeroEnabled !== undefined) setMediaPlayerHomeHeroEnabled(initialSettings.mediaPlayerHomeHeroEnabled !== false);
             if (initialSettings.showDashboardWatchingBadge !== undefined) setShowDashboardWatchingBadge(!!initialSettings.showDashboardWatchingBadge);
             if (initialSettings.dashboardWatchingBadgePollSeconds !== undefined) {
                 setDashboardWatchingBadgePollSeconds(Math.min(15, Math.max(1, Number(initialSettings.dashboardWatchingBadgePollSeconds) || 15)));
@@ -2346,6 +2348,7 @@ export const SettingsDashboard: React.FC = () => {
             use24HourClock,
             allowTemporaryAccess,
             showPosterQualityBadges,
+            mediaPlayerHomeHeroEnabled,
             showDashboardWatchingBadge,
             dashboardWatchingBadgePollSeconds,
             showPublicStatusMonitor,
@@ -2853,6 +2856,17 @@ export const SettingsDashboard: React.FC = () => {
                                         Check Interval (minutes)
                                     </SettingFieldLabel>
                                     <input className="w-full appearance-none p-3 rounded-lg border border-border bg-background text-[16px] leading-5 text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="checkInterval" type="number" value={checkInterval} onChange={e => setCheckInterval(Number(e.target.value))} min="1" />
+                                </div>
+
+                                <div id={getSettingsSectionElementId('home-hero')} className="mb-4 mt-4 scroll-mt-24">
+                                    <SettingsToggleRow
+                                        title="Media Player Home Hero"
+                                        description="Show a trending slideshow (TMDB week, refreshed daily) on Media Player Home. Only titles already in the library appear."
+                                        hint={<SettingHint>Requires a TMDB API key in Integrations. On by default.</SettingHint>}
+                                        checked={mediaPlayerHomeHeroEnabled}
+                                        onChange={setMediaPlayerHomeHeroEnabled}
+                                        border={false}
+                                    />
                                 </div>
 
                                 {libraries.length > 0 && (

@@ -13,10 +13,14 @@ export const PlayerRail: React.FC<{
     showProgress?: boolean;
     onViewAll?: () => void;
     viewAllLabel?: string;
-}> = ({ title, items, density, onOpenItem, onPlay, onToggleWatched, showProgress = false, onViewAll, viewAllLabel }) => {
+    staggerIndex?: number;
+}> = ({ title, items, density, onOpenItem, onPlay, onToggleWatched, showProgress = false, onViewAll, viewAllLabel, staggerIndex = 0 }) => {
     if (!items.length) return null;
     return (
-        <div className="flex flex-col gap-2">
+        <div
+            className="player-rail-enter flex flex-col gap-2"
+            style={{ animationDelay: `${Math.min(Math.max(staggerIndex, 0), 12) * 55}ms` }}
+        >
             <DiscoverSectionHeader title={title} onViewAll={onViewAll} viewAllLabel={viewAllLabel} />
             <Carousel>
                 {items.map((item, idx) => (

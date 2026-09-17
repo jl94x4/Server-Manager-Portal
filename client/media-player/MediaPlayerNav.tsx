@@ -247,7 +247,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
                     title={t('mediaPlayerPage.navHome')}
                 >
                     <Home className="h-4 w-4 shrink-0" />
-                    {showLabels ? t('mediaPlayerPage.navHome') : null}
+                    {showLabels ? <span className="player-nav-label min-w-0 truncate">{t('mediaPlayerPage.navHome')}</span> : null}
                 </button>
                 <button
                     type="button"
@@ -256,7 +256,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
                     title={t('mediaPlayerPage.navSearch')}
                 >
                     <Search className="h-4 w-4 shrink-0" />
-                    {showLabels ? t('mediaPlayerPage.navSearch') : null}
+                    {showLabels ? <span className="player-nav-label min-w-0 truncate">{t('mediaPlayerPage.navSearch')}</span> : null}
                 </button>
             </div>
 
@@ -285,7 +285,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
                                     title={section.title}
                                 >
                                     <Icon className="h-4 w-4 shrink-0" />
-                                    {showLabels ? <span className="min-w-0 truncate">{section.title}</span> : null}
+                                    {showLabels ? <span className="player-nav-label min-w-0 truncate">{section.title}</span> : null}
                                 </button>
                             );
                         })}
@@ -302,7 +302,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
                     title={t('mediaPlayerPage.navSettings')}
                 >
                     <Settings className="h-4 w-4 shrink-0" />
-                    {showLabels ? t('mediaPlayerPage.navSettings') : null}
+                    {showLabels ? <span className="player-nav-label min-w-0 truncate">{t('mediaPlayerPage.navSettings')}</span> : null}
                 </button>
                 {homeSwitchAvailable ? (
                     <button
@@ -312,7 +312,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
                         title={t('mediaPlayerPage.switchUser')}
                     >
                         <Users className="h-4 w-4 shrink-0" />
-                        {showLabels ? t('mediaPlayerPage.switchUser') : null}
+                        {showLabels ? <span className="player-nav-label min-w-0 truncate">{t('mediaPlayerPage.switchUser')}</span> : null}
                     </button>
                 ) : null}
                 <button
@@ -322,7 +322,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
                     title={t('mediaPlayerPage.exitToPortal')}
                 >
                     <LogOut className="h-4 w-4 shrink-0" />
-                    {showLabels ? t('mediaPlayerPage.exitToPortal') : null}
+                    {showLabels ? <span className="player-nav-label min-w-0 truncate">{t('mediaPlayerPage.exitToPortal')}</span> : null}
                 </button>
             </div>
         </nav>

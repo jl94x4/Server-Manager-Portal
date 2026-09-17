@@ -311,6 +311,7 @@ export const MediaPlayerDashboard: React.FC = () => {
                         active={view.kind === 'home'}
                         onOpenItem={openItem}
                         onPlay={playItem}
+                        onOpenLibrary={openLibrary}
                     />
                 </div>
             ) : null}
