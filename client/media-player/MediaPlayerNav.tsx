@@ -330,27 +330,29 @@ export const MediaPlayerNav: React.FC<Props> = ({
 
     return (
         <>
-            <div className="sticky top-0 z-40 flex items-center gap-2 border-b border-white/10 bg-[#0b1018]/90 px-3 py-2 backdrop-blur-xl md:hidden">
-                <button
-                    type="button"
-                    onClick={() => setMobileOpen(true)}
-                    className="rounded-lg p-2 text-white/80 hover:bg-white/10 hover:text-white"
-                    aria-label={t('mediaPlayerPage.openNav')}
-                >
-                    <Menu className="h-5 w-5" />
-                </button>
-                <p className="min-w-0 flex-1 truncate text-sm font-black text-white">
-                    {t('navigation.mediaPlayer')}
-                </p>
-                {profile ? <NavAvatar profile={profile} sizeClass="h-8 w-8" /> : null}
-                <button
-                    type="button"
-                    onClick={onSearch}
-                    className="rounded-lg p-2 text-white/80 hover:bg-white/10 hover:text-white"
-                    aria-label={t('mediaPlayerPage.navSearch')}
-                >
-                    <Search className="h-5 w-5" />
-                </button>
+            <div className="sticky top-0 z-40 border-b border-white/10 bg-[#0b1018]/90 pt-[env(safe-area-inset-top,0px)] backdrop-blur-xl md:hidden">
+                <div className="flex items-center gap-2 px-3 py-2">
+                    <button
+                        type="button"
+                        onClick={() => setMobileOpen(true)}
+                        className="rounded-lg p-2 text-white/80 hover:bg-white/10 hover:text-white"
+                        aria-label={t('mediaPlayerPage.openNav')}
+                    >
+                        <Menu className="h-5 w-5" />
+                    </button>
+                    <p className="min-w-0 flex-1 truncate text-sm font-black text-white">
+                        {t('navigation.mediaPlayer')}
+                    </p>
+                    {profile ? <NavAvatar profile={profile} sizeClass="h-8 w-8" /> : null}
+                    <button
+                        type="button"
+                        onClick={onSearch}
+                        className="rounded-lg p-2 text-white/80 hover:bg-white/10 hover:text-white"
+                        aria-label={t('mediaPlayerPage.navSearch')}
+                    >
+                        <Search className="h-5 w-5" />
+                    </button>
+                </div>
             </div>
 
             <aside className="pointer-events-none absolute inset-y-0 left-0 z-40 hidden md:flex items-center pl-3">
@@ -371,7 +373,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
                         aria-label={t('mediaPlayerPage.closeNav')}
                         onClick={closeMobile}
                     />
-                    <aside className="relative m-3 flex max-h-[calc(100%-1.5rem)] w-[min(20rem,86vw)] flex-col overflow-hidden rounded-[28px] bg-[#0b1018]/95 shadow-2xl ring-1 ring-white/10">
+                    <aside className="relative mx-3 mb-3 mt-[max(0.75rem,env(safe-area-inset-top,0px))] flex max-h-[calc(100%-1.5rem-env(safe-area-inset-top,0px))] w-[min(20rem,86vw)] flex-col overflow-hidden rounded-[28px] bg-[#0b1018]/95 shadow-2xl ring-1 ring-white/10">
                         <button
                             type="button"
                             onClick={closeMobile}
