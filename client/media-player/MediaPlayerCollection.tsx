@@ -15,12 +15,13 @@ import type { PlayerItem, PlayerPlayOptions } from './types';
 
 type Props = {
     ratingKey: string;
+    sectionKey?: string;
     onBack: () => void;
     onOpenItem: (item: PlayerItem) => void;
     onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
 };
 
-export const MediaPlayerCollection: React.FC<Props> = ({ ratingKey, onBack, onOpenItem, onPlay }) => {
+export const MediaPlayerCollection: React.FC<Props> = ({ ratingKey, sectionKey = '', onBack, onOpenItem, onPlay }) => {
     const { t } = useDiscoverI18n();
     const [gridSize, setGridSize] = useDiscoverGridSize();
     const [title, setTitle] = useState(t('mediaPlayerPage.collections'));
@@ -31,7 +32,7 @@ export const MediaPlayerCollection: React.FC<Props> = ({ ratingKey, onBack, onOp
     useEffect(() => {
         let cancelled = false;
         setLoading(true);
-        fetchMediaPlayerCollection(ratingKey)
+        fetchMediaPlayerCollection(ratingKey, sectionKey || undefined)
             .then((data) => {
                 if (cancelled) return;
                 setTitle(data.item?.title || t('mediaPlayerPage.collections'));
@@ -46,7 +47,7 @@ export const MediaPlayerCollection: React.FC<Props> = ({ ratingKey, onBack, onOp
                 if (!cancelled) setLoading(false);
             });
         return () => { cancelled = true; };
-    }, [ratingKey, t]);
+    }, [ratingKey, sectionKey, t]);
 
     const toggleWatched = async (item: PlayerItem) => {
         const next = !item.watched;

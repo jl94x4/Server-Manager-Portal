@@ -112,8 +112,9 @@ const NetworkLogoRow: React.FC<{
 
 const CollectionPills: React.FC<{
     collections: PlayerCollectionRef[];
+    sectionKey?: string;
     onOpenItem: (item: PlayerItem) => void;
-}> = ({ collections, onOpenItem }) => (
+}> = ({ collections, sectionKey, onOpenItem }) => (
     <div className="flex flex-wrap gap-2">
         {collections.map((collection) => (
             collection.ratingKey ? (
@@ -124,6 +125,7 @@ const CollectionPills: React.FC<{
                         ratingKey: collection.ratingKey,
                         title: collection.title,
                         type: 'collection',
+                        librarySectionID: sectionKey || null,
                     })}
                     className="px-2.5 py-1 rounded-lg bg-white/5 border border-border text-sm text-text hover:bg-plex/15 hover:border-plex/40 hover:text-plex transition-colors"
                 >
@@ -309,7 +311,11 @@ export const OverviewFacts: React.FC<{
                         {row.people?.length ? (
                             <CreditPills people={row.people} onOpenPerson={onOpenPerson} />
                         ) : row.collections?.length ? (
-                            <CollectionPills collections={row.collections} onOpenItem={onOpenItem} />
+                            <CollectionPills
+                                collections={row.collections}
+                                sectionKey={item.librarySectionID || ''}
+                                onOpenItem={onOpenItem}
+                            />
                         ) : row.networks?.length ? (
                             <NetworkLogoRow
                                 networks={row.networks}

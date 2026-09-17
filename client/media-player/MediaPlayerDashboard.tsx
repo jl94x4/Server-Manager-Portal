@@ -154,7 +154,12 @@ export const MediaPlayerDashboard: React.FC = () => {
     const openItem = useCallback((item: PlayerItem) => {
         if (!item?.ratingKey) return;
         if (item.type === 'collection') {
-            navigate(`${PLAYER_APP_BASE}/collection/${encodeURIComponent(item.ratingKey)}`);
+            const section = String(item.librarySectionID || '').trim();
+            if (section) {
+                navigate(`${PLAYER_APP_BASE}/library/${encodeURIComponent(section)}/collection/${encodeURIComponent(item.ratingKey)}`);
+            } else {
+                navigate(`${PLAYER_APP_BASE}/collection/${encodeURIComponent(item.ratingKey)}`);
+            }
             return;
         }
         if (item.type === 'playlist') {
@@ -327,6 +332,7 @@ export const MediaPlayerDashboard: React.FC = () => {
             {view.kind === 'collection' ? (
                 <MediaPlayerCollection
                     ratingKey={view.ratingKey}
+                    sectionKey={view.sectionKey}
                     onBack={() => (
                         view.sectionKey
                             ? navigate(libraryPath(view.sectionKey, 'collections'))
