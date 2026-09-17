@@ -1,5 +1,5 @@
 import React from 'react';
-import { Carousel, DiscoverSectionHeader, discoverRowCardWidthClass, posterGridCardWidthStyle } from './host';
+import { Carousel, DiscoverSectionHeader, discoverRowCardWidthClass, posterGridCardWidthStyle, posterGridScaleRem } from './host';
 import { PlayerPosterCard } from './PlayerPosterCard';
 import type { PlayerItem, PlayerPlayOptions } from './types';
 
@@ -23,21 +23,26 @@ export const PlayerRail: React.FC<{
         >
             <DiscoverSectionHeader title={title} onViewAll={onViewAll} viewAllLabel={viewAllLabel} />
             <Carousel>
-                {items.map((item, idx) => (
-                    <div
-                        key={item.ratingKey || `${title}-${idx}`}
-                        className={`${discoverRowCardWidthClass(density)} relative z-0 flex-shrink-0 snap-start group hover:z-20 focus-within:z-20`}
-                        style={posterGridCardWidthStyle(density)}
-                    >
-                        <PlayerPosterCard
-                            item={item}
-                            showProgress={showProgress}
-                            onOpenItem={onOpenItem}
-                            onPlay={onPlay}
-                            onToggleWatched={onToggleWatched}
-                        />
-                    </div>
-                ))}
+                {items.map((item, idx) => {
+                    const landscape = item.type === 'episode';
+                    return (
+                        <div
+                            key={item.ratingKey || `${title}-${idx}`}
+                            className={`${landscape ? '' : discoverRowCardWidthClass(density)} relative z-0 flex-shrink-0 snap-start group hover:z-20 focus-within:z-20`}
+                            style={landscape
+                                ? { width: `${posterGridScaleRem(density) * 1.85}rem` }
+                                : posterGridCardWidthStyle(density)}
+                        >
+                            <PlayerPosterCard
+                                item={item}
+                                showProgress={showProgress}
+                                onOpenItem={onOpenItem}
+                                onPlay={onPlay}
+                                onToggleWatched={onToggleWatched}
+                            />
+                        </div>
+                    );
+                })}
             </Carousel>
         </div>
     );

@@ -401,8 +401,14 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
 
                     <div className="flex flex-col md:flex-row gap-5 md:gap-6 lg:gap-10">
                         <div className={`w-full flex-shrink-0 flex flex-col gap-3 ${item.type === 'episode' ? 'md:w-96 lg:w-[28rem]' : 'md:w-64 lg:w-72'}`}>
-                            <div className="flex flex-row md:flex-col gap-4 items-stretch">
-                                <div className={`relative w-[42%] max-w-[12rem] sm:max-w-[14rem] md:w-full md:max-w-none rounded-xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.55)] border border-white/15 bg-black/50 ring-1 ring-white/10 flex-shrink-0 ${item.type === 'episode' ? 'aspect-video max-w-[16rem] sm:max-w-[18rem]' : 'aspect-[2/3]'}`}>
+                            <div className={`flex flex-row md:flex-col gap-4 ${item.type === 'episode' ? 'items-start' : 'items-stretch'}`}>
+                                <div
+                                    className={
+                                        item.type === 'episode'
+                                            ? 'relative aspect-video w-[min(58%,14.5rem)] sm:w-full sm:max-w-[18rem] md:max-w-none flex-shrink-0 overflow-hidden rounded-xl border border-white/15 bg-black/50 shadow-[0_20px_60px_rgba(0,0,0,0.55)] ring-1 ring-white/10'
+                                            : 'relative aspect-[2/3] w-[42%] max-w-[12rem] sm:max-w-[14rem] md:w-full md:max-w-none flex-shrink-0 overflow-hidden rounded-xl border border-white/15 bg-black/50 shadow-[0_20px_60px_rgba(0,0,0,0.55)] ring-1 ring-white/10'
+                                    }
+                                >
                                     <div className="absolute -inset-4 bg-plex/10 blur-3xl opacity-40 pointer-events-none" />
                                     {posterUrl && !posterFailed ? (
                                         <img src={posterUrl} alt="" className="relative w-full h-full object-cover" onError={() => setPosterFailed(true)} />

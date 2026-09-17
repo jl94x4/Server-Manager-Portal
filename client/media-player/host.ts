@@ -22,6 +22,7 @@ export { NoPosterPlaceholder } from '../shared/NoPosterPlaceholder';
 export {
     discoverRowCardWidthClass,
     posterGridCardWidthStyle,
+    posterGridScaleRem,
     upgraderPosterGridClass,
     upgraderPosterGridStyle,
     upgraderLandscapeGridStyle,

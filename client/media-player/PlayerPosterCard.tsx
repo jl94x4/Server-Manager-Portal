@@ -27,7 +27,9 @@ export const PlayerPosterCard: React.FC<Props> = ({
     const progress = progressPercent(item);
     const canHoverPlay = !!onPlay && item.canPlay !== false && item.type !== 'collection' && item.type !== 'artist' && item.type !== 'album' && item.type !== 'playlist';
     const canToggleWatched = !!onToggleWatched && (item.type === 'movie' || item.type === 'episode' || item.type === 'show' || item.type === 'season');
-    const resolvedAspect = aspect || (item.type === 'artist' || item.type === 'album' ? 'square' : '2/3');
+    const resolvedAspect = aspect
+        || (item.type === 'artist' || item.type === 'album' ? 'square' : null)
+        || (item.type === 'episode' ? '16/9' : '2/3');
     const episodeCode = formatEpisodeCode(item);
     return (
         <DiscoverPosterCard
