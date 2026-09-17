@@ -83,10 +83,10 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
         const pad = 8;
         const height = mode === 'playlist' ? 280 : 260;
         const rect = triggerRef.current?.getBoundingClientRect();
-        // Anchor left edge to the ⋯ button; fall back to click/touch point.
-        let left = rect ? rect.left : (clientX ?? 0);
-        let top = rect ? rect.bottom + 4 : (clientY ?? 0);
-        if (!rect && clientY != null) top = clientY;
+        // Prefer explicit click/long-press point; fall back to the ⋯ button.
+        const hasPoint = clientX != null && clientY != null && Number.isFinite(clientX) && Number.isFinite(clientY);
+        let left = hasPoint ? Number(clientX) : (rect ? rect.left : 0);
+        let top = hasPoint ? Number(clientY) : (rect ? rect.bottom + 4 : 0);
         left = Math.min(Math.max(pad, left), window.innerWidth - MENU_WIDTH - pad);
         top = Math.min(Math.max(pad, top), window.innerHeight - height - pad);
         setPos({ top, left });
@@ -104,6 +104,7 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
 
     useLayoutEffect(() => {
         if (!open) return undefined;
+        // Re-clamp only; keep the current anchor (do not re-read stale coords as x/y).
         placeMenu(pos.left, pos.top);
         return undefined;
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -111,10 +112,13 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
 
     useEffect(() => {
         if (!open) return undefined;
+        const openedAt = Date.now();
         const onKey = (event: KeyboardEvent) => {
             if (event.key === 'Escape') close();
         };
         const onPointer = (event: MouseEvent | TouchEvent) => {
+            // Ignore the finger/mouse release that opened the menu (esp. long-press on mobile).
+            if (Date.now() - openedAt < 400) return;
             const target = event.target as Node | null;
             if (menuRef.current?.contains(target) || triggerRef.current?.contains(target)) return;
             close();
@@ -156,7 +160,7 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
         <div
             ref={menuRef}
             role="menu"
-            className="fixed z-[400] min-w-[220px] overflow-hidden rounded-lg border border-white/12 bg-[#1a1f2a] py-1.5 text-sm text-white shadow-lg"
+            className="fixed z-[400] min-w-[220px] overflow-hidden rounded-lg bg-[#1a1f2a] py-1.5 text-sm text-white shadow-[0_12px_40px_rgba(0,0,0,0.55)]"
             style={{ top: pos.top, left: pos.left, width: MENU_WIDTH }}
             onClick={(event) => event.stopPropagation()}
             onContextMenu={(event) => event.preventDefault()}

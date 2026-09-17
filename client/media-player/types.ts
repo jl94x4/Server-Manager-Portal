@@ -13,6 +13,7 @@ export type PlayerRatings = {
 };
 
 export type PlayerMediaStreamInfo = {
+    id?: string | null;
     codec?: string | null;
     bitrate?: number | null;
     width?: number | null;
@@ -28,6 +29,7 @@ export type PlayerMediaStreamInfo = {
     channels?: number | null;
     language?: string | null;
     selected?: boolean;
+    forced?: boolean;
 };
 
 export type PlayerMediaPartInfo = {
@@ -299,4 +301,6 @@ export type PlayerPlayOptions = {
     qualityId?: string;
     mediaIndex?: number;
     skipResume?: boolean;
+    audioStreamId?: string | null;
+    subtitleStreamId?: string | null;
 };

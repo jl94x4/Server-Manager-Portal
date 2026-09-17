@@ -50,6 +50,8 @@ type PendingResume = {
     item: PlayerItem;
     offsetMs: number;
     mediaIndex?: number;
+    audioStreamId?: string | null;
+    subtitleStreamId?: string | null;
 };
 
 const readPlayerView = (): PlayerView => {
@@ -266,6 +268,8 @@ export const MediaPlayerDashboard: React.FC = () => {
                 mediaIndex: opts.mediaIndex,
                 audioLanguage: settings.audioLanguage,
                 subtitleMode: settings.subtitleMode,
+                audioStreamId: opts.audioStreamId,
+                subtitleStreamId: opts.subtitleStreamId,
             });
             setPlaySession(session);
         } catch (error: any) {
@@ -290,6 +294,8 @@ export const MediaPlayerDashboard: React.FC = () => {
                 item,
                 offsetMs: opts.offsetMs == null ? Number(item.viewOffsetMs || 0) : Number(opts.offsetMs),
                 mediaIndex: opts.mediaIndex,
+                audioStreamId: opts.audioStreamId,
+                subtitleStreamId: opts.subtitleStreamId,
             });
             return;
         }
@@ -435,6 +441,8 @@ export const MediaPlayerDashboard: React.FC = () => {
                                 onClick={() => void startPlayback(pendingResume.item, {
                                     offsetMs: pendingResume.offsetMs,
                                     mediaIndex: pendingResume.mediaIndex,
+                                    audioStreamId: pendingResume.audioStreamId,
+                                    subtitleStreamId: pendingResume.subtitleStreamId,
                                     skipResume: true,
                                 })}
                                 className="rounded-xl bg-plex px-4 py-2.5 text-sm font-black text-black"
@@ -446,6 +454,8 @@ export const MediaPlayerDashboard: React.FC = () => {
                                 onClick={() => void startPlayback(pendingResume.item, {
                                     offsetMs: 0,
                                     mediaIndex: pendingResume.mediaIndex,
+                                    audioStreamId: pendingResume.audioStreamId,
+                                    subtitleStreamId: pendingResume.subtitleStreamId,
                                     skipResume: true,
                                 })}
                                 className="rounded-xl border border-border bg-white/5 px-4 py-2.5 text-sm font-bold text-text"

@@ -315,6 +315,8 @@ export const startMediaPlayerPlayback = (ratingKey: string, opts: {
     mediaIndex?: number;
     audioLanguage?: string;
     subtitleMode?: string;
+    audioStreamId?: string | null;
+    subtitleStreamId?: string | null;
 } = {}) => {
     const caps = browserPlaybackCaps();
     const qs = new URLSearchParams({ client: 'web' });
@@ -323,6 +325,12 @@ export const startMediaPlayerPlayback = (ratingKey: string, opts: {
     if (opts.mediaIndex != null) qs.set('mediaIndex', String(opts.mediaIndex));
     if (opts.audioLanguage) qs.set('audioLanguage', opts.audioLanguage);
     if (opts.subtitleMode) qs.set('subtitleMode', opts.subtitleMode);
+    if (opts.audioStreamId != null && String(opts.audioStreamId).replace(/\D/g, '')) {
+        qs.set('audioStreamId', String(opts.audioStreamId).replace(/\D/g, ''));
+    }
+    if (opts.subtitleStreamId !== undefined) {
+        qs.set('subtitleStreamId', String(opts.subtitleStreamId || '').replace(/\D/g, '') || '0');
+    }
     if (caps.hevc) qs.set('canPlayHevc', '1');
     if (caps.ac3) qs.set('canPlayAc3', '1');
     if (caps.hls) qs.set('canPlayNativeHls', '1');

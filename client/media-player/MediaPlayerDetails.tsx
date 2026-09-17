@@ -30,7 +30,7 @@ import {
     titleCaseProfile,
 } from './playerUtils';
 import { writePlayerScrollTop } from './playerMemory';
-import type { PlayerItem, PlayerLibraryHub, PlayerPlayOptions, PlayerRatings } from './types';
+import type { PlayerItem, PlayerLibraryHub, PlayerMediaPartInfo, PlayerPlayOptions, PlayerRatings } from './types';
 
 type Props = {
     ratingKey: string;
@@ -135,8 +135,10 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
     const [logoFailed, setLogoFailed] = useState(false);
     const [logoReady, setLogoReady] = useState(false);
     const [mediaInfoOpen, setMediaInfoOpen] = useState(false);
-    const [mediaInfoExpanded, setMediaInfoExpanded] = useState(false);
+    const [mediaInfoExpanded, setMediaInfoExpanded] = useState(true);
     const [mediaIndex, setMediaIndex] = useState(0);
+    const [audioStreamId, setAudioStreamId] = useState('');
+    const [subtitleStreamId, setSubtitleStreamId] = useState('');
     const [playlists, setPlaylists] = useState<PlayerItem[]>([]);
     const [playlistOpen, setPlaylistOpen] = useState(false);
     const [newPlaylistName, setNewPlaylistName] = useState('');
@@ -167,8 +169,10 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
         setLogoFailed(false);
         setLogoReady(false);
         setMediaInfoOpen(false);
-        setMediaInfoExpanded(false);
+        setMediaInfoExpanded(true);
         setMediaIndex(0);
+        setAudioStreamId('');
+        setSubtitleStreamId('');
         setPlaylistOpen(false);
         setPlaylistMessage('');
         // Core first (title + seasons/episodes + on-deck). Kick off extras/related in
@@ -258,10 +262,30 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
     }, [ratingKey, item?.ratingKey, item?.logo]);
 
     const trailer = useMemo(() => extras.find(isPlayerTrailer) || extras[0] || null, [extras]);
+    const activeMediaPart = useMemo((): PlayerMediaPartInfo | null => {
+        const mediaInfo = item?.mediaInfo || [];
+        if (!mediaInfo.length) return null;
+        const media = mediaInfo[Math.min(Math.max(0, mediaIndex), mediaInfo.length - 1)] || mediaInfo[0];
+        return media?.parts?.[0] || null;
+    }, [item?.mediaInfo, mediaIndex]);
+    const audioTrackOptions = useMemo(
+        () => (activeMediaPart?.audio || []).filter((row) => row.id),
+        [activeMediaPart],
+    );
+    const subtitleTrackOptions = useMemo(
+        () => (activeMediaPart?.subtitles || []).filter((row) => row.id),
+        [activeMediaPart],
+    );
+    useEffect(() => {
+        const preferredAudio = audioTrackOptions.find((row) => row.selected) || audioTrackOptions[0];
+        const preferredSub = subtitleTrackOptions.find((row) => row.selected) || null;
+        setAudioStreamId(preferredAudio?.id ? String(preferredAudio.id) : '');
+        setSubtitleStreamId(preferredSub?.id ? String(preferredSub.id) : '');
+    }, [item?.ratingKey, mediaIndex, audioTrackOptions, subtitleTrackOptions]);
     const mediaSummary = useMemo(() => {
         const mediaInfo = item?.mediaInfo || [];
-        const first = mediaInfo[0];
-        const part = first?.parts?.[0];
+        const first = mediaInfo[Math.min(Math.max(0, mediaIndex), Math.max(0, mediaInfo.length - 1))] || mediaInfo[0];
+        const part = first?.parts?.[0] || activeMediaPart;
         if (!first && !part) return null;
         const resolution = formatPlayerResolution(part?.video?.height || first?.height, part?.video?.resolution || first?.videoResolution);
         const bitrate = formatBitrateMbps(part?.video?.bitrate || first?.bitrate);
@@ -269,14 +293,27 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
         const profile = titleCaseProfile(part?.video?.profile);
         const videoBits = [codec, profile].filter(Boolean).join(' ');
         const versions = [bitrate, resolution].filter(Boolean).join(', ');
-        const selectedSub = part?.subtitles?.find((row) => row.selected);
+        const selectedAudio = audioTrackOptions.find((row) => String(row.id) === String(audioStreamId))
+            || part?.audio?.find((row) => row.selected)
+            || part?.audio?.[0];
+        const selectedSub = subtitleTrackOptions.find((row) => String(row.id) === String(subtitleStreamId))
+            || null;
         return {
             versions: versions ? `${versions}${mediaInfo.length > 1 ? `, ${t('mediaPlayerPage.andMore')}` : ''}` : '',
             video: [resolution, videoBits ? `(${videoBits})` : ''].filter(Boolean).join(' '),
-            audio: part?.audio?.[0]?.displayTitle || first?.audioCodec || '',
+            audio: selectedAudio?.displayTitle || first?.audioCodec || '',
             subtitles: selectedSub?.displayTitle || '',
         };
-    }, [item, t]);
+    }, [activeMediaPart, audioStreamId, audioTrackOptions, item, mediaIndex, subtitleStreamId, subtitleTrackOptions, t]);
+    const playOpts = useMemo((): PlayerPlayOptions => {
+        const opts: PlayerPlayOptions = { mediaIndex };
+        if (item?.type === 'movie' || item?.type === 'episode') {
+            if (audioStreamId) opts.audioStreamId = audioStreamId;
+            // Always send an explicit choice once the picker is shown ('' → Off).
+            opts.subtitleStreamId = subtitleStreamId || '0';
+        }
+        return opts;
+    }, [audioStreamId, item?.type, mediaIndex, subtitleStreamId]);
 
     useEffect(() => {
         setPosterReady(false);
@@ -590,7 +627,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                             {canPlay ? (
                                                 <button
                                                     type="button"
-                                                    onClick={() => onPlay(onDeck || item, { mediaIndex })}
+                                                    onClick={() => onPlay(onDeck || item, playOpts)}
                                                     disabled={playing}
                                                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-plex px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-plex/20 transition-colors hover:bg-plex-hover disabled:cursor-not-allowed disabled:opacity-50"
                                                 >
@@ -734,11 +771,97 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                             previous={neighbors.previous}
                                             next={neighbors.next}
                                             onOpenItem={onOpenItem}
-                                            onPlay={(row) => onPlay(row, { mediaIndex })}
+                                            onPlay={(row) => onPlay(row)}
                                         />
                                     </>
                                 ) : null}
-                                {streamRows.length ? (
+                                {(item.type === 'movie' || item.type === 'episode') && mediaSummary ? (
+                                    <div className="flex flex-col gap-3" data-no-episode-swipe="1">
+                                        <button
+                                            type="button"
+                                            onClick={() => setMediaInfoExpanded((open) => !open)}
+                                            className="flex w-full items-center gap-3 pr-4 text-left"
+                                            aria-expanded={mediaInfoExpanded}
+                                        >
+                                            <h3 className="text-xs font-black text-muted uppercase tracking-[0.2em]">
+                                                {t('mediaPlayerPage.mediaInfo')}
+                                            </h3>
+                                            <ChevronDown className={`h-4 w-4 shrink-0 text-muted transition-transform ${mediaInfoExpanded ? 'rotate-180' : ''}`} />
+                                            <div className="h-px min-w-0 flex-1 bg-gradient-to-r from-border to-transparent" />
+                                        </button>
+                                        {mediaInfoExpanded ? (
+                                            <div className="max-w-xl rounded-2xl border border-white/10 bg-black/30 px-4 py-3">
+                                                <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-6 gap-y-2.5">
+                                                    {mediaSummary.video ? (
+                                                        <>
+                                                            <span className="text-xs font-black uppercase tracking-wider text-muted">
+                                                                {t('mediaPlayerPage.video')}
+                                                            </span>
+                                                            <span className="text-sm font-semibold text-text">{mediaSummary.video}</span>
+                                                        </>
+                                                    ) : null}
+                                                    {audioTrackOptions.length ? (
+                                                        <>
+                                                            <span className="text-xs font-black uppercase tracking-wider text-muted">
+                                                                {t('mediaPlayerPage.audio')}
+                                                            </span>
+                                                            {audioTrackOptions.length > 1 ? (
+                                                                <CustomSelect
+                                                                    value={audioStreamId || String(audioTrackOptions[0].id)}
+                                                                    onChange={setAudioStreamId}
+                                                                    options={audioTrackOptions.map((row) => ({
+                                                                        value: String(row.id),
+                                                                        label: String(row.displayTitle || row.language || t('mediaPlayerPage.audio')),
+                                                                    }))}
+                                                                />
+                                                            ) : (
+                                                                <span className="text-sm font-semibold text-text">
+                                                                    {mediaSummary.audio || audioTrackOptions[0].displayTitle}
+                                                                </span>
+                                                            )}
+                                                        </>
+                                                    ) : mediaSummary.audio ? (
+                                                        <>
+                                                            <span className="text-xs font-black uppercase tracking-wider text-muted">
+                                                                {t('mediaPlayerPage.audio')}
+                                                            </span>
+                                                            <span className="text-sm font-semibold text-text">{mediaSummary.audio}</span>
+                                                        </>
+                                                    ) : null}
+                                                    <span className="text-xs font-black uppercase tracking-wider text-muted">
+                                                        {t('mediaPlayerPage.subtitles')}
+                                                    </span>
+                                                    {subtitleTrackOptions.length ? (
+                                                        <CustomSelect
+                                                            value={subtitleStreamId || '0'}
+                                                            onChange={(value) => setSubtitleStreamId(value === '0' ? '' : value)}
+                                                            options={[
+                                                                { value: '0', label: t('mediaPlayerPage.subtitlesOff') },
+                                                                ...subtitleTrackOptions.map((row) => ({
+                                                                    value: String(row.id),
+                                                                    label: String(row.displayTitle || row.language || t('mediaPlayerPage.subtitles')),
+                                                                })),
+                                                            ]}
+                                                        />
+                                                    ) : (
+                                                        <span className="text-sm font-semibold text-text">
+                                                            {t('mediaPlayerPage.subtitlesOff')}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {item.mediaInfo?.length ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setMediaInfoOpen(true)}
+                                                        className="mt-3 text-xs font-bold text-plex hover:text-plex-hover"
+                                                    >
+                                                        {t('mediaPlayerPage.mediaInfo')}
+                                                    </button>
+                                                ) : null}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                ) : streamRows.length ? (
                                     <div className="flex flex-col gap-3">
                                         <button
                                             type="button"

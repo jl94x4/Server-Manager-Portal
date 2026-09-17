@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Check, Eye, Play } from 'lucide-react';
 import { DiscoverPosterCard, useDiscoverI18n } from './host';
 import { PlayerItemMenu, type PlayerItemMenuHandle } from './PlayerItemMenu';
@@ -26,6 +26,9 @@ type Props = {
     className?: string;
 };
 
+const LONG_PRESS_MS = 450;
+const LONG_PRESS_MOVE_PX = 12;
+
 export const PlayerPosterCard: React.FC<Props> = ({
     item,
     onOpenItem,
@@ -47,7 +50,9 @@ export const PlayerPosterCard: React.FC<Props> = ({
     const { t } = useDiscoverI18n();
     const [settings] = usePlayerSettings();
     const menuRef = useRef<PlayerItemMenuHandle | null>(null);
-    const longPressRef = useRef<number | null>(null);
+    const longPressTimerRef = useRef<number | null>(null);
+    const longPressOriginRef = useRef<{ x: number; y: number } | null>(null);
+    const suppressClickRef = useRef(false);
     const progress = progressPercent(item);
     const canHoverPlay = !!onPlay && item.canPlay !== false && item.type !== 'collection' && item.type !== 'artist' && item.type !== 'album' && item.type !== 'playlist';
     const canToggleWatched = !!onToggleWatched && (item.type === 'movie' || item.type === 'episode' || item.type === 'show' || item.type === 'season');
@@ -64,31 +69,66 @@ export const PlayerPosterCard: React.FC<Props> = ({
     const tickClass = `${tickPosClass} z-30 flex h-8 w-8 items-center justify-center rounded-full bg-plex text-zinc-950 shadow-md`;
     const markWatchedClass = `pointer-events-auto ${tickPosClass} flex h-8 w-8 items-center justify-center rounded-full bg-black/70 text-white hover:bg-black`;
 
+    const clearLongPress = () => {
+        if (longPressTimerRef.current) {
+            window.clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
+        longPressOriginRef.current = null;
+    };
+
+    useEffect(() => () => clearLongPress(), []);
+
+    const openMenuAt = (clientX: number, clientY: number) => {
+        if (!menuEnabled) return;
+        suppressClickRef.current = true;
+        menuRef.current?.openAt(clientX, clientY);
+        window.setTimeout(() => {
+            suppressClickRef.current = false;
+        }, 500);
+    };
+
     return (
         <div
-            className="relative"
+            className="relative touch-manipulation select-none [-webkit-touch-callout:none]"
             onContextMenu={(event) => {
                 if (!menuEnabled) return;
                 event.preventDefault();
                 event.stopPropagation();
-                menuRef.current?.openAt(event.clientX, event.clientY);
+                openMenuAt(event.clientX, event.clientY);
             }}
             onTouchStart={(event) => {
                 if (!menuEnabled) return;
                 const touch = event.touches[0];
                 if (!touch) return;
-                if (longPressRef.current) window.clearTimeout(longPressRef.current);
-                longPressRef.current = window.setTimeout(() => {
-                    menuRef.current?.openAt(touch.clientX, touch.clientY);
-                }, 480);
+                clearLongPress();
+                longPressOriginRef.current = { x: touch.clientX, y: touch.clientY };
+                longPressTimerRef.current = window.setTimeout(() => {
+                    const origin = longPressOriginRef.current;
+                    longPressTimerRef.current = null;
+                    if (!origin) return;
+                    openMenuAt(origin.x, origin.y);
+                    try {
+                        navigator.vibrate?.(10);
+                    } catch {
+                        /* ignore */
+                    }
+                }, LONG_PRESS_MS);
             }}
-            onTouchEnd={() => {
-                if (longPressRef.current) window.clearTimeout(longPressRef.current);
-                longPressRef.current = null;
+            onTouchMove={(event) => {
+                const origin = longPressOriginRef.current;
+                const touch = event.touches[0];
+                if (!origin || !touch) return;
+                const dx = Math.abs(touch.clientX - origin.x);
+                const dy = Math.abs(touch.clientY - origin.y);
+                if (dx > LONG_PRESS_MOVE_PX || dy > LONG_PRESS_MOVE_PX) clearLongPress();
             }}
-            onTouchMove={() => {
-                if (longPressRef.current) window.clearTimeout(longPressRef.current);
-                longPressRef.current = null;
+            onTouchEnd={clearLongPress}
+            onTouchCancel={clearLongPress}
+            onClickCapture={(event) => {
+                if (!suppressClickRef.current) return;
+                event.preventDefault();
+                event.stopPropagation();
             }}
         >
             <DiscoverPosterCard
@@ -106,7 +146,10 @@ export const PlayerPosterCard: React.FC<Props> = ({
                     </div>
                 ) : undefined}
                 showQualityBadges={false}
-                onPosterClick={() => onOpenItem(item)}
+                onPosterClick={() => {
+                    if (suppressClickRef.current) return;
+                    onOpenItem(item);
+                }}
                 overlay={(
                     <>
                         {progress > 0 || showProgress ? (
