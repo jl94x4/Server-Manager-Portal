@@ -221,12 +221,42 @@ export const requestPlayerHomeReset = () => {
 };
 
 const PLAYER_HOME_CACHE_TTL_MS = 90_000;
+const PLAYER_HOME_CACHE_KEY = 'portal-media-player-home-cache';
 let playerHomeCache: { at: number; data: PlayerHome } | null = null;
 
+const readPersistedHomeCache = (): { at: number; data: PlayerHome } | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+        const raw = window.sessionStorage.getItem(PLAYER_HOME_CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed?.data || !Number(parsed?.at)) return null;
+        return { at: Number(parsed.at), data: parsed.data as PlayerHome };
+    } catch {
+        return null;
+    }
+};
+
+const writePersistedHomeCache = (row: { at: number; data: PlayerHome }) => {
+    if (typeof window === 'undefined') return;
+    try {
+        window.sessionStorage.setItem(PLAYER_HOME_CACHE_KEY, JSON.stringify(row));
+    } catch {
+        /* quota / private mode */
+    }
+};
+
 export const readPlayerHomeCache = (): PlayerHome | null => {
+    if (!playerHomeCache) {
+        const persisted = readPersistedHomeCache();
+        if (persisted) playerHomeCache = persisted;
+    }
     if (!playerHomeCache) return null;
     if (Date.now() - playerHomeCache.at > PLAYER_HOME_CACHE_TTL_MS * 5) {
         playerHomeCache = null;
+        if (typeof window !== 'undefined') {
+            try { window.sessionStorage.removeItem(PLAYER_HOME_CACHE_KEY); } catch { /* ignore */ }
+        }
         return null;
     }
     return playerHomeCache.data;
@@ -234,6 +264,7 @@ export const readPlayerHomeCache = (): PlayerHome | null => {
 
 export const writePlayerHomeCache = (data: PlayerHome) => {
     playerHomeCache = { at: Date.now(), data };
+    writePersistedHomeCache(playerHomeCache);
 };
 
 export const isPlayerHomeCacheFresh = (maxAgeMs = PLAYER_HOME_CACHE_TTL_MS) => (

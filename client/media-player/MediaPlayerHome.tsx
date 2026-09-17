@@ -22,7 +22,7 @@ import {
     PLAYER_SETTINGS_DRAFT_EVENT,
     PLAYER_SETTINGS_EVENT,
 } from './playerSettings';
-import { consumePlayerSearchFocus, PLAYER_HOME_RESET_EVENT, PLAYER_SEARCH_INPUT_ID, readHeroSlidesCache, readPlayerHomeCache, writeHeroSlidesCache, writePlayerHomeCache } from './playerMemory';
+import { consumePlayerSearchFocus, isPlayerHomeCacheFresh, PLAYER_HOME_RESET_EVENT, PLAYER_SEARCH_INPUT_ID, readHeroSlidesCache, readPlayerHomeCache, writeHeroSlidesCache, writePlayerHomeCache } from './playerMemory';
 import { usePlayerSettings } from './usePlayerSettings';
 import type { PlayerHome, PlayerItem, PlayerLibraryHub, PlayerPlayOptions, PlayerSection } from './types';
 
@@ -125,21 +125,29 @@ export const MediaPlayerHome: React.FC<Props> = ({
         if (!active) return undefined;
         let cancelled = false;
         const cachedHome = readPlayerHomeCache();
+        // Keep showing cached home while refreshing — never flash skeletons on revisit.
         if (!cachedHome) setLoading(true);
-        fetchMediaPlayerHome()
-            .then((data) => {
-                if (cancelled) return;
-                writePlayerHomeCache(data);
-                setHome(data);
-                setError(null);
-            })
-            .catch((err) => {
-                if (cancelled) return;
-                if (!cachedHome) setError(String(err?.message || t('mediaPlayerPage.loadError')));
-            })
-            .finally(() => {
-                if (!cancelled) setLoading(false);
-            });
+        else {
+            setHome(cachedHome);
+            setLoading(false);
+        }
+        // Fresh cache: paint immediately and skip a redundant /home round-trip.
+        if (!(cachedHome && isPlayerHomeCacheFresh())) {
+            fetchMediaPlayerHome()
+                .then((data) => {
+                    if (cancelled) return;
+                    writePlayerHomeCache(data);
+                    setHome(data);
+                    setError(null);
+                })
+                .catch((err) => {
+                    if (cancelled) return;
+                    if (!cachedHome) setError(String(err?.message || t('mediaPlayerPage.loadError')));
+                })
+                .finally(() => {
+                    if (!cancelled) setLoading(false);
+                });
+        }
         const cachedHero = readHeroSlidesCache();
         fetchMediaPlayerHomeHero()
             .then((data) => {
