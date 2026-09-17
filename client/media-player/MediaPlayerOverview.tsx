@@ -6,8 +6,7 @@ import { DISCOVER_NETWORKS, DISCOVER_STUDIOS } from '../discovery/discoverConsta
 import { shouldPreserveColorLogo } from '../discovery/discoveryLogoUtils';
 import { plexImageUrl, formatEpisodeCode, formatPlayerDate, formatPlayerDuration, progressPercent } from './playerUtils';
 import {
-    buildStreamingNetworkLogos,
-    mergeStudioAndStreamingLogos,
+    splitOverviewServiceLogos,
     pickWatchProvidersForRegion,
 } from './studioLogo.js';
 import type { PlayerCollectionRef, PlayerItem, PlayerPersonCredit } from './types';
@@ -45,16 +44,21 @@ const CreditPills: React.FC<{
 const StudioPill: React.FC<{
     name: string;
     logoPath?: string | null;
+    size?: 'md' | 'sm';
     onClick?: () => void;
-}> = ({ name, logoPath, onClick }) => {
+}> = ({ name, logoPath, size = 'md', onClick }) => {
     const [failed, setFailed] = useState(false);
     const showLogo = Boolean(logoPath) && !failed;
     const preserveColor = showLogo && shouldPreserveColorLogo(String(logoPath), name);
+    const logoClass = size === 'sm'
+        ? 'h-7 sm:h-8 max-w-[140px] sm:max-w-[160px] object-contain opacity-95'
+        : 'h-9 sm:h-10 max-w-[180px] sm:max-w-[200px] object-contain opacity-95';
+    const platePad = size === 'sm' ? 'px-2.5 py-2' : 'px-3 py-2.5';
     const className = showLogo
         ? (preserveColor
             // Color logos (Peacock, etc.) — no grey plate; brand colors stay intact.
             ? 'self-start inline-flex items-center rounded-lg border border-transparent px-0.5 py-0.5 hover:border-border/50 hover:bg-white/5 transition-colors'
-            : 'self-start inline-flex items-center rounded-xl border border-border/60 bg-white/5 px-3 py-2.5 hover:bg-white/10 hover:border-plex/40 transition-colors')
+            : `self-start inline-flex items-center rounded-xl border border-border/60 bg-white/5 ${platePad} hover:bg-white/10 hover:border-plex/40 transition-colors`)
         : 'self-start px-2.5 py-1 rounded-lg bg-white/5 border border-border text-sm text-text hover:bg-plex/15 hover:border-plex/40 hover:text-plex transition-colors';
     const body = showLogo ? (
         <DiscoveryLogo
@@ -63,7 +67,7 @@ const StudioPill: React.FC<{
             width={300}
             duotone={!preserveColor}
             onError={() => setFailed(true)}
-            className="h-9 sm:h-10 max-w-[180px] sm:max-w-[200px] object-contain opacity-95"
+            className={logoClass}
         />
     ) : name;
 
@@ -92,13 +96,15 @@ const NetworkLogoRow: React.FC<{
     onOpenStudio?: StudioHandler;
     sectionKey?: string;
     mediaType?: 'movie' | 'show';
-}> = ({ networks, onOpenStudio, sectionKey, mediaType }) => (
+    size?: 'md' | 'sm';
+}> = ({ networks, onOpenStudio, sectionKey, mediaType, size = 'md' }) => (
     <div className="flex flex-wrap gap-2 items-center">
         {networks.map((row) => (
             <StudioPill
                 key={`${row.key}-${row.name}`}
                 name={row.name}
                 logoPath={row.logoPath}
+                size={size}
                 onClick={onOpenStudio ? () => onOpenStudio({
                     key: row.key || row.name,
                     name: row.name,
@@ -143,32 +149,16 @@ const CollectionPills: React.FC<{
     </div>
 );
 
-/** Studio / broadcast network from Plex (+ TMDB TV networks), and streaming providers. */
+/** Studio, broadcast network, and streaming providers — separate stacked rows. */
 const useOverviewServiceLogos = (item: PlayerItem, region: string) => {
     const plexName = String(item.studio || '').trim();
     const watchRegion = String(region || 'US').trim().toUpperCase() || 'US';
-    const [studioLogos, setStudioLogos] = useState<NetworkLogo[]>(() => (
-        plexName
-            ? buildStreamingNetworkLogos({
-                plexName,
-                mediaType: item.type,
-                networks: DISCOVER_NETWORKS,
-                studios: DISCOVER_STUDIOS,
-            })
-            : []
-    ));
-    const [streamingLogos, setStreamingLogos] = useState<NetworkLogo[]>([]);
+    const [tmdbNetworks, setTmdbNetworks] = useState<Array<{ id?: string | number; name?: string; logoPath?: string }>>([]);
+    const [streamingProviders, setStreamingProviders] = useState<Array<{ name: string; logoPath: string; key: string }>>([]);
 
     useEffect(() => {
-        setStudioLogos(plexName
-            ? buildStreamingNetworkLogos({
-                plexName,
-                mediaType: item.type,
-                networks: DISCOVER_NETWORKS,
-                studios: DISCOVER_STUDIOS,
-            })
-            : []);
-        setStreamingLogos([]);
+        setTmdbNetworks([]);
+        setStreamingProviders([]);
     }, [item.type, plexName]);
 
     useEffect(() => {
@@ -180,24 +170,29 @@ const useOverviewServiceLogos = (item: PlayerItem, region: string) => {
             .then((details: any) => {
                 if (cancelled) return;
                 if (mediaType === 'tv') {
-                    const nextStudio = buildStreamingNetworkLogos({
-                        plexName,
-                        mediaType: item.type,
-                        networks: DISCOVER_NETWORKS,
-                        studios: DISCOVER_STUDIOS,
-                        tmdbNetworks: [].concat(details?.networks || []),
-                    });
-                    if (nextStudio.length) setStudioLogos(nextStudio);
+                    setTmdbNetworks([].concat(details?.networks || []));
+                } else {
+                    setTmdbNetworks([]);
                 }
-                setStreamingLogos(pickWatchProvidersForRegion(details?.watchProviders || [], watchRegion));
+                setStreamingProviders(pickWatchProvidersForRegion(details?.watchProviders || [], watchRegion));
             })
             .catch(() => {
-                if (!cancelled) setStreamingLogos([]);
+                if (!cancelled) {
+                    setTmdbNetworks([]);
+                    setStreamingProviders([]);
+                }
             });
         return () => { cancelled = true; };
     }, [item.externalIds?.tmdb, item.tmdbId, item.type, plexName, watchRegion]);
 
-    return { studioLogos, streamingLogos };
+    return splitOverviewServiceLogos({
+        plexName,
+        mediaType: item.type,
+        networks: DISCOVER_NETWORKS,
+        studios: DISCOVER_STUDIOS,
+        tmdbNetworks,
+        streamingProviders,
+    });
 };
 
 export const OverviewSummary: React.FC<{ text: string }> = ({ text }) => {
@@ -246,7 +241,7 @@ export const OverviewFacts: React.FC<{
 }> = ({ item, onOpenPerson, onOpenItem, onOpenStudio }) => {
     const { t, locale } = useDiscoverI18n();
     const { preferences } = useDiscoveryPreferences();
-    const { studioLogos, streamingLogos } = useOverviewServiceLogos(
+    const { studio, network, streaming } = useOverviewServiceLogos(
         item,
         preferences.discoverRegion || 'US',
     );
@@ -259,26 +254,24 @@ export const OverviewFacts: React.FC<{
         ? item.collectionItems
         : (item.collections || []).map((title) => ({ ratingKey: '', title }))
     ).filter((row) => row.title);
-    const studioLabel = item.type === 'movie' ? t('media.studio') : t('mediaPlayerPage.network');
-    const serviceLogos = mergeStudioAndStreamingLogos(studioLogos, streamingLogos, {
-        networks: DISCOVER_NETWORKS,
-        studios: DISCOVER_STUDIOS,
-        mediaType: item.type,
-    });
-    const rows: Array<{
+    const serviceSections = [
+        studio.length ? { label: t('media.studio'), networks: studio, size: 'sm' as const } : null,
+        network.length ? { label: t('mediaPlayerPage.network'), networks: network, size: 'md' as const } : null,
+        streaming.length ? { label: t('mediaPlayerPage.streaming'), networks: streaming, size: 'md' as const } : null,
+    ].filter(Boolean) as Array<{ label: string; networks: NetworkLogo[]; size: 'sm' | 'md' }>;
+    const crewRows: Array<{
         label: string;
-        value?: string;
         people?: PlayerPersonCredit[];
-        collections?: PlayerCollectionRef[];
-        networks?: NetworkLogo[];
     }> = [
         item.directorPeople?.length ? { label: t('mediaPlayerPage.directedBy'), people: item.directorPeople } : null,
         item.writerPeople?.length ? { label: t('mediaPlayerPage.writtenBy'), people: item.writerPeople } : null,
         item.producers?.length ? { label: t('mediaPlayerPage.producedBy'), people: item.producers } : null,
-        serviceLogos.length ? {
-            label: studioLabel,
-            networks: serviceLogos,
-        } : null,
+    ].filter(Boolean) as Array<{ label: string; people?: PlayerPersonCredit[] }>;
+    const metaRows: Array<{
+        label: string;
+        value?: string;
+        collections?: PlayerCollectionRef[];
+    }> = [
         aired ? { label: item.type === 'episode' ? t('mediaPlayerPage.aired') : t('mediaPlayerPage.released'), value: aired } : null,
         item.countries?.length ? { label: t('mediaPlayerPage.countries'), value: item.countries.join(', ') } : null,
         collectionItems.length ? {
@@ -295,39 +288,50 @@ export const OverviewFacts: React.FC<{
     ].filter(Boolean) as Array<{
         label: string;
         value?: string;
-        people?: PlayerPersonCredit[];
         collections?: PlayerCollectionRef[];
-        networks?: NetworkLogo[];
     }>;
 
-    if (!rows.length) return null;
+    if (!crewRows.length && !serviceSections.length && !metaRows.length) return null;
+
+    const renderMetaRow = (row: { label: string; value?: string; people?: PlayerPersonCredit[]; collections?: PlayerCollectionRef[] }) => (
+        <div key={row.label} className="flex flex-col gap-1 min-w-0">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted">{row.label}</span>
+            {row.people?.length ? (
+                <CreditPills people={row.people} onOpenPerson={onOpenPerson} />
+            ) : row.collections?.length ? (
+                <CollectionPills
+                    collections={row.collections}
+                    sectionKey={item.librarySectionID || ''}
+                    onOpenItem={onOpenItem}
+                />
+            ) : (
+                <span className="text-sm text-text leading-snug">{row.value}</span>
+            )}
+        </div>
+    );
+
     return (
         <div className="flex flex-col gap-3">
             <SectionHeading>{t('media.details')}</SectionHeading>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-10 gap-y-3">
-                {rows.map((row) => (
-                    <div key={row.label} className="flex flex-col gap-1 min-w-0">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted">{row.label}</span>
-                        {row.people?.length ? (
-                            <CreditPills people={row.people} onOpenPerson={onOpenPerson} />
-                        ) : row.collections?.length ? (
-                            <CollectionPills
-                                collections={row.collections}
-                                sectionKey={item.librarySectionID || ''}
-                                onOpenItem={onOpenItem}
-                            />
-                        ) : row.networks?.length ? (
-                            <NetworkLogoRow
-                                networks={row.networks}
-                                onOpenStudio={onOpenStudio}
-                                sectionKey={item.librarySectionID || ''}
-                                mediaType={item.type === 'movie' ? 'movie' : 'show'}
-                            />
-                        ) : (
-                            <span className="text-sm text-text leading-snug">{row.value}</span>
-                        )}
+                {crewRows.map((row) => renderMetaRow(row))}
+                {serviceSections.length ? (
+                    <div className="flex flex-col gap-3 min-w-0">
+                        {serviceSections.map((section) => (
+                            <div key={section.label} className="flex flex-col gap-1 min-w-0">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-muted">{section.label}</span>
+                                <NetworkLogoRow
+                                    networks={section.networks}
+                                    onOpenStudio={onOpenStudio}
+                                    sectionKey={item.librarySectionID || ''}
+                                    mediaType={item.type === 'movie' ? 'movie' : 'show'}
+                                    size={section.size}
+                                />
+                            </div>
+                        ))}
                     </div>
-                ))}
+                ) : null}
+                {metaRows.map((row) => renderMetaRow(row))}
             </div>
         </div>
     );

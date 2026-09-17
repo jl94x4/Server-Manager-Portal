@@ -209,39 +209,82 @@ export const pickWatchProvidersForRegion = (watchProviders = [], region = 'US') 
 };
 
 /**
- * Studio/network first, then streaming providers — one row under Studio.
- * Prefer Discover catalog wordmarks over TMDB's tiny square provider icons.
+ * Split into Studio / Network / Streaming for stacked overview rows.
+ * Streaming uses catalog wordmarks; raw TMDB provider badges are skipped.
  */
-export const mergeStudioAndStreamingLogos = (
-    studioLogos = [],
+export const splitOverviewServiceLogos = ({
+    plexName = '',
+    mediaType = '',
+    networks = [],
+    studios = [],
+    tmdbNetworks = [],
     streamingProviders = [],
-    { networks = [], studios = [], mediaType = '' } = {},
-) => {
-    const out = [];
+} = {}) => {
+    const streaming = [];
+    const network = [];
+    const studio = [];
     const seen = new Set();
-    const add = (name, logoPath, key, { requireCatalogLogo = false } = {}) => {
+
+    const claim = (name, logoPath, key) => {
         const label = String(name || '').trim();
-        if (!label) return;
-        const catalog = resolvePlayerStudioLogo(label, mediaType, { networks, studios });
-        if (requireCatalogLogo && !catalog?.logoPath) return;
-        const resolvedLogo = catalog?.logoPath || (logoPath ? String(logoPath) : '') || '';
-        const id = aliasKey(catalog?.name || label) || String(key || label).toLowerCase();
-        if (seen.has(id)) return;
+        if (!label) return null;
+        const id = aliasKey(label) || String(key || label).toLowerCase();
+        if (seen.has(id)) return null;
         seen.add(id);
-        out.push({
-            name: catalog?.name || label,
-            // Catalog logos are horizontal white wordmarks; TMDB flatrate icons are tiny squares.
-            logoPath: requireCatalogLogo ? String(catalog.logoPath) : resolvedLogo,
-            key: String(catalog?.id || key || label),
-        });
+        return {
+            name: label,
+            logoPath: logoPath ? String(logoPath) : '',
+            key: String(key || label),
+        };
     };
 
-    for (const row of Array.isArray(studioLogos) ? studioLogos : []) {
-        add(row?.name, row?.logoPath, row?.key);
-    }
     for (const row of Array.isArray(streamingProviders) ? streamingProviders : []) {
-        // Only catalog wordmarks for streamers — raw TMDB provider badges look awful.
-        add(row?.name, row?.logoPath, row?.key, { requireCatalogLogo: true });
+        const catalog = resolvePlayerStudioLogo(row?.name, mediaType, { networks, studios });
+        // Prefer network catalog marks for streamers (Netflix, Peacock, Disney+).
+        if (!catalog?.logoPath) continue;
+        const next = claim(catalog.name, catalog.logoPath, catalog.id || row?.key);
+        if (next) streaming.push(next);
     }
-    return out;
+
+    for (const row of Array.isArray(tmdbNetworks) ? tmdbNetworks : []) {
+        const name = String(row?.name || '').trim();
+        if (!name) continue;
+        const catalog = matchDiscoverCompanyByName(name, networks)
+            || resolvePlayerStudioLogo(name, mediaType, { networks, studios });
+        const next = claim(
+            catalog?.name || name,
+            row.logoPath || catalog?.logoPath || '',
+            row.id || catalog?.id || name,
+        );
+        if (next) network.push(next);
+    }
+
+    const plex = String(plexName || '').trim();
+    if (plex) {
+        const asNetwork = matchDiscoverCompanyByName(plex, networks);
+        const asStudio = matchDiscoverCompanyByName(plex, studios);
+        // Movies → Studio; TV → Network when the Plex label is a broadcaster/streamer brand.
+        const preferNetwork = mediaType !== 'movie' && asNetwork;
+        if (preferNetwork) {
+            const next = claim(asNetwork.name, asNetwork.logoPath, asNetwork.id);
+            if (next) network.push(next);
+        } else if (asStudio) {
+            const next = claim(asStudio.name, asStudio.logoPath, asStudio.id);
+            if (next) studio.push(next);
+        } else if (asNetwork) {
+            // Movie tagged with a streamer name — Streaming already claimed it when present.
+            const next = claim(asNetwork.name, asNetwork.logoPath, asNetwork.id);
+            if (next) network.push(next);
+        } else {
+            const catalog = resolvePlayerStudioLogo(plex, mediaType, { networks, studios });
+            const next = claim(catalog?.name || plex, catalog?.logoPath || '', catalog?.id || plex);
+            if (next) {
+                if (mediaType === 'movie') studio.push(next);
+                else network.push(next);
+            }
+        }
+    }
+
+    return { studio, network, streaming };
 };
+

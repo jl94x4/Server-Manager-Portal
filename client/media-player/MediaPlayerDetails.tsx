@@ -800,7 +800,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                 <button
                                     key={extra.ratingKey}
                                     type="button"
-                                    onClick={() => extra.canPlay ? onPlay(extra, { offsetMs: 0, skipResume: true }) : onOpenItem(extra)}
+                                    onClick={() => onPlay(extra, { offsetMs: 0, skipResume: true })}
                                     className="group w-64 sm:w-72 flex-shrink-0 snap-start text-left"
                                 >
                                     <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black/30">

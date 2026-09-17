@@ -255,7 +255,7 @@ export const MediaPlayerDashboard: React.FC = () => {
             setToasts((prev) => appendToast(prev, t('mediaPlayerPage.notPlayable'), 'error'));
             return;
         }
-        const playableType = item.type === 'movie' || item.type === 'episode' || item.type === 'clip';
+        const playableType = item.type === 'movie' || item.type === 'episode' || item.type === 'clip' || item.type === 'trailer';
         if (!opts.skipResume && playableType && shouldOfferResume(item, opts.offsetMs)) {
             setPendingResume({
                 item,

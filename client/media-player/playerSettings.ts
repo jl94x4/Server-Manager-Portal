@@ -172,6 +172,13 @@ const SUBTITLE_MODES = new Set<PlayerSubtitleMode>(['off', 'forced', 'always']);
 
 export const PLAYER_SETTINGS_KEY = 'portal-media-player-settings';
 export const PLAYER_SETTINGS_EVENT = 'portal-media-player-settings';
+/** Live draft preview (e.g. library nav order) before Save. */
+export const PLAYER_SETTINGS_DRAFT_EVENT = 'portal-media-player-settings-draft';
+
+export const publishPlayerSettingsDraft = (settings: PlayerSettings) => {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new CustomEvent(PLAYER_SETTINGS_DRAFT_EVENT, { detail: settings }));
+};
 
 export const DEFAULT_PLAYER_SETTINGS: PlayerSettings = {
     mixLibraries: false,

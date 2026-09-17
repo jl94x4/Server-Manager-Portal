@@ -114,12 +114,15 @@ export const MediaPlayerSettings: React.FC<Props> = ({ onBack }) => {
                             ) : null}
                         </div>
                         {orderedLibraries.length ? (
-                            <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+                            <div className="flex max-w-xl flex-col gap-2">
                                 {orderedLibraries.map((library, index) => (
                                     <div
                                         key={library.key}
                                         className="flex items-center gap-2 rounded-xl border border-border bg-white/[0.03] px-3 py-2"
                                     >
+                                        <span className="w-5 shrink-0 text-center text-xs font-bold tabular-nums text-muted">
+                                            {index + 1}
+                                        </span>
                                         <p className="min-w-0 flex-1 truncate text-sm font-bold text-text">
                                             {library.title}
                                         </p>

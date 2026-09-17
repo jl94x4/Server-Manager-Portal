@@ -150,7 +150,7 @@ export const en = {
         homeRowMoveDown: 'Move down',
         homeRowReset: 'Reset order',
         libraryNavOrder: 'Library order',
-        libraryNavOrderHint: 'This order is used in the sidebar. Save to apply.',
+        libraryNavOrderHint: 'Top to bottom matches the sidebar — reorder updates the nav live. Save to keep.',
         emptyLibrariesNav: 'Libraries will show here once they load.',
         navHome: 'Home',
         navSearch: 'Search',

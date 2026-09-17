@@ -5,6 +5,7 @@ import {
     PLAYER_SETTINGS_EVENT,
     normalizePlayerSettings,
     playerSettingsEqual,
+    publishPlayerSettingsDraft,
     readPlayerSettings,
     writePlayerSettings,
     type PlayerSettings,
@@ -55,11 +56,17 @@ export const usePlayerSettings = () => {
     }, []);
 
     const updateSettings = useCallback((patch: Partial<PlayerSettings>) => {
-        setDraft((current) => normalizePlayerSettings({ ...current, ...patch }));
+        setDraft((current) => {
+            const next = normalizePlayerSettings({ ...current, ...patch });
+            publishPlayerSettingsDraft(next);
+            return next;
+        });
     }, []);
 
     const discardSettings = useCallback(() => {
-        setDraft(savedRef.current);
+        const next = savedRef.current;
+        setDraft(next);
+        publishPlayerSettingsDraft(next);
     }, []);
 
     const saveSettings = useCallback(async () => {

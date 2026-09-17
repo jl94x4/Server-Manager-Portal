@@ -3,10 +3,10 @@ import test from 'node:test';
 import {
     buildStreamingNetworkLogos,
     matchDiscoverCompanyByName,
-    mergeStudioAndStreamingLogos,
     pickLogoPathFromTmdbCompanies,
     pickWatchProvidersForRegion,
     resolvePlayerStudioLogo,
+    splitOverviewServiceLogos,
 } from './studioLogo.js';
 
 const networks = [
@@ -84,19 +84,44 @@ test('pickWatchProvidersForRegion collapses Peacock Premium into Peacock', () =>
     assert.deepEqual(providers.map((row) => row.name), ['Peacock']);
 });
 
-test('mergeStudioAndStreamingLogos puts streamers under studio with catalog logos', () => {
+test('splitOverviewServiceLogos stacks Studio then Streaming separately', () => {
     const networks = [
         { id: 3353, name: 'Peacock', logoPath: '/peacock-wordmark.png' },
         { id: 213, name: 'Netflix', logoPath: '/netflix-wordmark.png' },
     ];
-    const merged = mergeStudioAndStreamingLogos(
-        [{ name: 'DreamWorks', logoPath: '/dreamworks.png', key: 'dw' }],
-        [
+    const studios = [
+        { id: 521, name: 'DreamWorks Animation', logoPath: '/dreamworks.png' },
+    ];
+    const split = splitOverviewServiceLogos({
+        plexName: 'DreamWorks Animation',
+        mediaType: 'movie',
+        networks,
+        studios,
+        streamingProviders: [
             { name: 'Peacock Premium', logoPath: '/tiny-square.png', key: '386' },
             { name: 'Unknown Streamer', logoPath: '/ugly.png', key: '999' },
         ],
-        { networks, studios: [], mediaType: 'movie' },
-    );
-    assert.deepEqual(merged.map((row) => row.name), ['DreamWorks', 'Peacock']);
-    assert.equal(merged[1].logoPath, '/peacock-wordmark.png');
+    });
+    assert.deepEqual(split.studio.map((row) => row.name), ['DreamWorks Animation']);
+    assert.deepEqual(split.network, []);
+    assert.deepEqual(split.streaming.map((row) => row.name), ['Peacock']);
+    assert.equal(split.streaming[0].logoPath, '/peacock-wordmark.png');
+});
+
+test('splitOverviewServiceLogos puts TV plex labels under Network', () => {
+    const networks = [
+        { id: 213, name: 'Netflix', logoPath: '/netflix.png' },
+        { id: 2739, name: 'Disney+', logoPath: '/disney.png' },
+    ];
+    const split = splitOverviewServiceLogos({
+        plexName: 'Netflix',
+        mediaType: 'show',
+        networks,
+        studios: [],
+        tmdbNetworks: [{ id: 213, name: 'Netflix', logoPath: '/netflix.png' }],
+        streamingProviders: [{ name: 'Disney Plus', logoPath: '/tiny.png', key: '337' }],
+    });
+    assert.deepEqual(split.studio, []);
+    assert.deepEqual(split.network.map((row) => row.name), ['Netflix']);
+    assert.deepEqual(split.streaming.map((row) => row.name), ['Disney+']);
 });

@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { exitToPortal, lockBackgroundScroll, portalUrl, useDiscoverI18n } from './host';
 import { fetchMediaPlayerMe } from './api';
-import { applyLibraryNavOrder } from './playerSettings';
+import { applyLibraryNavOrder, PLAYER_SETTINGS_DRAFT_EVENT, PLAYER_SETTINGS_EVENT } from './playerSettings';
 import type { PlayerProfile, PlayerSection } from './types';
 
 type NavPage = 'home' | 'library' | 'settings' | 'other';
@@ -88,7 +88,8 @@ export const MediaPlayerNav: React.FC<Props> = ({
     const { t } = useDiscoverI18n();
     const [mobileOpen, setMobileOpen] = useState(false);
     const [profile, setProfile] = useState<PlayerProfile | null>(null);
-    const orderedLibraries = applyLibraryNavOrder(libraries, libraryOrder);
+    const [draftLibraryOrder, setDraftLibraryOrder] = useState<string[] | null>(null);
+    const orderedLibraries = applyLibraryNavOrder(libraries, draftLibraryOrder || libraryOrder);
 
     useEffect(() => {
         let cancelled = false;
@@ -101,6 +102,24 @@ export const MediaPlayerNav: React.FC<Props> = ({
             });
         return () => { cancelled = true; };
     }, []);
+
+    useEffect(() => {
+        const onDraft = (event: Event) => {
+            const detail = (event as CustomEvent<{ libraryNavOrder?: string[] }>).detail;
+            setDraftLibraryOrder(Array.isArray(detail?.libraryNavOrder) ? detail.libraryNavOrder : null);
+        };
+        const clearDraft = () => setDraftLibraryOrder(null);
+        window.addEventListener(PLAYER_SETTINGS_DRAFT_EVENT, onDraft);
+        window.addEventListener(PLAYER_SETTINGS_EVENT, clearDraft);
+        return () => {
+            window.removeEventListener(PLAYER_SETTINGS_DRAFT_EVENT, onDraft);
+            window.removeEventListener(PLAYER_SETTINGS_EVENT, clearDraft);
+        };
+    }, []);
+
+    useEffect(() => {
+        setDraftLibraryOrder(null);
+    }, [libraryOrder]);
 
     useEffect(() => {
         if (!mobileOpen) return undefined;
