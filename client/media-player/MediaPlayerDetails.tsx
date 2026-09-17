@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Calendar, Check, ChevronDown, Clock, Eye, EyeOff, Film, Info, ListPlus, Loader2, Play, Star, Tv, Users } from 'lucide-react';
 import {
     Carousel,
@@ -103,6 +103,19 @@ const ratingsHavePills = (ratings?: PlayerRatings | null) => (
     !!(ratings?.imdb || ratings?.rottenTomatoes || ratings?.popcorn || ratings?.tmdb)
 );
 
+const EPISODE_SWIPE_MIN_DX = 56;
+const isCoarseMobileViewport = () => (
+    typeof window !== 'undefined'
+    && window.matchMedia('(max-width: 767px)').matches
+);
+
+const touchTargetBlocksEpisodeSwipe = (target: EventTarget | null) => {
+    if (!(target instanceof Element)) return false;
+    return Boolean(target.closest(
+        'button, a, input, textarea, select, [role="slider"], [data-no-episode-swipe="1"]',
+    ));
+};
+
 export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenItem, onOpenPerson, onOpenStudio, onPlay, playing = false, playbackActive = false }) => {
     const { t } = useDiscoverI18n();
     const [settings] = usePlayerSettings();
@@ -128,6 +141,9 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
     const [playlistOpen, setPlaylistOpen] = useState(false);
     const [newPlaylistName, setNewPlaylistName] = useState('');
     const [playlistMessage, setPlaylistMessage] = useState('');
+    const episodeSwipeRef = useRef<{ x: number; y: number } | null>(null);
+    const neighborsRef = useRef(neighbors);
+    neighborsRef.current = neighbors;
 
     useLayoutEffect(() => {
         writePlayerScrollTop(0);
@@ -349,6 +365,35 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
     }`;
     const seasonTickClass = `${watchedTickPositionClass(settings.watchedTickPosition)} z-10 flex h-7 w-7 items-center justify-center rounded-full bg-plex text-zinc-950 shadow-md opacity-0 transition-opacity duration-200 group-hover:opacity-100 [@media(hover:none)]:opacity-100`;
 
+    const onEpisodeSwipeStart = (event: React.TouchEvent) => {
+        if (item.type !== 'episode' || playing || playbackActive) return;
+        if (!isCoarseMobileViewport()) return;
+        if (touchTargetBlocksEpisodeSwipe(event.target)) return;
+        if (!neighborsRef.current.previous && !neighborsRef.current.next) return;
+        const touch = event.touches[0];
+        if (!touch) return;
+        episodeSwipeRef.current = { x: touch.clientX, y: touch.clientY };
+    };
+
+    const onEpisodeSwipeEnd = (event: React.TouchEvent) => {
+        const start = episodeSwipeRef.current;
+        episodeSwipeRef.current = null;
+        if (!start || item.type !== 'episode' || playing || playbackActive) return;
+        if (!isCoarseMobileViewport()) return;
+        const touch = event.changedTouches[0];
+        if (!touch) return;
+        const dx = touch.clientX - start.x;
+        const dy = touch.clientY - start.y;
+        if (Math.abs(dx) < EPISODE_SWIPE_MIN_DX) return;
+        if (Math.abs(dx) < Math.abs(dy) * 1.2) return;
+        const target = dx < 0 ? neighborsRef.current.next : neighborsRef.current.previous;
+        if (target?.ratingKey) onOpenItem(target);
+    };
+
+    const onEpisodeSwipeCancel = () => {
+        episodeSwipeRef.current = null;
+    };
+
     const titleBlock = (
         <>
             <div className="flex items-center gap-2 flex-wrap">
@@ -432,6 +477,9 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
         <div
             key={ratingKey}
             className="relative page-bleed-x md:w-full flex flex-col min-h-screen bg-card animate-fade-in pb-24 md:pb-16 rounded-none md:rounded-2xl lg:rounded-3xl overflow-x-hidden border-0 md:border border-white/5 shadow-2xl"
+            onTouchStart={onEpisodeSwipeStart}
+            onTouchEnd={onEpisodeSwipeEnd}
+            onTouchCancel={onEpisodeSwipeCancel}
         >
             <div className="relative isolate">
                 <div className="media-details-hero-backdrop absolute inset-x-0 top-0 h-[34rem] max-h-[72vh] sm:h-[36rem] md:h-[min(72vh,52rem)] md:max-h-none overflow-hidden pointer-events-none" aria-hidden>
@@ -663,12 +711,17 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                 <OverviewFacts item={item} onOpenPerson={onOpenPerson} onOpenItem={onOpenItem} onOpenStudio={onOpenStudio} />
                                 <OverviewLinks item={item} />
                                 {item.type === 'episode' ? (
-                                    <EpisodeNeighbors
-                                        previous={neighbors.previous}
-                                        next={neighbors.next}
-                                        onOpenItem={onOpenItem}
-                                        onPlay={(row) => onPlay(row, { mediaIndex })}
-                                    />
+                                    <>
+                                        <p className="md:hidden text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
+                                            {t('mediaPlayerPage.swipeEpisodesHint')}
+                                        </p>
+                                        <EpisodeNeighbors
+                                            previous={neighbors.previous}
+                                            next={neighbors.next}
+                                            onOpenItem={onOpenItem}
+                                            onPlay={(row) => onPlay(row, { mediaIndex })}
+                                        />
+                                    </>
                                 ) : null}
                                 {!settings.showPlaylists
                                     && (item.type === 'movie' || item.type === 'episode' || item.type === 'show' || item.type === 'season') ? (

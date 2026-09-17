@@ -319,6 +319,7 @@ export const en = {
         skipForward: 'Forward 10 seconds',
         previousEpisode: 'Previous episode',
         nextEpisode: 'Next episode',
+        swipeEpisodesHint: 'Swipe for previous / next episode',
         retryPlayback: 'Retry',
         retryPlaybackHint: 'Try again from {time}',
         unwatchedCount: '{count} unwatched',
