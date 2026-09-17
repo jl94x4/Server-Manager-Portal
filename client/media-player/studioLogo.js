@@ -227,13 +227,14 @@ export const splitOverviewServiceLogos = ({
 
     const claim = (name, logoPath, key) => {
         const label = String(name || '').trim();
-        if (!label) return null;
+        const path = logoPath ? String(logoPath).trim() : '';
+        if (!label || !path) return null;
         const id = aliasKey(label) || String(key || label).toLowerCase();
         if (seen.has(id)) return null;
         seen.add(id);
         return {
             name: label,
-            logoPath: logoPath ? String(logoPath) : '',
+            logoPath: path,
             key: String(key || label),
         };
     };

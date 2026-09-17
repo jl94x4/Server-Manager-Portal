@@ -49,18 +49,20 @@ const StudioPill: React.FC<{
 }> = ({ name, logoPath, size = 'md', onClick }) => {
     const [failed, setFailed] = useState(false);
     const showLogo = Boolean(logoPath) && !failed;
-    const preserveColor = showLogo && shouldPreserveColorLogo(String(logoPath), name);
+    if (!showLogo) return null;
+
+    const preserveColor = shouldPreserveColorLogo(String(logoPath), name);
+    // Fixed plate height so wordmarks and square marks sit on one baseline.
+    const plateClass = size === 'sm'
+        ? 'inline-flex h-10 items-center justify-center rounded-xl px-3'
+        : 'inline-flex h-12 items-center justify-center rounded-xl px-3.5';
     const logoClass = size === 'sm'
-        ? 'h-7 sm:h-8 max-w-[140px] sm:max-w-[160px] object-contain opacity-95'
-        : 'h-9 sm:h-10 max-w-[180px] sm:max-w-[200px] object-contain opacity-95';
-    const platePad = size === 'sm' ? 'px-2.5 py-2' : 'px-3 py-2.5';
-    const className = showLogo
-        ? (preserveColor
-            // Color logos (Peacock, etc.) — no grey plate; brand colors stay intact.
-            ? 'self-start inline-flex items-center rounded-lg border border-transparent px-0.5 py-0.5 hover:border-border/50 hover:bg-white/5 transition-colors'
-            : `self-start inline-flex items-center rounded-xl border border-border/60 bg-white/5 ${platePad} hover:bg-white/10 hover:border-plex/40 transition-colors`)
-        : 'self-start px-2.5 py-1 rounded-lg bg-white/5 border border-border text-sm text-text hover:bg-plex/15 hover:border-plex/40 hover:text-plex transition-colors';
-    const body = showLogo ? (
+        ? 'h-6 max-w-[140px] sm:max-w-[160px] w-auto object-contain opacity-95'
+        : 'h-7 sm:h-8 max-w-[160px] sm:max-w-[200px] w-auto object-contain opacity-95';
+    const className = preserveColor
+        ? `${plateClass} border border-transparent hover:border-border/50 hover:bg-white/5 transition-colors`
+        : `${plateClass} border border-border/60 bg-white/5 hover:bg-white/10 hover:border-plex/40 transition-colors`;
+    const body = (
         <DiscoveryLogo
             logoPath={String(logoPath)}
             alt={name}
@@ -69,7 +71,7 @@ const StudioPill: React.FC<{
             onError={() => setFailed(true)}
             className={logoClass}
         />
-    ) : name;
+    );
 
     if (onClick) {
         return (
@@ -84,10 +86,8 @@ const StudioPill: React.FC<{
             </button>
         );
     }
-    return showLogo ? (
+    return (
         <span title={name} className={className}>{body}</span>
-    ) : (
-        <span className="text-sm text-text leading-snug">{name}</span>
     );
 };
 
@@ -98,8 +98,8 @@ const NetworkLogoRow: React.FC<{
     mediaType?: 'movie' | 'show';
     size?: 'md' | 'sm';
 }> = ({ networks, onOpenStudio, sectionKey, mediaType, size = 'md' }) => (
-    <div className="flex flex-wrap gap-2 items-center">
-        {networks.map((row) => (
+    <div className="flex flex-wrap gap-2 items-stretch">
+        {networks.filter((row) => row.logoPath).map((row) => (
             <StudioPill
                 key={`${row.key}-${row.name}`}
                 name={row.name}

@@ -125,3 +125,18 @@ test('splitOverviewServiceLogos puts TV plex labels under Network', () => {
     assert.deepEqual(split.network.map((row) => row.name), ['Netflix']);
     assert.deepEqual(split.streaming.map((row) => row.name), ['Disney+']);
 });
+
+test('splitOverviewServiceLogos skips networks without a logo image', () => {
+    const split = splitOverviewServiceLogos({
+        plexName: 'United Plankton Pictures',
+        mediaType: 'show',
+        networks: [{ id: 13, name: 'Nickelodeon', logoPath: '/nick.png' }],
+        studios: [],
+        tmdbNetworks: [
+            { id: 13, name: 'Nickelodeon', logoPath: '/nick.png' },
+            { id: 999, name: 'United Plankton Pictures' },
+        ],
+    });
+    assert.deepEqual(split.network.map((row) => row.name), ['Nickelodeon']);
+    assert.ok(split.network.every((row) => row.logoPath));
+});

@@ -156,6 +156,8 @@ export const en = {
         navSearch: 'Search',
         navLibraries: 'Libraries',
         navSettings: 'Settings',
+        switchUser: 'Switch user',
+        switchUserError: 'Could not switch Plex Home profile.',
         exitToPortal: 'Back to portal',
         signedInAs: 'Signed in as {name}',
         openNav: 'Open menu',

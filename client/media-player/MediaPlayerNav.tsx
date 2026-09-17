@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     ChevronRight,
     Film,
@@ -10,9 +10,18 @@ import {
     Settings,
     Tv,
     User,
+    Users,
     X,
 } from 'lucide-react';
-import { exitToPortal, lockBackgroundScroll, portalUrl, useDiscoverI18n } from './host';
+import {
+    apiFetch,
+    exitToPortal,
+    lockBackgroundScroll,
+    portalUrl,
+    PlexHomeSwitchModal,
+    useDiscoverI18n,
+    type PlexHomeProfile,
+} from './host';
 import { fetchMediaPlayerMe } from './api';
 import { applyLibraryNavOrder, PLAYER_SETTINGS_DRAFT_EVENT, PLAYER_SETTINGS_EVENT } from './playerSettings';
 import type { PlayerProfile, PlayerSection } from './types';
@@ -89,7 +98,31 @@ export const MediaPlayerNav: React.FC<Props> = ({
     const [mobileOpen, setMobileOpen] = useState(false);
     const [profile, setProfile] = useState<PlayerProfile | null>(null);
     const [draftLibraryOrder, setDraftLibraryOrder] = useState<string[] | null>(null);
+    const [homeSwitchOpen, setHomeSwitchOpen] = useState(false);
+    const [homeSwitchUsers, setHomeSwitchUsers] = useState<PlexHomeProfile[]>([]);
+    const [homeSwitchCurrentId, setHomeSwitchCurrentId] = useState<string | null>(null);
+    const [homeSwitchRememberUserId, setHomeSwitchRememberUserId] = useState<string | null>(null);
+    const [homeSwitchAvailable, setHomeSwitchAvailable] = useState(false);
+    const [homeSwitchBusy, setHomeSwitchBusy] = useState(false);
+    const [homeSwitchError, setHomeSwitchError] = useState('');
     const orderedLibraries = applyLibraryNavOrder(libraries, draftLibraryOrder || libraryOrder);
+
+    const loadHomeProfiles = useCallback(async () => {
+        try {
+            const data = await apiFetch('/api/auth/plex/home-profiles');
+            const users = Array.isArray(data?.users) ? data.users : [];
+            const available = !!data?.available && users.length > 1;
+            setHomeSwitchUsers(users);
+            setHomeSwitchCurrentId(data?.currentUserId || null);
+            setHomeSwitchRememberUserId(data?.rememberUserId || null);
+            setHomeSwitchAvailable(available);
+            return { available, users };
+        } catch {
+            setHomeSwitchAvailable(false);
+            setHomeSwitchUsers([]);
+            return { available: false, users: [] as PlexHomeProfile[] };
+        }
+    }, []);
 
     useEffect(() => {
         let cancelled = false;
@@ -102,6 +135,10 @@ export const MediaPlayerNav: React.FC<Props> = ({
             });
         return () => { cancelled = true; };
     }, []);
+
+    useEffect(() => {
+        void loadHomeProfiles();
+    }, [loadHomeProfiles]);
 
     useEffect(() => {
         const onDraft = (event: Event) => {
@@ -139,6 +176,32 @@ export const MediaPlayerNav: React.FC<Props> = ({
     const go = (action: () => void) => {
         action();
         closeMobile();
+    };
+
+    const openHomeSwitcher = async () => {
+        setHomeSwitchError('');
+        setHomeSwitchOpen(true);
+        const result = await loadHomeProfiles();
+        if (!result.available) setHomeSwitchOpen(false);
+    };
+
+    const handleHomeSwitch = async (user: PlexHomeProfile, pin: string | undefined, remember: boolean) => {
+        setHomeSwitchBusy(true);
+        setHomeSwitchError('');
+        try {
+            await apiFetch('/api/auth/plex/home-profiles/switch', {
+                method: 'POST',
+                body: JSON.stringify({
+                    userId: user.id,
+                    remember: remember === true,
+                    ...(pin ? { pin } : {}),
+                }),
+            });
+            window.location.reload();
+        } catch (err: any) {
+            setHomeSwitchError(err?.message || t('mediaPlayerPage.switchUserError'));
+            setHomeSwitchBusy(false);
+        }
     };
 
     const renderNav = (showLabels: boolean, desktop = false) => (
@@ -241,6 +304,17 @@ export const MediaPlayerNav: React.FC<Props> = ({
                     <Settings className="h-4 w-4 shrink-0" />
                     {showLabels ? t('mediaPlayerPage.navSettings') : null}
                 </button>
+                {homeSwitchAvailable ? (
+                    <button
+                        type="button"
+                        className={navButtonClass(false, showLabels)}
+                        onClick={() => go(() => { void openHomeSwitcher(); })}
+                        title={t('mediaPlayerPage.switchUser')}
+                    >
+                        <Users className="h-4 w-4 shrink-0" />
+                        {showLabels ? t('mediaPlayerPage.switchUser') : null}
+                    </button>
+                ) : null}
                 <button
                     type="button"
                     className={navButtonClass(false, showLabels)}
@@ -310,6 +384,19 @@ export const MediaPlayerNav: React.FC<Props> = ({
                     </aside>
                 </div>
             ) : null}
+
+            <PlexHomeSwitchModal
+                open={homeSwitchOpen}
+                users={homeSwitchUsers}
+                currentUserId={homeSwitchCurrentId}
+                rememberUserId={homeSwitchRememberUserId}
+                showRemember
+                rememberDefault={!!homeSwitchRememberUserId}
+                busy={homeSwitchBusy}
+                error={homeSwitchError}
+                onSelect={handleHomeSwitch}
+                onClose={() => { if (!homeSwitchBusy) setHomeSwitchOpen(false); }}
+            />
         </>
     );
 };
