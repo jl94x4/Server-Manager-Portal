@@ -165,11 +165,12 @@ const useOverviewServiceLogos = (item: PlayerItem, region: string) => {
     useEffect(() => {
         setTmdbNetworks([]);
         setStreamingProviders([]);
-    }, [item.type, plexName]);
+    }, [item.type, item.tmdbId, item.externalIds?.tmdb, plexName]);
 
     useEffect(() => {
         const tmdbId = Number(item.externalIds?.tmdb || item.tmdbId || 0);
         if (!Number.isFinite(tmdbId) || tmdbId <= 0) return undefined;
+        // Episodes/seasons must resolve against the series id (server prefers show TMDB).
         const mediaType = item.type === 'movie' ? 'movie' : 'tv';
         let cancelled = false;
         apiFetch(`/api/discovery/proxy/${mediaType}/${tmdbId}`)
@@ -193,7 +194,8 @@ const useOverviewServiceLogos = (item: PlayerItem, region: string) => {
 
     return splitOverviewServiceLogos({
         plexName,
-        mediaType: item.type,
+        // Treat episodes/seasons as TV so Plex network labels land in Network, not Studio.
+        mediaType: item.type === 'movie' ? 'movie' : 'show',
         networks: DISCOVER_NETWORKS,
         studios: DISCOVER_STUDIOS,
         tmdbNetworks,
