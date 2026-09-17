@@ -9236,16 +9236,17 @@ const isSafePlexMediaPath = (rawPath) => {
     return true;
 };
 
-const fetchPlexPosterBuffer = async (config, thumbPath, width, height, { minSize = 1 } = {}) => {
+const fetchPlexPosterBuffer = async (config, thumbPath, width, height, { minSize = 1, quality = 90 } = {}) => {
     const uri = await getPlexConnectionUri(config);
     if (!uri) return null;
     const token = normalizePlexToken(config.plexToken);
     if (!token) return null;
     const fit = minSize === 0 ? 0 : 1;
+    const q = Math.min(100, Math.max(1, parseInt(quality, 10) || 90));
     const headers = plexClientHeaders(config.plexToken);
 
     const fetchTranscode = () => {
-        const url = `${uri}/photo/:/transcode?url=${encodeURIComponent(thumbPath)}&width=${encodeURIComponent(width)}&height=${encodeURIComponent(height)}&minSize=${fit}&upscale=0&quality=90&X-Plex-Token=${encodeURIComponent(token)}`;
+        const url = `${uri}/photo/:/transcode?url=${encodeURIComponent(thumbPath)}&width=${encodeURIComponent(width)}&height=${encodeURIComponent(height)}&minSize=${fit}&upscale=0&quality=${q}&X-Plex-Token=${encodeURIComponent(token)}`;
         return fetchWithTimeout(url, { headers }, 15000);
     };
 
@@ -9351,9 +9352,10 @@ app.get('/api/plex/image', requireAuth, requireMember, async (req, res) => {
         const transcodeWidth = Math.min(Math.max(parseInt(width, 10) || PLEX_POSTER_WIDTH, 16), PLEX_IMAGE_MAX_WIDTH);
         const transcodeHeight = Math.min(Math.max(parseInt(height, 10) || PLEX_POSTER_HEIGHT, 16), PLEX_IMAGE_MAX_HEIGHT);
         const fitContain = String(req.query.fit || '').toLowerCase() === 'contain';
+        const imageQuality = Math.min(100, Math.max(1, parseInt(req.query.quality, 10) || 90));
         const key = mediaImageCacheKey({
             source: 'plex',
-            id: fitContain ? `${thumbPath}|contain` : String(thumbPath),
+            id: fitContain ? `${thumbPath}|contain|q${imageQuality}` : `${thumbPath}|q${imageQuality}`,
             width: transcodeWidth,
             height: transcodeHeight,
         });
@@ -9362,6 +9364,7 @@ app.get('/api/plex/image', requireAuth, requireMember, async (req, res) => {
             key,
             () => fetchPlexPosterBuffer(config, thumbPath, transcodeWidth, transcodeHeight, {
                 minSize: fitContain ? 0 : 1,
+                quality: imageQuality,
             }),
             failImage,
         );
