@@ -44,6 +44,9 @@ const heroMediaKindLabel = (
     return '';
 };
 
+const SLIDE_MS = 10000;
+const SWIPE_MIN_DX = 48;
+
 const toPlayerItem = (slide: HomeHeroSlide): PlayerItem => ({
     ratingKey: slide.ratingKey,
     title: slide.title,
