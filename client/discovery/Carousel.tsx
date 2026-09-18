@@ -8,6 +8,15 @@ interface CarouselProps {
 
 const SCROLL_EDGE_PX = 8;
 
+const isTvShell = () => {
+    try {
+        return document.documentElement?.dataset?.tv === '1'
+            || window.__PLEX_CLIENT__?.isTv === true;
+    } catch {
+        return false;
+    }
+};
+
 export const Carousel: React.FC<CarouselProps> = ({ children }) => {
     const { t } = useDiscoverI18n();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -15,6 +24,11 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
     const [atStart, setAtStart] = useState(true);
     const [atEnd, setAtEnd] = useState(true);
     const [canScroll, setCanScroll] = useState(false);
+    const [tvShell, setTvShell] = useState(false);
+
+    useEffect(() => {
+        setTvShell(isTvShell());
+    }, []);
 
     const handleScroll = useCallback(() => {
         const node = scrollContainerRef.current;
@@ -63,6 +77,23 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
         };
         node.addEventListener('wheel', onWheel, { passive: false });
 
+        // Android TV D-pad: keep focused posters in view; don't let arrow keys only scroll the strip.
+        const onFocusIn = (event: FocusEvent) => {
+            if (!isTvShell()) return;
+            const target = event.target as HTMLElement | null;
+            if (!target || !node.contains(target)) return;
+            try {
+                target.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+            } catch {
+                try {
+                    target.scrollIntoView(false);
+                } catch {
+                    /* ignore */
+                }
+            }
+        };
+        node.addEventListener('focusin', onFocusIn);
+
         const t1 = window.setTimeout(handleScroll, 100);
         const t2 = window.setTimeout(handleScroll, 400);
 
@@ -71,6 +102,7 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
             mutationObserver?.disconnect();
             window.removeEventListener('resize', handleScroll);
             node.removeEventListener('wheel', onWheel);
+            node.removeEventListener('focusin', onFocusIn);
             window.clearTimeout(t1);
             window.clearTimeout(t2);
         };
@@ -93,37 +125,39 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
 
     return (
         <div className="relative w-full min-w-0">
-            <div className="absolute right-1 -top-9 z-10 flex items-center text-muted">
-                <button
-                    type="button"
-                    onClick={() => scroll('left')}
-                    disabled={!canScroll || atStart}
-                    className={`p-0.5 transition-colors ${!canScroll || atStart ? 'text-muted/30 cursor-default' : 'hover:text-text'}`}
-                    aria-label={t('common.scrollLeft')}
-                >
-                    <ChevronLeft className="w-6 h-6" />
-                </button>
-                <button
-                    type="button"
-                    onClick={() => scroll('right')}
-                    disabled={!canScroll || atEnd}
-                    className={`p-0.5 transition-colors ${!canScroll || atEnd ? 'text-muted/30 cursor-default' : 'text-text/80 hover:text-text'}`}
-                    aria-label={t('common.scrollRight')}
-                >
-                    <ChevronRight className="w-6 h-6" />
-                </button>
-            </div>
+            {!tvShell ? (
+                <div className="absolute right-1 -top-9 z-10 flex items-center text-muted">
+                    <button
+                        type="button"
+                        onClick={() => scroll('left')}
+                        disabled={!canScroll || atStart}
+                        className={`p-0.5 transition-colors ${!canScroll || atStart ? 'text-muted/30 cursor-default' : 'hover:text-text'}`}
+                        aria-label={t('common.scrollLeft')}
+                    >
+                        <ChevronLeft className="w-6 h-6" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => scroll('right')}
+                        disabled={!canScroll || atEnd}
+                        className={`p-0.5 transition-colors ${!canScroll || atEnd ? 'text-muted/30 cursor-default' : 'text-text/80 hover:text-text'}`}
+                        aria-label={t('common.scrollRight')}
+                    >
+                        <ChevronRight className="w-6 h-6" />
+                    </button>
+                </div>
+            ) : null}
 
             <div className="relative">
                 <div
                     ref={scrollContainerRef}
                     onScroll={handleScroll}
-                    className="flex gap-4 overflow-x-auto snap-x snap-proximity scrollbar-hide py-2 px-2 w-full"
+                    className="flex gap-4 overflow-x-auto snap-x snap-proximity scrollbar-hide hide-scrollbar py-2 px-2 w-full"
                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
                     {children}
                 </div>
-                {canScroll && !atEnd ? (
+                {canScroll && !atEnd && !tvShell ? (
                     <div
                         className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-card to-transparent"
                         aria-hidden

@@ -92,9 +92,26 @@
       -webkit-text-size-adjust: 100%;
       text-size-adjust: 100%;
     }
-    [data-tv="1"] :focus-visible {
-      outline: 3px solid #f59e0b;
+    /* D-pad focus must be obvious; WebView often skips :focus-visible */
+    html[data-tv="1"] :focus {
+      outline: 3px solid #f59e0b !important;
       outline-offset: 3px;
+    }
+    html[data-tv="1"] :focus:not(:focus-visible) {
+      outline: 3px solid #f59e0b !important;
+      outline-offset: 3px;
+    }
+    /* No scrollbars on TV — remote scrolls, chrome looks wrong */
+    html[data-tv="1"],
+    html[data-tv="1"] * {
+      scrollbar-width: none !important;
+      -ms-overflow-style: none !important;
+    }
+    html[data-tv="1"] *::-webkit-scrollbar {
+      width: 0 !important;
+      height: 0 !important;
+      display: none !important;
+      background: transparent !important;
     }
   </style>
 </head>

@@ -355,7 +355,11 @@ export const MediaPlayerDashboard: React.FC = () => {
             />
             <div
                 id={PLAYER_SCROLL_ID}
-                className={`min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-clip custom-scrollbar px-4 py-4 md:py-6 md:pr-6 ${
+                className={`min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-clip px-4 py-4 md:py-6 md:pr-6 ${
+                    typeof document !== 'undefined' && document.documentElement?.dataset?.tv === '1'
+                        ? 'hide-scrollbar'
+                        : 'custom-scrollbar'
+                } ${
                     navExpanded ? 'md:pl-[18.25rem]' : 'md:pl-[6.5rem]'
                 } ${playSession ? 'pb-36' : ''}`}
             >

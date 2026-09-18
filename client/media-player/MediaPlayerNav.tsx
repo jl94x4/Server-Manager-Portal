@@ -272,7 +272,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
                     ) : (
                         <div className="my-1 h-px w-6 shrink-0 bg-white/15" />
                     )}
-                    <div className={`min-h-0 overflow-y-auto custom-scrollbar ${showLabels ? 'flex flex-col gap-1' : 'flex flex-col items-center gap-1'}`}>
+                    <div className={`min-h-0 overflow-y-auto hide-scrollbar ${showLabels ? 'flex flex-col gap-1' : 'flex flex-col items-center gap-1'}`}>
                         {orderedLibraries.map((section) => {
                             const Icon = libraryIcon(section.type);
                             const active = page === 'library' && String(activeLibraryKey) === String(section.key);

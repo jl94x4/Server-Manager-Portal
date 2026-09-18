@@ -76,6 +76,10 @@ export const MediaPlayerHome: React.FC<Props> = ({
     const [draftLibraryOrder, setDraftLibraryOrder] = useState<string[] | null>(null);
     const libraryNavOrder = draftLibraryOrder || settings.libraryNavOrder;
     const [gridSize, setGridSize] = useDiscoverGridSize();
+    const isTvShell = typeof document !== 'undefined' && (
+        document.documentElement?.dataset?.tv === '1'
+        || window.__PLEX_CLIENT__?.isTv === true
+    );
     const [home, setHome] = useState<PlayerHome | null>(() => readPlayerHomeCache());
     const [heroSlides, setHeroSlides] = useState<HomeHeroSlide[]>(() => readHeroSlidesCache() || []);
     const [heroEffectiveMode, setHeroEffectiveMode] = useState<string | null>(null);
@@ -477,7 +481,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
                     <p className={discoveryTheme.personalEyebrow}>{t('navigation.mediaPlayer')}</p>
                     <h1 className={discoveryTheme.heading}>{t('mediaPlayerPage.navHome')}</h1>
                 </div>
-                {query.trim() || !orderedLibraries.length || !onOpenLibrary ? (
+                {(!isTvShell && (query.trim() || !orderedLibraries.length || !onOpenLibrary)) ? (
                     <DiscoverGridSizeSelect value={gridSize} onChange={setGridSize} />
                 ) : null}
             </div>
@@ -488,7 +492,9 @@ export const MediaPlayerHome: React.FC<Props> = ({
                         <p className="min-w-0 text-[10px] font-bold uppercase tracking-[0.18em] text-muted">
                             {t('mediaPlayerPage.jumpToLibrary')}
                         </p>
-                        <DiscoverGridSizeSelect className="shrink-0" value={gridSize} onChange={setGridSize} />
+                        {!isTvShell ? (
+                            <DiscoverGridSizeSelect className="shrink-0" value={gridSize} onChange={setGridSize} />
+                        ) : null}
                     </div>
                     <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
                         {orderedLibraries.map((library) => {
