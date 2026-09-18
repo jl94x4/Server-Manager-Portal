@@ -50,7 +50,14 @@ const plexClientPortalOrigin = (): string => {
  */
 const withPlexClientAccessToken = (url: string): string => {
     if (typeof window === 'undefined' || !url) return url;
-    const token = String(window.__PLEX_CLIENT__?.sessionToken || '').trim();
+    let token = String(window.__PLEX_CLIENT__?.sessionToken || '').trim();
+    if (!token) {
+        try {
+            token = String(localStorage.getItem('plexClient.sessionToken') || '').trim();
+        } catch {
+            token = '';
+        }
+    }
     const origin = plexClientPortalOrigin();
     if (!token || !origin) return url;
     try {

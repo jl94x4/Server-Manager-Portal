@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    portalUrl,
     pushToast as appendToast,
     stripBasePath,
     ToastContainer,
@@ -193,7 +192,9 @@ export const MediaPlayerDashboard: React.FC = () => {
     }, []);
 
     const navigate = useCallback((path: string) => {
-        window.history.pushState({}, '', portalUrl(path));
+        // Stay on the Capacitor/WebView origin. portalUrl() is absolute to the SMP host
+        // and breaks history.pushState (cross-origin) so poster clicks never open overview.
+        window.history.pushState({}, '', path);
         setView(readPlayerView());
         window.dispatchEvent(new Event(PLAYER_NAVIGATE_EVENT));
     }, []);

@@ -180,7 +180,7 @@ export const applyTvDisplayScale = () => {
         const meta = ensureViewportMeta();
         meta.setAttribute(
             'content',
-            `width=${TV_LAYOUT_WIDTH}, initial-scale=1, maximum-scale=1, user-scalable=no`,
+            'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no',
         );
         document.documentElement.style.fontSize = '16px';
         if (typeof window.__SMP_APPLY_TV_SCALE__ === 'function') {
