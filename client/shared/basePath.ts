@@ -45,27 +45,56 @@ const plexClientPortalOrigin = (): string => {
     return raw;
 };
 
+/**
+ * Capacitor <img> / ExoPlayer cannot send Authorization — append access_token for portal API URLs.
+ */
+const withPlexClientAccessToken = (url: string): string => {
+    if (typeof window === 'undefined' || !url) return url;
+    const token = String(window.__PLEX_CLIENT__?.sessionToken || '').trim();
+    const origin = plexClientPortalOrigin();
+    if (!token || !origin) return url;
+    try {
+        const parsed = new URL(url, `${origin}/`);
+        if (!parsed.pathname.includes('/api/')) return url;
+        const portalOrigin = new URL(origin).origin;
+        if (parsed.origin !== portalOrigin) return url;
+        if (!parsed.searchParams.get('access_token')) {
+            parsed.searchParams.set('access_token', token);
+        }
+        return parsed.toString();
+    } catch {
+        return url;
+    }
+};
+
 /** Prefix an app-root path with the configured base path (or absolute portal URL in plex-client). */
 export const portalUrl = (path: string): string => {
-    if (!path || path.startsWith('http://') || path.startsWith('https://')) return path;
+    if (!path) return path;
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+        return withPlexClientAccessToken(path);
+    }
     const normalized = path.startsWith('/') ? path : `/${path}`;
     const absoluteOrigin = plexClientPortalOrigin();
+    let built = '';
     if (absoluteOrigin) {
         const base = getBasePath();
         if (base && (normalized === base || normalized.startsWith(`${base}/`))) {
-            return `${absoluteOrigin}${normalized}`;
+            built = `${absoluteOrigin}${normalized}`;
+        } else {
+            built = `${absoluteOrigin}${base ? `${base}${normalized}` : normalized}`;
         }
-        return `${absoluteOrigin}${base ? `${base}${normalized}` : normalized}`;
+    } else {
+        const base = getBasePath();
+        if (base && (normalized === base || normalized.startsWith(`${base}/`))) built = normalized;
+        else built = base ? `${base}${normalized}` : normalized;
     }
-    const base = getBasePath();
-    if (base && (normalized === base || normalized.startsWith(`${base}/`))) return normalized;
-    return base ? `${base}${normalized}` : normalized;
+    return withPlexClientAccessToken(built);
 };
 
-/** Prefix root-relative asset or API paths; leave absolute http(s) URLs unchanged. */
+/** Prefix root-relative asset or API paths; leave absolute http(s) URLs unchanged (except plex-client auth). */
 export const resolvePortalAssetUrl = (url: string | null | undefined): string => {
     if (!url) return '';
-    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    if (url.startsWith('http://') || url.startsWith('https://')) return withPlexClientAccessToken(url);
     return portalUrl(url.startsWith('/') ? url : `/${url}`);
 };
 

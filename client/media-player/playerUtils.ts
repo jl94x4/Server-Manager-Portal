@@ -1,10 +1,12 @@
-import { portalUrl } from '../shared/basePath';
+import { portalUrl, resolvePortalAssetUrl } from '../shared/basePath';
 import { PLAYER_API_ROOT, PLAYER_IMAGE_PATH } from './paths';
 import type { PlayerItem } from './types';
 
 export const plexImageUrl = (path?: string | null, width = 300, height = 450, opts?: { fit?: 'contain' | 'cover' }) => {
     if (!path) return '';
-    if (path.startsWith('http') || path.startsWith('/api/')) return path;
+    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/api/')) {
+        return resolvePortalAssetUrl(path);
+    }
     const params = new URLSearchParams({
         path,
         width: String(width),
