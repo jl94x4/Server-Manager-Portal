@@ -130,6 +130,16 @@ export const MediaPlayerDashboard: React.FC = () => {
     }, []);
 
     useEffect(() => {
+        try {
+            if (window.__PLEX_CLIENT__?.isTv || document.documentElement?.dataset?.tv === '1') {
+                setNavExpanded(false);
+            }
+        } catch {
+            /* ignore */
+        }
+    }, []);
+
+    useEffect(() => {
         const previous = viewKindRef.current;
         viewKindRef.current = view.kind;
         if (view.kind === 'home') setKeepHome(true);

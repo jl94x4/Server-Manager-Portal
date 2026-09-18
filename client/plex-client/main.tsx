@@ -7,6 +7,7 @@ import { PlexClientAuthScreen } from './AuthScreen';
 import {
     bootstrapPlexClientConfig,
     clearPlexClientSession,
+    detectAndApplyTvUi,
     getSessionToken,
 } from './config';
 import { installNativeMediaPlayerBridge } from './nativePlayer';
@@ -28,25 +29,34 @@ const PlexClientApp: React.FC = () => {
     const [checking, setChecking] = useState(true);
 
     useEffect(() => {
-        bootstrapPlexClientConfig();
-        installNativeMediaPlayerBridge();
-        setReady(true);
-        const token = getSessionToken();
-        if (!token) {
-            setChecking(false);
-            return;
-        }
-        apiFetch('/api/auth/session')
-            .then((data) => {
+        let cancelled = false;
+        const boot = async () => {
+            bootstrapPlexClientConfig();
+            // Await native leanback flag before first paint so density isn't phone-sized.
+            await detectAndApplyTvUi();
+            if (cancelled) return;
+            installNativeMediaPlayerBridge();
+            setReady(true);
+            const token = getSessionToken();
+            if (!token) {
+                setChecking(false);
+                return;
+            }
+            try {
+                const data = await apiFetch('/api/auth/session');
+                if (cancelled) return;
                 if (data?.authenticated) {
                     ensurePlayerRoute();
                     setAuthed(true);
                 } else clearPlexClientSession();
-            })
-            .catch(() => {
-                clearPlexClientSession();
-            })
-            .finally(() => setChecking(false));
+            } catch {
+                if (!cancelled) clearPlexClientSession();
+            } finally {
+                if (!cancelled) setChecking(false);
+            }
+        };
+        void boot();
+        return () => { cancelled = true; };
     }, []);
 
     const onAuthenticated = useCallback(() => {

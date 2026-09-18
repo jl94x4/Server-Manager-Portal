@@ -1,8 +1,8 @@
 /**
  * Bridge to native ExoPlayer (Android / Android TV) via Capacitor plugin.
+ * Capacitor is loaded dynamically so the portal Docker/esbuild bundle does not
+ * need @capacitor/core (that dep lives only under plex-client/).
  */
-
-import { Capacitor, registerPlugin } from '@capacitor/core';
 
 export type NativePlayerOpenOptions = {
     url: string;
@@ -38,41 +38,60 @@ declare global {
     }
 }
 
-const CapNativeMediaPlayer = registerPlugin<CapNativeMediaPlayerPlugin>('NativeMediaPlayer');
+let installPromise: Promise<void> | null = null;
+
+const loadCapacitorCore = async (): Promise<{
+    Capacitor: { isNativePlatform: () => boolean };
+    registerPlugin: <T>(name: string) => T;
+} | null> => {
+    try {
+        // External in portal esbuild; resolved from plex-client/node_modules in APK build.
+        return await import('@capacitor/core');
+    } catch {
+        return null;
+    }
+};
 
 /** Install window.NativeMediaPlayer when running inside Capacitor Android. */
 export const installNativeMediaPlayerBridge = () => {
     if (typeof window === 'undefined') return;
-    if (!Capacitor.isNativePlatform()) return;
-
-    window.NativeMediaPlayer = {
-        isAvailable: async () => {
-            try {
-                const result = await CapNativeMediaPlayer.isAvailable();
-                return !!result?.value;
-            } catch {
-                return false;
-            }
-        },
-        open: async (opts) => {
-            const result = await CapNativeMediaPlayer.open({
-                url: opts.url,
-                title: opts.title,
-                offsetMs: opts.offsetMs || 0,
-                headers: opts.headers,
-            });
-            return {
-                ended: !!result?.ended,
-                positionMs: Math.max(0, Math.floor(Number(result?.positionMs) || 0)),
-            };
-        },
-    };
+    if (installPromise) return;
+    installPromise = (async () => {
+        const cap = await loadCapacitorCore();
+        if (!cap?.Capacitor?.isNativePlatform?.() || !cap.registerPlugin) return;
+        const CapNativeMediaPlayer = cap.registerPlugin<CapNativeMediaPlayerPlugin>('NativeMediaPlayer');
+        window.NativeMediaPlayer = {
+            isAvailable: async () => {
+                try {
+                    const result = await CapNativeMediaPlayer.isAvailable();
+                    return !!result?.value;
+                } catch {
+                    return false;
+                }
+            },
+            open: async (opts) => {
+                const result = await CapNativeMediaPlayer.open({
+                    url: opts.url,
+                    title: opts.title,
+                    offsetMs: opts.offsetMs || 0,
+                    headers: opts.headers,
+                });
+                return {
+                    ended: !!result?.ended,
+                    positionMs: Math.max(0, Math.floor(Number(result?.positionMs) || 0)),
+                };
+            },
+        };
+    })().catch(() => {
+        /* web / missing plugin */
+    });
 };
 
 export const isNativePlayerAvailable = async (): Promise<boolean> => {
     if (typeof window === 'undefined') return false;
     if (window.__PLEX_CLIENT__?.nativePlayer === false) return false;
-    if (!window.NativeMediaPlayer) installNativeMediaPlayerBridge();
+    installNativeMediaPlayerBridge();
+    if (installPromise) await installPromise;
     const bridge = window.NativeMediaPlayer;
     if (!bridge?.isAvailable || !bridge?.open) return false;
     try {

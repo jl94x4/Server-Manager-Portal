@@ -17,6 +17,9 @@ declare global {
 const STORAGE_PORTAL = 'plexClient.portalBaseUrl';
 const STORAGE_TOKEN = 'plexClient.sessionToken';
 
+/** Desktop-like layout width so rem/Tailwind density matches a browser on a TV WebView. */
+const TV_LAYOUT_WIDTH = 1920;
+
 const trimSlash = (value: string) => String(value || '').replace(/\/+$/, '');
 
 /** Normalize user-entered portal URL (Play Store: any SMP host). */
@@ -131,13 +134,37 @@ export const isAndroidTvUi = (): boolean => {
     try {
         if (document.documentElement?.dataset?.tv === '1') return true;
         const ua = navigator.userAgent || '';
-        return /Android/i.test(ua) && /TV|BRAVIA|AFT|GoogleTV|Android TV/i.test(ua);
+        if (/Android/i.test(ua) && /TV|BRAVIA|AFT|GoogleTV|Android TV|SHIELD/i.test(ua)) return true;
+        // Emulators often omit "TV" in the UA — no touch + large Android screen ≈ leanback.
+        if (
+            /Android/i.test(ua)
+            && typeof navigator.maxTouchPoints === 'number'
+            && navigator.maxTouchPoints === 0
+            && Math.max(window.screen?.width || 0, window.screen?.height || 0) >= 720
+        ) {
+            return true;
+        }
     } catch {
-        return false;
+        /* ignore */
     }
+    return false;
 };
 
-/** Keep Media Player at a desktop-like density on Android TV WebViews. */
+const ensureViewportMeta = () => {
+    let meta = document.querySelector('meta[name="viewport"]');
+    if (!meta) {
+        meta = document.createElement('meta');
+        meta.setAttribute('name', 'viewport');
+        document.head.appendChild(meta);
+    }
+    return meta;
+};
+
+/**
+ * Overall UI density for Android TV WebViews (not the poster Size slider).
+ * High-DPI leanback WebViews often report a phone-sized CSS width, so rem/Tailwind
+ * layouts look blown up — lock a 1920px layout width like a desktop browser.
+ */
 export const applyTvDisplayScale = () => {
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
     if (!isAndroidTvUi()) return;
@@ -147,17 +174,43 @@ export const applyTvDisplayScale = () => {
             ...(window.__PLEX_CLIENT__ || {}),
             isTv: true,
         };
-        let meta = document.querySelector('meta[name="viewport"]');
-        if (!meta) {
-            meta = document.createElement('meta');
-            meta.setAttribute('name', 'viewport');
-            document.head.appendChild(meta);
-        }
-        meta.setAttribute('content', 'width=1920, initial-scale=1, maximum-scale=1, user-scalable=no');
+        const meta = ensureViewportMeta();
+        meta.setAttribute(
+            'content',
+            `width=${TV_LAYOUT_WIDTH}, initial-scale=1, maximum-scale=1, user-scalable=no`,
+        );
         document.documentElement.style.fontSize = '16px';
+        document.documentElement.style.zoom = '';
     } catch {
         /* ignore */
     }
+};
+
+type DeviceUiPlugin = {
+    getInfo: () => Promise<{ isTv?: boolean }>;
+};
+
+/** Ask native leanback detection, then apply TV layout density. */
+export const detectAndApplyTvUi = async (): Promise<boolean> => {
+    if (typeof window === 'undefined') return false;
+    try {
+        const { Capacitor, registerPlugin } = await import('@capacitor/core');
+        if (Capacitor.isNativePlatform()) {
+            const DeviceUi = registerPlugin<DeviceUiPlugin>('DeviceUi');
+            const info = await DeviceUi.getInfo();
+            if (info?.isTv) {
+                window.__PLEX_CLIENT__ = {
+                    ...(window.__PLEX_CLIENT__ || {}),
+                    isTv: true,
+                };
+            }
+        }
+    } catch {
+        /* web / plugin missing */
+    }
+    const tv = isAndroidTvUi();
+    if (tv) applyTvDisplayScale();
+    return tv;
 };
 
 export const bootstrapPlexClientConfig = () => {
