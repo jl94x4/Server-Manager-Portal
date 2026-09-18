@@ -6,8 +6,9 @@ import {
     resolveImageFocalPoint,
     type FocalPoint,
 } from '../shared/imageFocalPoint';
+import { resolvePortalAssetUrl } from '../shared/basePath';
 import { useDiscoverI18n } from './host';
-import { plexLogoUrl } from './playerUtils';
+import { plexBackdropUrl, plexImageUrl, plexLogoUrl } from './playerUtils';
 import type { PlayerItem, PlayerPlayOptions } from './types';
 
 export type HomeHeroSlide = {
@@ -41,6 +42,15 @@ const heroMediaKindLabel = (
         return translate('mediaPlayerPage.searchShows');
     }
     if (kind === 'movie') return translate('mediaPlayerPage.searchMovies');
+    return '';
+};
+
+/** Capacitor <img> needs absolute portal URL + access_token (rail posters already do this). */
+const heroBackdropSrc = (slide: HomeHeroSlide): string => {
+    if (slide.backdropUrl) return resolvePortalAssetUrl(slide.backdropUrl);
+    if (slide.posterUrl) return resolvePortalAssetUrl(slide.posterUrl);
+    if (slide.art) return plexBackdropUrl(slide.art);
+    if (slide.thumb) return plexImageUrl(slide.thumb, 1280, 720);
     return '';
 };
 
@@ -117,7 +127,7 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, effectiveMode, onO
     const swipeRef = useRef<{ x: number; y: number } | null>(null);
     const slides = Array.isArray(items) ? items.filter((row) => row?.ratingKey && row?.title) : [];
     const slideKey = slides.map((row) => row.ratingKey).join('|');
-    const backdropKey = slides.map((row) => row.backdropUrl || '').join('|');
+    const backdropKey = slides.map((row) => heroBackdropSrc(row)).join('|');
 
     useEffect(() => {
         setIndex(0);
@@ -135,9 +145,9 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, effectiveMode, onO
         if (!slides.length) return undefined;
         let cancelled = false;
         const urls = [
-            slides[index]?.backdropUrl,
-            slides[(index + 1) % slides.length]?.backdropUrl,
-            slides[(index + 2) % slides.length]?.backdropUrl,
+            heroBackdropSrc(slides[index]),
+            heroBackdropSrc(slides[(index + 1) % slides.length]),
+            heroBackdropSrc(slides[(index + 2) % slides.length]),
         ].filter((url): url is string => Boolean(url));
 
         prefetchImageFocalPoints(urls);
@@ -153,7 +163,6 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, effectiveMode, onO
 
         void warm();
         return () => { cancelled = true; };
-        // backdropKey captures URL identity; slides.length keeps modulo safe
         // eslint-disable-next-line react-hooks/exhaustive-deps -- slides rebuilt each render
     }, [backdropKey, index, slides.length]);
 
@@ -205,17 +214,18 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, effectiveMode, onO
             <div className="relative aspect-[21/9] min-h-[220px] max-h-[420px] w-full overflow-hidden sm:min-h-[280px]">
                 {slides.map((slide, slideIndex) => {
                     const visible = slideIndex === index;
-                    const focal = slide.backdropUrl ? focalByUrl[slide.backdropUrl] : undefined;
+                    const backdropSrc = heroBackdropSrc(slide);
+                    const focal = backdropSrc ? focalByUrl[backdropSrc] : undefined;
                     return (
                         <div
                             key={slide.ratingKey}
                             className={`absolute inset-0 overflow-hidden transition-opacity duration-700 ease-out ${visible ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
                             aria-hidden={!visible}
                         >
-                            {slide.backdropUrl ? (
+                            {backdropSrc ? (
                                 <div className="absolute inset-0 overflow-hidden">
                                     <img
-                                        src={slide.backdropUrl}
+                                        src={backdropSrc}
                                         alt=""
                                         className={`h-full w-full object-cover transition-[transform,object-position] duration-[8s] ease-out will-change-transform ${visible ? 'scale-105' : 'scale-100'}`}
                                         style={{ objectPosition: formatBackgroundPosition(focal) }}
