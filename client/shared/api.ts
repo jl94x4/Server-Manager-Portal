@@ -26,10 +26,29 @@ const discoverLocaleHeaders = (url: string): HeadersInit => {
     }
 };
 
+const plexClientAuthHeaders = (): HeadersInit => {
+    try {
+        const token = String(window.__PLEX_CLIENT__?.sessionToken || '').trim();
+        if (!token) return {};
+        return { Authorization: `Bearer ${token}` };
+    } catch {
+        return {};
+    }
+};
+
+const isPlexClientRequest = () => {
+    try {
+        return !!(window.__PLEX_CLIENT__?.portalBaseUrl || window.__PLEX_CLIENT__);
+    } catch {
+        return false;
+    }
+};
+
 export const portalRequestHeaders = (extra: HeadersInit = {}): HeadersInit => ({
     'Content-Type': 'application/json',
     Accept: 'application/json',
     [PORTAL_CSRF_HEADER]: PORTAL_CSRF_VALUE,
+    ...plexClientAuthHeaders(),
     ...extra,
 });
 
@@ -51,8 +70,9 @@ export const apiErrorMessage = (status: number, text = '') => {
 };
 
 export const apiFetch = async (url: string, options: RequestInit = {}) => {
+    const crossOriginPortal = isPlexClientRequest();
     const response = await fetch(portalUrl(url), {
-        credentials: 'same-origin',
+        credentials: crossOriginPortal ? 'omit' : 'same-origin',
         ...options,
         cache: 'no-store',
         headers: portalRequestHeaders({

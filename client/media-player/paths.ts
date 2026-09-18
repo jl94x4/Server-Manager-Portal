@@ -7,5 +7,15 @@ export const PLAYER_SCROLL_ID = 'media-player-scroll';
 
 export const exitToPortal = () => {
     if (typeof window === 'undefined') return;
+    // Capacitor app has no portal chrome to return to.
+    if (window.__PLEX_CLIENT__) {
+        try {
+            window.history.replaceState({}, '', PLAYER_APP_BASE);
+            window.dispatchEvent(new Event(PLAYER_NAVIGATE_EVENT));
+        } catch {
+            /* ignore */
+        }
+        return;
+    }
     window.dispatchEvent(new Event(PLAYER_EXIT_EVENT));
 };

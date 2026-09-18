@@ -1,6 +1,12 @@
 declare global {
     interface Window {
         __BASE_PATH__?: string;
+        __PLEX_CLIENT__?: {
+            portalBaseUrl?: string;
+            sessionToken?: string;
+            isTv?: boolean;
+            nativePlayer?: boolean;
+        };
     }
 }
 
@@ -33,11 +39,25 @@ export const getBasePath = (): string => {
     return readBasePathFromBaseTag();
 };
 
-/** Prefix an app-root path with the configured base path. */
+const plexClientPortalOrigin = (): string => {
+    if (typeof window === 'undefined') return '';
+    const raw = String(window.__PLEX_CLIENT__?.portalBaseUrl || '').trim().replace(/\/+$/, '');
+    return raw;
+};
+
+/** Prefix an app-root path with the configured base path (or absolute portal URL in plex-client). */
 export const portalUrl = (path: string): string => {
     if (!path || path.startsWith('http://') || path.startsWith('https://')) return path;
-    const base = getBasePath();
     const normalized = path.startsWith('/') ? path : `/${path}`;
+    const absoluteOrigin = plexClientPortalOrigin();
+    if (absoluteOrigin) {
+        const base = getBasePath();
+        if (base && (normalized === base || normalized.startsWith(`${base}/`))) {
+            return `${absoluteOrigin}${normalized}`;
+        }
+        return `${absoluteOrigin}${base ? `${base}${normalized}` : normalized}`;
+    }
+    const base = getBasePath();
     if (base && (normalized === base || normalized.startsWith(`${base}/`))) return normalized;
     return base ? `${base}${normalized}` : normalized;
 };
@@ -59,6 +79,10 @@ export const stripBasePath = (pathname: string): string => {
 };
 
 /** Public origin including base path — use for shareable links and referrals. */
-export const getPublicOrigin = (): string => `${window.location.origin}${getBasePath()}`;
+export const getPublicOrigin = (): string => {
+    const absolute = plexClientPortalOrigin();
+    if (absolute) return `${absolute}${getBasePath()}`;
+    return `${window.location.origin}${getBasePath()}`;
+};
 
 export const logoUrl = (): string => portalUrl(LOGO_PATH);

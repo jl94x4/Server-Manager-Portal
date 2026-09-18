@@ -10,6 +10,7 @@
     "build:js": "npm run clean:static && esbuild index.tsx --bundle --outdir=static --splitting --jsx=automatic --format=esm --minify",
     "build:version": "node build-version.js && node build-release-notes.js",
     "build": "npm run build:css && npm run build:js && npm run build:version",
+    "build:plex-client": "node scripts/build-plex-client.mjs",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
@@ -19,6 +20,8 @@
     "start:prod": "node index.js"
   },
   "dependencies": {
+    "@capacitor/android": "^6.2.2",
+    "@capacitor/core": "^6.2.2",
     "chokidar": "^4.0.3",
     "compression": "^1.7.4",
     "cookie-parser": "^1.4.7",
@@ -39,6 +42,7 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@capacitor/cli": "^6.2.2",
     "@types/node": "^26.0.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

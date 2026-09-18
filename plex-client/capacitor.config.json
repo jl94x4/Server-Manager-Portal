@@ -1,0 +1,11 @@
+{
+  "appId": "com.servermanagerportal.mediaplayer",
+  "appName": "SMP Media Player",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

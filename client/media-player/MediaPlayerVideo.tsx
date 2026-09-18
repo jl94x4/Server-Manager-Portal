@@ -52,6 +52,8 @@ import {
     writeMiniPlayerWidth,
 } from './playerMemory';
 import type { PlayerItem, PlayerPlayOptions, PlayerPlaySession } from './types';
+import { isNativePlayerAvailable, openNativePlayer } from '../plex-client/nativePlayer';
+import { getSessionToken } from '../plex-client/config';
 
 type Props = {
     session: PlayerPlaySession;
@@ -376,6 +378,43 @@ export const MediaPlayerVideo: React.FC<Props> = ({
         setControlsVisible(true);
         fallbackUsedRef.current = false;
     }, [session.sessionId]);
+
+    // Capacitor ExoPlayer: prefer native decode when the plugin is present.
+    useEffect(() => {
+        if (typeof window === 'undefined' || !window.__PLEX_CLIENT__) return undefined;
+        let cancelled = false;
+        (async () => {
+            if (!(await isNativePlayerAvailable())) return;
+            if (cancelled) return;
+            const absolute = portalUrl(session.src);
+            const token = getSessionToken();
+            const withToken = (() => {
+                if (!token) return absolute;
+                try {
+                    const url = new URL(absolute, window.location.href);
+                    if (!url.searchParams.get('access_token')) url.searchParams.set('access_token', token);
+                    return url.toString();
+                } catch {
+                    return absolute;
+                }
+            })();
+            const headers: Record<string, string> = {
+                [PORTAL_CSRF_HEADER]: PORTAL_CSRF_VALUE,
+            };
+            if (token) headers.Authorization = `Bearer ${token}`;
+            const result = await openNativePlayer({
+                url: withToken,
+                title: session.item.title,
+                offsetMs: session.offsetMs || 0,
+                headers,
+            });
+            if (cancelled || !result) return;
+            onClose();
+        })().catch(() => {
+            /* fall through to WebView <video> */
+        });
+        return () => { cancelled = true; };
+    }, [session.sessionId, session.src, session.item.title, session.offsetMs, onClose]);
 
     useEffect(() => {
         playbackSrcRef.current = playbackSrc;

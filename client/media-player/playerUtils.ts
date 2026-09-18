@@ -222,6 +222,10 @@ export const canUseNativeHls = () => {
 
 export const browserPlaybackCaps = () => {
     if (typeof document === 'undefined') return { hevc: false, ac3: false, hls: false };
+    // Capacitor + ExoPlayer path: advertise Android-class direct-play caps to the portal.
+    if (typeof window !== 'undefined' && window.__PLEX_CLIENT__?.nativePlayer !== false && window.__PLEX_CLIENT__) {
+        return { hevc: true, ac3: true, hls: true };
+    }
     const video = document.createElement('video');
     const can = (type: string) => {
         const result = video.canPlayType(type);

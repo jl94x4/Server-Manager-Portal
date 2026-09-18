@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <title>SMP Media Player</title>
+  <script>
+    window.__PLEX_CLIENT__ = window.__PLEX_CLIENT__ || {
+      portalBaseUrl: '',
+      nativePlayer: true,
+      isTv: false
+    };
+    document.documentElement.dataset.plexClient = '1';
+  </script>
+  <link rel="stylesheet" href="./tailwind.css" />
+  <style>
+    html, body, #root { height: 100%; margin: 0; background: #09090b; color: #fafafa; }
+    /* Android TV focus rings */
+    [data-tv="1"] :focus-visible {
+      outline: 3px solid #f59e0b;
+      outline-offset: 3px;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="./plex-client.js"></script>
+</body>
+</html>

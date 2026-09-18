@@ -1152,19 +1152,38 @@ const issuePlexOauthState = (req, res, pinId) => {
     return nonce;
 };
 
-const consumePlexOauthState = (req, res, pinId) => {
+/** Verify PIN OAuth binding via cookie (browser) or oauthState body/header (native app). */
+const verifyPlexOauthState = (req, pinId) => {
     prunePlexOauthStates();
     const id = String(pinId || '').trim();
     const expected = id ? plexOauthStates.get(id) : null;
-    if (id) plexOauthStates.delete(id);
-    const raw = String(req.cookies?.[PLEX_OAUTH_COOKIE] || '').trim();
-    res.clearCookie(PLEX_OAUTH_COOKIE, sessionCookieBase(req));
     if (!expected || !id || expected.expiresAt <= Date.now()) return false;
+    const bodyState = String(
+        req.body?.oauthState
+        || req.query?.oauthState
+        || req.get?.('x-plex-oauth-state')
+        || '',
+    ).trim();
+    if (bodyState && safeEqualString(bodyState, expected.nonce)) return true;
+    const raw = String(req.cookies?.[PLEX_OAUTH_COOKIE] || '').trim();
     const sep = raw.indexOf('.');
     if (sep <= 0) return false;
     const cookiePin = raw.slice(0, sep);
     const cookieNonce = raw.slice(sep + 1);
     return safeEqualString(cookiePin, id) && safeEqualString(cookieNonce, expected.nonce);
+};
+
+const clearPlexOauthState = (req, res, pinId) => {
+    const id = String(pinId || '').trim();
+    if (id) plexOauthStates.delete(id);
+    res.clearCookie(PLEX_OAUTH_COOKIE, sessionCookieBase(req));
+};
+
+/** One-shot consume (browser redirect). Prefer verify + clear after success for PIN polling. */
+const consumePlexOauthState = (req, res, pinId) => {
+    const ok = verifyPlexOauthState(req, pinId);
+    clearPlexOauthState(req, res, pinId);
+    return ok;
 };
 
 const PLEX_HOME_SELECT_COOKIE = 'plex_home_select';
@@ -1339,6 +1358,38 @@ const rejectPlexOauthState = (req, res, { redirectOnSuccess = false } = {}) => {
 app.use(express.json({ limit: '1mb' })); // Poster Sets Warm + other admin payloads; was 50kb (413 on large Warm)
 app.use(express.urlencoded({ extended: true, limit: '2mb' })); // Plex webhook form payloads
 app.use(cookieParser()); // Middleware to parse cookies
+
+// Capacitor / native Media Player app — allow cross-origin API with Bearer tokens.
+const NATIVE_MEDIA_PLAYER_ORIGINS = new Set([
+    'https://localhost',
+    'http://localhost',
+    'capacitor://localhost',
+    'ionic://localhost',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+]);
+const isNativeMediaPlayerOrigin = (origin) => {
+    const value = String(origin || '').trim();
+    if (!value) return false;
+    if (NATIVE_MEDIA_PLAYER_ORIGINS.has(value)) return true;
+    // Optional extra origins from env (comma-separated).
+    const extra = String(process.env.MEDIA_PLAYER_APP_ORIGINS || '')
+        .split(',')
+        .map((row) => row.trim())
+        .filter(Boolean);
+    return extra.includes(value);
+};
+app.use((req, res, next) => {
+    const origin = String(req.get('origin') || '').trim();
+    if (!origin || !isNativeMediaPlayerOrigin(origin)) return next();
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, Accept, X-Requested-With');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.setHeader('Vary', 'Origin');
+    if (req.method === 'OPTIONS') return res.status(204).end();
+    return next();
+});
 
 // CSRF defense for cookie-authenticated API mutations: require same-origin
 // Origin/Referer or the portal's custom X-Requested-With header (sent by apiFetch).
@@ -4414,9 +4465,10 @@ app.post('/api/auth/plex/login', authRateLimit, async (req, res) => {
         });
         if (!response.ok) throw new Error('Failed to generate Plex PIN');
         const data = await response.json();
-        if (data?.id) issuePlexOauthState(req, res, data.id);
+        const oauthState = data?.id ? issuePlexOauthState(req, res, data.id) : null;
         if (req.body?.skipHomeRemember === true) issuePlexHomeSkipRemember(req, res);
-        res.json({ ...data, clientIdentifier: CLIENT_ID });
+        // oauthState is for Capacitor / cross-origin clients that cannot rely on the OAuth cookie.
+        res.json({ ...data, clientIdentifier: CLIENT_ID, oauthState });
     } catch (err) {
         log('Error in plex login: ' + err.message);
         res.status(500).json({ error: 'Failed to initiate login' });
@@ -5124,11 +5176,17 @@ app.post('/api/auth/session/token', requireAuth, (req, res) => {
 app.post('/api/auth/plex/callback', authCallbackRateLimit, async (req, res) => {
     const { pinId, ref } = req.body;
     if (!pinId) return res.status(400).json({ error: 'pinId is required' });
-    if (!consumePlexOauthState(req, res, pinId)) {
+    // Peek first so TV/native PIN polling can retry until the pin is claimed.
+    if (!verifyPlexOauthState(req, pinId)) {
         return rejectPlexOauthState(req, res, { redirectOnSuccess: false });
     }
 
     try {
+        const pinData = await fetchPlexPinAuthToken(pinId);
+        if (!pinData.authToken) {
+            return res.status(202).json({ pending: true, error: 'Waiting for Plex sign-in' });
+        }
+        clearPlexOauthState(req, res, pinId);
         await handlePlexPinLogin(req, res, pinId, ref);
     } catch (err) {
         log('Error in plex callback: ' + err.message);
