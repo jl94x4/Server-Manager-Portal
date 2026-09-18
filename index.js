@@ -4457,7 +4457,13 @@ app.post('/api/settings/email-templates/test', requireAdmin, async (req, res) =>
 // Auth endpoints
 app.post('/api/auth/plex/login', authRateLimit, async (req, res) => {
     try {
-        const response = await fetch('https://plex.tv/api/v2/pins?strong=true', {
+        // strong=true → long code for app.plex.tv/auth (web redirect flow).
+        // linkCode/strong=false → short 4-char code for https://plex.tv/link (TV / native).
+        const wantLinkCode = req.body?.linkCode === true || req.body?.strong === false;
+        const pinEndpoint = wantLinkCode
+            ? 'https://plex.tv/api/v2/pins'
+            : 'https://plex.tv/api/v2/pins?strong=true';
+        const response = await fetch(pinEndpoint, {
             method: 'POST',
             headers: plexClientHeaders('', {
                 'X-Plex-Product': 'Server Manager Portal',
@@ -4468,7 +4474,12 @@ app.post('/api/auth/plex/login', authRateLimit, async (req, res) => {
         const oauthState = data?.id ? issuePlexOauthState(req, res, data.id) : null;
         if (req.body?.skipHomeRemember === true) issuePlexHomeSkipRemember(req, res);
         // oauthState is for Capacitor / cross-origin clients that cannot rely on the OAuth cookie.
-        res.json({ ...data, clientIdentifier: CLIENT_ID, oauthState });
+        res.json({
+            ...data,
+            clientIdentifier: CLIENT_ID,
+            oauthState,
+            linkCode: wantLinkCode,
+        });
     } catch (err) {
         log('Error in plex login: ' + err.message);
         res.status(500).json({ error: 'Failed to initiate login' });

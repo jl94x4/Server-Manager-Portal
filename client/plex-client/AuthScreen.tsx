@@ -114,25 +114,29 @@ export const PlexClientAuthScreen: React.FC<Props> = ({ onAuthenticated }) => {
         }
 
         try {
+            // Always request the short plex.tv/link PIN (4 chars). strong=true codes are for app.plex.tv/auth only.
             const data = await apiFetch('/api/auth/plex/login', {
                 method: 'POST',
-                body: JSON.stringify({ skipHomeRemember: true }),
+                body: JSON.stringify({ skipHomeRemember: true, linkCode: true }),
             });
+            const rawCode = String(data.code || '').trim();
             const session: PinSession = {
                 pinId: String(data.id),
-                code: String(data.code || ''),
+                code: rawCode.toUpperCase(),
                 oauthState: String(data.oauthState || ''),
                 clientId: String(data.clientIdentifier || data.clientId || ''),
             };
             if (!session.pinId || !session.oauthState) {
                 throw new Error('Portal did not return a PIN session (update SMP if this persists).');
             }
+            if (session.code.length > 6) {
+                throw new Error('Portal returned a long auth code. Update SMP to a build that supports linkCode PINs.');
+            }
             setPin(session);
 
-            if (!isTv && session.clientId && session.code) {
-                const authUrl = `https://app.plex.tv/auth#?clientID=${encodeURIComponent(session.clientId)}&code=${encodeURIComponent(session.code)}&context[device][product]=${encodeURIComponent('Server Manager Portal')}`;
+            if (!isTv) {
                 try {
-                    window.open(authUrl, '_blank', 'noopener,noreferrer');
+                    window.open(LINK_URL, '_blank', 'noopener,noreferrer');
                 } catch {
                     /* TV / restricted WebView — on-screen PIN */
                 }
@@ -189,10 +193,10 @@ export const PlexClientAuthScreen: React.FC<Props> = ({ onAuthenticated }) => {
 
                 {pin ? (
                     <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/80 p-6 text-center">
-                        <p className="text-sm text-zinc-400">On any device, open</p>
+                        <p className="text-sm text-zinc-400">On your phone or computer, open</p>
                         <p className="text-lg font-medium text-amber-400">{LINK_URL}</p>
-                        <p className="font-mono text-5xl font-bold tracking-[0.35em] text-white">{pin.code}</p>
-                        <p className="text-xs text-zinc-500">Waiting for Plex…</p>
+                        <p className="font-mono text-6xl font-bold tracking-[0.4em] text-white">{pin.code}</p>
+                        <p className="text-xs text-zinc-500">Enter this 4-character code, then return here</p>
                     </div>
                 ) : null}
 
