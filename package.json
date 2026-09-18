@@ -20,8 +20,6 @@
     "start:prod": "node index.js"
   },
   "dependencies": {
-    "@capacitor/android": "^6.2.2",
-    "@capacitor/core": "^6.2.2",
     "chokidar": "^4.0.3",
     "compression": "^1.7.4",
     "cookie-parser": "^1.4.7",
@@ -42,7 +40,6 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
-    "@capacitor/cli": "^6.2.2",
     "@types/node": "^26.0.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
