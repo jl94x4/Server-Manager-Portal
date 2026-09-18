@@ -1208,17 +1208,24 @@ const issuePlexHomeSelectPending = (req, res, { authToken, userData, ref }) => {
         ref: String(ref || '').trim(),
         expiresAt: Date.now() + PLEX_HOME_SELECT_TTL_MS,
     });
-    res.cookie(PLEX_HOME_SELECT_COOKIE, `${id}.${nonce}`, {
+    const token = `${id}.${nonce}`;
+    res.cookie(PLEX_HOME_SELECT_COOKIE, token, {
         ...sessionCookieBase(req),
         maxAge: PLEX_HOME_SELECT_TTL_MS,
     });
     persistPlexHomeOwner(req, res, { ownerId: userData?.id, authToken });
-    return id;
+    return { id, nonce, token };
 };
 
 const readPlexHomeSelectPending = (req) => {
     prunePlexHomeSelectPending();
-    const raw = String(req.cookies?.[PLEX_HOME_SELECT_COOKIE] || '').trim();
+    const fromClient = String(
+        req.body?.homeSelectToken
+        || req.query?.homeSelectToken
+        || req.get?.('x-plex-home-select')
+        || '',
+    ).trim();
+    const raw = fromClient || String(req.cookies?.[PLEX_HOME_SELECT_COOKIE] || '').trim();
     const sep = raw.indexOf('.');
     if (sep <= 0) return null;
     const id = raw.slice(0, sep);
@@ -5093,14 +5100,20 @@ const maybePauseForPlexHomeSelect = async (req, res, {
         clearPlexHomeRemember(req, res);
     }
 
-    issuePlexHomeSelectPending(req, res, { authToken, userData, ref });
+    const pending = issuePlexHomeSelectPending(req, res, { authToken, userData, ref });
     const users = homeUsers.map(toPublicPlexHomeUser).filter(Boolean);
     const rememberUserId = rememberedForOwner?.id || null;
     if (redirectOnSuccess) {
         res.redirect(withBasePath('/?homeSelect=1'));
         return true;
     }
-    res.json({ needsHomeSelect: true, users, rememberUserId });
+    // homeSelectToken lets Capacitor / Bearer clients continue without cookies.
+    res.json({
+        needsHomeSelect: true,
+        users,
+        rememberUserId,
+        homeSelectToken: pending?.token || null,
+    });
     return true;
 };
 

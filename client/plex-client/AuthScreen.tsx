@@ -20,6 +20,14 @@ type PinSession = {
     clientId: string;
 };
 
+type HomeUser = {
+    id: string;
+    title?: string;
+    username?: string;
+    thumb?: string | null;
+    protected?: boolean;
+};
+
 const LINK_URL = 'https://plex.tv/link';
 
 export const PlexClientAuthScreen: React.FC<Props> = ({ onAuthenticated }) => {
@@ -28,6 +36,10 @@ export const PlexClientAuthScreen: React.FC<Props> = ({ onAuthenticated }) => {
     const [busy, setBusy] = useState(false);
     const [pin, setPin] = useState<PinSession | null>(null);
     const [checkingPortal, setCheckingPortal] = useState(false);
+    const [homeUsers, setHomeUsers] = useState<HomeUser[] | null>(null);
+    const [homeSelectToken, setHomeSelectToken] = useState('');
+    const [homePin, setHomePin] = useState('');
+    const [selectedHomeUserId, setSelectedHomeUserId] = useState<string | null>(null);
     const pollRef = useRef<number | null>(null);
     const isTv = isAndroidTvUi();
 
@@ -43,6 +55,9 @@ export const PlexClientAuthScreen: React.FC<Props> = ({ onAuthenticated }) => {
     const finishWithToken = useCallback((sessionToken: string) => {
         writeStoredSessionToken(sessionToken);
         stopPoll();
+        setPin(null);
+        setHomeUsers(null);
+        setHomeSelectToken('');
         onAuthenticated();
     }, [onAuthenticated, stopPoll]);
 
@@ -60,10 +75,15 @@ export const PlexClientAuthScreen: React.FC<Props> = ({ onAuthenticated }) => {
                 finishWithToken(String(data.sessionToken));
                 return;
             }
-            if (data?.needsHomeSelect) {
-                setError('Plex Home profile pick is not in the app yet. Use your primary Plex user, or finish Home select once in the web portal.');
+            if (data?.needsHomeSelect && Array.isArray(data.users)) {
                 stopPoll();
+                setPin(null);
                 setBusy(false);
+                setHomeUsers(data.users);
+                setHomeSelectToken(String(data.homeSelectToken || ''));
+                setSelectedHomeUserId(String(data.rememberUserId || data.users[0]?.id || '') || null);
+                setError('');
+                return;
             }
         } catch (err: any) {
             const message = String(err?.message || '');
@@ -90,6 +110,9 @@ export const PlexClientAuthScreen: React.FC<Props> = ({ onAuthenticated }) => {
         setBusy(true);
         stopPoll();
         setPin(null);
+        setHomeUsers(null);
+        setHomeSelectToken('');
+        setHomePin('');
 
         const url = applyPortalUrl(portalUrl);
         if (!url) {
@@ -99,7 +122,6 @@ export const PlexClientAuthScreen: React.FC<Props> = ({ onAuthenticated }) => {
 
         setCheckingPortal(true);
         try {
-            // Confirm this host looks like an SMP before starting Plex PIN.
             const diagnostics = await apiFetch('/api/auth/diagnostics').catch(() => null);
             if (!diagnostics || diagnostics.configured === undefined) {
                 throw new Error('Could not reach a Server Manager Portal at that URL. Check the address and that the portal is online.');
@@ -114,7 +136,6 @@ export const PlexClientAuthScreen: React.FC<Props> = ({ onAuthenticated }) => {
         }
 
         try {
-            // Always request the short plex.tv/link PIN (4 chars). strong=true codes are for app.plex.tv/auth only.
             const data = await apiFetch('/api/auth/plex/login', {
                 method: 'POST',
                 body: JSON.stringify({ skipHomeRemember: true, linkCode: true }),
@@ -138,7 +159,7 @@ export const PlexClientAuthScreen: React.FC<Props> = ({ onAuthenticated }) => {
                 try {
                     window.open(LINK_URL, '_blank', 'noopener,noreferrer');
                 } catch {
-                    /* TV / restricted WebView — on-screen PIN */
+                    /* restricted WebView */
                 }
             }
 
@@ -152,9 +173,43 @@ export const PlexClientAuthScreen: React.FC<Props> = ({ onAuthenticated }) => {
         }
     };
 
+    const confirmHomeUser = async () => {
+        if (!selectedHomeUserId) {
+            setError('Select a Plex Home profile');
+            return;
+        }
+        if (!homeSelectToken) {
+            setError('Home selection expired. Start sign-in again.');
+            return;
+        }
+        setBusy(true);
+        setError('');
+        try {
+            const data = await apiFetch('/api/auth/plex/home-switch', {
+                method: 'POST',
+                body: JSON.stringify({
+                    userId: selectedHomeUserId,
+                    homeSelectToken,
+                    remember: false,
+                    ...(homePin.trim() ? { pin: homePin.trim() } : {}),
+                }),
+            });
+            if (data?.sessionToken) {
+                finishWithToken(String(data.sessionToken));
+                return;
+            }
+            throw new Error('Portal did not return a session token');
+        } catch (err: any) {
+            setError(err?.message || 'Could not switch Plex Home profile');
+            setBusy(false);
+        }
+    };
+
     const changePortal = () => {
         stopPoll();
         setPin(null);
+        setHomeUsers(null);
+        setHomeSelectToken('');
         setBusy(false);
         setError('');
         clearPlexClientPortal();
@@ -173,23 +228,25 @@ export const PlexClientAuthScreen: React.FC<Props> = ({ onAuthenticated }) => {
                     </p>
                 </div>
 
-                <label className="block space-y-2">
-                    <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">Your portal URL</span>
-                    <input
-                        className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-base outline-none focus:border-amber-500"
-                        value={portalUrl}
-                        onChange={(e) => setPortalUrl(e.target.value)}
-                        placeholder="https://portal.example.com"
-                        autoCapitalize="off"
-                        autoCorrect="off"
-                        spellCheck={false}
-                        inputMode="url"
-                        disabled={busy && !!pin}
-                    />
-                    <span className="block text-xs text-zinc-500">
-                        Ask your server admin for the portal address if you do not host SMP yourself.
-                    </span>
-                </label>
+                {!homeUsers ? (
+                    <label className="block space-y-2">
+                        <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">Your portal URL</span>
+                        <input
+                            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-base outline-none focus:border-amber-500"
+                            value={portalUrl}
+                            onChange={(e) => setPortalUrl(e.target.value)}
+                            placeholder="https://portal.example.com"
+                            autoCapitalize="off"
+                            autoCorrect="off"
+                            spellCheck={false}
+                            inputMode="url"
+                            disabled={busy && !!pin}
+                        />
+                        <span className="block text-xs text-zinc-500">
+                            Ask your server admin for the portal address if you do not host SMP yourself.
+                        </span>
+                    </label>
+                ) : null}
 
                 {pin ? (
                     <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/80 p-6 text-center">
@@ -200,22 +257,80 @@ export const PlexClientAuthScreen: React.FC<Props> = ({ onAuthenticated }) => {
                     </div>
                 ) : null}
 
+                {homeUsers ? (
+                    <div className="space-y-4">
+                        <p className="text-center text-sm text-zinc-400">Choose a Plex Home profile</p>
+                        <div className="max-h-[40vh] space-y-2 overflow-y-auto">
+                            {homeUsers.map((user) => {
+                                const active = selectedHomeUserId === String(user.id);
+                                const label = user.title || user.username || user.id;
+                                return (
+                                    <button
+                                        key={user.id}
+                                        type="button"
+                                        onClick={() => setSelectedHomeUserId(String(user.id))}
+                                        className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
+                                            active
+                                                ? 'border-amber-500 bg-amber-500/10'
+                                                : 'border-zinc-800 bg-zinc-900/80 hover:border-zinc-600'
+                                        }`}
+                                    >
+                                        {user.thumb ? (
+                                            <img src={user.thumb} alt="" className="h-10 w-10 rounded-full object-cover" />
+                                        ) : (
+                                            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-800 text-sm font-bold">
+                                                {String(label).charAt(0).toUpperCase()}
+                                            </span>
+                                        )}
+                                        <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
+                                        {user.protected ? (
+                                            <span className="text-[10px] uppercase tracking-wider text-zinc-500">PIN</span>
+                                        ) : null}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <label className="block space-y-2">
+                            <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">Profile PIN (if required)</span>
+                            <input
+                                className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-base outline-none focus:border-amber-500"
+                                value={homePin}
+                                onChange={(e) => setHomePin(e.target.value)}
+                                inputMode="numeric"
+                                autoComplete="one-time-code"
+                                placeholder="Optional"
+                            />
+                        </label>
+                    </div>
+                ) : null}
+
                 {error ? (
                     <p className="rounded-lg border border-red-900/60 bg-red-950/40 px-3 py-2 text-sm text-red-200" role="alert">
                         {error}
                     </p>
                 ) : null}
 
-                <button
-                    type="button"
-                    className="w-full rounded-lg bg-amber-500 px-4 py-3 text-base font-semibold text-zinc-950 hover:bg-amber-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 disabled:opacity-60"
-                    onClick={() => void startPinLogin()}
-                    disabled={busy && !!pin}
-                >
-                    {checkingPortal ? 'Checking portal…' : pin ? 'Waiting…' : 'Continue with Plex'}
-                </button>
+                {homeUsers ? (
+                    <button
+                        type="button"
+                        className="w-full rounded-lg bg-amber-500 px-4 py-3 text-base font-semibold text-zinc-950 hover:bg-amber-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 disabled:opacity-60"
+                        onClick={() => void confirmHomeUser()}
+                        disabled={busy}
+                    >
+                        {busy ? 'Signing in…' : 'Continue'}
+                    </button>
+                ) : (
+                    <button
+                        type="button"
+                        className="w-full rounded-lg bg-amber-500 px-4 py-3 text-base font-semibold text-zinc-950 hover:bg-amber-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 disabled:opacity-60"
+                        onClick={() => void startPinLogin()}
+                        disabled={busy && !!pin}
+                    >
+                        {checkingPortal ? 'Checking portal…' : pin ? 'Waiting…' : 'Continue with Plex'}
+                    </button>
+                )}
 
-                {(pin || getPortalBaseUrl()) ? (
+                {(pin || homeUsers || getPortalBaseUrl()) ? (
                     <button
                         type="button"
                         className="w-full text-center text-sm text-zinc-500 underline-offset-2 hover:text-zinc-300 hover:underline"
