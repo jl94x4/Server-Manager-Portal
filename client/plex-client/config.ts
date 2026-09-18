@@ -129,10 +129,34 @@ export const isAndroidTvUi = (): boolean => {
     if (typeof window === 'undefined') return false;
     if (window.__PLEX_CLIENT__?.isTv === true) return true;
     try {
+        if (document.documentElement?.dataset?.tv === '1') return true;
         const ua = navigator.userAgent || '';
         return /Android/i.test(ua) && /TV|BRAVIA|AFT|GoogleTV|Android TV/i.test(ua);
     } catch {
         return false;
+    }
+};
+
+/** Keep Media Player at a desktop-like density on Android TV WebViews. */
+export const applyTvDisplayScale = () => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+    if (!isAndroidTvUi()) return;
+    try {
+        document.documentElement.dataset.tv = '1';
+        window.__PLEX_CLIENT__ = {
+            ...(window.__PLEX_CLIENT__ || {}),
+            isTv: true,
+        };
+        let meta = document.querySelector('meta[name="viewport"]');
+        if (!meta) {
+            meta = document.createElement('meta');
+            meta.setAttribute('name', 'viewport');
+            document.head.appendChild(meta);
+        }
+        meta.setAttribute('content', 'width=1920, initial-scale=1, maximum-scale=1, user-scalable=no');
+        document.documentElement.style.fontSize = '16px';
+    } catch {
+        /* ignore */
     }
 };
 
@@ -149,7 +173,10 @@ export const bootstrapPlexClientConfig = () => {
     };
     try {
         document.documentElement.dataset.plexClient = '1';
-        if (window.__PLEX_CLIENT__.isTv) document.documentElement.dataset.tv = '1';
+        if (window.__PLEX_CLIENT__.isTv) {
+            document.documentElement.dataset.tv = '1';
+            applyTvDisplayScale();
+        }
     } catch {
         /* ignore */
     }

@@ -16,7 +16,14 @@
   <link rel="stylesheet" href="./tailwind.css" />
   <style>
     html, body, #root { height: 100%; margin: 0; background: #09090b; color: #fafafa; }
-    /* Android TV focus rings */
+    /* Android TV: lock density so the UI isn't oversized in WebView */
+    html[data-tv="1"] {
+      font-size: 16px !important;
+    }
+    html[data-tv="1"] body {
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
     [data-tv="1"] :focus-visible {
       outline: 3px solid #f59e0b;
       outline-offset: 3px;

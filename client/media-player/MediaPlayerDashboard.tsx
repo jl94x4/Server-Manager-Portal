@@ -112,7 +112,16 @@ export const MediaPlayerDashboard: React.FC = () => {
     const [isAdmin, setIsAdmin] = useState(false);
     const [startingPlay, setStartingPlay] = useState(false);
     const [pendingResume, setPendingResume] = useState<PendingResume | null>(null);
-    const [navExpanded, setNavExpanded] = useState(() => readPlayerNavExpanded());
+    const [navExpanded, setNavExpanded] = useState(() => {
+        try {
+            if (typeof window !== 'undefined' && (window.__PLEX_CLIENT__?.isTv || document.documentElement?.dataset?.tv === '1')) {
+                return false;
+            }
+        } catch {
+            /* ignore */
+        }
+        return readPlayerNavExpanded();
+    });
     const [keepHome, setKeepHome] = useState(() => view.kind === 'home');
     const viewKindRef = useRef(view.kind);
 
