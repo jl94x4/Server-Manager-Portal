@@ -11,6 +11,9 @@ declare global {
             isTv?: boolean;
             nativePlayer?: boolean;
         };
+        /** Defined in plex-client/index.html — forces 1920px layout then scales to the WebView. */
+        __SMP_APPLY_TV_SCALE__?: () => void;
+        __SMP_MARK_TV__?: () => void;
     }
 }
 
@@ -18,7 +21,7 @@ const STORAGE_PORTAL = 'plexClient.portalBaseUrl';
 const STORAGE_TOKEN = 'plexClient.sessionToken';
 
 /** Desktop-like layout width so rem/Tailwind density matches a browser on a TV WebView. */
-const TV_LAYOUT_WIDTH = 1920;
+export const TV_LAYOUT_WIDTH = 1920;
 
 const trimSlash = (value: string) => String(value || '').replace(/\/+$/, '');
 
@@ -162,8 +165,8 @@ const ensureViewportMeta = () => {
 
 /**
  * Overall UI density for Android TV WebViews (not the poster Size slider).
- * High-DPI leanback WebViews often report a phone-sized CSS width, so rem/Tailwind
- * layouts look blown up — lock a 1920px layout width like a desktop browser.
+ * Viewport meta alone is ignored by many leanback WebViews — lay out at 1920px
+ * and CSS-transform scale to the real window so rem/Tailwind match desktop.
  */
 export const applyTvDisplayScale = () => {
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
@@ -180,14 +183,18 @@ export const applyTvDisplayScale = () => {
             `width=${TV_LAYOUT_WIDTH}, initial-scale=1, maximum-scale=1, user-scalable=no`,
         );
         document.documentElement.style.fontSize = '16px';
-        document.documentElement.style.zoom = '';
+        if (typeof window.__SMP_APPLY_TV_SCALE__ === 'function') {
+            window.__SMP_APPLY_TV_SCALE__();
+        } else if (typeof window.__SMP_MARK_TV__ === 'function') {
+            window.__SMP_MARK_TV__();
+        }
     } catch {
         /* ignore */
     }
 };
 
 type DeviceUiPlugin = {
-    getInfo: () => Promise<{ isTv?: boolean }>;
+    getInfo: () => Promise<{ isTv?: boolean; widthPixels?: number; heightPixels?: number; density?: number }>;
 };
 
 /** Ask native leanback detection, then apply TV layout density. */

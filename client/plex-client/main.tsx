@@ -37,6 +37,12 @@ const PlexClientApp: React.FC = () => {
             if (cancelled) return;
             installNativeMediaPlayerBridge();
             setReady(true);
+            // Re-apply after React mounts #root children (transform target must exist).
+            requestAnimationFrame(() => {
+                if (typeof window.__SMP_APPLY_TV_SCALE__ === 'function') {
+                    window.__SMP_APPLY_TV_SCALE__();
+                }
+            });
             const token = getSessionToken();
             if (!token) {
                 setChecking(false);
@@ -58,6 +64,16 @@ const PlexClientApp: React.FC = () => {
         void boot();
         return () => { cancelled = true; };
     }, []);
+
+    useEffect(() => {
+        if (!ready) return;
+        const id = requestAnimationFrame(() => {
+            if (typeof window.__SMP_APPLY_TV_SCALE__ === 'function') {
+                window.__SMP_APPLY_TV_SCALE__();
+            }
+        });
+        return () => cancelAnimationFrame(id);
+    }, [ready, authed, checking]);
 
     const onAuthenticated = useCallback(() => {
         ensurePlayerRoute();

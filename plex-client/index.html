@@ -12,17 +12,77 @@
       isTv: false
     };
     document.documentElement.dataset.plexClient = '1';
+
+    // Leanback WebViews often ignore viewport width=1920. Force a desktop layout
+    // width on #root and scale it to the real window (not the poster Size slider).
+    (function () {
+      var TARGET = 1920;
+      var scheduled = false;
+
+      function applyTvScale() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var vw = window.innerWidth || document.documentElement.clientWidth || TARGET;
+        var vh = window.innerHeight || document.documentElement.clientHeight || 1080;
+        if (vw < 2 || vh < 2) return;
+        var scale = vw / TARGET;
+        document.documentElement.dataset.tv = '1';
+        document.documentElement.style.height = '100%';
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.height = '100%';
+        document.body.style.margin = '0';
+        document.body.style.overflow = 'hidden';
+        root.style.boxSizing = 'border-box';
+        root.style.width = TARGET + 'px';
+        root.style.height = Math.ceil(vh / scale) + 'px';
+        root.style.transform = 'scale(' + scale + ')';
+        root.style.transformOrigin = '0 0';
+        root.style.overflow = 'hidden';
+      }
+
+      function markTv() {
+        window.__PLEX_CLIENT__ = Object.assign({}, window.__PLEX_CLIENT__ || {}, { isTv: true });
+        document.documentElement.dataset.tv = '1';
+        document.documentElement.dataset.plexClient = '1';
+        var meta = document.querySelector('meta[name="viewport"]');
+        if (!meta) {
+          meta = document.createElement('meta');
+          meta.setAttribute('name', 'viewport');
+          document.head.appendChild(meta);
+        }
+        meta.setAttribute('content', 'width=' + TARGET + ', initial-scale=1, maximum-scale=1, user-scalable=no');
+        document.documentElement.style.fontSize = '16px';
+        applyTvScale();
+      }
+
+      function schedule() {
+        if (scheduled) return;
+        scheduled = true;
+        requestAnimationFrame(function () {
+          scheduled = false;
+          if (document.documentElement.dataset.tv === '1' || (window.__PLEX_CLIENT__ && window.__PLEX_CLIENT__.isTv)) {
+            applyTvScale();
+          }
+        });
+      }
+
+      window.__SMP_APPLY_TV_SCALE__ = applyTvScale;
+      window.__SMP_MARK_TV__ = markTv;
+      window.addEventListener('resize', schedule);
+      window.addEventListener('orientationchange', schedule);
+      document.addEventListener('DOMContentLoaded', schedule);
+    })();
   </script>
   <link rel="stylesheet" href="./tailwind.css" />
   <style>
     html, body, #root { height: 100%; margin: 0; background: #09090b; color: #fafafa; }
-    /* Android TV: lock density so the UI isn't oversized in WebView */
     html[data-tv="1"] {
       font-size: 16px !important;
     }
     html[data-tv="1"] body {
       -webkit-text-size-adjust: 100%;
       text-size-adjust: 100%;
+      overflow: hidden;
     }
     [data-tv="1"] :focus-visible {
       outline: 3px solid #f59e0b;

@@ -3,13 +3,14 @@ package com.servermanagerportal.mediaplayer;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.os.Bundle;
+import android.util.DisplayMetrics;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
-    private static final long[] TV_INJECT_DELAYS_MS = { 50, 250, 750, 2000 };
+    private static final long[] TV_INJECT_DELAYS_MS = { 50, 200, 500, 1000, 2000, 4000 };
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -38,8 +39,17 @@ public class MainActivity extends BridgeActivity {
         settings.setSupportZoom(false);
         settings.setBuiltInZoomControls(false);
         settings.setDisplayZoomControls(false);
-        settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
+        // Overview mode fights a fixed desktop layout width on leanback.
+        settings.setLoadWithOverviewMode(false);
+
+        if (isTelevisionDevice()) {
+            DisplayMetrics dm = getResources().getDisplayMetrics();
+            // Prefer showing a ~1920 CSS-px layout; initial scale is percent of default.
+            float cssWidth = dm.widthPixels / Math.max(dm.density, 0.5f);
+            int initial = Math.max(25, Math.min(100, Math.round((cssWidth / 1920f) * 100f)));
+            webView.setInitialScale(initial);
+        }
     }
 
     private void scheduleTvHints() {
@@ -53,9 +63,10 @@ public class MainActivity extends BridgeActivity {
 
     private void injectTvHints() {
         if (bridge == null || bridge.getWebView() == null) return;
-        // Re-apply after Capacitor loads the SPA (fresh JS context clears earlier injects).
+        // Prefer the HTML helper (transform scale). Fall back to viewport-only hints.
         bridge.getWebView().evaluateJavascript(
             "(function(){"
+                + "if(typeof window.__SMP_MARK_TV__==='function'){window.__SMP_MARK_TV__();return;}"
                 + "window.__PLEX_CLIENT__=Object.assign({},window.__PLEX_CLIENT__||{},{isTv:true});"
                 + "document.documentElement.dataset.tv='1';"
                 + "document.documentElement.dataset.plexClient='1';"
@@ -63,7 +74,6 @@ public class MainActivity extends BridgeActivity {
                 + "if(!m){m=document.createElement('meta');m.setAttribute('name','viewport');document.head.appendChild(m);}"
                 + "m.setAttribute('content','width=1920, initial-scale=1, maximum-scale=1, user-scalable=no');"
                 + "document.documentElement.style.fontSize='16px';"
-                + "document.documentElement.style.zoom='';"
                 + "})();",
             null
         );
