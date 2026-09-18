@@ -53,14 +53,19 @@ export const PlayerPosterCard: React.FC<Props> = ({
     const longPressTimerRef = useRef<number | null>(null);
     const longPressOriginRef = useRef<{ x: number; y: number } | null>(null);
     const suppressClickRef = useRef(false);
+    const isTvShell = typeof document !== 'undefined' && (
+        document.documentElement?.dataset?.tv === '1'
+        || window.__PLEX_CLIENT__?.isTv === true
+    );
     const progress = progressPercent(item);
-    const canHoverPlay = !!onPlay && item.canPlay !== false && item.type !== 'collection' && item.type !== 'artist' && item.type !== 'album' && item.type !== 'playlist';
-    const canToggleWatched = !!onToggleWatched && (item.type === 'movie' || item.type === 'episode' || item.type === 'show' || item.type === 'season');
+    const canHoverPlay = !isTvShell && !!onPlay && item.canPlay !== false && item.type !== 'collection' && item.type !== 'artist' && item.type !== 'album' && item.type !== 'playlist';
+    const canToggleWatched = !isTvShell && !!onToggleWatched && (item.type === 'movie' || item.type === 'episode' || item.type === 'show' || item.type === 'season');
     const resolvedAspect = aspect
         || (item.type === 'artist' || item.type === 'album' ? 'square' : null)
         || (item.type === 'episode' ? '16/9' : '2/3');
     const episodeCode = formatEpisodeCode(item);
-    const menuEnabled = showMenu && item.type !== 'collection' && item.type !== 'artist' && item.type !== 'album' && item.type !== 'playlist';
+    // Nested menu/play/watched controls inside the poster <button> break Android TV spatial nav.
+    const menuEnabled = !isTvShell && showMenu && item.type !== 'collection' && item.type !== 'artist' && item.type !== 'album' && item.type !== 'playlist';
     // Episodes keep a fixed top-right tick; posters follow the user setting.
     const tickCorner = item.type === 'episode'
         ? 'top-right'
@@ -159,29 +164,13 @@ export const PlayerPosterCard: React.FC<Props> = ({
                                 </div>
                             ) : null
                         ) : null}
-                        {/* Episodes keep an always-on tick; posters reveal on hover. */}
-                        {item.watched && item.type === 'episode' ? (
-                            canToggleWatched ? (
-                                <button
-                                    type="button"
-                                    aria-label={t('mediaPlayerPage.markUnwatched')}
-                                    title={t('mediaPlayerPage.watched')}
-                                    className={tickClass}
-                                    onClick={(event) => {
-                                        event.preventDefault();
-                                        event.stopPropagation();
-                                        onToggleWatched?.(item);
-                                    }}
-                                >
-                                    <Check className="h-4 w-4 stroke-[2.5]" />
-                                </button>
-                            ) : (
-                                <span title={t('mediaPlayerPage.watched')} className={tickClass}>
-                                    <Check className="h-4 w-4 stroke-[2.5]" />
-                                </span>
-                            )
+                        {/* Non-interactive watched tick only — never nest buttons inside the poster control on TV. */}
+                        {item.watched ? (
+                            <span title={t('mediaPlayerPage.watched')} className={`${tickClass} pointer-events-none`}>
+                                <Check className="h-4 w-4 stroke-[2.5]" />
+                            </span>
                         ) : null}
-                        {canHoverPlay || canToggleWatched || menuEnabled || (item.watched && item.type !== 'episode') ? (
+                        {!isTvShell && (canHoverPlay || canToggleWatched || menuEnabled) ? (
                             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100 max-md:opacity-100 max-md:bg-transparent max-md:group-hover:bg-black/40">
                                 {canHoverPlay ? (
                                     <span
@@ -198,29 +187,20 @@ export const PlayerPosterCard: React.FC<Props> = ({
                                         <Play className="h-5 w-5 fill-current" />
                                     </span>
                                 ) : null}
-                                {item.watched && item.type !== 'episode' ? (
-                                    canToggleWatched ? (
-                                        <button
-                                            type="button"
-                                            aria-label={t('mediaPlayerPage.markUnwatched')}
-                                            title={t('mediaPlayerPage.watched')}
-                                            className={`${tickClass} pointer-events-auto opacity-0 transition-opacity duration-200 group-hover:opacity-100 [@media(hover:none)]:opacity-100`}
-                                            onClick={(event) => {
-                                                event.preventDefault();
-                                                event.stopPropagation();
-                                                onToggleWatched?.(item);
-                                            }}
-                                        >
-                                            <Check className="h-4 w-4 stroke-[2.5]" />
-                                        </button>
-                                    ) : (
-                                        <span
-                                            title={t('mediaPlayerPage.watched')}
-                                            className={`${tickClass} opacity-0 transition-opacity duration-200 group-hover:opacity-100 [@media(hover:none)]:opacity-100`}
-                                        >
-                                            <Check className="h-4 w-4 stroke-[2.5]" />
-                                        </span>
-                                    )
+                                {item.watched && item.type !== 'episode' && canToggleWatched ? (
+                                    <button
+                                        type="button"
+                                        aria-label={t('mediaPlayerPage.markUnwatched')}
+                                        title={t('mediaPlayerPage.watched')}
+                                        className={`${tickClass} pointer-events-auto opacity-0 transition-opacity duration-200 group-hover:opacity-100 [@media(hover:none)]:opacity-100`}
+                                        onClick={(event) => {
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                            onToggleWatched?.(item);
+                                        }}
+                                    >
+                                        <Check className="h-4 w-4 stroke-[2.5]" />
+                                    </button>
                                 ) : null}
                                 {!item.watched && canToggleWatched ? (
                                     <button

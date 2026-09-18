@@ -101,6 +101,13 @@
       outline: 3px solid #f59e0b !important;
       outline-offset: 3px;
     }
+    html[data-tv="1"] [data-tv-item="1"]:focus {
+      outline: 3px solid #f59e0b !important;
+      outline-offset: 4px;
+      border-radius: 0.75rem;
+      transform: scale(1.04);
+      z-index: 5;
+    }
     /* No scrollbars on TV — remote scrolls, chrome looks wrong */
     html[data-tv="1"],
     html[data-tv="1"] * {

@@ -505,6 +505,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
                                     type="button"
                                     onClick={() => onOpenLibrary(library)}
                                     className="inline-flex shrink-0 items-center gap-2 rounded-full border border-border bg-white/[0.04] px-3.5 py-2 text-sm font-bold text-text transition hover:border-plex/40 hover:bg-plex/10 hover:text-plex"
+                                    data-tv-item="1"
                                 >
                                     <Icon className="h-3.5 w-3.5 shrink-0 opacity-80" />
                                     <span className="max-w-[10rem] truncate sm:max-w-[14rem]">{library.title}</span>

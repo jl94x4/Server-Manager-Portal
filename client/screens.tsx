@@ -7371,6 +7371,7 @@ export const DiscoverPosterCard: React.FC<{
                 onClick={onPosterClick}
                 onMouseEnter={onPosterHover}
                 onFocus={onPosterHover}
+                data-tv-item="1"
                 className="block w-full text-left border-0 p-0 bg-transparent cursor-pointer"
                 style={{ color: 'inherit' }}
             >
@@ -7404,6 +7405,7 @@ export const DiscoverPosterCard: React.FC<{
                 <div
                     role="button"
                     tabIndex={0}
+                    data-tv-item="1"
                     onMouseEnter={onPosterHover}
                     onFocus={onPosterHover}
                     onClick={() => onPosterClick()}
@@ -7428,6 +7430,7 @@ export const DiscoverPosterCard: React.FC<{
                 onClick={onPosterClick}
                 onMouseEnter={onPosterHover}
                 onFocus={onPosterHover}
+                data-tv-item="1"
                 className={`flex flex-col gap-2 group text-left border-0 p-0 bg-transparent cursor-pointer ${className}`}
                 style={{ color: 'inherit', textDecoration: 'none' }}
             >

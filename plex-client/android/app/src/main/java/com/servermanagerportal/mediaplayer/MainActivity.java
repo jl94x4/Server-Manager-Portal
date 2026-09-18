@@ -2,7 +2,10 @@ package com.servermanagerportal.mediaplayer;
 
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.os.Build;
 import android.os.Bundle;
+import android.view.View;
+import android.view.ViewGroup;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 
@@ -40,7 +43,21 @@ public class MainActivity extends BridgeActivity {
         settings.setDisplayZoomControls(false);
         settings.setUseWideViewPort(true);
         settings.setLoadWithOverviewMode(false);
-        // Do not call setInitialScale — it fights CSS zoom and breaks hit-testing.
+        settings.setNeedInitialFocus(true);
+
+        // Leanback D-pad must be able to focus DOM controls inside the WebView.
+        webView.setFocusable(true);
+        webView.setFocusableInTouchMode(true);
+        webView.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+        if (isTelevisionDevice()) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                webView.setFocusedByDefault(true);
+            }
+            webView.post(() -> {
+                webView.setFocusable(true);
+                webView.requestFocus(View.FOCUS_DOWN);
+            });
+        }
     }
 
     private void scheduleTvHints() {

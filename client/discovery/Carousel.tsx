@@ -94,6 +94,34 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
         };
         node.addEventListener('focusin', onFocusIn);
 
+        // Android TV: overflow strips swallow D-pad as scroll instead of moving focus.
+        // Manually step between poster controls marked data-tv-item.
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (!isTvShell()) return;
+            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+            const items = Array.from(node.querySelectorAll<HTMLElement>('[data-tv-item="1"]'))
+                .filter((el) => !el.hasAttribute('disabled') && el.tabIndex !== -1);
+            if (!items.length) return;
+            const active = document.activeElement as HTMLElement | null;
+            let idx = active ? items.indexOf(active) : -1;
+            if (idx < 0 && active && node.contains(active)) {
+                idx = items.findIndex((el) => el.contains(active));
+            }
+            if (idx < 0) return;
+            const nextIdx = event.key === 'ArrowRight' ? idx + 1 : idx - 1;
+            if (nextIdx < 0 || nextIdx >= items.length) return;
+            event.preventDefault();
+            event.stopPropagation();
+            const next = items[nextIdx];
+            next.focus();
+            try {
+                next.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+            } catch {
+                /* ignore */
+            }
+        };
+        node.addEventListener('keydown', onKeyDown);
+
         const t1 = window.setTimeout(handleScroll, 100);
         const t2 = window.setTimeout(handleScroll, 400);
 
@@ -103,6 +131,7 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
             window.removeEventListener('resize', handleScroll);
             node.removeEventListener('wheel', onWheel);
             node.removeEventListener('focusin', onFocusIn);
+            node.removeEventListener('keydown', onKeyDown);
             window.clearTimeout(t1);
             window.clearTimeout(t2);
         };
