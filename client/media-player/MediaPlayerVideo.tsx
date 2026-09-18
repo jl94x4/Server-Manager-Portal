@@ -268,6 +268,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({
     const [durationMs, setDurationMs] = useState(session.item.durationMs || 0);
     const [buffered, setBuffered] = useState<Array<{ startMs: number; endMs: number }>>([]);
     const [playbackSrc, setPlaybackSrc] = useState(session.src);
+    const [nativeExclusive, setNativeExclusive] = useState(false);
     const [qualityId, setQualityId] = useState(session.qualityId || '');
     const [audioStreamId, setAudioStreamId] = useState(session.audioStreamId || '');
     const [subtitleStreamId, setSubtitleStreamId] = useState(session.subtitleStreamId || '');
@@ -377,6 +378,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({
         setBuffered([]);
         setControlsVisible(true);
         fallbackUsedRef.current = false;
+        setNativeExclusive(false);
     }, [session.sessionId]);
 
     // Capacitor ExoPlayer: prefer native decode when the plugin is present.
@@ -386,6 +388,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({
         (async () => {
             if (!(await isNativePlayerAvailable())) return;
             if (cancelled) return;
+            setNativeExclusive(true);
             const absolute = portalUrl(session.src);
             const token = getSessionToken();
             const withToken = (() => {
@@ -402,17 +405,23 @@ export const MediaPlayerVideo: React.FC<Props> = ({
                 [PORTAL_CSRF_HEADER]: PORTAL_CSRF_VALUE,
             };
             if (token) headers.Authorization = `Bearer ${token}`;
-            const result = await openNativePlayer({
-                url: withToken,
-                title: session.item.title,
-                offsetMs: session.offsetMs || 0,
-                headers,
-            });
-            if (cancelled || !result) return;
-            onClose();
-        })().catch(() => {
-            /* fall through to WebView <video> */
-        });
+            try {
+                const result = await openNativePlayer({
+                    url: withToken,
+                    title: session.item.title,
+                    offsetMs: session.offsetMs || 0,
+                    headers,
+                });
+                if (cancelled) return;
+                if (result) {
+                    onClose();
+                    return;
+                }
+            } catch {
+                /* fall through to WebView <video> */
+            }
+            if (!cancelled) setNativeExclusive(false);
+        })();
         return () => { cancelled = true; };
     }, [session.sessionId, session.src, session.item.title, session.offsetMs, onClose]);
 
@@ -504,6 +513,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({
     }, [openMenu]);
 
     useEffect(() => {
+        if (nativeExclusive) return undefined;
         const video = videoRef.current;
         if (!video) return undefined;
         const src = portalUrl(playbackSrc);
@@ -616,7 +626,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({
             video.load();
             void stopMediaPlayerTranscode(playSessionIdFromSrc(playbackSrc));
         };
-    }, [playbackSrc, t]);
+    }, [playbackSrc, t, nativeExclusive]);
 
     useEffect(() => {
         const ratingKey = session.item.ratingKey;

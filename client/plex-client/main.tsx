@@ -9,6 +9,7 @@ import {
     clearPlexClientSession,
     getSessionToken,
 } from './config';
+import { installNativeMediaPlayerBridge } from './nativePlayer';
 
 const ensurePlayerRoute = () => {
     try {
@@ -28,6 +29,7 @@ const PlexClientApp: React.FC = () => {
 
     useEffect(() => {
         bootstrapPlexClientConfig();
+        installNativeMediaPlayerBridge();
         setReady(true);
         const token = getSessionToken();
         if (!token) {

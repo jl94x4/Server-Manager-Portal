@@ -1,26 +1,32 @@
-# Native ExoPlayer Capacitor plugin (scaffold)
+# Native ExoPlayer (Phase 2)
 
-The JS bridge expects `window.NativeMediaPlayer`:
+Capacitor plugin `NativeMediaPlayer` opens a full-screen Media3 ExoPlayer activity for phone + Android TV.
+
+## JS bridge
+
+`installNativeMediaPlayerBridge()` (called from `client/plex-client/main.tsx`) registers:
 
 ```ts
 window.NativeMediaPlayer = {
   isAvailable: () => true,
-  open: async ({ url, title, offsetMs, headers }) => {
-    // Launch ExoPlayer Activity / Fragment
-    // Return { ended, positionMs } when the user exits
-  },
+  open: async ({ url, title, offsetMs, headers }) => ({ ended, positionMs }),
 };
 ```
 
-## Android TV + phone
+`MediaPlayerVideo` prefers this path in the Capacitor app and skips WebView `<video>` while native is active.
 
-One APK:
+## Android
 
-1. After `npx cap add android`, edit `AndroidManifest.xml`:
-   - `android.software.leanback` feature `required="false"`
-   - Launcher activity: both `LAUNCHER` and `LEANBACK_LAUNCHER`
-   - `android.hardware.touchscreen` `required="false"`
-2. Implement `NativeMediaPlayerPlugin` with Media3 ExoPlayer.
-3. Pass `Authorization: Bearer …` (and optional `access_token` query) for portal stream URLs.
+- `NativeMediaPlayerPlugin.java` — Capacitor plugin
+- `PlayerActivity.java` — Media3 ExoPlayer + HLS, request headers (Bearer / access_token)
+- Manifest: `PlayerActivity` (not exported)
+- Deps: `media3-exoplayer`, `media3-exoplayer-hls`, `media3-ui`
 
-Until the plugin ships, playback falls back to the WebView `<video>` / HLS.js path.
+## Rebuild
+
+```bash
+npm run build:plex-client
+cd plex-client && npx cap sync android
+```
+
+Then Run ▶ in Android Studio. Play any title — ExoPlayer should open full screen.

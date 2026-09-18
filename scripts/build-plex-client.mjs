@@ -56,6 +56,7 @@ await esbuild.build({
         'process.env.PLEX_CLIENT_PORTAL_URL': JSON.stringify(injectPortal),
         'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
     },
+    nodePaths: [path.join(root, 'plex-client', 'node_modules'), path.join(root, 'node_modules')],
     loader: {
         '.png': 'file',
         '.jpg': 'file',

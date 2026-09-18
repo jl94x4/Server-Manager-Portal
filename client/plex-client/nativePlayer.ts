@@ -1,14 +1,14 @@
 /**
- * Bridge to native ExoPlayer (Android / Android TV).
- * JS stub today; Capacitor plugin will implement window.NativeMediaPlayer.
+ * Bridge to native ExoPlayer (Android / Android TV) via Capacitor plugin.
  */
+
+import { Capacitor, registerPlugin } from '@capacitor/core';
 
 export type NativePlayerOpenOptions = {
     url: string;
     title?: string;
     offsetMs?: number;
     headers?: Record<string, string>;
-    /** Called when native player closes / finishes */
     onClose?: (result: { ended: boolean; positionMs: number }) => void;
 };
 
@@ -22,15 +22,57 @@ type NativeMediaPlayerBridge = {
     }) => Promise<{ ended: boolean; positionMs: number }>;
 };
 
+type CapNativeMediaPlayerPlugin = {
+    isAvailable(): Promise<{ value: boolean }>;
+    open(opts: {
+        url: string;
+        title?: string;
+        offsetMs?: number;
+        headers?: Record<string, string>;
+    }): Promise<{ ended: boolean; positionMs: number }>;
+};
+
 declare global {
     interface Window {
         NativeMediaPlayer?: NativeMediaPlayerBridge;
     }
 }
 
+const CapNativeMediaPlayer = registerPlugin<CapNativeMediaPlayerPlugin>('NativeMediaPlayer');
+
+/** Install window.NativeMediaPlayer when running inside Capacitor Android. */
+export const installNativeMediaPlayerBridge = () => {
+    if (typeof window === 'undefined') return;
+    if (!Capacitor.isNativePlatform()) return;
+
+    window.NativeMediaPlayer = {
+        isAvailable: async () => {
+            try {
+                const result = await CapNativeMediaPlayer.isAvailable();
+                return !!result?.value;
+            } catch {
+                return false;
+            }
+        },
+        open: async (opts) => {
+            const result = await CapNativeMediaPlayer.open({
+                url: opts.url,
+                title: opts.title,
+                offsetMs: opts.offsetMs || 0,
+                headers: opts.headers,
+            });
+            return {
+                ended: !!result?.ended,
+                positionMs: Math.max(0, Math.floor(Number(result?.positionMs) || 0)),
+            };
+        },
+    };
+};
+
 export const isNativePlayerAvailable = async (): Promise<boolean> => {
     if (typeof window === 'undefined') return false;
     if (window.__PLEX_CLIENT__?.nativePlayer === false) return false;
+    if (!window.NativeMediaPlayer) installNativeMediaPlayerBridge();
     const bridge = window.NativeMediaPlayer;
     if (!bridge?.isAvailable || !bridge?.open) return false;
     try {
