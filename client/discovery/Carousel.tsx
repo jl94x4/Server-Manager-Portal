@@ -77,7 +77,6 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
         };
         node.addEventListener('wheel', onWheel, { passive: false });
 
-        // Android TV D-pad: keep focused posters in view; don't let arrow keys only scroll the strip.
         const onFocusIn = (event: FocusEvent) => {
             if (!isTvShell()) return;
             const target = event.target as HTMLElement | null;
@@ -85,42 +84,10 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
             try {
                 target.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
             } catch {
-                try {
-                    target.scrollIntoView(false);
-                } catch {
-                    /* ignore */
-                }
-            }
-        };
-        node.addEventListener('focusin', onFocusIn);
-
-        // Android TV: overflow strips swallow D-pad as scroll instead of moving focus.
-        // Manually step between poster controls marked data-tv-item.
-        const onKeyDown = (event: KeyboardEvent) => {
-            if (!isTvShell()) return;
-            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-            const items = Array.from(node.querySelectorAll<HTMLElement>('[data-tv-item="1"]'))
-                .filter((el) => !el.hasAttribute('disabled') && el.tabIndex !== -1);
-            if (!items.length) return;
-            const active = document.activeElement as HTMLElement | null;
-            let idx = active ? items.indexOf(active) : -1;
-            if (idx < 0 && active && node.contains(active)) {
-                idx = items.findIndex((el) => el.contains(active));
-            }
-            if (idx < 0) return;
-            const nextIdx = event.key === 'ArrowRight' ? idx + 1 : idx - 1;
-            if (nextIdx < 0 || nextIdx >= items.length) return;
-            event.preventDefault();
-            event.stopPropagation();
-            const next = items[nextIdx];
-            next.focus();
-            try {
-                next.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
-            } catch {
                 /* ignore */
             }
         };
-        node.addEventListener('keydown', onKeyDown);
+        node.addEventListener('focusin', onFocusIn);
 
         const t1 = window.setTimeout(handleScroll, 100);
         const t2 = window.setTimeout(handleScroll, 400);
@@ -131,7 +98,6 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
             window.removeEventListener('resize', handleScroll);
             node.removeEventListener('wheel', onWheel);
             node.removeEventListener('focusin', onFocusIn);
-            node.removeEventListener('keydown', onKeyDown);
             window.clearTimeout(t1);
             window.clearTimeout(t2);
         };
@@ -154,28 +120,28 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
 
     return (
         <div className="relative w-full min-w-0">
-            {!tvShell ? (
-                <div className="absolute right-1 -top-9 z-10 flex items-center text-muted">
-                    <button
-                        type="button"
-                        onClick={() => scroll('left')}
-                        disabled={!canScroll || atStart}
-                        className={`p-0.5 transition-colors ${!canScroll || atStart ? 'text-muted/30 cursor-default' : 'hover:text-text'}`}
-                        aria-label={t('common.scrollLeft')}
-                    >
-                        <ChevronLeft className="w-6 h-6" />
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => scroll('right')}
-                        disabled={!canScroll || atEnd}
-                        className={`p-0.5 transition-colors ${!canScroll || atEnd ? 'text-muted/30 cursor-default' : 'text-text/80 hover:text-text'}`}
-                        aria-label={t('common.scrollRight')}
-                    >
-                        <ChevronRight className="w-6 h-6" />
-                    </button>
-                </div>
-            ) : null}
+            <div className="absolute right-1 -top-9 z-10 flex items-center text-muted">
+                <button
+                    type="button"
+                    tabIndex={tvShell ? -1 : undefined}
+                    onClick={() => scroll('left')}
+                    disabled={!canScroll || atStart}
+                    className={`p-0.5 transition-colors ${!canScroll || atStart ? 'text-muted/30 cursor-default' : 'hover:text-text'}`}
+                    aria-label={t('common.scrollLeft')}
+                >
+                    <ChevronLeft className="w-6 h-6" />
+                </button>
+                <button
+                    type="button"
+                    tabIndex={tvShell ? -1 : undefined}
+                    onClick={() => scroll('right')}
+                    disabled={!canScroll || atEnd}
+                    className={`p-0.5 transition-colors ${!canScroll || atEnd ? 'text-muted/30 cursor-default' : 'text-text/80 hover:text-text'}`}
+                    aria-label={t('common.scrollRight')}
+                >
+                    <ChevronRight className="w-6 h-6" />
+                </button>
+            </div>
 
             <div className="relative">
                 <div
@@ -186,7 +152,7 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
                 >
                     {children}
                 </div>
-                {canScroll && !atEnd && !tvShell ? (
+                {canScroll && !atEnd ? (
                     <div
                         className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-card to-transparent"
                         aria-hidden

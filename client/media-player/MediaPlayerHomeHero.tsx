@@ -260,6 +260,7 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, effectiveMode, onO
                             {active.canPlay !== false ? (
                                 <button
                                     type="button"
+                                    data-tv-item="1"
                                     onClick={() => onPlay(toPlayerItem(active))}
                                     className="inline-flex items-center gap-1.5 rounded-full bg-plex px-3 py-1.5 text-xs font-black text-zinc-950 shadow-lg shadow-plex/25 transition hover:bg-plex-hover sm:gap-2 sm:px-4 sm:py-2.5 sm:text-sm"
                                 >
@@ -269,6 +270,7 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, effectiveMode, onO
                             ) : null}
                             <button
                                 type="button"
+                                data-tv-item="1"
                                 onClick={() => onOpenItem(toPlayerItem(active))}
                                 className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold text-white backdrop-blur transition hover:bg-white/15 sm:gap-2 sm:px-4 sm:py-2.5 sm:text-sm"
                             >
@@ -283,6 +285,7 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, effectiveMode, onO
                                 <button
                                     key={slide.ratingKey}
                                     type="button"
+                                    tabIndex={-1}
                                     aria-label={`${slide.title}`}
                                     aria-current={slideIndex === index ? 'true' : undefined}
                                     onClick={() => setIndex(slideIndex)}
@@ -296,6 +299,7 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, effectiveMode, onO
                             <div className="flex items-center gap-1">
                                 <button
                                     type="button"
+                                    tabIndex={-1}
                                     onClick={() => go(-1)}
                                     className="rounded-full border border-white/15 bg-black/35 p-2 text-white/80 backdrop-blur hover:bg-black/55 hover:text-white"
                                     aria-label={t('mediaPlayerPage.homeHeroPrev')}
@@ -304,6 +308,7 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, effectiveMode, onO
                                 </button>
                                 <button
                                     type="button"
+                                    tabIndex={-1}
                                     onClick={() => go(1)}
                                     className="rounded-full border border-white/15 bg-black/35 p-2 text-white/80 backdrop-blur hover:bg-black/55 hover:text-white"
                                     aria-label={t('mediaPlayerPage.homeHeroNext')}

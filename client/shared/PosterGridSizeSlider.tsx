@@ -43,6 +43,7 @@ export const PosterGridSizeSlider: React.FC<{
                     step={POSTER_GRID_SCALE_STEP}
                     value={scale}
                     aria-label={label}
+                    tabIndex={typeof document !== 'undefined' && document.documentElement?.dataset?.tv === '1' ? -1 : undefined}
                     className={sliderClass}
                     onChange={(event) => onChange(Number(event.target.value))}
                 />

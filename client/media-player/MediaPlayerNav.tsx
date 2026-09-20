@@ -220,6 +220,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
             <div className={`flex shrink-0 ${showLabels ? 'items-center' : 'flex-col items-center'}`}>
                 <button
                     type="button"
+                    data-tv-item="1"
                     className={showLabels
                         ? 'flex min-w-0 flex-1 items-center gap-3 rounded-full px-2 py-1.5 text-left hover:bg-white/10'
                         : 'flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10'}
@@ -242,6 +243,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
             <div className={`flex shrink-0 flex-col ${showLabels ? 'gap-1' : 'items-center gap-1'}`}>
                 <button
                     type="button"
+                    data-tv-item="1"
                     className={navButtonClass(page === 'home', showLabels)}
                     onClick={() => go(onHome)}
                     title={t('mediaPlayerPage.navHome')}
@@ -251,6 +253,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
                 </button>
                 <button
                     type="button"
+                    data-tv-item="1"
                     className={navButtonClass(false, showLabels)}
                     onClick={() => go(onSearch)}
                     title={t('mediaPlayerPage.navSearch')}
@@ -280,6 +283,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
                                 <button
                                     key={section.key}
                                     type="button"
+                                    data-tv-item="1"
                                     className={navButtonClass(active, showLabels)}
                                     onClick={() => go(() => onOpenLibrary(section))}
                                     title={section.title}
@@ -297,6 +301,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
                 {!showLabels ? <div className="mb-1 h-px w-6 bg-white/15" /> : null}
                 <button
                     type="button"
+                    data-tv-item="1"
                     className={navButtonClass(page === 'settings', showLabels)}
                     onClick={() => go(onOpenSettings)}
                     title={t('mediaPlayerPage.navSettings')}

@@ -12,22 +12,20 @@ import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
-    private static final long[] TV_INJECT_DELAYS_MS = { 50, 200, 500, 1000, 2000, 4000 };
-
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(NativeMediaPlayerPlugin.class);
         registerPlugin(DeviceUiPlugin.class);
         super.onCreate(savedInstanceState);
         applyWebViewDisplayFixes();
-        scheduleTvHints();
+        scheduleTvMark();
     }
 
     @Override
     public void onStart() {
         super.onStart();
         applyWebViewDisplayFixes();
-        scheduleTvHints();
+        scheduleTvMark();
     }
 
     private void applyWebViewDisplayFixes() {
@@ -36,16 +34,14 @@ public class MainActivity extends BridgeActivity {
         }
         WebView webView = bridge.getWebView();
         WebSettings settings = webView.getSettings();
-        // High-DPI / TV WebViews inflate text zoom and make the whole SPA look oversized.
         settings.setTextZoom(100);
         settings.setSupportZoom(false);
         settings.setBuiltInZoomControls(false);
         settings.setDisplayZoomControls(false);
         settings.setUseWideViewPort(true);
-        settings.setLoadWithOverviewMode(false);
+        settings.setLoadWithOverviewMode(true);
         settings.setNeedInitialFocus(true);
 
-        // Leanback D-pad must be able to focus DOM controls inside the WebView.
         webView.setFocusable(true);
         webView.setFocusableInTouchMode(true);
         webView.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
@@ -53,33 +49,25 @@ public class MainActivity extends BridgeActivity {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 webView.setFocusedByDefault(true);
             }
-            webView.post(() -> {
-                webView.setFocusable(true);
-                webView.requestFocus(View.FOCUS_DOWN);
-            });
+            webView.post(() -> webView.requestFocus(View.FOCUS_DOWN));
         }
     }
 
-    private void scheduleTvHints() {
+    private void scheduleTvMark() {
         if (!isTelevisionDevice()) return;
         if (bridge == null || bridge.getWebView() == null) return;
-        WebView webView = bridge.getWebView();
-        for (long delayMs : TV_INJECT_DELAYS_MS) {
-            webView.postDelayed(this::injectTvHints, delayMs);
-        }
-    }
-
-    private void injectTvHints() {
-        if (bridge == null || bridge.getWebView() == null) return;
-        bridge.getWebView().evaluateJavascript(
-            "(function(){"
-                + "if(typeof window.__SMP_MARK_TV__==='function'){window.__SMP_MARK_TV__();return;}"
-                + "window.__PLEX_CLIENT__=Object.assign({},window.__PLEX_CLIENT__||{},{isTv:true});"
-                + "document.documentElement.dataset.tv='1';"
-                + "document.documentElement.dataset.plexClient='1';"
-                + "})();",
-            null
-        );
+        // Mark leanback for the JS remote layer only — no viewport/zoom injection.
+        bridge.getWebView().postDelayed(() -> {
+            if (bridge == null || bridge.getWebView() == null) return;
+            bridge.getWebView().evaluateJavascript(
+                "(function(){"
+                    + "window.__PLEX_CLIENT__=Object.assign({},window.__PLEX_CLIENT__||{},{isTv:true});"
+                    + "document.documentElement.dataset.tv='1';"
+                    + "document.documentElement.dataset.plexClient='1';"
+                    + "})();",
+                null
+            );
+        }, 300);
     }
 
     private boolean isTelevisionDevice() {

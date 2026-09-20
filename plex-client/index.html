@@ -12,87 +12,15 @@
       isTv: false
     };
     document.documentElement.dataset.plexClient = '1';
-
-    // Leanback WebViews often report a phone-sized CSS width. Use CSS zoom (not
-    // transform:scale) so hit-testing / D-pad Select / clicks keep working.
-    (function () {
-      var TARGET = 1920;
-      var scheduled = false;
-
-      function clearTransformShell() {
-        var root = document.getElementById('root');
-        if (!root) return;
-        root.style.width = '';
-        root.style.height = '';
-        root.style.transform = '';
-        root.style.transformOrigin = '';
-        root.style.overflow = '';
-        document.documentElement.style.overflow = '';
-        document.body.style.overflow = '';
-        document.body.style.height = '';
-        document.documentElement.style.height = '';
-      }
-
-      function applyTvScale() {
-        clearTransformShell();
-        var vw = window.innerWidth || document.documentElement.clientWidth || TARGET;
-        if (vw < 2) return;
-        document.documentElement.dataset.tv = '1';
-        document.documentElement.style.fontSize = '16px';
-        // Narrow CSS viewport (phone density on TV) → zoom out so more posters fit.
-        // Very wide CSS viewport (4K 1x) → zoom toward a 1920 design width.
-        if (vw < TARGET * 0.92) {
-          document.documentElement.style.zoom = String(Math.max(0.45, Math.min(1, vw / TARGET)));
-        } else if (vw > TARGET * 1.2) {
-          document.documentElement.style.zoom = String(Math.max(0.45, Math.min(1, TARGET / vw)));
-        } else {
-          document.documentElement.style.zoom = '1';
-        }
-      }
-
-      function markTv() {
-        window.__PLEX_CLIENT__ = Object.assign({}, window.__PLEX_CLIENT__ || {}, { isTv: true });
-        document.documentElement.dataset.tv = '1';
-        document.documentElement.dataset.plexClient = '1';
-        var meta = document.querySelector('meta[name="viewport"]');
-        if (!meta) {
-          meta = document.createElement('meta');
-          meta.setAttribute('name', 'viewport');
-          document.head.appendChild(meta);
-        }
-        meta.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no');
-        applyTvScale();
-      }
-
-      function schedule() {
-        if (scheduled) return;
-        scheduled = true;
-        requestAnimationFrame(function () {
-          scheduled = false;
-          if (document.documentElement.dataset.tv === '1' || (window.__PLEX_CLIENT__ && window.__PLEX_CLIENT__.isTv)) {
-            applyTvScale();
-          }
-        });
-      }
-
-      window.__SMP_APPLY_TV_SCALE__ = applyTvScale;
-      window.__SMP_MARK_TV__ = markTv;
-      window.addEventListener('resize', schedule);
-      window.addEventListener('orientationchange', schedule);
-      document.addEventListener('DOMContentLoaded', schedule);
-    })();
   </script>
   <link rel="stylesheet" href="./tailwind.css" />
   <style>
     html, body, #root { height: 100%; margin: 0; background: #09090b; color: #fafafa; }
-    html[data-tv="1"] {
-      font-size: 16px !important;
-    }
+    /* TV remote: same web UI, clearer focus + no scrollbar chrome */
     html[data-tv="1"] body {
       -webkit-text-size-adjust: 100%;
       text-size-adjust: 100%;
     }
-    /* D-pad focus must be obvious; WebView often skips :focus-visible */
     html[data-tv="1"] :focus {
       outline: 3px solid #f59e0b !important;
       outline-offset: 3px;
@@ -105,10 +33,8 @@
       outline: 3px solid #f59e0b !important;
       outline-offset: 4px;
       border-radius: 0.75rem;
-      transform: scale(1.04);
       z-index: 5;
     }
-    /* No scrollbars on TV — remote scrolls, chrome looks wrong */
     html[data-tv="1"],
     html[data-tv="1"] * {
       scrollbar-width: none !important;

@@ -11,17 +11,11 @@ declare global {
             isTv?: boolean;
             nativePlayer?: boolean;
         };
-        /** Defined in plex-client/index.html — forces 1920px layout then scales to the WebView. */
-        __SMP_APPLY_TV_SCALE__?: () => void;
-        __SMP_MARK_TV__?: () => void;
     }
 }
 
 const STORAGE_PORTAL = 'plexClient.portalBaseUrl';
 const STORAGE_TOKEN = 'plexClient.sessionToken';
-
-/** Desktop-like layout width so rem/Tailwind density matches a browser on a TV WebView. */
-export const TV_LAYOUT_WIDTH = 1920;
 
 const trimSlash = (value: string) => String(value || '').replace(/\/+$/, '');
 
@@ -40,7 +34,6 @@ export const normalizePortalBaseUrl = (raw: string): { ok: true; url: string } |
         return { ok: false, error: 'Use an http:// or https:// portal address' };
     }
     if (!parsed.hostname) return { ok: false, error: 'Missing hostname' };
-    // Drop path/query — app talks to portal origin (+ optional base path later if needed).
     const path = parsed.pathname.replace(/\/+$/, '');
     const origin = `${parsed.protocol}//${parsed.host}`;
     const withBase = path && path !== '/' ? `${origin}${path}` : origin;
@@ -105,18 +98,15 @@ export const writeStoredSessionToken = (token: string) => {
     }
 };
 
-/** Sign out of the current portal session (keeps saved portal URL). */
 export const clearPlexClientSession = () => {
     writeStoredSessionToken('');
 };
 
-/** Forget portal + session (switch to a different SMP install). */
 export const clearPlexClientPortal = () => {
     writeStoredSessionToken('');
     writeStoredPortalBaseUrl('');
 };
 
-/** Absolute portal base used by Capacitor (no trailing slash). Never hardcode a store default. */
 export const getPortalBaseUrl = (): string => {
     if (typeof window === 'undefined') return '';
     const fromWindow = trimSlash(window.__PLEX_CLIENT__?.portalBaseUrl || '');
@@ -131,6 +121,7 @@ export const getSessionToken = (): string => {
     return readStoredSessionToken();
 };
 
+/** Leanback / Android TV detection — input layer only, not a separate UI density mode. */
 export const isAndroidTvUi = (): boolean => {
     if (typeof window === 'undefined') return false;
     if (window.__PLEX_CLIENT__?.isTv === true) return true;
@@ -138,7 +129,6 @@ export const isAndroidTvUi = (): boolean => {
         if (document.documentElement?.dataset?.tv === '1') return true;
         const ua = navigator.userAgent || '';
         if (/Android/i.test(ua) && /TV|BRAVIA|AFT|GoogleTV|Android TV|SHIELD/i.test(ua)) return true;
-        // Emulators often omit "TV" in the UA — no touch + large Android screen ≈ leanback.
         if (
             /Android/i.test(ua)
             && typeof navigator.maxTouchPoints === 'number'
@@ -153,51 +143,24 @@ export const isAndroidTvUi = (): boolean => {
     return false;
 };
 
-const ensureViewportMeta = () => {
-    let meta = document.querySelector('meta[name="viewport"]');
-    if (!meta) {
-        meta = document.createElement('meta');
-        meta.setAttribute('name', 'viewport');
-        document.head.appendChild(meta);
-    }
-    return meta;
-};
-
-/**
- * Overall UI density for Android TV WebViews (not the poster Size slider).
- * Viewport meta alone is ignored by many leanback WebViews — lay out at 1920px
- * and CSS-transform scale to the real window so rem/Tailwind match desktop.
- */
-export const applyTvDisplayScale = () => {
-    if (typeof window === 'undefined' || typeof document === 'undefined') return;
-    if (!isAndroidTvUi()) return;
+const markTvUi = () => {
     try {
         document.documentElement.dataset.tv = '1';
+        document.documentElement.dataset.plexClient = '1';
         window.__PLEX_CLIENT__ = {
             ...(window.__PLEX_CLIENT__ || {}),
             isTv: true,
         };
-        const meta = ensureViewportMeta();
-        meta.setAttribute(
-            'content',
-            'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no',
-        );
-        document.documentElement.style.fontSize = '16px';
-        if (typeof window.__SMP_APPLY_TV_SCALE__ === 'function') {
-            window.__SMP_APPLY_TV_SCALE__();
-        } else if (typeof window.__SMP_MARK_TV__ === 'function') {
-            window.__SMP_MARK_TV__();
-        }
     } catch {
         /* ignore */
     }
 };
 
 type DeviceUiPlugin = {
-    getInfo: () => Promise<{ isTv?: boolean; widthPixels?: number; heightPixels?: number; density?: number }>;
+    getInfo: () => Promise<{ isTv?: boolean }>;
 };
 
-/** Ask native leanback detection, then apply TV layout density. */
+/** Ask native leanback detection; mark data-tv for remote layer (no layout scaling). */
 export const detectAndApplyTvUi = async (): Promise<boolean> => {
     if (typeof window === 'undefined') return false;
     try {
@@ -205,18 +168,13 @@ export const detectAndApplyTvUi = async (): Promise<boolean> => {
         if (Capacitor.isNativePlatform()) {
             const DeviceUi = registerPlugin<DeviceUiPlugin>('DeviceUi');
             const info = await DeviceUi.getInfo();
-            if (info?.isTv) {
-                window.__PLEX_CLIENT__ = {
-                    ...(window.__PLEX_CLIENT__ || {}),
-                    isTv: true,
-                };
-            }
+            if (info?.isTv) markTvUi();
         }
     } catch {
         /* web / plugin missing */
     }
     const tv = isAndroidTvUi();
-    if (tv) applyTvDisplayScale();
+    if (tv) markTvUi();
     return tv;
 };
 
@@ -233,10 +191,7 @@ export const bootstrapPlexClientConfig = () => {
     };
     try {
         document.documentElement.dataset.plexClient = '1';
-        if (window.__PLEX_CLIENT__.isTv) {
-            document.documentElement.dataset.tv = '1';
-            applyTvDisplayScale();
-        }
+        if (window.__PLEX_CLIENT__.isTv) markTvUi();
     } catch {
         /* ignore */
     }

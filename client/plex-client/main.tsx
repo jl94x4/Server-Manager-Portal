@@ -9,8 +9,10 @@ import {
     clearPlexClientSession,
     detectAndApplyTvUi,
     getSessionToken,
+    isAndroidTvUi,
 } from './config';
 import { installNativeMediaPlayerBridge } from './nativePlayer';
+import { useTvRemote } from './useTvRemote';
 
 const ensurePlayerRoute = () => {
     try {
@@ -27,22 +29,19 @@ const PlexClientApp: React.FC = () => {
     const [ready, setReady] = useState(false);
     const [authed, setAuthed] = useState(false);
     const [checking, setChecking] = useState(true);
+    const [tvReady, setTvReady] = useState(false);
+
+    useTvRemote(ready && tvReady);
 
     useEffect(() => {
         let cancelled = false;
         const boot = async () => {
             bootstrapPlexClientConfig();
-            // Await native leanback flag before first paint so density isn't phone-sized.
-            await detectAndApplyTvUi();
+            const tv = await detectAndApplyTvUi();
             if (cancelled) return;
+            setTvReady(tv || isAndroidTvUi());
             installNativeMediaPlayerBridge();
             setReady(true);
-            // Re-apply after React mounts #root children (transform target must exist).
-            requestAnimationFrame(() => {
-                if (typeof window.__SMP_APPLY_TV_SCALE__ === 'function') {
-                    window.__SMP_APPLY_TV_SCALE__();
-                }
-            });
             const token = getSessionToken();
             if (!token) {
                 setChecking(false);
@@ -64,16 +63,6 @@ const PlexClientApp: React.FC = () => {
         void boot();
         return () => { cancelled = true; };
     }, []);
-
-    useEffect(() => {
-        if (!ready) return;
-        const id = requestAnimationFrame(() => {
-            if (typeof window.__SMP_APPLY_TV_SCALE__ === 'function') {
-                window.__SMP_APPLY_TV_SCALE__();
-            }
-        });
-        return () => cancelAnimationFrame(id);
-    }, [ready, authed, checking]);
 
     const onAuthenticated = useCallback(() => {
         ensurePlayerRoute();
