@@ -69,6 +69,7 @@ export const en = {
         requests: 'Requests',
         discoverRequest: 'Discover & Request',
         mediaPlayer: 'Media Player',
+        mediaPlayerShort: 'Player',
         request: 'Request',
         about: 'About',
         preferences: 'Preferences',

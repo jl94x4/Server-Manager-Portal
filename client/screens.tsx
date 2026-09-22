@@ -12941,9 +12941,26 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
             ? t(NAV_ALPHA_NOTICE_KEYS[item.route] || 'mediaPlayerPage.alphaNotice')
             : '';
         const statusBadge = item.alpha
-            ? <AlphaBadge title={alphaTitle} className={options.mobile ? 'scale-90' : undefined} />
+            ? <AlphaBadge title={alphaTitle} />
             : item.beta
-                ? <BetaBadge title={betaTitle} className={options.mobile ? 'scale-90' : undefined} />
+                ? <BetaBadge title={betaTitle} />
+                : null;
+        // Bottom-bar slots are too narrow for label + ALPHA/BETA; pin the chip on the icon
+        // (same pattern as the More drawer) so it stays inside the nav chrome.
+        const mobileStatusBadge = item.alpha
+            ? (
+                <AlphaBadge
+                    title={alphaTitle}
+                    className="absolute -bottom-1 left-1/2 z-[1] -translate-x-1/2 px-1 py-0 text-[6px] leading-none"
+                />
+            )
+            : item.beta
+                ? (
+                    <BetaBadge
+                        title={betaTitle}
+                        className="absolute -bottom-1 left-1/2 z-[1] -translate-x-1/2 px-1 py-0 text-[6px] leading-none"
+                    />
+                )
                 : null;
         const desktopDensity = options.mobile ? null : desktopNavDensity;
         const iconsOnly = !options.mobile && desktopNavIconsOnly;
@@ -12955,7 +12972,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
             <Icon className={`${iconClass} flex-shrink-0`} />
         );
         const baseClass = options.mobile
-            ? `relative flex flex-col items-center justify-center gap-0.5 h-full flex-1 min-w-0 px-0.5 text-center text-[0.6rem] sm:text-[0.65rem] transition-colors ${options.isCurrent ? 'text-plex font-bold' : 'text-muted hover:text-text'}`
+            ? `relative flex flex-col items-center justify-center gap-0.5 h-full flex-1 min-w-0 px-0.5 text-center text-[0.6rem] sm:text-[0.65rem] transition-colors overflow-visible ${options.isCurrent ? 'text-plex font-bold' : 'text-muted hover:text-text'}`
             : iconsOnly
                 ? `relative flex w-full items-center justify-center px-0 py-1.5 no-underline rounded-lg transition-colors ${options.isCurrent ? 'nav-item-active' : 'text-muted hover:bg-white/5 hover:text-text'}`
                 : `flex w-full items-center ${desktopDensity?.gap || 'gap-2.5'} ${desktopDensity?.px || 'px-3'} ${desktopDensity?.py || 'py-1.5'} no-underline rounded-lg transition-colors ${desktopDensity?.text || 'text-[15px]'} font-medium ${options.isCurrent ? 'nav-item-active' : 'text-muted hover:bg-white/5 hover:text-text'}`;
@@ -13000,8 +13017,9 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                 title={iconsOnly ? label : undefined}
                 aria-label={iconsOnly ? label : undefined}
             >
-                <span className="relative shrink-0">
+                <span className={`relative shrink-0 ${options.mobile && mobileStatusBadge ? 'mb-1' : ''}`}>
                     {mark}
+                    {options.mobile ? mobileStatusBadge : null}
                     {badgeCount > 0 && (options.mobile || iconsOnly) && (
                         <span className="absolute -top-1 -right-1.5 min-w-[14px] h-3.5 px-0.5 rounded-full bg-plex text-background text-[8px] font-bold flex items-center justify-center leading-none">
                             {badgeCount > 9 ? '9+' : badgeCount}
@@ -13009,10 +13027,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                     )}
                 </span>
                 {options.mobile ? (
-                    <span className="flex items-center gap-1 max-w-full">
-                        <span className="truncate">{label}</span>
-                        {statusBadge}
-                    </span>
+                    <span className="truncate max-w-full leading-tight">{label}</span>
                 ) : iconsOnly ? (
                     <span className="sr-only">{label}</span>
                 ) : (
@@ -13027,7 +13042,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                     </span>
                 )}
                 {options.mobile && options.isCurrent && (
-                    <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />
+                    <div className="absolute bottom-0.5 w-1.5 h-1.5 rounded-full bg-plex shadow-[0_0_5px_rgba(229,160,13,0.8)]" />
                 )}
             </button>
         );
@@ -13647,7 +13662,13 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
                             const isCurrent = item.customTabId
                             ? isNavCurrent(key, item.route, item.customTabId)
                             : (item.route ? isNavCurrent(key, item.route) : false);
-                            const labelOverride = key === 'mediastack' ? t('navigation.calendar') : key === 'request' ? t('navigation.request') : item.label;
+                            const labelOverride = key === 'mediastack'
+                                ? t('navigation.calendar')
+                                : key === 'request'
+                                    ? t('navigation.request')
+                                    : key === 'media-player'
+                                        ? t('navigation.mediaPlayerShort')
+                                        : item.label;
                             return renderNavAction(key, { ...item, label: labelOverride }, { mobile: true, isCurrent, compactLabel: labelOverride, badgeCount: getNavBadgeCount(key) });
                         })}
                         {showMore && (
