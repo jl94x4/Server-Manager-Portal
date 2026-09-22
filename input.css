@@ -1433,7 +1433,9 @@ html.branded-skeleton .skeleton-base::after {
   }
 }
 
-/* Phone home scroll: skip per-frame backdrop-filter on cards and the nav. */
+/* Phone: solid shells (no backdrop-filter). iOS 27 scroll-pocket sampling
+   treats alpha >= ~0.75 as opaque color-extension; stay fully solid so the
+   fixed top nav reliably hides the system progressive blur. */
 @media (max-width: 767px) {
   .glass-card,
   .glass-card-sm,
@@ -1441,7 +1443,7 @@ html.branded-skeleton .skeleton-base::after {
   .nav-shell {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
-    background-color: rgb(var(--color-card) / 0.96);
+    background-color: rgb(var(--color-card));
   }
 }
 

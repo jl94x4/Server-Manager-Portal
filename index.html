@@ -4,7 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!--
+      Use opaque `black` (not black-translucent). On iOS 26+/27 Home Screen PWAs,
+      black-translucent is edge-to-edge with _obscuredInsets.top === 0, so the
+      system scroll-pocket progressive blur can never be suppressed and paints a
+      frosted band over the top nav. Opaque style lets iOS reserve the status bar;
+      our fixed nav-shell then hides the scroll pocket. safe-area-inset-top is 0
+      in that mode, so existing env() padding stays correct.
+    -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="theme-color" content="#0b0f19" />
     <title>Server Portal</title>
