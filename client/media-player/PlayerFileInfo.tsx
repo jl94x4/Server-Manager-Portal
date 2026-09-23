@@ -2,7 +2,7 @@ import React, { useEffect, useMemo } from 'react';
 import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useDiscoverI18n } from './host';
-import { formatBitrateMbps, formatBytes, plexImageUrl, titleCaseProfile } from './playerUtils';
+import { formatBitrateMbps, formatBytes, formatMediaAudioLine, formatMediaVideoLine, plexImageUrl } from './playerUtils';
 import type { PlayerItem, PlayerMediaInfo, PlayerMediaPartInfo, PlayerMediaStreamInfo } from './types';
 
 type Props = {
@@ -15,20 +15,6 @@ type Props = {
 
 const formatMbps = (bitrate?: number | null) => formatBitrateMbps(bitrate).replace(/\.0 Mbps$/, ' Mbps');
 
-const formatKbps = (bitrate?: number | null) => {
-    const n = Number(bitrate);
-    if (!Number.isFinite(n) || n <= 0) return '';
-    const kbps = n >= 100000 ? Math.round(n / 1000) : Math.round(n);
-    return `${kbps} kbps`;
-};
-
-const formatFps = (value?: string | null) => {
-    const raw = String(value || '').trim();
-    if (!raw) return '';
-    if (/fps|p$/i.test(raw)) return raw;
-    return `${raw} fps`;
-};
-
 const formatRelease = (value?: string | null) => {
     const raw = String(value || '').trim();
     const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
@@ -37,37 +23,6 @@ const formatRelease = (value?: string | null) => {
     if (Number.isNaN(date.getTime())) return raw;
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 };
-
-const audioLanguage = (audio: PlayerMediaStreamInfo) => {
-    const lang = String(audio.language || '').trim();
-    if (lang && !/^[a-z]{2,3}$/i.test(lang)) return lang;
-    const head = String(audio.displayTitle || '').split('(')[0].trim();
-    return head || lang;
-};
-
-const channelLayout = (audio: PlayerMediaStreamInfo) => {
-    const layout = String(audio.channelLayout || '').trim();
-    if (layout) return layout.replace(/\(/, ' (');
-    return audio.channels ? String(audio.channels) : '';
-};
-
-const videoLine = (video: PlayerMediaStreamInfo) => {
-    const dims = video.width && video.height ? `${video.width}x${video.height}` : '';
-    const codec = [
-        String(video.codec || '').toUpperCase(),
-        video.level ? String(video.level) : '',
-        titleCaseProfile(video.profile),
-    ].filter(Boolean).join(' ');
-    return [dims, formatFps(video.frameRate), formatMbps(video.bitrate), codec].filter(Boolean).join(' · ');
-};
-
-const audioLine = (audio: PlayerMediaStreamInfo) => [
-    audioLanguage(audio),
-    String(audio.codec || '').toUpperCase(),
-    channelLayout(audio),
-    formatKbps(audio.bitrate),
-    audio.samplingRate ? `${audio.samplingRate} kHz` : '',
-].filter(Boolean).join(' · ');
 
 const selectedAudioFirst = (part: PlayerMediaPartInfo, audioStreamId?: string) => {
     const rows = [...(part.audio || [])];
@@ -168,22 +123,45 @@ export const PlayerFileInfo: React.FC<Props> = ({
             >
                 <h2 className="text-4xl font-semibold tracking-tight md:text-5xl">{item.title}</h2>
                 {item.summary ? (
-                    <p className="mt-5 max-w-4xl text-lg leading-relaxed text-white/85 md:text-xl">{item.summary}</p>
+                    <p
+                        className="file-info-summary mt-4 max-w-4xl text-base leading-relaxed text-white/85 md:text-lg line-clamp-3"
+                        data-tv-file-info-summary="1"
+                    >
+                        {item.summary}
+                    </p>
                 ) : null}
                 {released ? (
-                    <p className="mt-5 text-lg text-white/85 md:text-xl">{t('mediaPlayerPage.released')}: {released}</p>
+                    <p className="mt-3 text-base text-white/85 md:text-lg">{t('mediaPlayerPage.released')}: {released}</p>
                 ) : null}
                 {loading ? (
-                    <p className="mt-8 text-lg text-white/70">{t('mediaPlayerPage.loading')}</p>
+                    <p className="mt-6 text-lg text-white/70">{t('mediaPlayerPage.loading')}</p>
                 ) : null}
                 {files.map(({ media, part }) => {
                     const audios = selectedAudioFirst(part, audioStreamId);
                     const size = [formatBytes(part.size), formatMbps(media.bitrate), String(part.container || media.container || '').toUpperCase()]
                         .filter(Boolean)
                         .join(' · ');
-                    const video = videoLine(part.video || {});
+                    const video = formatMediaVideoLine(part.video)
+                        || formatMediaVideoLine({
+                            width: media.width,
+                            height: media.height,
+                            bitrate: media.bitrate,
+                            codec: media.videoCodec,
+                        });
+                    const audioFallback = media.audioCodec
+                        ? formatMediaAudioLine({
+                            codec: media.audioCodec,
+                            channels: media.audioChannels,
+                        })
+                        : '';
+                    const subtitle = (part.subtitles || []).find((row) => row.selected)
+                        || (part.subtitles || [])[0];
                     return (
-                        <div key={part.id} className="mt-10 w-full max-w-4xl space-y-2.5 text-lg text-white/90 md:text-xl">
+                        <div
+                            key={part.id}
+                            className="file-info-meta mt-6 w-full max-w-4xl space-y-2 text-lg text-white/90 md:text-xl"
+                            data-tv-file-info-meta="1"
+                        >
                             {part.fileName ? (
                                 <p><span className="text-white/55">{t('mediaPlayerPage.file')}</span> : {part.fileName}</p>
                             ) : null}
@@ -193,8 +171,8 @@ export const PlayerFileInfo: React.FC<Props> = ({
                             {video ? (
                                 <p><span className="text-white/55">{t('mediaPlayerPage.video')}</span> : {video}</p>
                             ) : null}
-                            {audios.map((audio) => {
-                                const line = audioLine(audio);
+                            {audios.length ? audios.map((audio) => {
+                                const line = formatMediaAudioLine(audio) || audio.displayTitle || '';
                                 if (!line) return null;
                                 const selected = audios.length > 1 && isSelectedAudio(audio, audioStreamId, part);
                                 return (
@@ -209,7 +187,14 @@ export const PlayerFileInfo: React.FC<Props> = ({
                                         ) : null}
                                     </p>
                                 );
-                            })}
+                            }) : audioFallback ? (
+                                <p><span className="text-white/55">{t('mediaPlayerPage.audio')}</span> : {audioFallback}</p>
+                            ) : null}
+                            <p>
+                                <span className="text-white/55">{t('mediaPlayerPage.subtitles')}</span>
+                                {' : '}
+                                {subtitle?.displayTitle || t('mediaPlayerPage.subtitlesOff')}
+                            </p>
                         </div>
                     );
                 })}

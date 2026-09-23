@@ -66,6 +66,7 @@ export const PlayerPosterCard: React.FC<Props> = ({
     const canHoverPlay = !isTvShell && !!onPlay && item.canPlay !== false && item.type !== 'collection' && item.type !== 'artist' && item.type !== 'album' && item.type !== 'playlist';
     const canToggleWatched = !isTvShell && !!onToggleWatched && (item.type === 'movie' || item.type === 'episode' || item.type === 'show' || item.type === 'season');
     const resolvedAspect = aspect
+        || item.cardAspect
         || (item.type === 'artist' || item.type === 'album' ? 'square' : null)
         || (item.type === 'episode' ? '16/9' : '2/3');
     const episodeCode = formatEpisodeCode(item);

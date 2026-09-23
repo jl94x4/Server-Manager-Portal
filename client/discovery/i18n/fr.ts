@@ -1614,6 +1614,7 @@ export const fr: DeepPartial<EnCatalog> = {
     facts: {
         didYouKnow: 'Le saviez-vous ?',
         another: 'Un autre',
+        empty: 'Les anecdotes apparaîtront ici dès qu’elles seront disponibles.',
         status: 'Statut',
         release: 'Date de sortie',
         premiere: 'Première diffusion',

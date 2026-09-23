@@ -11,7 +11,7 @@ import {
 } from './host';
 import { addMediaPlayerPlaylistItem, createMediaPlayerPlaylist, fetchMediaPlayerItem, fetchMediaPlayerItemMore, fetchMediaPlayerNeighbors, fetchMediaPlayerPlaylists, setMediaPlayerWatched } from './api';
 import { MediaPlayerThemeTune } from './MediaPlayerThemeTune';
-import { EpisodeNeighbors, OverviewFacts, OverviewGenres, OverviewLinks, OverviewSummary } from './MediaPlayerOverview';
+import { OverviewFacts, OverviewFactsSpotlight, OverviewGenres, OverviewLinks, OverviewSummary } from './MediaPlayerOverview';
 import { PlayerClearLogo } from './PlayerClearLogo';
 import { PlayerFileInfo } from './PlayerFileInfo';
 import { PlayerItemMenu } from './PlayerItemMenu';
@@ -543,7 +543,11 @@ export const MediaPlayerDetails: React.FC<Props> = ({
     const factMediaType = item.type === 'movie'
         ? 'movie'
         : (item.type === 'show' || item.type === 'season' || item.type === 'episode' ? 'tv' : null);
-    const factMediaId = Number(item.tmdbId);
+    const factMediaId = Number(
+        item.type === 'episode' || item.type === 'season'
+            ? (item.showTmdbId || item.externalIds?.tmdb || item.tmdbId)
+            : (item.externalIds?.tmdb || item.tmdbId),
+    );
     const factTitle = item.type === 'episode' || item.type === 'season'
         ? (item.showTitle || item.title)
         : item.title;
@@ -700,14 +704,14 @@ export const MediaPlayerDetails: React.FC<Props> = ({
         >
             <div data-tv-page-top="1" className="h-0 w-full" aria-hidden />
             <div className="relative isolate">
-                <div className="media-details-hero-backdrop absolute inset-x-0 top-0 h-[50rem] max-h-[92vh] sm:h-[52rem] md:h-[min(100vh,76rem)] md:max-h-none overflow-hidden pointer-events-none" aria-hidden>
+                <div className="media-details-hero-backdrop absolute inset-x-0 top-0 overflow-hidden pointer-events-none" aria-hidden>
                     {backdropUrl && !backdropFailed ? (
                         <img
                             key={backdropUrl}
                             src={backdropUrl}
                             alt=""
-                            className={`absolute inset-0 w-full h-full object-cover object-[55%_30%] transition-opacity duration-500 ease-out md:object-[62%_28%] ${
-                                backdropReady ? 'opacity-80 md:opacity-100' : 'opacity-0'
+                            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ease-out ${
+                                backdropReady ? 'opacity-100' : 'opacity-0'
                             }`}
                             fetchPriority="high"
                             decoding="async"
@@ -718,8 +722,8 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                         <div className="absolute inset-0 bg-black" />
                     )}
                     <div className="media-details-hero-scrim-mobile absolute inset-0 bg-gradient-to-b from-black/50 via-card/65 via-[55%] to-card md:hidden" />
-                    <div className="media-details-hero-scrim-bottom absolute inset-0 hidden md:block bg-gradient-to-t from-card from-0% via-card/65 via-[8%] to-transparent to-[36%]" />
-                    <div className="media-details-hero-scrim-left absolute inset-0 hidden md:block bg-gradient-to-r from-card from-0% via-card/70 via-[28%] to-transparent to-[72%]" />
+                    <div className="media-details-hero-scrim-bottom absolute inset-0 hidden md:block" />
+                    <div className="media-details-hero-scrim-left absolute inset-0 hidden md:block" />
                 </div>
 
                 <div className={`media-details-hero-content relative z-10 w-full max-w-[2400px] mx-auto page-x sm:px-8 xl:px-12 pt-2 sm:pt-3 md:pt-2 ${children.length ? 'pb-5' : 'pb-8'}`}>
@@ -1264,57 +1268,55 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                             onOpenItem={onOpenItem}
                             onOpenStudio={onOpenStudio}
                             aside={
-                                factMediaType && Number.isFinite(factMediaId) && factMediaId > 0 ? (
-                                    <DiscoveryFactWidget
-                                        mediaType={factMediaType}
-                                        mediaId={factMediaId}
-                                        title={factTitle}
-                                    />
-                                ) : null
+                                <OverviewFactsSpotlight
+                                    item={item}
+                                    onOpenStudio={onOpenStudio}
+                                    factMediaType={factMediaType}
+                                    factMediaId={factMediaId}
+                                    factTitle={factTitle}
+                                    previous={neighbors.previous}
+                                    next={neighbors.next}
+                                    onOpenItem={onOpenItem}
+                                    onPlayNeighbor={(row) => onPlay(row)}
+                                />
                             }
-                        />
-                        <OverviewLinks item={item} />
-                        {streamRows.length ? (
-                            <div className="flex flex-col gap-3" data-no-episode-swipe="1">
-                                {isTvShell ? (
-                                    <h3 className="text-xs font-black text-muted uppercase tracking-[0.2em]">
-                                        {t('mediaPlayerPage.mediaInfo')}
-                                    </h3>
-                                ) : (
-                                    <button
-                                        type="button"
-                                        onClick={() => setMediaInfoExpanded((open) => !open)}
-                                        className="flex w-full items-center gap-3 pr-4 text-left"
-                                        aria-expanded={mediaInfoExpanded}
-                                    >
+                            underDetails={streamRows.length ? (
+                                <div className="flex flex-col gap-3" data-no-episode-swipe="1">
+                                    {isTvShell ? (
                                         <h3 className="text-xs font-black text-muted uppercase tracking-[0.2em]">
                                             {t('mediaPlayerPage.mediaInfo')}
                                         </h3>
-                                        <ChevronDown className={`h-4 w-4 shrink-0 text-muted transition-transform ${mediaInfoExpanded ? 'rotate-180' : ''}`} />
-                                        <div className="h-px min-w-0 flex-1 bg-gradient-to-r from-border to-transparent" />
-                                    </button>
-                                )}
-                                {isTvShell || mediaInfoExpanded ? (
-                                    <div className="grid max-w-3xl grid-cols-[auto_1fr] gap-x-6 gap-y-1.5">
-                                        {streamRows.map((row, index) => (
-                                            <React.Fragment key={`${row.label}-${index}`}>
-                                                <span className="pt-0.5 text-xs font-black uppercase tracking-wider text-muted">{row.label}</span>
-                                                <span className="text-left text-sm font-semibold text-text">{row.value}</span>
-                                            </React.Fragment>
-                                        ))}
-                                    </div>
-                                ) : null}
-                            </div>
-                        ) : null}
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={() => setMediaInfoExpanded((open) => !open)}
+                                            className="flex w-full items-center gap-3 pr-4 text-left"
+                                            aria-expanded={mediaInfoExpanded}
+                                        >
+                                            <h3 className="text-xs font-black text-muted uppercase tracking-[0.2em]">
+                                                {t('mediaPlayerPage.mediaInfo')}
+                                            </h3>
+                                            <ChevronDown className={`h-4 w-4 shrink-0 text-muted transition-transform ${mediaInfoExpanded ? 'rotate-180' : ''}`} />
+                                            <div className="h-px min-w-0 flex-1 bg-gradient-to-r from-border to-transparent" />
+                                        </button>
+                                    )}
+                                    {isTvShell || mediaInfoExpanded ? (
+                                        <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5">
+                                            {streamRows.map((row, index) => (
+                                                <React.Fragment key={`${row.label}-${index}`}>
+                                                    <span className="pt-0.5 text-xs font-black uppercase tracking-wider text-muted">{row.label}</span>
+                                                    <span className="text-left text-sm font-semibold text-text">{row.value}</span>
+                                                </React.Fragment>
+                                            ))}
+                                        </div>
+                                    ) : null}
+                                </div>
+                            ) : null}
+                        />
+                        <OverviewLinks item={item} />
                         <p className="md:hidden text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
                             {t('mediaPlayerPage.swipeEpisodesHint')}
                         </p>
-                        <EpisodeNeighbors
-                            previous={neighbors.previous}
-                            next={neighbors.next}
-                            onOpenItem={onOpenItem}
-                            onPlay={(row) => onPlay(row)}
-                        />
                     </div>
                     ) : null}
 

@@ -521,6 +521,39 @@ html[data-theme="light"] .company-card .company-duotone-logo {
   filter: none;
 }
 
+/* Details hero: same cinematic wash on web and TV — art up top-right,
+ * card-colored fade through the overview so copy never sits on raw pixels. */
+.media-details-hero-backdrop {
+  height: 100vh;
+  max-height: none;
+}
+.media-details-hero-backdrop img {
+  object-position: 72% 35%;
+  opacity: 1;
+  filter: none;
+}
+.media-details-hero-scrim-bottom {
+  background: linear-gradient(
+    to top,
+    rgb(var(--color-card)) 0%,
+    rgb(var(--color-card) / 0.96) 10%,
+    rgb(var(--color-card) / 0.82) 22%,
+    rgb(var(--color-card) / 0.5) 34%,
+    transparent 48%
+  );
+}
+.media-details-hero-scrim-left {
+  background: linear-gradient(
+    to right,
+    rgb(var(--color-card) / 0.9) 0%,
+    rgb(var(--color-card) / 0.72) 26%,
+    rgb(var(--color-card) / 0.4) 52%,
+    transparent 72%
+  );
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 16%, #000 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 16%, #000 100%);
+}
+
 /* Media details: only in light mode, put overview/facts on an opaque panel
  * so dark ink stays readable over leftover hero art. Dark themes stay seamless. */
 html[data-theme="light"] .media-details-panel {

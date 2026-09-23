@@ -243,10 +243,31 @@ export const unwatchedCount = (item?: PlayerItem | null) => {
 
 export const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
+/** Recently Added must use the show poster, never the episode title card. */
+export const withShowPoster = (item: PlayerItem): PlayerItem => {
+    if (item.type !== 'episode' && item.type !== 'season') return item;
+    const showKey = String(
+        (item.type === 'season' ? item.parentRatingKey : item.grandparentRatingKey) || '',
+    ).replace(/\D/g, '');
+    if (!showKey) return { ...item, cardAspect: item.cardAspect || '2/3' };
+    return {
+        ...item,
+        thumb: `/library/metadata/${showKey}/thumb`,
+        cardAspect: '2/3',
+    };
+};
+
 export const toPosterCardItem = (item: PlayerItem) => {
-    const thumb = item.thumb || (item.ratingKey ? `/library/metadata/${item.ratingKey}/thumb` : undefined);
-    const posterFallbackUrl = item.ratingKey && thumb !== `/library/metadata/${item.ratingKey}/thumb`
-        ? `/api/plex/image?path=${encodeURIComponent(`/library/metadata/${item.ratingKey}/thumb`)}&width=${PLAYER_POSTER_WIDTH}&height=${PLAYER_POSTER_HEIGHT}&quality=${PLAYER_POSTER_QUALITY}`
+    const leafThumb = item.ratingKey ? `/library/metadata/${item.ratingKey}/thumb` : '';
+    const showKey = String(
+        (item.type === 'season' ? item.parentRatingKey : item.grandparentRatingKey) || '',
+    ).replace(/\D/g, '');
+    const showThumb = showKey ? `/library/metadata/${showKey}/thumb` : '';
+    const preferShowPoster = (item.type === 'episode' || item.type === 'season') && item.cardAspect === '2/3' && !!showThumb;
+    const thumb = (preferShowPoster ? showThumb : '') || item.thumb || leafThumb || undefined;
+    // Episode stills are title cards. Never use them as a poster fallback.
+    const posterFallbackUrl = !showKey && item.ratingKey && thumb && thumb !== leafThumb
+        ? `/api/plex/image?path=${encodeURIComponent(leafThumb)}&width=${PLAYER_POSTER_WIDTH}&height=${PLAYER_POSTER_HEIGHT}&quality=${PLAYER_POSTER_QUALITY}`
         : undefined;
     return {
         title: item.title,

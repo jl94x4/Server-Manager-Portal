@@ -81,6 +81,10 @@ export type PlayerItem = {
     year?: number | null;
     summary?: string;
     thumb?: string | null;
+    /** Force rail/card shape (recently added TV uses show posters). */
+    cardAspect?: '2/3' | 'square' | '16/9';
+    /** Dedupe recently-added TV by show while keeping the episode ratingKey. */
+    dedupeKey?: string | null;
     art?: string | null;
     logo?: string | null;
     themeKey?: string | null;
@@ -96,6 +100,7 @@ export type PlayerItem = {
     audienceRating?: number | null;
     originallyAvailableAt?: string | null;
     tmdbId?: number | null;
+    showTmdbId?: number | null;
     genres?: string[];
     countries?: string[];
     collections?: string[];

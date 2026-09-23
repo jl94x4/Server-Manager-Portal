@@ -49,6 +49,7 @@ export const PlayerRail: React.FC<{
     useEffect(() => {
         const urls = items.slice(0, 8).map((item) => {
             const cardAspect = aspect
+                || item.cardAspect
                 || (item.type === 'artist' || item.type === 'album' ? 'square' : null)
                 || (item.type === 'episode' ? '16/9' : '2/3');
             return playerCardImageUrl(item.thumb, cardAspect || '2/3');
@@ -67,6 +68,7 @@ export const PlayerRail: React.FC<{
             <Carousel posterRow>
                 {items.map((item, idx) => {
                     const cardAspect = aspect
+                        || item.cardAspect
                         || (item.type === 'artist' || item.type === 'album' ? 'square' : null)
                         || (item.type === 'episode' ? '16/9' : '2/3');
                     const landscape = cardAspect === '16/9';

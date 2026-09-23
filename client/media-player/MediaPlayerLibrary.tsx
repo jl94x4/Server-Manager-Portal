@@ -23,7 +23,7 @@ import { readLibraryBrowseState, readLibraryHomeCache, writeLibraryBrowseState, 
 import { MediaPlayerLibrariesPanel } from './MediaPlayerLibrariesPanel';
 import { PlayerPosterCard } from './PlayerPosterCard';
 import { PlayerRail } from './PlayerRail';
-import { playerCardImageUrl, prefetchPlayerImages } from './playerUtils';
+import { playerCardImageUrl, prefetchPlayerImages, withShowPoster } from './playerUtils';
 import type { PlayerItem, PlayerLibraryHub, PlayerPlayOptions, PlayerSection } from './types';
 
 type LibraryTab = 'home' | 'browse' | 'collections';
@@ -160,7 +160,11 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
             if (keptContinue) return false;
             keptContinue = true;
             return true;
-        });
+        }).map((hub) => (
+            /recent/i.test(`${hub.identifier || ''} ${hub.title || ''}`)
+                ? { ...hub, items: (hub.items || []).map(withShowPoster) }
+                : hub
+        ));
     }, [hubs]);
 
     const loadHome = useCallback(async () => {
@@ -618,7 +622,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                                 onToggleWatched={toggleWatched}
                                 showProgress={isCw}
                                 showRemoveFromContinueWatching={isCw}
-                                aspect={isCw ? '2/3' : undefined}
+                                aspect={(isCw || /recent/i.test(`${hub.identifier || ''} ${hub.title || ''}`)) ? '2/3' : undefined}
                                 {...menuProps}
                             />
                             );

@@ -463,13 +463,16 @@
     html[data-tv="1"] [data-tv-season-poster="1"] {
       width: 13rem !important;
     }
+    html[data-tv="1"] .media-details-facts-middle {
+      min-width: 0 !important;
+      align-self: start !important;
+    }
     html[data-tv="1"] .media-details-facts-aside {
       min-width: 0;
-      flex: 0 0 28rem !important;
-      width: 28rem !important;
-      max-width: 42% !important;
+      width: auto !important;
+      max-width: none !important;
       align-self: flex-start !important;
-      margin-left: auto !important;
+      margin-left: 0 !important;
     }
     html[data-tv="1"] .media-details-seasons {
       margin-top: 0.75rem !important;
@@ -494,9 +497,14 @@
       font-size: 3.35rem !important;
       line-height: 1.08 !important;
     }
-    html[data-tv="1"] [data-tv-file-info-copy="1"] p {
-      font-size: 1.55rem !important;
-      line-height: 1.55 !important;
+    html[data-tv="1"] [data-tv-file-info-summary="1"] {
+      font-size: 1.2rem !important;
+      line-height: 1.45 !important;
+      -webkit-line-clamp: 3;
+    }
+    html[data-tv="1"] [data-tv-file-info-meta="1"] p {
+      font-size: 1.45rem !important;
+      line-height: 1.5 !important;
     }
     /* Instant paint — rail/fade enters feel like lag on leanback. */
     html[data-tv="1"] .player-rail-enter,

@@ -2463,6 +2463,7 @@ export const en = {
     facts: {
         didYouKnow: 'Did you know?',
         another: 'Another',
+        empty: 'Trivia for this title will show up here when it is available.',
         status: 'Status',
         release: 'Release date',
         premiere: 'First aired',

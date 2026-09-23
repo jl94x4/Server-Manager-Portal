@@ -24,6 +24,7 @@ import {
     PLAYER_SETTINGS_EVENT,
 } from './playerSettings';
 import { consumePlayerSearchFocus, isPlayerHomeCacheFresh, PLAYER_HOME_RESET_EVENT, PLAYER_SEARCH_INPUT_ID, readHeroSlidesCache, readPlayerHomeCache, writeHeroSlidesCache, writePlayerHomeCache } from './playerMemory';
+import { withShowPoster } from './playerUtils';
 import { usePlayerSettings } from './usePlayerSettings';
 import type { PlayerHome, PlayerItem, PlayerLibraryHub, PlayerPlayOptions, PlayerSection } from './types';
 
@@ -55,7 +56,7 @@ const isPlaylistHub = (hub: PlayerLibraryHub) => (
 const dedupeItems = (list: PlayerItem[]) => {
     const seen = new Set<string>();
     return list.filter((row) => {
-        const key = row.ratingKey || row.title;
+        const key = row.dedupeKey || row.ratingKey || row.title;
         if (!key || seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -250,7 +251,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
                 return {
                     id: `recent:${library.key}`,
                     title: t('mediaPlayerPage.recentlyAddedIn', { name: library.title }),
-                    items: row?.items || [],
+                    items: (row?.items || []).map(withShowPoster),
                 };
             }).filter((row) => row.items.length);
         }
@@ -279,7 +280,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
         return typeOrder.map((type) => ({
             id: `recent:${type}`,
             title: titles[type],
-            items: dedupeItems(buckets[type]),
+            items: dedupeItems(buckets[type]).map(withShowPoster),
         })).filter((row) => row.items.length);
     }, [home, orderedLibraries, settings.mixLibraries, t]);
 
@@ -292,7 +293,11 @@ export const MediaPlayerHome: React.FC<Props> = ({
             if (!showContinueWatchingRail && isContinueWatchingHub(hub)) return false;
             if (!settings.showPlaylists && isPlaylistHub(hub)) return false;
             return true;
-        });
+        }).map((hub) => (
+            /recent/i.test(`${hub.identifier || ''} ${hub.title || ''}`)
+                ? { ...hub, items: hub.items.map(withShowPoster) }
+                : hub
+        ));
         return applyLibraryNavOrderToHubs(filtered, orderedLibraries, libraryNavOrder);
     }, [home, libraryNavOrder, orderedLibraries, showContinueWatchingRail, settings.showPlaylists]);
 
@@ -393,7 +398,8 @@ export const MediaPlayerHome: React.FC<Props> = ({
         playlistsEnabled,
     };
 
-    const homeSections = !home ? [] : plexHubs.length ? plexHubs.map((hub, hubIndex) => {
+    const hasPlexContentHubs = plexHubs.some((hub) => !isContinueWatchingHub(hub));
+    const homeSections = !home ? [] : hasPlexContentHubs ? plexHubs.map((hub, hubIndex) => {
         const viewAllKey = hub.collectionRatingKey || hub.playlistRatingKey;
         const isCw = isContinueWatchingHub(hub);
         return (
@@ -408,7 +414,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
                 onToggleWatched={toggleWatched}
                 showProgress={isCw}
                 showRemoveFromContinueWatching={isCw}
-                aspect={isCw ? '2/3' : undefined}
+                aspect={(isCw || /recent/i.test(`${hub.identifier || ''} ${hub.title || ''}`)) ? '2/3' : undefined}
                 onViewAll={viewAllKey ? () => onOpenItem({
                     ratingKey: viewAllKey,
                     title: hub.title,
@@ -466,6 +472,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
                         onOpenItem={onOpenItem}
                         onPlay={onPlay}
                         onToggleWatched={toggleWatched}
+                        aspect="2/3"
                         {...railMenuProps}
                     />
                 ))}

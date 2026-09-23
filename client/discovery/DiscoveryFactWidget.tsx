@@ -128,7 +128,19 @@ export const DiscoveryFactWidget: React.FC<{
         );
     }
 
-    if (!facts.length) return null;
+    if (!facts.length) {
+        return (
+            <div className="rounded-xl border border-plex/25 bg-gradient-to-br from-plex/10 via-plex/5 to-transparent p-3 sm:p-4 flex gap-3 w-full">
+                <div className="w-9 h-9 rounded-lg bg-plex/15 border border-plex/20 flex items-center justify-center flex-shrink-0">
+                    <Lightbulb className="w-4 h-4 text-plex" />
+                </div>
+                <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-plex">{t('facts.didYouKnow')}</span>
+                    <p className="text-sm text-muted leading-relaxed">{t('facts.empty')}</p>
+                </div>
+            </div>
+        );
+    }
 
     const current = facts[index] || facts[0];
 

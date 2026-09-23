@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, ExternalLink, Play } from 'lucide-react';
 import { DiscoveryLogo, useDiscoverI18n } from './host';
+import { DiscoveryFactWidget } from '../discovery/DiscoveryFactWidget';
 import { apiFetch } from '../shared/api';
 import { DISCOVER_NETWORKS, DISCOVER_STUDIOS } from '../discovery/discoverConstants';
 import { shouldPreserveColorLogo } from '../discovery/discoveryLogoUtils';
@@ -64,7 +65,7 @@ const CreditPills: React.FC<{
 const StudioPill: React.FC<{
     name: string;
     logoPath?: string | null;
-    size?: 'md' | 'sm' | 'lg';
+    size?: 'md' | 'sm' | 'lg' | 'toolbar' | 'hero';
     showPlate?: boolean;
     onClick?: () => void;
 }> = ({ name, logoPath, size = 'md', showPlate = true, onClick }) => {
@@ -74,21 +75,33 @@ const StudioPill: React.FC<{
 
     const preserveColor = shouldPreserveColorLogo(String(logoPath), name);
     // Fixed plate height so wordmarks and square marks sit on one baseline.
-    const plateClass = size === 'lg'
-        ? 'inline-flex h-16 items-center justify-center rounded-xl px-4'
-        : size === 'sm'
-            ? 'inline-flex h-8 items-center justify-center rounded-lg px-2.5'
-            : 'inline-flex h-9 items-center justify-center rounded-lg px-3';
-    const logoClass = size === 'lg'
-        ? 'h-10 sm:h-12 max-w-[180px] sm:max-w-[220px] w-auto object-contain opacity-95'
-        : size === 'sm'
-            ? 'h-5 max-w-[110px] sm:max-w-[130px] w-auto object-contain opacity-95'
-            : 'h-5 sm:h-6 max-w-[130px] sm:max-w-[150px] w-auto object-contain opacity-95';
-    const className = !showPlate
-        ? `${plateClass} border border-transparent hover:bg-white/5 transition-colors`
-        : preserveColor
-            ? `${plateClass} border border-transparent hover:border-border/50 hover:bg-white/5 transition-colors`
-            : `${plateClass} border border-border/60 bg-white/5 hover:bg-white/10 hover:border-plex/40 transition-colors`;
+    const plateClass = size === 'hero'
+        ? 'inline-flex items-center justify-start'
+        : size === 'toolbar'
+            ? 'inline-flex h-11 items-center justify-center rounded-xl px-2.5'
+            : size === 'lg'
+                ? 'inline-flex h-16 items-center justify-center rounded-xl px-4'
+                : size === 'sm'
+                    ? 'inline-flex h-8 items-center justify-center rounded-lg px-2.5'
+                    : 'inline-flex h-9 items-center justify-center rounded-lg px-3';
+    const logoClass = size === 'hero'
+        ? 'h-12 sm:h-14 lg:h-[4.25rem] max-w-[16rem] sm:max-w-[20rem] w-auto object-contain object-left drop-shadow-[0_10px_24px_rgba(0,0,0,0.45)]'
+        : size === 'toolbar'
+            ? 'h-5 max-w-[4.5rem] w-auto object-contain opacity-95'
+            : size === 'lg'
+                ? 'h-10 sm:h-12 max-w-[180px] sm:max-w-[220px] w-auto object-contain opacity-95'
+                : size === 'sm'
+                    ? 'h-5 max-w-[110px] sm:max-w-[130px] w-auto object-contain opacity-95'
+                    : 'h-5 sm:h-6 max-w-[130px] sm:max-w-[150px] w-auto object-contain opacity-95';
+    const className = size === 'hero'
+        ? `${plateClass} border-0 bg-transparent p-0`
+        : size === 'toolbar'
+            ? `${plateClass} border border-white/15 bg-white/5 hover:border-plex/40 hover:bg-white/10 transition-colors`
+            : !showPlate
+                ? `${plateClass} border border-transparent hover:bg-white/5 transition-colors`
+                : preserveColor
+                    ? `${plateClass} border border-transparent hover:border-border/50 hover:bg-white/5 transition-colors`
+                    : `${plateClass} border border-border/60 bg-white/5 hover:bg-white/10 hover:border-plex/40 transition-colors`;
     const body = (
         <DiscoveryLogo
             logoPath={String(logoPath)}
@@ -125,7 +138,7 @@ const NetworkLogoRow: React.FC<{
     mediaType?: 'movie' | 'show';
     /** When true, search movie + show libraries (streaming brands). */
     searchAllTypes?: boolean;
-    size?: 'md' | 'sm' | 'lg';
+    size?: 'md' | 'sm' | 'lg' | 'toolbar' | 'hero';
     showPlate?: boolean;
 }> = ({ networks, onOpenStudio, sectionKey, mediaType, searchAllTypes = false, size = 'md', showPlate = true }) => {
     const interactive = Boolean(onOpenStudio) && !isTvShell();
@@ -238,14 +251,87 @@ export const OverviewGenres: React.FC<{ genres: string[] }> = ({ genres }) => {
     );
 };
 
+export const OverviewFactsSpotlight: React.FC<{
+    item: PlayerItem;
+    onOpenStudio?: StudioHandler;
+    factMediaType: 'movie' | 'tv' | null;
+    factMediaId: number;
+    factTitle?: string;
+    previous?: PlayerItem | null;
+    next?: PlayerItem | null;
+    onOpenItem?: (item: PlayerItem) => void;
+    onPlayNeighbor?: (item: PlayerItem) => void;
+}> = ({
+    item,
+    onOpenStudio,
+    factMediaType,
+    factMediaId,
+    factTitle,
+    previous,
+    next,
+    onOpenItem,
+    onPlayNeighbor,
+}) => {
+    const { t } = useDiscoverI18n();
+    const { preferences } = useDiscoveryPreferences();
+    const { network } = useOverviewServiceLogos(item, preferences.discoverRegion || 'US');
+    const marks = network.filter((row) => row.logoPath);
+    const showFact = Boolean(factMediaType) && Number.isFinite(factMediaId) && factMediaId > 0;
+    const showNeighbors = Boolean((previous || next) && onOpenItem && onPlayNeighbor);
+    if (!marks.length && !showFact && !showNeighbors) return null;
+    return (
+        <div className="flex w-full flex-col gap-3" data-tv-rail="1" data-tv-row="1">
+            {marks.length ? (
+                <NetworkLogoRow
+                    networks={marks}
+                    onOpenStudio={onOpenStudio}
+                    sectionKey={item.librarySectionID || ''}
+                    mediaType="show"
+                    size="hero"
+                    showPlate={false}
+                />
+            ) : null}
+            {showNeighbors && previous ? (
+                <EpisodeNeighborCard
+                    item={previous}
+                    label={t('mediaPlayerPage.previousEpisode')}
+                    icon={<ChevronLeft className="h-5 w-5" />}
+                    onOpenItem={onOpenItem!}
+                    onPlay={onPlayNeighbor!}
+                />
+            ) : null}
+            {showFact && factMediaType ? (
+                <DiscoveryFactWidget
+                    mediaType={factMediaType}
+                    mediaId={factMediaId}
+                    title={factTitle}
+                />
+            ) : null}
+            {showNeighbors && next ? (
+                <EpisodeNeighborCard
+                    item={next}
+                    label={t('mediaPlayerPage.nextEpisode')}
+                    icon={<ChevronRight className="h-5 w-5" />}
+                    onOpenItem={onOpenItem!}
+                    onPlay={onPlayNeighbor!}
+                />
+            ) : null}
+        </div>
+    );
+};
+
 export const OverviewFacts: React.FC<{
     item: PlayerItem;
     onOpenPerson: PersonHandler;
     onOpenItem: (item: PlayerItem) => void;
     onOpenStudio?: StudioHandler;
-    /** Optional panel (e.g. Did You Know) — sits beside the compact facts columns. */
+    /** Optional panel (e.g. Media Info) — sits between facts and Did You Know. */
+    middle?: React.ReactNode;
+    /** Optional panel (e.g. Did You Know) — sits on the right. */
     aside?: React.ReactNode;
-}> = ({ item, onOpenPerson, onOpenStudio, aside }) => {
+    /** Sits under the Details fields, still in the left column. */
+    underDetails?: React.ReactNode;
+}> = ({ item, onOpenPerson, onOpenStudio, middle, aside, underDetails }) => {
     const { t, locale } = useDiscoverI18n();
     const { preferences } = useDiscoveryPreferences();
     const [settings] = usePlayerSettings();
@@ -261,7 +347,7 @@ export const OverviewFacts: React.FC<{
     const total = Number(item.leafCount || 0);
     const serviceSections = [
         studio.length ? { label: t('media.studio'), networks: studio, size: 'sm' as const, searchAllTypes: false } : null,
-        network.length ? { label: t('mediaPlayerPage.network'), networks: network, size: 'sm' as const, searchAllTypes: false } : null,
+        network.length && item.type !== 'episode' ? { label: t('mediaPlayerPage.network'), networks: network, size: 'sm' as const, searchAllTypes: false } : null,
         streaming.length ? { label: t('mediaPlayerPage.streaming'), networks: streaming, size: 'sm' as const, searchAllTypes: true } : null,
     ].filter(Boolean) as Array<{ label: string; networks: NetworkLogo[]; size: 'sm' | 'md' | 'lg'; searchAllTypes: boolean }>;
     const leadCredit = (people?: PlayerPersonCredit[]) => {
@@ -344,22 +430,27 @@ export const OverviewFacts: React.FC<{
         return cols;
     };
 
-    const useCompactTwoCol = Boolean(aside) || tvShell;
+    const useCompactTwoCol = Boolean(aside || middle) || tvShell;
+    const rowClass = middle && aside
+        ? 'flex flex-col gap-4 md:grid md:grid-cols-[auto_minmax(16rem,1fr)_minmax(18rem,26rem)] md:items-start md:gap-8 lg:gap-10'
+        : aside
+            ? 'flex flex-col gap-4 md:flex-row md:items-start md:gap-8 lg:gap-10'
+            : 'flex flex-col gap-4';
 
     return (
         <div className="media-details-facts flex flex-col gap-3">
             <SectionHeading>{t('media.details')}</SectionHeading>
-            <div className={`flex flex-col gap-4 ${aside ? 'md:flex-row md:items-start md:justify-between md:gap-16 lg:gap-24' : ''}`}>
+            <div className={rowClass}>
                 {/* Compact fact columns — stay grouped on the left when aside is present. */}
-                <div className={aside ? 'w-full min-w-0 md:w-auto md:shrink-0' : 'w-full'}>
+                <div className={`${aside || middle ? 'w-full min-w-0 md:w-auto md:shrink-0' : 'w-full'} flex flex-col gap-6`}>
                     <div className="flex flex-col gap-3 sm:hidden">
                         {detailBlocks}
                     </div>
-                    <div className={`hidden sm:flex ${aside ? 'gap-x-8' : 'gap-x-10'} ${useCompactTwoCol ? '' : 'xl:hidden'}`}>
+                    <div className={`hidden sm:flex ${aside || middle ? 'gap-x-8' : 'gap-x-10'} ${useCompactTwoCol ? '' : 'xl:hidden'}`}>
                         {packColumns(2).map((column, index) => (
                             <div
                                 key={`sm-${index}`}
-                                className={`flex min-w-0 flex-col gap-3 ${aside ? 'w-[12.5rem] sm:w-[14rem]' : 'flex-1'}`}
+                                className={`flex min-w-0 flex-col gap-3 ${aside || middle ? 'w-[12.5rem] sm:w-[14rem]' : 'flex-1'}`}
                             >
                                 {column}
                             </div>
@@ -374,9 +465,17 @@ export const OverviewFacts: React.FC<{
                             ))}
                         </div>
                     ) : null}
+                    {underDetails ? (
+                        <div className="w-full min-w-0">{underDetails}</div>
+                    ) : null}
                 </div>
+                {middle ? (
+                    <div className="media-details-facts-middle min-w-0 w-full md:self-start">
+                        {middle}
+                    </div>
+                ) : null}
                 {aside ? (
-                    <div className="media-details-facts-aside flex min-w-0 w-full flex-col gap-4 md:ml-auto md:w-[min(100%,28rem)] md:max-w-[42%] md:shrink-0 md:self-start">
+                    <div className={`media-details-facts-aside flex min-w-0 w-full flex-col gap-4 md:self-start ${middle ? '' : 'md:w-[min(100%,36rem)] md:max-w-[min(40rem,58%)] md:shrink'}`}>
                         {aside}
                         {logosUnderAside ? (
                             <div className="flex flex-col gap-3">
@@ -427,17 +526,17 @@ export const OverviewLinks: React.FC<{ item: PlayerItem }> = ({ item }) => {
     );
 };
 
-export const EpisodeNeighbors: React.FC<{
-    previous: PlayerItem | null;
-    next: PlayerItem | null;
+const EpisodeNeighborCard: React.FC<{
+    item: PlayerItem;
+    label: string;
+    icon: React.ReactNode;
     onOpenItem: (item: PlayerItem) => void;
     onPlay: (item: PlayerItem) => void;
-}> = ({ previous, next, onOpenItem, onPlay }) => {
+}> = ({ item, label, icon, onOpenItem, onPlay }) => {
     const { t } = useDiscoverI18n();
-    if (!previous && !next) return null;
-    const Card = ({ item, label, icon }: { item: PlayerItem; label: string; icon: React.ReactNode }) => (
+    return (
         <div
-            className="relative flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-border bg-white/5 p-2"
+            className="relative flex h-[5.25rem] w-full min-w-0 shrink-0 items-center gap-3 rounded-xl border border-border bg-white/5 px-2.5"
             data-tv-episode-neighbor="1"
         >
             <button
@@ -446,7 +545,7 @@ export const EpisodeNeighbors: React.FC<{
                 data-tv-action="1"
                 data-tv-episode-neighbor-btn="1"
                 onClick={() => onOpenItem(item)}
-                className="flex min-w-0 flex-1 items-center gap-3 rounded-[0.65rem] text-left outline-none"
+                className="flex h-full min-w-0 flex-1 items-center gap-3 rounded-[0.65rem] text-left outline-none"
                 aria-label={`${label} ${[formatEpisodeCode(item), item.title].filter(Boolean).join(' ')}`}
             >
                 <div className="relative h-14 w-24 shrink-0 overflow-hidden rounded-lg bg-black/40">
@@ -487,14 +586,35 @@ export const EpisodeNeighbors: React.FC<{
             ) : null}
         </div>
     );
+};
 
+export const EpisodeNeighbors: React.FC<{
+    previous: PlayerItem | null;
+    next: PlayerItem | null;
+    onOpenItem: (item: PlayerItem) => void;
+    onPlay: (item: PlayerItem) => void;
+}> = ({ previous, next, onOpenItem, onPlay }) => {
+    const { t } = useDiscoverI18n();
+    if (!previous && !next) return null;
     return (
-        <div className="grid grid-cols-1 gap-2 lg:grid-cols-2" data-tv-rail="1">
+        <div className="flex w-full flex-col gap-3" data-tv-rail="1" data-tv-row="1">
             {previous ? (
-                <Card item={previous} label={t('mediaPlayerPage.previousEpisode')} icon={<ChevronLeft className="h-5 w-5" />} />
-            ) : <div className="hidden lg:block" />}
+                <EpisodeNeighborCard
+                    item={previous}
+                    label={t('mediaPlayerPage.previousEpisode')}
+                    icon={<ChevronLeft className="h-5 w-5" />}
+                    onOpenItem={onOpenItem}
+                    onPlay={onPlay}
+                />
+            ) : null}
             {next ? (
-                <Card item={next} label={t('mediaPlayerPage.nextEpisode')} icon={<ChevronRight className="h-5 w-5" />} />
+                <EpisodeNeighborCard
+                    item={next}
+                    label={t('mediaPlayerPage.nextEpisode')}
+                    icon={<ChevronRight className="h-5 w-5" />}
+                    onOpenItem={onOpenItem}
+                    onPlay={onPlay}
+                />
             ) : null}
         </div>
     );
