@@ -349,7 +349,7 @@ export const OverviewFacts: React.FC<{
     return (
         <div className="media-details-facts flex flex-col gap-3">
             <SectionHeading>{t('media.details')}</SectionHeading>
-            <div className={`flex flex-col gap-4 ${aside ? 'md:flex-row md:items-start md:gap-10 lg:gap-12' : ''}`}>
+            <div className={`flex flex-col gap-4 ${aside ? 'md:flex-row md:items-start md:justify-between md:gap-16 lg:gap-24' : ''}`}>
                 {/* Compact fact columns — stay grouped on the left when aside is present. */}
                 <div className={aside ? 'w-full min-w-0 md:w-auto md:shrink-0' : 'w-full'}>
                     <div className="flex flex-col gap-3 sm:hidden">
@@ -376,7 +376,7 @@ export const OverviewFacts: React.FC<{
                     ) : null}
                 </div>
                 {aside ? (
-                    <div className="media-details-facts-aside flex min-w-0 w-full flex-col gap-4 md:w-[min(100%,28rem)] md:max-w-[42%] md:shrink-0 md:self-start">
+                    <div className="media-details-facts-aside flex min-w-0 w-full flex-col gap-4 md:ml-auto md:w-[min(100%,28rem)] md:max-w-[42%] md:shrink-0 md:self-start">
                         {aside}
                         {logosUnderAside ? (
                             <div className="flex flex-col gap-3">
@@ -436,13 +436,18 @@ export const EpisodeNeighbors: React.FC<{
     const { t } = useDiscoverI18n();
     if (!previous && !next) return null;
     const Card = ({ item, label, icon }: { item: PlayerItem; label: string; icon: React.ReactNode }) => (
-        <div className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-border bg-white/5 p-2">
+        <div
+            className="relative flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-border bg-white/5 p-2"
+            data-tv-episode-neighbor="1"
+        >
             <button
                 type="button"
                 data-tv-item="1"
                 data-tv-action="1"
+                data-tv-episode-neighbor-btn="1"
                 onClick={() => onOpenItem(item)}
-                className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                className="flex min-w-0 flex-1 items-center gap-3 rounded-[0.65rem] text-left outline-none"
+                aria-label={`${label} ${[formatEpisodeCode(item), item.title].filter(Boolean).join(' ')}`}
             >
                 <div className="relative h-14 w-24 shrink-0 overflow-hidden rounded-lg bg-black/40">
                     {item.thumb ? (
@@ -469,9 +474,11 @@ export const EpisodeNeighbors: React.FC<{
             {item.canPlay ? (
                 <button
                     type="button"
-                    data-tv-item="1"
-                    data-tv-action="1"
-                    onClick={() => onPlay(item)}
+                    tabIndex={-1}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        onPlay(item);
+                    }}
                     className="shrink-0 rounded-full bg-plex p-2 text-black hover:bg-plex-hover"
                     aria-label={t('mediaPlayerPage.play')}
                 >

@@ -71,16 +71,14 @@ const NavAvatar: React.FC<{ profile: PlayerProfile | null; sizeClass: string }> 
     );
 };
 
-const navButtonClass = (active: boolean, expanded: boolean) => (
+const navButtonClass = (active: boolean, expanded: boolean, tv = false) => (
     `flex items-center text-left text-sm font-semibold transition-colors ${
         expanded
             ? 'w-full gap-3 rounded-full px-3.5 py-2.5'
             : 'h-10 w-10 justify-center rounded-full'
     } ${
-        active
-            ? expanded
-                ? 'bg-white text-zinc-900 shadow-lg shadow-black/25'
-                : 'bg-white text-zinc-900'
+        active && expanded && !tv
+            ? 'bg-white text-zinc-900 shadow-lg shadow-black/25'
             : 'text-white/80 hover:bg-white/10 hover:text-white'
     }`
 );
@@ -165,8 +163,10 @@ export const MediaPlayerNav: React.FC<Props> = ({
     }, [expanded, isTvShell]);
 
     useEffect(() => {
+        if (isTvShell && !expanded) return undefined;
         void loadHomeProfiles();
-    }, [loadHomeProfiles]);
+        return undefined;
+    }, [expanded, isTvShell, loadHomeProfiles]);
 
     useEffect(() => {
         const onDraft = (event: Event) => {
@@ -270,7 +270,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
                 <button
                     type="button"
                     {...tvNavProps(isTvShell, expanded, page === 'home')}
-                    className={navButtonClass(page === 'home', showLabels)}
+                    className={navButtonClass(page === 'home', showLabels, isTvShell)}
                     onClick={() => go(onHome)}
                     title={t('mediaPlayerPage.navHome')}
                 >
@@ -280,7 +280,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
                 <button
                     type="button"
                     {...tvNavProps(isTvShell, expanded, false)}
-                    className={navButtonClass(false, showLabels)}
+                    className={navButtonClass(false, showLabels, isTvShell)}
                     onClick={() => go(onSearch)}
                     title={t('mediaPlayerPage.navSearch')}
                 >
@@ -310,7 +310,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
                                     key={section.key}
                                     type="button"
                                     {...tvNavProps(isTvShell, expanded, active)}
-                                    className={navButtonClass(active, showLabels)}
+                                    className={navButtonClass(active, showLabels, isTvShell)}
                                     onClick={() => go(() => onOpenLibrary(section))}
                                     title={section.title}
                                 >
@@ -328,7 +328,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
                 <button
                     type="button"
                     {...tvNavProps(isTvShell, expanded, page === 'settings')}
-                    className={navButtonClass(page === 'settings', showLabels)}
+                    className={navButtonClass(page === 'settings', showLabels, isTvShell)}
                     onClick={() => go(onOpenSettings)}
                     title={t('mediaPlayerPage.navSettings')}
                 >
@@ -339,7 +339,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
                     <button
                         type="button"
                         {...tvNavProps(isTvShell, expanded, false)}
-                        className={navButtonClass(false, showLabels)}
+                        className={navButtonClass(false, showLabels, isTvShell)}
                         onClick={() => { void openHomeSwitcher(); }}
                         title={t('mediaPlayerPage.switchUser')}
                     >
@@ -351,7 +351,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
                     <button
                         type="button"
                         {...tvNavProps(isTvShell, expanded, false)}
-                        className={navButtonClass(false, showLabels)}
+                        className={navButtonClass(false, showLabels, isTvShell)}
                         onClick={() => go(logoutMediaPlayer)}
                         title={t('mediaPlayerPage.logOut')}
                     >
@@ -363,7 +363,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
                     <button
                         type="button"
                         {...tvNavProps(isTvShell, expanded, false)}
-                        className={navButtonClass(false, showLabels)}
+                        className={navButtonClass(false, showLabels, isTvShell)}
                         onClick={() => go(exitToPortal)}
                         title={t('mediaPlayerPage.exitToPortal')}
                     >

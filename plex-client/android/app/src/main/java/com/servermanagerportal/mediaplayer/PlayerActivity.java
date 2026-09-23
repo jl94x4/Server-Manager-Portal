@@ -214,7 +214,8 @@ public class PlayerActivity extends AppCompatActivity {
                 .setDefaultRequestProperties(headers);
 
             DefaultLoadControl loadControl = new DefaultLoadControl.Builder()
-                .setBufferDurationsMs(5_000, 50_000, 1_000, 2_000)
+                .setBufferDurationsMs(20_000, 120_000, 1_500, 5_000)
+                .setTargetBufferBytes(64 * 1024 * 1024)
                 .build();
 
             DefaultRenderersFactory renderersFactory = new DefaultRenderersFactory(this)

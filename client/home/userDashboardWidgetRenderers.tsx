@@ -935,7 +935,11 @@ export const createRecentlyAddedWidgetRenderer = (deps: UserDashboardWidgetDeps)
                                 footer={(
                                     <div className="flex flex-col px-1">
                                         <p className="text-xs font-bold text-text truncate group-hover:text-plex transition-colors">{item.title}</p>
-                                        {item.year && <p className="text-[10px] text-muted font-semibold mt-0.5">{item.year}</p>}
+                                        {(item.parentTitle || item.year) ? (
+                                            <p className="text-[10px] text-muted font-semibold mt-0.5 truncate">
+                                                {item.parentTitle || item.year}
+                                            </p>
+                                        ) : null}
                                     </div>
                                 )}
                             />

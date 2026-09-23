@@ -451,7 +451,6 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
     };
 
     const tvShell = isTvShell();
-    const tvControl = tvShell ? { 'data-tv-item': '1' as const, tabIndex: 0 as const } : undefined;
 
     return (
         <div className="flex flex-col gap-5 pb-8" data-tv-library="1">
@@ -471,12 +470,12 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                 <DiscoverGridSizeSelect value={gridSize} onChange={setGridSize} />
             </div>
 
-            <div className="flex flex-wrap gap-2 border-b border-border pb-1" data-tv-rail={tvShell ? '1' : undefined}>
+            <div className="flex flex-wrap gap-2 border-b border-border pb-1">
                 {tabs.map((row) => (
                     <button
                         key={row.id}
                         type="button"
-                        data-tv-item={tvShell ? '1' : undefined}
+                        tabIndex={tvShell ? -1 : undefined}
                         onClick={() => onChangeTab(row.id)}
                         className={`rounded-t-lg px-4 py-2 text-sm font-bold ${
                             tab === row.id
@@ -498,13 +497,13 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
             ) : null}
 
             {tab === 'browse' ? (
-                <div className="flex flex-wrap items-center gap-2" data-tv-rail={tvShell ? '1' : undefined}>
+                <div className="flex flex-wrap items-center gap-2">
                     <CustomSelect
                         compact
                         value={sort}
                         onChange={setSort}
                         className="min-w-[11rem]"
-                        triggerProps={tvControl}
+                        triggerProps={tvShell ? { tabIndex: -1 } : undefined}
                         options={SORT_IDS.map((id) => ({ value: id, label: sortLabels[id] || id }))}
                     />
                     <CustomSelect
@@ -512,7 +511,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                         value={genre}
                         onChange={setGenre}
                         className="min-w-[10rem]"
-                        triggerProps={tvControl}
+                        triggerProps={tvShell ? { tabIndex: -1 } : undefined}
                         options={[
                             { value: '', label: t('mediaPlayerPage.allGenres') },
                             ...genres.map((row) => ({ value: row.key, label: row.title })),
@@ -524,7 +523,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                             value={decade}
                             onChange={setDecade}
                             className="min-w-[10rem]"
-                            triggerProps={tvControl}
+                            triggerProps={tvShell ? { tabIndex: -1 } : undefined}
                             options={[
                                 { value: '', label: t('mediaPlayerPage.allDecades') },
                                 ...decades.map((row) => ({ value: row.key, label: row.title })),
@@ -537,7 +536,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                             value={resolution}
                             onChange={setResolution}
                             className="min-w-[10rem]"
-                            triggerProps={tvControl}
+                            triggerProps={tvShell ? { tabIndex: -1 } : undefined}
                             options={[
                                 { value: '', label: t('mediaPlayerPage.allResolutions') },
                                 ...resolutions.map((row) => ({ value: row.key, label: row.title })),
@@ -550,7 +549,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                             value={studio}
                             onChange={setStudio}
                             className="min-w-[10rem]"
-                            triggerProps={tvControl}
+                            triggerProps={tvShell ? { tabIndex: -1 } : undefined}
                             options={[
                                 { value: '', label: t('mediaPlayerPage.allStudios') },
                                 ...studios.map((row) => ({ value: row.key, label: row.title })),
@@ -559,7 +558,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                     ) : null}
                     <button
                         type="button"
-                        data-tv-item={tvShell ? '1' : undefined}
+                        tabIndex={tvShell ? -1 : undefined}
                         onClick={() => {
                             setUnwatched((prev) => !prev);
                             setInProgress(false);
@@ -572,7 +571,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                     </button>
                     <button
                         type="button"
-                        data-tv-item={tvShell ? '1' : undefined}
+                        tabIndex={tvShell ? -1 : undefined}
                         onClick={() => {
                             setInProgress((prev) => !prev);
                             setUnwatched(false);
@@ -679,7 +678,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                     {items.length < total ? (
                         <button
                             type="button"
-                            data-tv-item={tvShell ? '1' : undefined}
+                            tabIndex={tvShell ? -1 : undefined}
                             onClick={() => void loadBrowse(items.length, true)}
                             disabled={loadingMore}
                             className="mx-auto rounded-lg bg-white/5 px-4 py-2 text-sm font-bold text-text hover:bg-white/10"

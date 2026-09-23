@@ -1,5 +1,5 @@
 import { PLAYER_SCROLL_ID } from './paths';
-import type { PlayerHome, PlayerItem, PlayerItemPage } from './types';
+import type { PlayerHome, PlayerItem, PlayerItemPage, PlayerSection } from './types';
 
 export const PLAYER_SEARCH_INPUT_ID = 'media-player-search';
 export const PLAYER_FOCUS_SEARCH_KEY = 'portal-media-player-focus-search';
@@ -286,6 +286,57 @@ export const readPlayerHomeCache = (): PlayerHome | null => {
 export const writePlayerHomeCache = (data: PlayerHome) => {
     playerHomeCache = { at: Date.now(), data };
     writePersistedHomeCache(playerHomeCache);
+    if (Array.isArray(data?.libraries) && data.libraries.length) {
+        writePlayerLibrariesCache(data.libraries);
+    }
+};
+
+const PLAYER_LIBRARIES_CACHE_KEY = 'portal-media-player-libraries-cache';
+const PLAYER_LIBRARIES_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+let playerLibrariesCache: { at: number; data: PlayerSection[] } | null = null;
+
+const sanitizeLibraries = (rows: unknown): PlayerSection[] => (
+    (Array.isArray(rows) ? rows : [])
+        .filter((row): row is PlayerSection => Boolean(row && String((row as PlayerSection).key || '').trim()))
+        .map((row) => ({
+            key: String(row.key),
+            title: String(row.title || ''),
+            type: String(row.type || ''),
+            agent: row.agent,
+            thumb: row.thumb,
+        }))
+);
+
+export const readPlayerLibrariesCache = (): PlayerSection[] => {
+    if (!playerLibrariesCache) {
+        try {
+            const raw = typeof window !== 'undefined'
+                ? (window.localStorage.getItem(PLAYER_LIBRARIES_CACHE_KEY)
+                    || window.sessionStorage.getItem(PLAYER_LIBRARIES_CACHE_KEY))
+                : null;
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed?.data && Number(parsed?.at)) {
+                    playerLibrariesCache = { at: Number(parsed.at), data: sanitizeLibraries(parsed.data) };
+                }
+            }
+        } catch {
+            playerLibrariesCache = null;
+        }
+    }
+    if (playerLibrariesCache && Date.now() - playerLibrariesCache.at <= PLAYER_LIBRARIES_CACHE_MAX_AGE_MS) {
+        if (playerLibrariesCache.data.length) return playerLibrariesCache.data;
+    }
+    return sanitizeLibraries(readPlayerHomeCache()?.libraries);
+};
+
+export const writePlayerLibrariesCache = (libraries: PlayerSection[]) => {
+    const data = sanitizeLibraries(libraries);
+    if (!data.length) return;
+    playerLibrariesCache = { at: Date.now(), data };
+    const raw = JSON.stringify(playerLibrariesCache);
+    try { window.localStorage.setItem(PLAYER_LIBRARIES_CACHE_KEY, raw); } catch { /* ignore */ }
+    try { window.sessionStorage.setItem(PLAYER_LIBRARIES_CACHE_KEY, raw); } catch { /* ignore */ }
 };
 
 export const isPlayerHomeCacheFresh = (maxAgeMs = PLAYER_HOME_CACHE_TTL_MS) => (

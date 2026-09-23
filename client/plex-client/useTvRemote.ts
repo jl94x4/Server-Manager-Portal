@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
+import { readDocumentZoom } from '../shared/ui';
 import { isAndroidTvUi } from './config';
 import { PLAYER_APP_BASE, PLAYER_NAVIGATE_EVENT, PLAYER_SCROLL_ID, PLAYER_TV_NAV_EVENT } from '../media-player/paths';
-import { rectToFixedPixels } from '../shared/ui';
 
 const TV_ITEM = '[data-tv-item="1"]';
 const TV_RAIL = '[data-tv-rail="1"]';
@@ -38,8 +38,6 @@ const focusableTvItems = (root: ParentNode = document) => (
         if (el.getAttribute('aria-hidden') === 'true') return false;
         if (el.closest(TV_NAV_ROOT)) return false;
         if (!hasLayout(el)) return false;
-        // visibility inherits, so the element's own computed value covers ancestors.
-        if (window.getComputedStyle(el).visibility === 'hidden') return false;
         return el.tabIndex !== -1;
     })
 );
@@ -53,7 +51,7 @@ const visibleContentRails = () => (
     })
 );
 
-const TV_OVERLAY = '[data-tv-item-menu="1"], [data-tv-select-menu="1"], [data-tv-resume-dialog="1"], [data-tv-home-switch="1"]';
+const TV_OVERLAY = '[data-tv-item-menu="1"], [data-tv-select-menu="1"], [data-tv-resume-dialog="1"], [data-tv-home-switch="1"], [data-tv-version-dialog="1"], [data-tv-track-dialog="1"], [data-tv-settings-dialog="1"]';
 const TV_AUTH = '[data-tv-auth="1"]';
 
 type SpatialDir = 'left' | 'right' | 'up' | 'down';
@@ -88,7 +86,10 @@ const isOverlayItem = (el: HTMLElement) => !!el.closest(TV_OVERLAY);
 
 /** Keep a focused overlay row visible inside the overlay only — never pan the page. */
 const scrollOverlayOnly = (el: HTMLElement) => {
-    const scroller = el.closest(TV_OVERLAY) as HTMLElement | null;
+    const scroller = (
+        el.closest<HTMLElement>('[data-tv-overlay-scroll="1"]')
+        || el.closest<HTMLElement>(TV_OVERLAY)
+    );
     if (!scroller) return;
     const box = scroller.getBoundingClientRect();
     const row = el.getBoundingClientRect();
@@ -96,45 +97,74 @@ const scrollOverlayOnly = (el: HTMLElement) => {
     else if (row.bottom > box.bottom) scroller.scrollTop += (row.bottom - box.bottom);
 };
 
-const POSTER_HOLD_MS = 480;
+const PEEK_PX = 88;
 
-/**
- * Keep the focused card fully inside its row, and leave a strip of the next
- * row on screen when moving up or down.
- */
-const scrollTvTarget = (el: HTMLElement, dir?: SpatialDir) => {
-    const rail = el.closest(TV_RAIL) as HTMLElement | null;
+/** Slide a poster rail, or the page, just far enough that the next card or row still peeks in. */
+const revealNeighbor = (el: HTMLElement, dir: SpatialDir | undefined) => {
+    if (!dir) return;
+    const zoom = readDocumentZoom();
+    const clampNudge = (raw: number) => Math.max(0, Math.min(raw, PEEK_PX * 2));
+    if (dir === 'left' || dir === 'right') {
+        const rail = el.closest<HTMLElement>('[data-tv-poster-rail="1"]');
+        if (!rail || rail.scrollWidth <= rail.clientWidth + 8) return;
+        const railBox = rail.getBoundingClientRect();
+        const itemBox = el.getBoundingClientRect();
+        if ((itemBox.width / zoom) + PEEK_PX + 16 >= rail.clientWidth) return;
+        if (dir === 'right' && rail.scrollLeft < rail.scrollWidth - rail.clientWidth - 2) {
+            const raw = (itemBox.right - (railBox.right - PEEK_PX * zoom)) / zoom;
+            if (raw > 1) rail.scrollLeft += clampNudge(raw);
+        } else if (dir === 'left') {
+            const fromStart = rail.scrollLeft + (itemBox.left - railBox.left) / zoom;
+            if (fromStart < rail.clientWidth * 0.55) rail.scrollLeft = 0;
+        }
+        return;
+    }
+};
+
+/** Play / Open / title actions — not seasons, cast, or poster rails. */
+const isHeaderControl = (el: HTMLElement) => {
+    if (el.closest('[data-tv-row="1"], [data-tv-poster-rail="1"], [data-tv-season-poster-btn="1"], [data-tv-episode-btn="1"]')) {
+        return false;
+    }
+    return Boolean(el.closest('.player-home-hero, [data-tv-action-row="1"], .media-details-hero-row, .media-details-hero-content'));
+};
+
+const pageTopFor = (from: HTMLElement) => {
+    const details = from.closest<HTMLElement>('[data-tv-details="1"]');
+    if (details) {
+        return details.querySelector<HTMLElement>('[data-tv-page-top="1"]') || details;
+    }
+    return from.closest<HTMLElement>('.player-home-hero, [data-tv-page-top="1"]');
+};
+
+/** One rail / section. Never the whole page. */
+const focusedRow = (el: HTMLElement) => {
+    if (isHeaderControl(el)) {
+        return pageTopFor(el) || el;
+    }
+    const named = el.closest<HTMLElement>('.player-rail-enter, [data-tv-row="1"]');
+    if (named) return named;
+    const rail = el.closest<HTMLElement>('[data-tv-poster-rail="1"]');
     if (rail && rail.scrollWidth > rail.clientWidth + 8) {
-        const railBox = rectToFixedPixels(rail.getBoundingClientRect());
-        const itemBox = rectToFixedPixels(el.getBoundingClientRect());
-        const pad = 32;
-        let inline = 0;
-        if (itemBox.left < railBox.left + pad) inline = itemBox.left - (railBox.left + pad);
-        else if (itemBox.right > railBox.right - pad) inline = itemBox.right - (railBox.right - pad);
-        if (inline) rail.scrollLeft += inline;
+        return (rail.closest<HTMLElement>('section') || rail.parentElement || rail) as HTMLElement;
     }
-
     const page = document.getElementById(PLAYER_SCROLL_ID);
-    if (!page) return;
-    const block = (el.closest('.player-rail-enter') || el) as HTMLElement;
-    const pageBox = rectToFixedPixels(page.getBoundingClientRect());
-    const blockBox = rectToFixedPixels(block.getBoundingClientRect());
-    const itemBox = rectToFixedPixels(el.getBoundingClientRect());
-    const peek = 120;
-    const topPad = 16;
-    const vertical = dir === 'up' || dir === 'down';
-    const rowFits = blockBox.bottom - blockBox.top < (pageBox.bottom - pageBox.top - peek - topPad);
-    let delta = 0;
-    if (vertical && rowFits && dir === 'down' && blockBox.bottom > pageBox.bottom - peek) {
-        delta = blockBox.bottom - (pageBox.bottom - peek);
-    } else if (vertical && rowFits && dir === 'up' && blockBox.top < pageBox.top + topPad) {
-        delta = blockBox.top - (pageBox.top + topPad);
-    } else if (itemBox.top < pageBox.top + topPad) {
-        delta = itemBox.top - (pageBox.top + topPad);
-    } else if (itemBox.bottom > pageBox.bottom - (vertical ? peek : topPad)) {
-        delta = itemBox.bottom - (pageBox.bottom - (vertical ? peek : topPad));
+    const section = el.closest<HTMLElement>('section');
+    if (section && page && section.offsetHeight < page.clientHeight * 1.1) return section;
+    return el;
+};
+
+/** CSS zoom on TV makes element.scrollTop a no-op. Native scrollIntoView is what actually moves the page. */
+const scrollEl = (node: HTMLElement, block: ScrollLogicalPosition) => {
+    try {
+        node.scrollIntoView({ inline: 'nearest', block, behavior: 'auto' });
+    } catch {
+        try {
+            node.scrollIntoView(block === 'start');
+        } catch {
+            /* ignore */
+        }
     }
-    if (delta) page.scrollTop += delta;
 };
 
 const focusItem = (el: HTMLElement, block: ScrollLogicalPosition = 'nearest', dir?: SpatialDir) => {
@@ -150,19 +180,40 @@ const focusItem = (el: HTMLElement, block: ScrollLogicalPosition = 'nearest', di
         if (page) page.scrollTop = frozen;
         return;
     }
-    void block;
-    scrollTvTarget(el, dir);
+    if (isHeaderControl(el)) {
+        const top = pageTopFor(el);
+        if (top) {
+            scrollEl(top, 'start');
+            return;
+        }
+    }
+    const details = Boolean(el.closest('[data-tv-details="1"]'));
+    // Title pages have a tall hero. Centering the seasons/episodes/cast row
+    // chops the poster to a sliver. Park the row at the bottom instead.
+    if (dir === 'up' || dir === 'down') {
+        scrollEl(focusedRow(el), details ? 'end' : 'center');
+        return;
+    }
+    if (details && el.closest('[data-tv-row="1"]')) {
+        scrollEl(focusedRow(el), 'end');
+        revealNeighbor(el, dir);
+        return;
+    }
+    scrollEl(el, block);
+    revealNeighbor(el, dir);
 };
+
+let focusedPosterEl: HTMLElement | null = null;
 
 const syncPosterFocusAttr = () => {
     const active = document.activeElement as HTMLElement | null;
-    const focusedBtn = active?.closest?.(TV_POSTER_BTN) as HTMLElement | null
+    const next = (active?.closest?.(TV_POSTER_BTN) as HTMLElement | null)
         || (active?.getAttribute?.('data-tv-poster-btn') === '1' ? active : null);
-    // Touch every poster button so stale attrs cannot linger across rails.
-    document.querySelectorAll<HTMLElement>(TV_POSTER_BTN).forEach((el) => {
-        if (focusedBtn && el === focusedBtn) el.setAttribute('data-tv-focused', '1');
-        else el.removeAttribute('data-tv-focused');
-    });
+    if (focusedPosterEl && focusedPosterEl !== next) {
+        focusedPosterEl.removeAttribute('data-tv-focused');
+    }
+    if (next && next !== focusedPosterEl) next.setAttribute('data-tv-focused', '1');
+    focusedPosterEl = next;
 };
 
 const currentPath = () => String(window.location.pathname || '').replace(/\/+$/, '') || '/';
@@ -202,6 +253,14 @@ export const restoreTvFocus = (): boolean => {
 const restoreTvFocusWhenReady = () => {
     if (isPlayerItemPath()) {
         focusTvPlayWhenReady();
+        return;
+    }
+    if (isPlayerSettingsPath()) {
+        focusTvSettingsWhenReady();
+        return;
+    }
+    if (isPlayerHomePath() && !tvFocusByPath.get(currentPath())) {
+        focusTvHeroPlayWhenReady();
         return;
     }
     if (!tvFocusByPath.get(currentPath())) return;
@@ -343,7 +402,7 @@ export const focusFirstPoster = (root: ParentNode = document) => {
     if (hasRememberedTvFocus() && restoreTvFocus()) return true;
     const poster = Array.from(root.querySelectorAll<HTMLElement>(TV_POSTER_BTN)).find(hasLayout);
     if (!poster) return false;
-    focusItem(poster, 'nearest', 'down');
+    focusItem(poster, 'center');
     requestAnimationFrame(syncPosterFocusAttr);
     return true;
 };
@@ -364,12 +423,14 @@ export const focusTvContent = () => {
         }
     }
     if (isPlayerItemPath() && focusTvPlayButton()) return;
+    if (isPlayerSettingsPath() && focusTvSettings()) return;
+    if (isPlayerHomePath() && focusTvHeroPlay()) return;
     if (restoreTvFocus()) return;
     const library = document.querySelector<HTMLElement>('[data-tv-library="1"]');
     if (library && hasLayout(library)) {
         const poster = Array.from(library.querySelectorAll<HTMLElement>(TV_POSTER_BTN)).find(hasLayout);
         if (poster) {
-            focusItem(poster, 'nearest', 'down');
+            focusItem(poster, 'center');
             requestAnimationFrame(syncPosterFocusAttr);
             return;
         }
@@ -405,6 +466,25 @@ const isPlayerHomePath = () => {
 
 const isPlayerItemPath = () => /\/item\/[^/]+/.test(currentPath());
 
+const isPlayerSettingsPath = () => /\/settings$/.test(currentPath());
+
+const focusTvSettings = (): boolean => {
+    const first = document.querySelector<HTMLElement>('[data-tv-settings="1"] [data-tv-item="1"]');
+    if (!first || !hasLayout(first)) return false;
+    focusItem(first, 'start');
+    return true;
+};
+
+const focusTvSettingsWhenReady = () => {
+    if (focusTvSettings()) return;
+    let attempts = 24;
+    const tick = () => {
+        if (!isPlayerSettingsPath() || focusTvSettings() || attempts-- <= 0) return;
+        window.setTimeout(tick, 40);
+    };
+    window.setTimeout(tick, 40);
+};
+
 /** Land title pages on Play — TV apps always highlight the primary action. */
 export const focusTvPlayButton = (): boolean => {
     const play = focusableTvItems().find((el) => el.getAttribute('data-tv-play') === '1');
@@ -418,6 +498,28 @@ const focusTvPlayWhenReady = () => {
     let attempts = 20;
     const tick = () => {
         if (focusTvPlayButton() || attempts-- <= 0) return;
+        window.setTimeout(tick, 40);
+    };
+    window.setTimeout(tick, 40);
+};
+
+/** Home hero Play — default landing when the home page loads. */
+const focusTvHeroPlay = (): boolean => {
+    if (!isPlayerHomePath()) return false;
+    const hero = document.querySelector<HTMLElement>('.player-home-hero');
+    if (!hero || !hasLayout(hero)) return false;
+    const play = focusableTvItems(hero).find((el) => el.getAttribute('data-tv-play') === '1')
+        || focusableTvItems(hero)[0];
+    if (!play) return false;
+    focusItem(play, 'start');
+    return true;
+};
+
+const focusTvHeroPlayWhenReady = () => {
+    if (focusTvHeroPlay()) return;
+    let attempts = 30;
+    const tick = () => {
+        if (!isPlayerHomePath() || focusTvHeroPlay() || attempts-- <= 0) return;
         window.setTimeout(tick, 40);
     };
     window.setTimeout(tick, 40);
@@ -441,7 +543,7 @@ const handleTvBack = (): boolean => {
     }
     if (document.documentElement?.dataset?.tvSelectOpen === '1'
         || document.documentElement?.dataset?.tvMenuOpen === '1'
-        || document.querySelector('[data-tv-select-menu="1"], [data-tv-item-menu="1"], [data-tv-home-switch="1"]')
+        || document.querySelector('[data-tv-select-menu="1"], [data-tv-item-menu="1"], [data-tv-home-switch="1"], [data-tv-version-dialog="1"], [data-tv-track-dialog="1"], [data-tv-settings-dialog="1"]')
     ) {
         window.dispatchEvent(new Event('smp-tv-select-close'));
         window.dispatchEvent(new Event('smp-tv-menu-close'));
@@ -499,14 +601,6 @@ export const useTvRemote = (enabled = true) => {
 
         window.__SMP_HANDLE_BACK__ = handleTvBack;
 
-        let posterHoldTimer = 0;
-        let posterHoldFired = false;
-        let posterHoldEl: HTMLElement | null = null;
-        const clearPosterHold = () => {
-            if (posterHoldTimer) window.clearTimeout(posterHoldTimer);
-            posterHoldTimer = 0;
-        };
-
         const isBackKey = (event: KeyboardEvent) => (
             event.key === 'Escape'
             || event.key === 'BrowserBack'
@@ -545,27 +639,15 @@ export const useTvRemote = (enabled = true) => {
                     return;
                 }
                 if (document.documentElement?.dataset?.tvSelectOpen === '1') return;
-                const poster = document.querySelector(TV_OVERLAY)
-                    ? null
-                    : (posterButtonOf(event.target) || posterButtonOf(document.activeElement));
-                if (poster) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    if (event.repeat) return;
-                    const menuKey = event.key === 'ContextMenu' || event.keyCode === 82;
-                    clearPosterHold();
-                    posterHoldEl = poster;
-                    if (menuKey) {
-                        posterHoldFired = true;
+                const menuKey = event.key === 'ContextMenu' || event.keyCode === 82;
+                if (menuKey && !document.querySelector(TV_OVERLAY)) {
+                    const poster = posterButtonOf(event.target) || posterButtonOf(document.activeElement);
+                    if (poster) {
+                        event.preventDefault();
+                        event.stopPropagation();
                         openPosterMenu(poster);
                         return;
                     }
-                    posterHoldFired = false;
-                    posterHoldTimer = window.setTimeout(() => {
-                        posterHoldFired = true;
-                        openPosterMenu(poster);
-                    }, POSTER_HOLD_MS);
-                    return;
                 }
                 if (activateFocusedTvItem(event)) return;
             }
@@ -640,13 +722,26 @@ export const useTvRemote = (enabled = true) => {
                 return;
             }
 
-            const rowRail = !menuRoot && (dir === 'left' || dir === 'right')
-                ? current.closest<HTMLElement>(TV_RAIL)
-                : null;
-            const target = findSpatialTarget(current, dir, menuRoot || rowRail || undefined);
+            let target: HTMLElement | null = null;
+            if (!menuRoot && dir === 'down' && current.closest('[data-tv-action-row="1"]')) {
+                target = Array.from(document.querySelectorAll<HTMLElement>(
+                    '[data-tv-season-poster-btn="1"], [data-tv-episode-btn="1"]'
+                )).find(hasLayout) || null;
+            }
+            if (!target && !menuRoot && (dir === 'left' || dir === 'right')) {
+                const posterRail = current.closest<HTMLElement>('[data-tv-poster-rail="1"]');
+                if (posterRail) target = findSpatialTarget(current, dir, posterRail);
+            }
+            if (!target) target = findSpatialTarget(current, dir, menuRoot || undefined);
+            if (!target && !menuRoot && dir === 'up') {
+                const top = pageTopFor(current);
+                if (top) {
+                    scrollEl(top, 'start');
+                    return;
+                }
+            }
             if (target) {
                 focusItem(target, 'nearest', dir);
-                requestAnimationFrame(syncPosterFocusAttr);
                 return;
             }
             // An open context menu owns D-pad until closed — do not jump to nav.
@@ -678,26 +773,12 @@ export const useTvRemote = (enabled = true) => {
 
         const onNavigate = () => restoreTvFocusWhenReady();
 
-        const onKeyUp = (event: KeyboardEvent) => {
-            if (!isConfirmKey(event)) return;
-            clearPosterHold();
-            const held = posterHoldEl;
-            const fired = posterHoldFired;
-            posterHoldEl = null;
-            posterHoldFired = false;
-            if (!held) return;
-            event.preventDefault();
-            event.stopPropagation();
-            if (!fired) held.click();
-        };
-
         const onFocusPosters = () => {
             const root = document.querySelector('[data-tv-library="1"]') || document;
             focusFirstPoster(root);
         };
 
         window.addEventListener('keydown', onKeyDown, true);
-        window.addEventListener('keyup', onKeyUp, true);
         window.addEventListener('smp-tv-focus-posters', onFocusPosters);
         document.addEventListener('focusin', onFocusIn, true);
         window.addEventListener('popstate', onNavigate);
@@ -705,13 +786,13 @@ export const useTvRemote = (enabled = true) => {
         // Do not sync on focusout — WebView activeElement is unreliable mid-blur and
         // was leaving data-tv-focused on the first poster of other rails.
         syncPosterFocusAttr();
+        if (isPlayerHomePath()) focusTvHeroPlayWhenReady();
+        else restoreTvFocusWhenReady();
         return () => {
             if (window.__SMP_HANDLE_BACK__ === handleTvBack) {
                 delete window.__SMP_HANDLE_BACK__;
             }
-            clearPosterHold();
             window.removeEventListener('keydown', onKeyDown, true);
-            window.removeEventListener('keyup', onKeyUp, true);
             window.removeEventListener('smp-tv-focus-posters', onFocusPosters);
             document.removeEventListener('focusin', onFocusIn, true);
             window.removeEventListener('popstate', onNavigate);

@@ -47,9 +47,14 @@ export const playerCardImageUrl = (thumb?: string | null, aspect: '2/3' | 'squar
 
 export const plexLogoUrl = (path?: string | null) => plexImageUrl(path, 640, 240, { fit: 'contain', quality: 70 });
 
+/** Match /api/plex/image caps so overview and home heroes stay sharp on TV. */
+export const PLAYER_BACKDROP_WIDTH = 3840;
+export const PLAYER_BACKDROP_HEIGHT = 2160;
+export const PLAYER_BACKDROP_QUALITY = 90;
+
 export const plexBackdropUrl = (path?: string | null) => {
     if (!path) return '';
-    return plexImageUrl(path, 1280, 720, { quality: 62 });
+    return plexImageUrl(path, PLAYER_BACKDROP_WIDTH, PLAYER_BACKDROP_HEIGHT, { quality: PLAYER_BACKDROP_QUALITY });
 };
 
 export const plexThemeUrl = (ratingKey?: string | null) => {
@@ -87,10 +92,82 @@ export const formatPlayerResolution = (height?: number | null, videoResolution?:
     return '';
 };
 
+export const formatFileInfoPill = (item?: {
+    versions?: Array<{
+        resolution?: string | null;
+        videoCodec?: string | null;
+        audioCodec?: string | null;
+    }>;
+    mediaInfo?: Array<{
+        height?: number | null;
+        videoResolution?: string | null;
+        videoCodec?: string | null;
+        audioCodec?: string | null;
+    }>;
+} | null) => {
+    const version = item?.versions?.[0];
+    const media = item?.mediaInfo?.[0];
+    const resolution = version?.resolution
+        || formatPlayerResolution(media?.height, media?.videoResolution);
+    const video = String(version?.videoCodec || media?.videoCodec || '').toUpperCase();
+    const audio = String(version?.audioCodec || media?.audioCodec || '').toUpperCase();
+    return [resolution, video, audio].filter(Boolean).join(' ');
+};
+
 export const titleCaseProfile = (value?: string | null) => {
     const raw = String(value || '').trim();
     if (!raw) return '';
     return raw.replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+export const formatMediaVideoLine = (video?: {
+    width?: number | null;
+    height?: number | null;
+    frameRate?: string | null;
+    bitrate?: number | null;
+    codec?: string | null;
+    level?: string | null;
+    profile?: string | null;
+} | null) => {
+    if (!video) return '';
+    const dims = video.width && video.height ? `${video.width}x${video.height}` : '';
+    const fps = String(video.frameRate || '').trim();
+    const fpsLabel = fps ? (/fps|p$/i.test(fps) ? fps : `${fps} fps`) : '';
+    const codec = [
+        String(video.codec || '').toUpperCase(),
+        video.level ? String(video.level) : '',
+        titleCaseProfile(video.profile),
+    ].filter(Boolean).join(' ');
+    return [dims, fpsLabel, formatBitrateMbps(video.bitrate), codec].filter(Boolean).join(' · ');
+};
+
+export const formatMediaAudioLine = (audio?: {
+    language?: string | null;
+    displayTitle?: string | null;
+    codec?: string | null;
+    channelLayout?: string | null;
+    channels?: number | null;
+    bitrate?: number | null;
+    samplingRate?: number | null;
+} | null) => {
+    if (!audio) return '';
+    const lang = String(audio.language || '').trim();
+    const language = lang && !/^[a-z]{2,3}$/i.test(lang)
+        ? lang
+        : (String(audio.displayTitle || '').split('(')[0].trim() || lang);
+    const layout = String(audio.channelLayout || '').trim().replace(/\(/, ' (')
+        || (audio.channels ? String(audio.channels) : '');
+    const n = Number(audio.bitrate);
+    const kbps = Number.isFinite(n) && n > 0
+        ? `${n >= 100000 ? Math.round(n / 1000) : Math.round(n)} kbps`
+        : '';
+    return [
+        language,
+        String(audio.codec || '').toUpperCase(),
+        layout,
+        kbps,
+        audio.samplingRate ? `${audio.samplingRate} kHz` : '',
+    ].filter(Boolean).join(' · ');
 };
 
 export const isPlayerTrailer = (item?: PlayerItem | null) => {
@@ -251,7 +328,7 @@ export const canUseNativeHls = () => {
     return result === 'probably' || result === 'maybe';
 };
 
-/** HLS transcode profile ExoPlayer can actually decode (h264/aac). */
+/** Chosen-bitrate fallback. Original stays original so ExoPlayer can Direct Play. */
 export const NATIVE_SAFE_QUALITY_ID = '1080-12';
 
 export const isPlexNativePlayback = () => (
@@ -262,18 +339,25 @@ export const isPlexNativePlayback = () => (
 
 export const nativeSafeQualityId = (qualityId?: string | null) => {
     const q = String(qualityId || '').trim();
-    if (!q || q === 'original' || q === 'auto') return NATIVE_SAFE_QUALITY_ID;
+    if (!q || q === 'auto') return 'original';
     return q;
+};
+
+/** Stock ExoPlayer has no TrueHD/DTS decoder. Those tracks remux to AAC instead of Direct Play. */
+const UNSUPPORTED_NATIVE_AUDIO = /^(truehd|dca|dts|dtsc|dtshd)$/i;
+
+export const nativeAudioIsDirectPlayable = (codec?: string | null) => {
+    const value = String(codec || '').trim().toLowerCase();
+    if (!value) return true;
+    return !UNSUPPORTED_NATIVE_AUDIO.test(value);
 };
 
 export const browserPlaybackCaps = () => {
     if (typeof document === 'undefined') return { hevc: false, ac3: false, hls: false };
-    // Stock ExoPlayer has no FFmpeg/TrueHD/DTS extensions. TV especially cannot direct-play
-    // typical Plex MKV (HEVC + TrueHD/DTS) — that path is a black screen at 0:00.
+    // ExoPlayer on Android TV decodes HEVC and AC3 in hardware. TrueHD/DTS stay
+    // off the Direct Play list in the server profile so those titles remux audio.
     if (isPlexNativePlayback()) {
-        const tv = window.__PLEX_CLIENT__?.isTv === true
-            || (typeof document !== 'undefined' && document.documentElement?.dataset?.tv === '1');
-        return { hevc: !tv, ac3: !tv, hls: true };
+        return { hevc: true, ac3: true, hls: true };
     }
     const video = document.createElement('video');
     const can = (type: string) => {
@@ -298,12 +382,17 @@ export const buildFilePlaybackSrc = (ratingKey: string, {
     allowHevc = false,
     allowAc3 = false,
     mediaIndex = 0,
+    client = '',
 } = {}) => {
     const qs = new URLSearchParams();
     if (PLAY_SESSION_ID.test(String(sessionId || ''))) qs.set('session', String(sessionId));
     if (Number(offsetMs) > 0) qs.set('offset', String(Math.floor(Number(offsetMs))));
     if (allowHevc) qs.set('hevc', '1');
     if (allowAc3) qs.set('ac3', '1');
+    if (client && client !== 'web') {
+        qs.set('client', client);
+        qs.set('textSubs', '1');
+    }
     if (Number(mediaIndex) > 0) qs.set('mediaIndex', String(Math.floor(Number(mediaIndex))));
     return `${PLAYER_API_ROOT}/file/${encodeURIComponent(ratingKey)}?${qs}`;
 };
@@ -331,12 +420,14 @@ export const buildPlaybackSrc = (ratingKey: string, {
     const noSubs = !String(subtitleStreamId || '').replace(/\D/g, '');
     if (directFile && original && noSubs) {
         const caps = browserPlaybackCaps();
+        const native = isPlexNativePlayback();
         return buildFilePlaybackSrc(ratingKey, {
             sessionId,
             offsetMs,
-            allowHevc: caps.hevc,
-            allowAc3: caps.ac3,
+            allowHevc: caps.hevc || native,
+            allowAc3: caps.ac3 || native,
             mediaIndex,
+            client: native ? 'android' : '',
         });
     }
     const qs = new URLSearchParams();

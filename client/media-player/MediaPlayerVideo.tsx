@@ -35,6 +35,7 @@ import {
     isFilePlaybackSrc,
     isPlexNativePlayback,
     nativeSafeQualityId,
+    nativeAudioIsDirectPlayable,
     offsetMsFromSrc,
     playbackModeFromSrc,
     plexImageUrl,
@@ -458,14 +459,22 @@ export const MediaPlayerVideo: React.FC<Props> = ({
                 qualityIdRef.current = qualityForNative;
                 setQualityId(qualityForNative);
             }
+            const nativeSub = String(subtitleStreamIdRef.current ?? session.subtitleStreamId ?? '').replace(/\D/g, '');
+            const nativeAudioId = audioStreamIdRef.current || session.audioStreamId || '';
+            const nativeAudioCodec = (session.audioTracks || []).find((track) => track.id === nativeAudioId)?.codec
+                || session.source?.audioCodec
+                || '';
             const nativeSrc = buildPlaybackSrc(session.item.ratingKey, {
                 sessionId: session.sessionId,
                 offsetMs: session.offsetMs || 0,
                 qualityId: qualityForNative,
-                audioStreamId: audioStreamIdRef.current || session.audioStreamId || '',
+                audioStreamId: nativeAudioId,
                 subtitleStreamId: subtitleStreamIdRef.current ?? session.subtitleStreamId ?? '',
-                directFile: false,
-                copy: false,
+                directFile: qualityForNative === 'original'
+                    && !!session.canDirectPlay
+                    && !nativeSub
+                    && nativeAudioIsDirectPlayable(nativeAudioCodec),
+                copy: true,
                 mediaIndex: session.mediaIndex || 0,
             });
             playbackSrcRef.current = nativeSrc;
@@ -517,14 +526,24 @@ export const MediaPlayerVideo: React.FC<Props> = ({
                             setSubtitleStreamId(nextSub);
                             subtitleStreamIdRef.current = nextSub;
                         }
+                        const safeQuality = nativeSafeQualityId(nextQuality);
+                        const nextSubId = String(nextSub || '').replace(/\D/g, '');
+                        const audioUnchanged = !nextAudio || nextAudio === (session.audioStreamId || '');
+                        const nextAudioCodec = (session.audioTracks || []).find((track) => track.id === nextAudio)?.codec
+                            || (audioUnchanged ? session.source?.audioCodec : '')
+                            || '';
                         const nextSrc = buildPlaybackSrc(session.item.ratingKey, {
                             sessionId: newPlaySessionId(),
                             offsetMs: offset,
-                            qualityId: nativeSafeQualityId(nextQuality),
+                            qualityId: safeQuality,
                             audioStreamId: nextAudio,
                             subtitleStreamId: nextSub,
-                            directFile: false,
-                            copy: false,
+                            directFile: safeQuality === 'original'
+                                && !!session.canDirectPlay
+                                && !nextSubId
+                                && audioUnchanged
+                                && nativeAudioIsDirectPlayable(nextAudioCodec),
+                            copy: true,
                             mediaIndex: nextMediaIndex,
                         });
                         playbackSrcRef.current = nextSrc;

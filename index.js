@@ -17263,16 +17263,29 @@ app.get('/api/plex/dashboard', requireAuth, requireMember, async (req, res) => {
                     results.forEach(({ sectionType, data }) => {
                         if (data && data.MediaContainer && data.MediaContainer.Metadata) {
                             data.MediaContainer.Metadata.forEach((m) => {
-                                const ratingKey = String(m.grandparentRatingKey || m.parentRatingKey || m.ratingKey || '');
                                 const isMusic = sectionType === 'artist';
+                                const isTvLeaf = sectionType === 'show' && (m.type === 'episode' || m.type === 'season');
+                                const ratingKey = String(
+                                    isTvLeaf
+                                        ? (m.ratingKey || m.parentRatingKey || m.grandparentRatingKey || '')
+                                        : (m.grandparentRatingKey || m.parentRatingKey || m.ratingKey || ''),
+                                );
                                 const item = {
                                     ratingKey,
                                     sourceRatingKey: String(m.ratingKey || ''),
-                                    title: isMusic ? (m.title || m.parentTitle || m.grandparentTitle) : (m.grandparentTitle || m.parentTitle || m.title),
-                                    parentTitle: isMusic ? (m.parentTitle || m.grandparentTitle || null) : undefined,
+                                    title: isMusic
+                                        ? (m.title || m.parentTitle || m.grandparentTitle)
+                                        : (isTvLeaf
+                                            ? (m.title || m.grandparentTitle || m.parentTitle)
+                                            : (m.grandparentTitle || m.parentTitle || m.title)),
+                                    parentTitle: isMusic
+                                        ? (m.parentTitle || m.grandparentTitle || null)
+                                        : (isTvLeaf ? (m.grandparentTitle || m.parentTitle || null) : undefined),
                                     type: m.type,
                                     year: m.year,
-                                    thumb: m.grandparentThumb || m.parentThumb || m.thumb,
+                                    thumb: isTvLeaf
+                                        ? (m.thumb || m.parentThumb || m.grandparentThumb)
+                                        : (m.grandparentThumb || m.parentThumb || m.thumb),
                                     addedAt: m.addedAt,
                                     tags: extractMediaDisplayTags(m),
                                     plexUrl: `https://app.plex.tv/desktop/#!/server/${config.serverIdentifier}/details?key=${encodeURIComponent(m.key)}`

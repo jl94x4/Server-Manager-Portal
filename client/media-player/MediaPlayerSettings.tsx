@@ -21,6 +21,141 @@ type Props = {
 
 const sectionClass = 'w-full overflow-hidden rounded-2xl border border-border bg-card';
 
+const isTvShell = () => {
+    try {
+        return document.documentElement?.dataset?.tv === '1'
+            || window.__PLEX_CLIENT__?.isTv === true;
+    } catch {
+        return false;
+    }
+};
+
+const tvRowClass = 'flex w-full items-center justify-between gap-6 rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4 text-left outline-none';
+
+type TvToggleRowProps = {
+    title: string;
+    description?: string;
+    checked: boolean;
+    onChange: (next: boolean) => void;
+};
+
+const TvToggleRow: React.FC<TvToggleRowProps> = ({ title, description, checked, onChange }) => {
+    const { t } = useDiscoverI18n();
+    return (
+        <button
+            type="button"
+            data-tv-item="1"
+            data-tv-action="1"
+            data-tv-row="1"
+            onClick={() => onChange(!checked)}
+            className={tvRowClass}
+        >
+            <span className="min-w-0">
+                <span className="block text-base font-bold text-text">{title}</span>
+                {description ? <span className="mt-1 block text-sm leading-snug text-muted">{description}</span> : null}
+            </span>
+            <span className={`shrink-0 text-base font-black ${checked ? 'text-plex' : 'text-muted'}`}>
+                {checked ? t('mediaPlayerPage.settingsOn') : t('mediaPlayerPage.settingsOff')}
+            </span>
+        </button>
+    );
+};
+
+type TvChoice = { value: string; label: string };
+
+type TvChoiceRowProps = {
+    title: string;
+    description?: string;
+    value: string;
+    options: TvChoice[];
+    onChange: (value: string) => void;
+};
+
+const TvChoiceRow: React.FC<TvChoiceRowProps> = ({ title, description, value, options, onChange }) => {
+    const { t } = useDiscoverI18n();
+    const [open, setOpen] = useState(false);
+    const selected = options.find((row) => row.value === value) || options[0];
+
+    useEffect(() => {
+        if (!open) return undefined;
+        const id = window.setTimeout(() => {
+            const dialog = document.querySelector('[data-tv-settings-dialog="1"]');
+            const target = dialog?.querySelector<HTMLElement>('[data-tv-settings-primary="1"]')
+                || dialog?.querySelector<HTMLElement>('[data-tv-item="1"]');
+            target?.focus();
+        }, 30);
+        return () => window.clearTimeout(id);
+    }, [open]);
+
+    return (
+        <>
+            <button
+                type="button"
+                data-tv-item="1"
+                data-tv-action="1"
+                data-tv-row="1"
+                onClick={() => setOpen(true)}
+                className={tvRowClass}
+            >
+                <span className="min-w-0">
+                    <span className="block text-base font-bold text-text">{title}</span>
+                    {description ? <span className="mt-1 block text-sm leading-snug text-muted">{description}</span> : null}
+                </span>
+                <span className="shrink-0 text-base font-bold text-white/85">{selected?.label || '—'}</span>
+            </button>
+            {open ? (
+                <div
+                    className="fixed inset-0 z-[3500] flex items-center justify-center bg-black/70 p-6"
+                    role="dialog"
+                    aria-modal="true"
+                    data-tv-settings-dialog="1"
+                >
+                    <div className="flex max-h-[min(78vh,44rem)] w-full max-w-xl flex-col rounded-2xl border border-white/10 bg-card p-6 shadow-2xl">
+                        <p className="shrink-0 text-xs font-black uppercase tracking-widest text-muted">{title}</p>
+                        <div
+                            className="mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain hide-scrollbar"
+                            data-tv-rail="1"
+                            data-tv-overlay-scroll="1"
+                        >
+                            <div className="flex flex-col gap-2 pr-1">
+                                {options.map((row) => (
+                                    <button
+                                        key={row.value}
+                                        type="button"
+                                        data-tv-item="1"
+                                        data-tv-action="1"
+                                        data-tv-settings-primary={row.value === value ? '1' : undefined}
+                                        onClick={() => {
+                                            onChange(row.value);
+                                            setOpen(false);
+                                        }}
+                                        className={`rounded-xl border px-4 py-3.5 text-left text-base font-bold outline-none ${
+                                            row.value === value
+                                                ? 'border-plex/50 bg-plex/15 text-text'
+                                                : 'border-white/10 bg-white/5 text-text'
+                                        }`}
+                                    >
+                                        {row.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            data-tv-item="1"
+                            data-tv-action="1"
+                            onClick={() => setOpen(false)}
+                            className="mt-3 shrink-0 rounded-xl px-4 py-3 text-base font-bold text-muted outline-none"
+                        >
+                            {t('common.close')}
+                        </button>
+                    </div>
+                </div>
+            ) : null}
+        </>
+    );
+};
+
 const HERO_MODE_VALUES = [
     'off',
     'trending_week',
@@ -41,6 +176,7 @@ type HeroMode = typeof HERO_MODE_VALUES[number];
 
 export const MediaPlayerSettings: React.FC<Props> = ({ onBack, isAdmin = false }) => {
     const { t } = useDiscoverI18n();
+    const tvShell = isTvShell();
     const [settings, updateSettings, { dirty: playerDirty, saving: playerSaving, saveSettings, discardSettings }] = usePlayerSettings();
     const [libraries, setLibraries] = useState<PlayerSection[]>([]);
     const [saveState, setSaveState] = useState<'idle' | 'saved' | 'error'>('idle');
@@ -174,6 +310,180 @@ export const MediaPlayerSettings: React.FC<Props> = ({ onBack, isAdmin = false }
             setHeroSaving(false);
         }
     };
+
+    const saveActions = (
+        <div className="flex flex-col gap-3" data-tv-row="1">
+            {dirty ? (
+                <p className="text-sm font-bold text-muted">{t('mediaPlayerPage.unsavedSettings')}</p>
+            ) : saveState === 'saved' ? (
+                <p className="text-sm font-bold text-muted">{t('mediaPlayerPage.settingsSaved')}</p>
+            ) : saveState === 'error' ? (
+                <p className="text-sm font-bold text-red-400">{t('mediaPlayerPage.settingsSaveError')}</p>
+            ) : null}
+            <div className="flex flex-wrap items-center gap-3">
+                <button
+                    type="button"
+                    data-tv-item="1"
+                    data-tv-action="1"
+                    data-tv-play="1"
+                    onClick={() => { void handleSave(); }}
+                    disabled={!dirty || saving}
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-plex px-5 text-base font-bold text-white shadow-lg shadow-plex/20 outline-none hover:bg-plex-hover disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+                    {t('mediaPlayerPage.saveSettings')}
+                </button>
+                <button
+                    type="button"
+                    data-tv-item="1"
+                    data-tv-action="1"
+                    onClick={discardAll}
+                    disabled={!dirty || saving}
+                    className="inline-flex h-12 items-center justify-center rounded-xl border border-white/15 bg-white/5 px-5 text-base font-bold text-text outline-none hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                    {t('mediaPlayerPage.discardChanges')}
+                </button>
+            </div>
+        </div>
+    );
+
+    if (tvShell) {
+        return (
+            <div className="flex w-full flex-col gap-8 pb-16" data-tv-settings="1">
+                <div data-tv-page-top="1" className="h-0 w-full" aria-hidden />
+                <div>
+                    <p className={discoveryTheme.personalEyebrow}>{t('navigation.mediaPlayer')}</p>
+                    <h1 className={discoveryTheme.heading}>{t('mediaPlayerPage.settings')}</h1>
+                    <p className="mt-2 text-base text-muted">{t('mediaPlayerPage.settingsHintTv')}</p>
+                </div>
+
+                {isAdmin ? (
+                    <section className="flex flex-col gap-3">
+                        <h2 className="text-xs font-black uppercase tracking-widest text-muted">
+                            {t('mediaPlayerPage.homeHeroMode')}
+                        </h2>
+                        <TvChoiceRow
+                            title={t('mediaPlayerPage.homeHeroMode')}
+                            description={t('mediaPlayerPage.homeHeroModeHint')}
+                            value={heroMode}
+                            options={heroModeOptions}
+                            onChange={(value) => setHeroMode(value as HeroMode)}
+                        />
+                        <TvToggleRow
+                            title={t('mediaPlayerPage.homeHeroSeasonalWindow')}
+                            description={t('mediaPlayerPage.homeHeroSeasonalWindowHint')}
+                            checked={heroSeasonalOnly}
+                            onChange={setHeroSeasonalOnly}
+                        />
+                        <TvToggleRow
+                            title={t('mediaPlayerPage.continueWatchingSeasonPoster')}
+                            description={t('mediaPlayerPage.continueWatchingSeasonPosterHint')}
+                            checked={cwSeasonPoster}
+                            onChange={setCwSeasonPoster}
+                        />
+                    </section>
+                ) : null}
+
+                <section className="flex flex-col gap-3">
+                    <h2 className="text-xs font-black uppercase tracking-widest text-muted">
+                        {t('mediaPlayerPage.settingsHome')}
+                    </h2>
+                    <TvToggleRow
+                        title={t('mediaPlayerPage.showContinueWatching')}
+                        description={t('mediaPlayerPage.showContinueWatchingHint')}
+                        checked={settings.showContinueWatching}
+                        onChange={(checked) => updateSettings({ showContinueWatching: checked })}
+                    />
+                    <TvToggleRow
+                        title={t('mediaPlayerPage.showPlaylists')}
+                        description={t('mediaPlayerPage.showPlaylistsHint')}
+                        checked={settings.showPlaylists}
+                        onChange={(checked) => updateSettings({ showPlaylists: checked })}
+                    />
+                    <TvToggleRow
+                        title={t('mediaPlayerPage.autoplayNext')}
+                        description={t('mediaPlayerPage.autoplayNextHint')}
+                        checked={settings.autoplayNext}
+                        onChange={(checked) => updateSettings({ autoplayNext: checked })}
+                    />
+                    <TvToggleRow
+                        title={t('mediaPlayerPage.playThemeTunes')}
+                        description={t('mediaPlayerPage.playThemeTunesHint')}
+                        checked={settings.playThemeTunes}
+                        onChange={(checked) => updateSettings({ playThemeTunes: checked })}
+                    />
+                    <TvToggleRow
+                        title={t('mediaPlayerPage.serviceLogoPlates')}
+                        description={t('mediaPlayerPage.serviceLogoPlatesHint')}
+                        checked={settings.serviceLogoPlates}
+                        onChange={(checked) => updateSettings({ serviceLogoPlates: checked })}
+                    />
+                    <TvToggleRow
+                        title={t('mediaPlayerPage.showEpisodeFilePills')}
+                        description={t('mediaPlayerPage.showEpisodeFilePillsHint')}
+                        checked={settings.showEpisodeFilePills}
+                        onChange={(checked) => updateSettings({ showEpisodeFilePills: checked })}
+                    />
+                    <TvChoiceRow
+                        title={t('mediaPlayerPage.watchedTickPosition')}
+                        description={t('mediaPlayerPage.watchedTickPositionHint')}
+                        value={settings.watchedTickPosition}
+                        options={[
+                            { value: 'top-right', label: t('mediaPlayerPage.watchedTickTopRight') },
+                            { value: 'top-left', label: t('mediaPlayerPage.watchedTickTopLeft') },
+                            { value: 'bottom-right', label: t('mediaPlayerPage.watchedTickBottomRight') },
+                            { value: 'bottom-left', label: t('mediaPlayerPage.watchedTickBottomLeft') },
+                        ]}
+                        onChange={(value) => updateSettings({
+                            watchedTickPosition: value as typeof settings.watchedTickPosition,
+                        })}
+                    />
+                </section>
+
+                <section className="flex flex-col gap-3">
+                    <h2 className="text-xs font-black uppercase tracking-widest text-muted">
+                        {t('mediaPlayerPage.settingsAudio')}
+                    </h2>
+                    <TvChoiceRow
+                        title={t('mediaPlayerPage.audioLanguage')}
+                        description={t('mediaPlayerPage.audioLanguageHint')}
+                        value={settings.audioLanguage}
+                        options={[
+                            { value: '', label: t('mediaPlayerPage.audioLanguageDefault') },
+                            ...PLAYER_AUDIO_LANGUAGES.map((row) => ({ value: row.id, label: row.label })),
+                        ]}
+                        onChange={(value) => updateSettings({ audioLanguage: value })}
+                    />
+                    <TvChoiceRow
+                        title={t('mediaPlayerPage.subtitleMode')}
+                        description={t('mediaPlayerPage.subtitleModeHint')}
+                        value={settings.subtitleMode}
+                        options={subtitleOptions.map((row) => ({ value: row.id, label: row.label }))}
+                        onChange={(value) => updateSettings({ subtitleMode: value as PlayerSubtitleMode })}
+                    />
+                </section>
+
+                <section className="flex flex-col gap-3">
+                    <h2 className="text-xs font-black uppercase tracking-widest text-muted">
+                        {t('mediaPlayerPage.settingsSkipping')}
+                    </h2>
+                    <TvToggleRow
+                        title={t('mediaPlayerPage.autoSkipIntro')}
+                        description={t('mediaPlayerPage.autoSkipIntroHint')}
+                        checked={settings.autoSkipIntro}
+                        onChange={(checked) => updateSettings({ autoSkipIntro: checked })}
+                    />
+                    <TvToggleRow
+                        title={t('mediaPlayerPage.autoSkipCredits')}
+                        description={t('mediaPlayerPage.autoSkipCreditsHint')}
+                        checked={settings.autoSkipCredits}
+                        onChange={(checked) => updateSettings({ autoSkipCredits: checked })}
+                    />
+                </section>
+                {saveActions}
+            </div>
+        );
+    }
 
     return (
         <div className="flex w-full flex-col gap-6 pb-24">
@@ -332,6 +642,12 @@ export const MediaPlayerSettings: React.FC<Props> = ({ onBack, isAdmin = false }
                         description={t('mediaPlayerPage.serviceLogoPlatesHint')}
                         checked={settings.serviceLogoPlates}
                         onChange={(checked) => updateSettings({ serviceLogoPlates: checked })}
+                    />
+                    <SettingsToggleRow
+                        title={t('mediaPlayerPage.showEpisodeFilePills')}
+                        description={t('mediaPlayerPage.showEpisodeFilePillsHint')}
+                        checked={settings.showEpisodeFilePills}
+                        onChange={(checked) => updateSettings({ showEpisodeFilePills: checked })}
                     />
                     <div className="border-b border-border/40 py-4">
                         <label className="mb-2 block text-sm font-bold text-text" htmlFor="media-player-watched-tick">

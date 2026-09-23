@@ -2,7 +2,7 @@ import { apiErrorMessage, apiFetch, PORTAL_CSRF_HEADER, PORTAL_CSRF_VALUE } from
 import { portalUrl } from '../shared/basePath';
 import { pickTmdbPersonMatch } from '../discovery/personCredits';
 import { PLAYER_API_ROOT } from './paths';
-import { readPlayerItemCache, writePlayerItemCache, writePlayerHomeCache, isPlayerHomeCacheFresh, readPlayerHomeCache, writeHeroSlidesCache } from './playerMemory';
+import { readPlayerItemCache, writePlayerItemCache, writePlayerHomeCache, isPlayerHomeCacheFresh, readPlayerHomeCache, writeHeroSlidesCache, writePlayerLibrariesCache } from './playerMemory';
 import { browserPlaybackCaps } from './playerUtils';
 import type {
     PlayerHome,
@@ -19,7 +19,22 @@ import type {
     PlayerSection,
 } from './types';
 
-export const fetchMediaPlayerMe = () => apiFetch(`${PLAYER_API_ROOT}/me`) as Promise<PlayerProfile>;
+let meInflight: Promise<PlayerProfile> | null = null;
+let meCache: PlayerProfile | null = null;
+
+export const fetchMediaPlayerMe = () => {
+    if (meCache) return Promise.resolve(meCache);
+    if (meInflight) return meInflight;
+    meInflight = (apiFetch(`${PLAYER_API_ROOT}/me`) as Promise<PlayerProfile>)
+        .then((data) => {
+            meCache = data;
+            return data;
+        })
+        .finally(() => {
+            meInflight = null;
+        });
+    return meInflight;
+};
 
 let homeInflight: Promise<PlayerHome> | null = null;
 
@@ -36,8 +51,10 @@ export const fetchMediaPlayerHome = () => {
     return homeInflight;
 };
 
-/** Kick off home (+ hero) during auth/boot so the first paint rarely waits on cold /home. */
+/** Kick off nav + home during auth/boot so the first paint rarely waits on cold fetches. */
 export const prefetchMediaPlayerHome = () => {
+    void fetchMediaPlayerLibraries().catch(() => undefined);
+    void fetchMediaPlayerMe().catch(() => undefined);
     if (!(readPlayerHomeCache() && isPlayerHomeCacheFresh())) {
         void fetchMediaPlayerHome().catch(() => undefined);
     }
@@ -104,9 +121,20 @@ export const saveMediaPlayerHomeHeroConfig = (payload: {
     }>
 );
 
-export const fetchMediaPlayerLibraries = () => (
-    apiFetch(`${PLAYER_API_ROOT}/libraries`) as Promise<{ libraries: PlayerSection[] }>
-);
+let librariesInflight: Promise<{ libraries: PlayerSection[] }> | null = null;
+
+export const fetchMediaPlayerLibraries = () => {
+    if (librariesInflight) return librariesInflight;
+    librariesInflight = (apiFetch(`${PLAYER_API_ROOT}/libraries`) as Promise<{ libraries: PlayerSection[] }>)
+        .then((data) => {
+            writePlayerLibrariesCache(data?.libraries || []);
+            return data;
+        })
+        .finally(() => {
+            librariesInflight = null;
+        });
+    return librariesInflight;
+};
 
 export const fetchMediaPlayerLibrary = (
     sectionKey: string,
@@ -397,10 +425,6 @@ export const startMediaPlayerPlayback = (ratingKey: string, opts: {
 } = {}) => {
     const caps = browserPlaybackCaps();
     const isNativeApp = typeof window !== 'undefined' && !!window.__PLEX_CLIENT__;
-    const isTv = typeof window !== 'undefined' && (
-        window.__PLEX_CLIENT__?.isTv === true
-        || (typeof document !== 'undefined' && document.documentElement?.dataset?.tv === '1')
-    );
     const qs = new URLSearchParams({ client: isNativeApp ? 'android' : 'web' });
     if (opts.offsetMs != null) qs.set('offsetMs', String(opts.offsetMs));
     if (opts.qualityId && opts.qualityId !== 'auto') qs.set('qualityId', opts.qualityId);
@@ -413,8 +437,8 @@ export const startMediaPlayerPlayback = (ratingKey: string, opts: {
     if (opts.subtitleStreamId !== undefined) {
         qs.set('subtitleStreamId', String(opts.subtitleStreamId || '').replace(/\D/g, '') || '0');
     }
-    if (caps.hevc && !isTv) qs.set('canPlayHevc', '1');
-    if (caps.ac3 && !isTv) qs.set('canPlayAc3', '1');
+    if (caps.hevc) qs.set('canPlayHevc', '1');
+    if (caps.ac3) qs.set('canPlayAc3', '1');
     if (caps.hls) qs.set('canPlayNativeHls', '1');
     return apiFetch(`${PLAYER_API_ROOT}/play/${encodeURIComponent(ratingKey)}?${qs}`) as Promise<PlayerPlaySession>;
 };

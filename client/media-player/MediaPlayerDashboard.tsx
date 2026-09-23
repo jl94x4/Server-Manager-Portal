@@ -24,6 +24,7 @@ import { formatClock, shouldOfferResume } from './playerUtils';
 import {
     consumePlayerSearchFocus,
     focusPlayerSearchInput,
+    readPlayerLibrariesCache,
     readPlayerNavExpanded,
     requestPlayerHomeReset,
     requestPlayerSearchFocus,
@@ -107,7 +108,7 @@ export const MediaPlayerDashboard: React.FC = () => {
     const { t } = useDiscoverI18n();
     const [settings] = usePlayerSettings();
     const [view, setView] = useState<PlayerView>(() => readPlayerView());
-    const [libraries, setLibraries] = useState<PlayerSection[]>([]);
+    const [libraries, setLibraries] = useState<PlayerSection[]>(() => readPlayerLibrariesCache());
     const [toasts, setToasts] = useState<ToastMessage[]>([]);
     const [playSession, setPlaySession] = useState<PlayerPlaySession | null>(null);
     const [playNextQueue, setPlayNextQueue] = useState<PlayerItem[]>([]);

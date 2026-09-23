@@ -21,12 +21,15 @@ export type PlayerMediaStreamInfo = {
     resolution?: string | null;
     frameRate?: string | null;
     profile?: string | null;
+    level?: string | null;
     bitDepth?: number | null;
     chromaLocation?: string | null;
     codedHeight?: number | null;
     displayTitle?: string | null;
     aspectRatio?: string | null;
     channels?: number | null;
+    channelLayout?: string | null;
+    samplingRate?: number | null;
     language?: string | null;
     selected?: boolean;
     forced?: boolean;

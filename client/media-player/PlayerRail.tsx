@@ -59,6 +59,7 @@ export const PlayerRail: React.FC<{
     if (!items.length) return null;
     return (
         <div
+            data-tv-row="1"
             className="player-rail-enter flex flex-col gap-2"
             style={{ animationDelay: `${Math.min(Math.max(staggerIndex, 0), 12) * 55}ms` }}
         >

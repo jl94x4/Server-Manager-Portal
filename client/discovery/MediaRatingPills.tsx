@@ -2,8 +2,8 @@ import React from 'react';
 import type { CombinedRatings } from './mediaDetailUtils';
 import { useDiscoverI18n } from './i18n';
 
-const pillLinkClass = 'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-all hover:brightness-110 hover:scale-[1.02]';
-const pillStaticClass = 'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold';
+const pillLinkClass = 'inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border px-2.5 text-xs font-bold leading-none transition-all hover:brightness-110 hover:scale-[1.02]';
+const pillStaticClass = 'inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border px-2.5 text-xs font-bold leading-none';
 
 const RtTomatoIcon: React.FC<{ fresh: boolean }> = ({ fresh }) => (
     <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0" aria-hidden>
@@ -28,7 +28,7 @@ const RtPopcornIcon: React.FC<{ fresh: boolean }> = ({ fresh }) => (
 );
 
 const TmdbMark: React.FC = () => (
-    <span className="px-1 py-0.5 rounded bg-[#01b4e4] text-[10px] font-black text-white leading-none tracking-tight">
+    <span className="inline-flex h-5 items-center justify-center rounded bg-[#01b4e4] px-1.5 text-[10px] font-black leading-none tracking-tight text-white">
         TMDB
     </span>
 );
@@ -102,7 +102,7 @@ export const MediaRatingPills: React.FC<MediaRatingPillsProps> = ({
             (
                 <>
                     <RtTomatoIcon fresh={rtCriticsFresh} />
-                    <span>{rtCritics}%</span>
+                    <span className="leading-none">{rtCritics}%</span>
                 </>
             ),
             ratings?.rt?.url,
@@ -121,7 +121,7 @@ export const MediaRatingPills: React.FC<MediaRatingPillsProps> = ({
             (
                 <>
                     <RtPopcornIcon fresh={rtAudienceFresh} />
-                    <span>{rtAudience}%</span>
+                    <span className="leading-none">{rtAudience}%</span>
                 </>
             ),
             ratings?.rt?.url,
@@ -135,10 +135,10 @@ export const MediaRatingPills: React.FC<MediaRatingPillsProps> = ({
             t('ratings.imdb'),
             (
                 <>
-                    <span className="px-1 py-0.5 rounded bg-[#F5C518] text-[10px] font-black text-black leading-none tracking-tight">
+                    <span className="inline-flex h-5 items-center justify-center rounded bg-[#F5C518] px-1.5 text-[10px] font-black leading-none tracking-tight text-black">
                         IMDb
                     </span>
-                    <span>{imdbScoreLabel}</span>
+                    <span className="leading-none">{imdbScoreLabel}</span>
                 </>
             ),
             ratings?.imdb?.url,
@@ -153,7 +153,7 @@ export const MediaRatingPills: React.FC<MediaRatingPillsProps> = ({
             (
                 <>
                     <TmdbMark />
-                    <span>{tmdbScore}</span>
+                    <span className="leading-none">{tmdbScore}</span>
                 </>
             ),
             tmdbUrl,
@@ -163,7 +163,7 @@ export const MediaRatingPills: React.FC<MediaRatingPillsProps> = ({
     if (!pills.length) return null;
 
     return (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="media-rating-pills flex flex-wrap items-center gap-2">
             {pills}
         </div>
     );

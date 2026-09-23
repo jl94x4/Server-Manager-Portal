@@ -1,14 +1,17 @@
 ﻿import React, { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
+    Captions,
     ChevronRight,
     Download,
     Eye,
     EyeOff,
+    Info,
     ListPlus,
     ListVideo,
     MoreVertical,
     Trash2,
+    Volume2,
     XCircle,
 } from 'lucide-react';
 import { useDiscoverI18n } from './host';
@@ -17,6 +20,7 @@ import {
     addMediaPlayerPlaylistItem,
     createMediaPlayerPlaylist,
     deleteMediaPlayerItem,
+    fetchMediaPlayerItem,
     fetchMediaPlayerPlaylists,
     removeMediaPlayerProgress,
     setMediaPlayerWatched,
@@ -24,6 +28,7 @@ import {
 } from './api';
 import { PLAYER_SCROLL_ID } from './paths';
 import type { PlayerItem } from './types';
+import { PlayerFileInfo } from './PlayerFileInfo';
 
 export type PlayerItemMenuHandle = {
     openAt: (clientX: number, clientY: number) => void;
@@ -44,6 +49,14 @@ type Props = {
     onRemovedFromContinueWatching?: (item: PlayerItem) => void;
     onDeleted?: (item: PlayerItem) => void;
     onToast?: (message: string, type?: 'success' | 'error' | 'info') => void;
+    /** Version and audio currently chosen on the title page, so File Info matches them. */
+    mediaIndex?: number;
+    audioStreamId?: string;
+    subtitleStreamId?: string;
+    audioTracks?: Array<{ id: string; label: string }>;
+    subtitleTracks?: Array<{ id: string; label: string }>;
+    onAudioChange?: (id: string) => void;
+    onSubtitleChange?: (id: string) => void;
 };
 
 type MenuMode = 'main' | 'playlist';
@@ -62,6 +75,13 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
     onRemovedFromContinueWatching,
     onDeleted,
     onToast,
+    mediaIndex = 0,
+    audioStreamId = '',
+    subtitleStreamId = '',
+    audioTracks = [],
+    subtitleTracks = [],
+    onAudioChange,
+    onSubtitleChange,
 }, ref) => {
     const { t } = useDiscoverI18n();
     const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -71,6 +91,9 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
     const [pos, setPos] = useState({ top: 0, left: 0 });
     const [playlists, setPlaylists] = useState<PlayerItem[]>([]);
     const [newPlaylistName, setNewPlaylistName] = useState('');
+    const [fileInfoItem, setFileInfoItem] = useState<PlayerItem | null>(null);
+    const [fileInfoLoading, setFileInfoLoading] = useState(false);
+    const [trackPicker, setTrackPicker] = useState<'audio' | 'subtitles' | null>(null);
 
     const canWatchToggle = item.type === 'movie' || item.type === 'episode' || item.type === 'show' || item.type === 'season';
     const canPlayNext = !!onPlayNext && item.canPlay !== false
@@ -81,6 +104,11 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
         document.documentElement?.dataset?.tv === '1'
         || window.__PLEX_CLIENT__?.isTv === true
     );
+    const canFileInfo = variant !== 'toolbar'
+        && (item.type === 'movie' || item.type === 'episode' || item.type === 'clip' || item.type === 'trailer');
+    const canPickAudio = variant === 'toolbar' && audioTracks.length > 0 && !!onAudioChange;
+    const canPickSubtitles = variant === 'toolbar' && !!onSubtitleChange
+        && (item.type === 'movie' || item.type === 'episode');
     const canDownload = !isTv
         && isAdmin
         && (item.type === 'movie' || item.type === 'episode' || item.type === 'clip' || item.type === 'trailer');
@@ -105,7 +133,7 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
 
     const placeMenu = (clientX?: number, clientY?: number) => {
         const pad = 8;
-        const height = mode === 'playlist' ? 280 : 260;
+        const height = mode === 'playlist' ? 280 : 340;
         const rect = triggerRef.current?.getBoundingClientRect();
         const box = rect ? rectToFixedPixels(rect) : null;
         const zoom = box?.zoom || 1;
@@ -140,6 +168,22 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
         return undefined;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mode, open, variant]);
+
+    useEffect(() => {
+        if (!trackPicker) return undefined;
+        const closePicker = () => setTrackPicker(null);
+        window.addEventListener('smp-tv-overlay-close', closePicker);
+        const id = window.setTimeout(() => {
+            const el = document.querySelector<HTMLElement>('[data-tv-track-primary="1"]')
+                || document.querySelector<HTMLElement>('[data-tv-track-dialog="1"] [data-tv-item="1"]');
+            el?.focus({ preventScroll: true });
+            el?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        }, 40);
+        return () => {
+            window.removeEventListener('smp-tv-overlay-close', closePicker);
+            window.clearTimeout(id);
+        };
+    }, [trackPicker]);
 
     useEffect(() => {
         if (!open) return undefined;
@@ -201,6 +245,31 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
 
     const toast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
         onToast?.(message, type);
+    };
+
+    const openFileInfo = () => {
+        setOpen(false);
+        setMode('main');
+        setNewPlaylistName('');
+        try {
+            delete document.documentElement.dataset.tvMenuOpen;
+        } catch {
+            /* ignore */
+        }
+        setFileInfoItem(item);
+        if ((item.mediaInfo || []).length) {
+            setFileInfoLoading(false);
+            return;
+        }
+        setFileInfoLoading(true);
+        void fetchMediaPlayerItem(item.ratingKey, { core: true })
+            .then((data) => {
+                if (data?.item) setFileInfoItem(data.item);
+            })
+            .catch(() => {
+                toast(t('mediaPlayerPage.actionError'), 'error');
+            })
+            .finally(() => setFileInfoLoading(false));
     };
 
     const choose = (action: () => void | Promise<void>) => {
@@ -287,6 +356,63 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
                 >
                     <XCircle className="h-4 w-4 shrink-0 opacity-80" />
                     {t('mediaPlayerPage.removeFromContinueWatching')}
+                </button>
+            ) : null}
+            {canPickAudio ? (
+                <button
+                    type="button"
+                    role="menuitem"
+                    data-tv-item="1"
+                    data-tv-menu-item="1"
+                    className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left font-semibold hover:bg-white/10"
+                    onClick={() => {
+                        setOpen(false);
+                        setMode('main');
+                        try {
+                            delete document.documentElement.dataset.tvMenuOpen;
+                        } catch {
+                            /* ignore */
+                        }
+                        setTrackPicker('audio');
+                    }}
+                >
+                    <Volume2 className="h-4 w-4 shrink-0 opacity-80" />
+                    {t('mediaPlayerPage.selectAudio')}
+                </button>
+            ) : null}
+            {canPickSubtitles ? (
+                <button
+                    type="button"
+                    role="menuitem"
+                    data-tv-item="1"
+                    data-tv-menu-item="1"
+                    className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left font-semibold hover:bg-white/10"
+                    onClick={() => {
+                        setOpen(false);
+                        setMode('main');
+                        try {
+                            delete document.documentElement.dataset.tvMenuOpen;
+                        } catch {
+                            /* ignore */
+                        }
+                        setTrackPicker('subtitles');
+                    }}
+                >
+                    <Captions className="h-4 w-4 shrink-0 opacity-80" />
+                    {t('mediaPlayerPage.selectSubtitles')}
+                </button>
+            ) : null}
+            {canFileInfo ? (
+                <button
+                    type="button"
+                    role="menuitem"
+                    data-tv-item="1"
+                    data-tv-menu-item="1"
+                    className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left font-semibold hover:bg-white/10"
+                    onClick={openFileInfo}
+                >
+                    <Info className="h-4 w-4 shrink-0 opacity-80" />
+                    {t('mediaPlayerPage.fileInfo')}
                 </button>
             ) : null}
             {isAdmin ? (
@@ -432,6 +558,76 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
                 <MoreVertical className="h-4 w-4" />
             </button>
             {menu}
+            {fileInfoItem ? (
+                <PlayerFileInfo
+                    item={fileInfoItem}
+                    loading={fileInfoLoading}
+                    mediaIndex={mediaIndex}
+                    audioStreamId={audioStreamId}
+                    onClose={() => setFileInfoItem(null)}
+                />
+            ) : null}
+            {trackPicker ? (
+                <div
+                    className="fixed inset-0 z-[3500] flex items-center justify-center bg-black/70 p-4"
+                    role="dialog"
+                    aria-modal="true"
+                    data-tv-track-dialog="1"
+                >
+                    <div className="flex max-h-[min(78vh,44rem)] w-full max-w-lg flex-col rounded-2xl border border-white/10 bg-card p-5 shadow-2xl">
+                        <p className="shrink-0 text-xs font-black uppercase tracking-widest text-muted">
+                            {trackPicker === 'audio' ? t('mediaPlayerPage.selectAudio') : t('mediaPlayerPage.selectSubtitles')}
+                        </p>
+                        <h2 className="mt-2 shrink-0 truncate text-lg font-bold text-text">{item.title}</h2>
+                        <div
+                            className="mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain hide-scrollbar"
+                            data-tv-rail="1"
+                            data-tv-overlay-scroll="1"
+                        >
+                            <div className="flex flex-col gap-2 pr-1">
+                                {(trackPicker === 'audio'
+                                    ? audioTracks
+                                    : [{ id: '0', label: t('mediaPlayerPage.subtitlesOff') }, ...subtitleTracks]
+                                ).map((row) => {
+                                    const selected = trackPicker === 'audio'
+                                        ? String(row.id) === String(audioStreamId || audioTracks[0]?.id)
+                                        : String(row.id) === String(subtitleStreamId || '0');
+                                    return (
+                                        <button
+                                            key={row.id}
+                                            type="button"
+                                            data-tv-item="1"
+                                            data-tv-action="1"
+                                            data-tv-track-primary={selected ? '1' : undefined}
+                                            onClick={() => {
+                                                if (trackPicker === 'audio') onAudioChange?.(row.id);
+                                                else onSubtitleChange?.(row.id);
+                                                setTrackPicker(null);
+                                            }}
+                                            className={`rounded-xl border px-4 py-3 text-left text-sm font-bold outline-none ${
+                                                selected
+                                                    ? 'border-plex/50 bg-plex/15 text-text'
+                                                    : 'border-white/10 bg-white/5 text-text hover:border-plex/40 hover:bg-white/10'
+                                            }`}
+                                        >
+                                            {row.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            data-tv-item="1"
+                            data-tv-action="1"
+                            onClick={() => setTrackPicker(null)}
+                            className="mt-3 shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold text-muted hover:text-text outline-none"
+                        >
+                            {t('common.close')}
+                        </button>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 });

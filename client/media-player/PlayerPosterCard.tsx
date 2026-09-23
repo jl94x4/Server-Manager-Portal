@@ -119,6 +119,7 @@ export const PlayerPosterCard: React.FC<Props> = ({
             ref={rootRef}
             className="relative touch-manipulation select-none [-webkit-touch-callout:none]"
             onFocusCapture={() => {
+                if (isTvShell) return;
                 if (item?.ratingKey && item.type !== 'collection' && item.type !== 'playlist') {
                     prefetchMediaPlayerItem(item.ratingKey);
                 }

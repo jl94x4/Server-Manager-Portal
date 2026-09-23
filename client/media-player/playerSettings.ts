@@ -45,6 +45,8 @@ export type PlayerSettings = {
     playThemeTunes: boolean;
     /** Grey plate behind studio / network / streaming logos on overview. */
     serviceLogoPlates: boolean;
+    /** Grey resolution / codec pills on season episode cards. */
+    showEpisodeFilePills: boolean;
     /** Corner for watched checkmarks on movie/show/season posters (not episodes). */
     watchedTickPosition: PlayerWatchedTickPosition;
     homeRowOrder: string[];
@@ -336,6 +338,7 @@ export const DEFAULT_PLAYER_SETTINGS: PlayerSettings = {
     autoSkipCredits: false,
     playThemeTunes: true,
     serviceLogoPlates: true,
+    showEpisodeFilePills: true,
     watchedTickPosition: 'top-right',
     homeRowOrder: [],
     libraryNavOrder: [],
@@ -359,6 +362,7 @@ export const normalizePlayerSettings = (raw: Partial<PlayerSettings> | Record<st
         autoSkipCredits: raw?.autoSkipCredits === true,
         playThemeTunes: raw?.playThemeTunes !== false,
         serviceLogoPlates: raw?.serviceLogoPlates !== false,
+        showEpisodeFilePills: raw?.showEpisodeFilePills !== false,
         watchedTickPosition: isPlayerWatchedTickPosition(raw?.watchedTickPosition)
             ? raw!.watchedTickPosition as PlayerWatchedTickPosition
             : 'top-right',
@@ -383,6 +387,7 @@ export const playerSettingsEqual = (a: PlayerSettings, b: PlayerSettings) => (
     && a.autoSkipCredits === b.autoSkipCredits
     && a.playThemeTunes === b.playThemeTunes
     && a.serviceLogoPlates === b.serviceLogoPlates
+    && a.showEpisodeFilePills === b.showEpisodeFilePills
     && a.watchedTickPosition === b.watchedTickPosition
     && a.homeRowOrder.join('\0') === b.homeRowOrder.join('\0')
     && a.libraryNavOrder.join('\0') === b.libraryNavOrder.join('\0')
