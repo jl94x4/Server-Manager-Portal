@@ -486,7 +486,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
     }
 
     return (
-        <div className="flex flex-col gap-6 pb-8">
+        <div className="tv-poster-rows flex flex-col gap-6 pb-8">
             {!query.trim() && heroSlides.length ? (
                 <MediaPlayerHomeHero
                     items={heroSlides}

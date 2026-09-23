@@ -63,7 +63,7 @@ export const PlayerRail: React.FC<{
             style={{ animationDelay: `${Math.min(Math.max(staggerIndex, 0), 12) * 55}ms` }}
         >
             <DiscoverSectionHeader title={title} onViewAll={onViewAll} viewAllLabel={viewAllLabel} />
-            <Carousel>
+            <Carousel posterRow>
                 {items.map((item, idx) => {
                     const cardAspect = aspect
                         || (item.type === 'artist' || item.type === 'album' ? 'square' : null)

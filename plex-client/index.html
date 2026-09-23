@@ -262,6 +262,24 @@
       border: 5px solid #f59e0b;
       border-radius: inherit;
     }
+    /* Focused poster grows; the rest of the row sits back. Padding keeps the scale inside the scroller. */
+    html[data-tv="1"] .tv-poster-rows {
+      gap: 0.65rem !important;
+    }
+    html[data-tv="1"] [data-tv-poster-rail="1"] > * {
+      transition: transform 180ms ease, opacity 180ms ease;
+      transform-origin: center center;
+    }
+    html[data-tv="1"] [data-tv-poster-rail="1"]:focus-within > * {
+      opacity: 0.55;
+      transform: scale(0.96);
+    }
+    html[data-tv="1"] [data-tv-poster-rail="1"]:focus-within > *:focus-within {
+      opacity: 1;
+      transform: scale(1.07);
+      z-index: 8;
+      position: relative;
+    }
     html[data-tv="1"],
     html[data-tv="1"] *,
     html[data-tv="1"] .custom-scrollbar,

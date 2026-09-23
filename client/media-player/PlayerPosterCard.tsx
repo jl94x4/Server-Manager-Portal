@@ -54,6 +54,7 @@ export const PlayerPosterCard: React.FC<Props> = ({
     const { t } = useDiscoverI18n();
     const [settings] = usePlayerSettings();
     const menuRef = useRef<PlayerItemMenuHandle | null>(null);
+    const rootRef = useRef<HTMLDivElement | null>(null);
     const longPressTimerRef = useRef<number | null>(null);
     const longPressOriginRef = useRef<{ x: number; y: number } | null>(null);
     const suppressClickRef = useRef(false);
@@ -69,7 +70,9 @@ export const PlayerPosterCard: React.FC<Props> = ({
         || (item.type === 'episode' ? '16/9' : '2/3');
     const episodeCode = formatEpisodeCode(item);
     // Nested menu/play/watched controls inside the poster <button> break Android TV spatial nav.
-    const menuEnabled = !isTvShell && showMenu && item.type !== 'collection' && item.type !== 'artist' && item.type !== 'album' && item.type !== 'playlist';
+    const menuAllowed = showMenu && item.type !== 'collection' && item.type !== 'artist' && item.type !== 'album' && item.type !== 'playlist';
+    const menuEnabled = !isTvShell && menuAllowed;
+    const tvMenu = isTvShell && menuAllowed;
     // Episodes keep a fixed top-right tick; posters follow the user setting.
     const tickCorner = item.type === 'episode'
         ? 'top-right'
@@ -88,6 +91,20 @@ export const PlayerPosterCard: React.FC<Props> = ({
 
     useEffect(() => () => clearLongPress(), []);
 
+    useEffect(() => {
+        if (!tvMenu) return undefined;
+        const onOpen = (event: Event) => {
+            const key = String((event as CustomEvent).detail?.ratingKey || '');
+            if (!key || key !== item.ratingKey) return;
+            const btn = rootRef.current?.querySelector<HTMLElement>('[data-tv-poster-btn="1"]');
+            if (!btn || btn.getAttribute('data-tv-focused') !== '1') return;
+            const rect = btn.getBoundingClientRect();
+            menuRef.current?.openAt(rect.left + 16, Math.max(16, rect.top + 16));
+        };
+        window.addEventListener('smp-tv-poster-menu', onOpen);
+        return () => window.removeEventListener('smp-tv-poster-menu', onOpen);
+    }, [item.ratingKey, tvMenu]);
+
     const openMenuAt = (clientX: number, clientY: number) => {
         if (!menuEnabled) return;
         suppressClickRef.current = true;
@@ -99,6 +116,7 @@ export const PlayerPosterCard: React.FC<Props> = ({
 
     return (
         <div
+            ref={rootRef}
             className="relative touch-manipulation select-none [-webkit-touch-callout:none]"
             onFocusCapture={() => {
                 if (item?.ratingKey && item.type !== 'collection' && item.type !== 'playlist') {
@@ -255,6 +273,21 @@ export const PlayerPosterCard: React.FC<Props> = ({
                     </>
                 )}
             />
+            {tvMenu ? (
+                <PlayerItemMenu
+                    ref={menuRef}
+                    hideTrigger
+                    item={item}
+                    isAdmin={isAdmin}
+                    playlistsEnabled={playlistsEnabled}
+                    showRemoveFromContinueWatching={showRemoveFromContinueWatching || progress > 0}
+                    onPlayNext={onPlayNext}
+                    onWatchedChange={onWatchedChange}
+                    onRemovedFromContinueWatching={onRemovedFromContinueWatching}
+                    onDeleted={onDeleted}
+                    onToast={onToast}
+                />
+            ) : null}
         </div>
     );
 };

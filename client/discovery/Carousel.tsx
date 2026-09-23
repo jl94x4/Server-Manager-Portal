@@ -4,6 +4,8 @@ import { useDiscoverI18n } from './i18n';
 
 interface CarouselProps {
     children: React.ReactNode;
+    /** Poster rows scale the focused card. Other carousels (cast) stay flat. */
+    posterRow?: boolean;
 }
 
 const SCROLL_EDGE_PX = 8;
@@ -17,7 +19,7 @@ const isTvShell = () => {
     }
 };
 
-export const Carousel: React.FC<CarouselProps> = ({ children }) => {
+export const Carousel: React.FC<CarouselProps> = ({ children, posterRow = false }) => {
     const { t } = useDiscoverI18n();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const canScrollRef = useRef(false);
@@ -81,11 +83,16 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
             if (!isTvShell()) return;
             const target = event.target as HTMLElement | null;
             if (!target || !node.contains(target)) return;
-            try {
-                target.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'auto' });
-            } catch {
-                /* ignore */
-            }
+            const rail = node.getBoundingClientRect();
+            const item = target.getBoundingClientRect();
+            if (rail.width <= 0 || item.width <= 0) return;
+            const pad = 28;
+            let delta = 0;
+            if (item.left < rail.left + pad) delta = item.left - (rail.left + pad);
+            else if (item.right > rail.right - pad) delta = item.right - (rail.right - pad);
+            if (!delta) return;
+            const zoom = Number.parseFloat(document.documentElement.style.zoom || '1') || 1;
+            node.scrollLeft += delta / zoom;
         };
         node.addEventListener('focusin', onFocusIn);
 
@@ -148,8 +155,9 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
                     ref={scrollContainerRef}
                     onScroll={handleScroll}
                     data-tv-rail="1"
+                    data-tv-poster-rail={posterRow ? '1' : undefined}
                     className={`flex gap-4 overflow-x-auto snap-x snap-proximity scrollbar-hide hide-scrollbar w-full ${
-                        tvShell ? 'px-4 py-3' : 'px-2 py-2'
+                        tvShell ? (posterRow ? 'px-5 py-5' : 'px-4 py-3') : 'px-2 py-2'
                     }`}
                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >

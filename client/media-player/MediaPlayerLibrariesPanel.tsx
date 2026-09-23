@@ -29,6 +29,7 @@ export const MediaPlayerLibrariesPanel: React.FC<Props> = ({ libraries, onOpenLi
         <section className="flex flex-col gap-3">
             <button
                 type="button"
+                tabIndex={typeof document !== 'undefined' && (document.documentElement?.dataset?.tv === '1' || window.__PLEX_CLIENT__?.isTv) ? -1 : undefined}
                 onClick={() => setOpen((prev) => !prev)}
                 className="flex w-full items-center gap-3 min-w-0 text-left"
                 aria-expanded={open}

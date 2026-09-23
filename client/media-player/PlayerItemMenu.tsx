@@ -37,6 +37,8 @@ type Props = {
     playlistsEnabled?: boolean;
     showRemoveFromContinueWatching?: boolean;
     variant?: 'poster' | 'toolbar';
+    /** TV opens this from a long-press. The trigger stays out of the D-pad path. */
+    hideTrigger?: boolean;
     onPlayNext?: (item: PlayerItem) => void;
     onWatchedChange?: (item: PlayerItem, watched: boolean) => void;
     onRemovedFromContinueWatching?: (item: PlayerItem) => void;
@@ -54,6 +56,7 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
     playlistsEnabled = true,
     showRemoveFromContinueWatching = false,
     variant = 'poster',
+    hideTrigger = false,
     onPlayNext,
     onWatchedChange,
     onRemovedFromContinueWatching,
@@ -90,6 +93,13 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
             delete document.documentElement.dataset.tvMenuOpen;
         } catch {
             /* ignore */
+        }
+        if (isTv) {
+            const key = String(item.ratingKey || '');
+            const poster = key
+                ? document.querySelector<HTMLElement>(`[data-tv-poster-btn="1"][data-tv-key="${CSS.escape(key)}"]`)
+                : null;
+            poster?.focus({ preventScroll: true });
         }
     };
 
@@ -202,8 +212,32 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
             });
     };
 
+    const watchToggle = canWatchToggle ? (
+        <button
+            type="button"
+            role="menuitem"
+            data-tv-item="1"
+            data-tv-menu-item="1"
+            className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left font-semibold hover:bg-white/10 disabled:opacity-50"
+            onClick={() => {
+                const next = !item.watched;
+                choose(async () => {
+                    await setMediaPlayerWatched(item.ratingKey, next);
+                    onWatchedChange?.(item, next);
+                    toast(next ? t('mediaPlayerPage.markedWatched') : t('mediaPlayerPage.markedUnwatched'));
+                });
+            }}
+        >
+            {item.watched
+                ? <EyeOff className="h-4 w-4 shrink-0 opacity-80" />
+                : <Eye className="h-4 w-4 shrink-0 opacity-80" />}
+            {item.watched ? t('mediaPlayerPage.markUnwatched') : t('mediaPlayerPage.markWatched')}
+        </button>
+    ) : null;
+
     const menuInner = mode === 'main' ? (
         <>
+            {isTv ? watchToggle : null}
             {canPlayNext ? (
                 <button
                     type="button"
@@ -237,28 +271,7 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
                     <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-60" />
                 </button>
             ) : null}
-            {canWatchToggle ? (
-                <button
-                    type="button"
-                    role="menuitem"
-                    data-tv-item="1"
-                    data-tv-menu-item="1"
-                    className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left font-semibold hover:bg-white/10 disabled:opacity-50"
-                    onClick={() => {
-                        const next = !item.watched;
-                        choose(async () => {
-                            await setMediaPlayerWatched(item.ratingKey, next);
-                            onWatchedChange?.(item, next);
-                            toast(next ? t('mediaPlayerPage.markedWatched') : t('mediaPlayerPage.markedUnwatched'));
-                        });
-                    }}
-                >
-                    {item.watched
-                        ? <EyeOff className="h-4 w-4 shrink-0 opacity-80" />
-                        : <Eye className="h-4 w-4 shrink-0 opacity-80" />}
-                    {item.watched ? t('mediaPlayerPage.markUnwatched') : t('mediaPlayerPage.markWatched')}
-                </button>
-            ) : null}
+            {isTv ? null : watchToggle}
             {showRemoveFromContinueWatching ? (
                 <button
                     type="button"
@@ -397,12 +410,16 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
             <button
                 ref={triggerRef}
                 type="button"
-                data-tv-item={variant === 'toolbar' ? '1' : undefined}
-                data-tv-action={variant === 'toolbar' ? '1' : undefined}
+                tabIndex={hideTrigger ? -1 : undefined}
+                data-tv-item={variant === 'toolbar' && !hideTrigger ? '1' : undefined}
+                data-tv-action={variant === 'toolbar' && !hideTrigger ? '1' : undefined}
+                aria-hidden={hideTrigger ? true : undefined}
                 aria-label={t('mediaPlayerPage.moreActions')}
                 aria-haspopup="menu"
                 aria-expanded={open}
-                className={variant === 'toolbar'
+                className={hideTrigger
+                    ? 'sr-only'
+                    : variant === 'toolbar'
                     ? 'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/5 text-white transition-colors hover:border-plex/40 hover:bg-white/10'
                     : 'pointer-events-auto absolute bottom-1.5 right-1.5 z-30 flex h-8 w-8 items-center justify-center rounded-full bg-black/70 text-white opacity-100 transition hover:bg-black md:opacity-0 md:group-hover:opacity-100'}
                 onClick={(event) => {

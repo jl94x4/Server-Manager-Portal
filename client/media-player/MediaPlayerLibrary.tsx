@@ -55,6 +55,22 @@ const isReleasedHub = (hub: PlayerLibraryHub) => /recently\s*released|recentlyre
 
 const itemHead = (items: PlayerItem[] = []) => items.slice(0, 8).map((row) => row.ratingKey).join('|');
 
+const hubsComplete = (list: PlayerLibraryHub[]) => {
+    const hasRecent = list.some(isRecentHub);
+    const recentItems = list.find(isRecentHub)?.items || [];
+    const hasReleased = list.some((hub) => isReleasedHub(hub) && itemHead(hub.items) !== itemHead(recentItems));
+    return hasRecent && (hasReleased || list.filter((hub) => !isContinueWatchingHub(hub)).length >= 2);
+};
+
+const isTvShell = () => {
+    try {
+        return document.documentElement?.dataset?.tv === '1'
+            || window.__PLEX_CLIENT__?.isTv === true;
+    } catch {
+        return false;
+    }
+};
+
 /** Paint library rows from the section list while the slower hub request is still in flight. */
 const withLibraryListRows = (prev: PlayerLibraryHub[], recentItems: PlayerItem[], releasedItems: PlayerItem[]) => {
     const next = prev.slice();
@@ -159,24 +175,26 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
         } else {
             setLoading(true);
         }
-        // Section lists return before promoted hubs. Paint them so a movie
-        // library is not stuck on a single Continue Watching row.
-        const listsPainted = Promise.all([
-            fetchMediaPlayerLibrary(sectionKey, 0, 18, { sort: 'addedAt:desc' }),
-            fetchMediaPlayerLibrary(sectionKey, 0, 18, { sort: 'originallyAvailableAt:desc' }),
-        ]).then(([recent, released]) => {
-            if (!alive()) return false;
-            if (recent.title) setTitle(recent.title);
-            const recentItems = recent.items || [];
-            const releasedItems = released.items || [];
-            setHubs((prev) => {
-                const next = withLibraryListRows(prev, recentItems, releasedItems);
-                return next;
-            });
-            setError(null);
-            setLoading(false);
-            return recentItems.length > 0 || releasedItems.length > 0;
-        }).catch(() => false);
+        // Extra list calls compete with the home request. Only use them when
+        // the home payload is still missing Recently Added / Released.
+        const paintLists = async () => {
+            try {
+                const [recent, released] = await Promise.all([
+                    fetchMediaPlayerLibrary(sectionKey, 0, 18, { sort: 'addedAt:desc' }),
+                    fetchMediaPlayerLibrary(sectionKey, 0, 18, { sort: 'originallyAvailableAt:desc' }),
+                ]);
+                if (!alive()) return false;
+                if (recent.title) setTitle(recent.title);
+                const recentItems = recent.items || [];
+                const releasedItems = released.items || [];
+                setHubs((prev) => withLibraryListRows(prev, recentItems, releasedItems));
+                setError(null);
+                setLoading(false);
+                return recentItems.length > 0 || releasedItems.length > 0;
+            } catch {
+                return false;
+            }
+        };
         try {
             const data = await fetchMediaPlayerLibraryHome(sectionKey);
             if (!alive()) return;
@@ -187,8 +205,9 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                 return next;
             });
             setError(null);
+            if (!hubsComplete(data.hubs || [])) await paintLists();
         } catch (err: any) {
-            const painted = await listsPainted;
+            const painted = await paintLists();
             if (!alive()) return;
             if (!painted && !cached?.hubs?.length) {
                 setError(String(err?.message || t('mediaPlayerPage.loadError')));
@@ -252,41 +271,88 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
         }
     }, [hydrated, loadBrowse, loadCollections, loadHome, tab]);
 
+    const librariesRequested = useRef(false);
+    const filtersKey = useRef('');
+    const landedKey = useRef('');
+
     useEffect(() => {
+        if (librariesRequested.current) return undefined;
+        const waiting = (tab === 'home' && loading && homeHubs.length === 0)
+            || (tab === 'browse' && loading && items.length === 0)
+            || (tab === 'collections' && loading && collections.length === 0);
+        if (waiting) return undefined;
+        librariesRequested.current = true;
+        let started = false;
         let cancelled = false;
-        fetchMediaPlayerLibraries()
-            .then((data) => {
-                if (!cancelled) setLibraries(data.libraries || []);
-            })
-            .catch(() => {
-                if (!cancelled) setLibraries([]);
-            });
-        return () => { cancelled = true; };
-    }, []);
+        const handle = window.setTimeout(() => {
+            started = true;
+            fetchMediaPlayerLibraries()
+                .then((data) => {
+                    if (!cancelled) setLibraries(data.libraries || []);
+                })
+                .catch(() => {
+                    if (!cancelled) {
+                        librariesRequested.current = false;
+                        setLibraries([]);
+                    }
+                });
+        }, 120);
+        return () => {
+            cancelled = true;
+            window.clearTimeout(handle);
+            if (!started) librariesRequested.current = false;
+        };
+    }, [collections.length, homeHubs.length, items.length, loading, tab]);
 
     useEffect(() => {
         if (tab !== 'browse') return undefined;
+        if (loading && items.length === 0) return undefined;
+        if (filtersKey.current === sectionKey) return undefined;
+        filtersKey.current = sectionKey;
+        let started = false;
         let cancelled = false;
-        fetchMediaPlayerLibraryFilters(sectionKey)
-            .then((data) => {
-                if (cancelled) {
-                    return;
-                }
-                setGenres(data.genres || []);
-                setDecades(data.decades || []);
-                setResolutions(data.resolutions || []);
-                setStudios(data.studios || []);
-            })
-            .catch(() => {
-                if (!cancelled) {
+        const handle = window.setTimeout(() => {
+            started = true;
+            fetchMediaPlayerLibraryFilters(sectionKey)
+                .then((data) => {
+                    if (cancelled) return;
+                    setGenres(data.genres || []);
+                    setDecades(data.decades || []);
+                    setResolutions(data.resolutions || []);
+                    setStudios(data.studios || []);
+                })
+                .catch(() => {
+                    if (cancelled) return;
+                    filtersKey.current = '';
                     setGenres([]);
                     setDecades([]);
                     setResolutions([]);
                     setStudios([]);
-                }
-            });
-        return () => { cancelled = true; };
-    }, [sectionKey, tab]);
+                });
+        }, 80);
+        return () => {
+            cancelled = true;
+            window.clearTimeout(handle);
+            if (!started && filtersKey.current === sectionKey) filtersKey.current = '';
+        };
+    }, [items.length, loading, sectionKey, tab]);
+
+    const posterReady = tab === 'home'
+        ? homeHubs.some((hub) => hub.items?.length)
+        : tab === 'collections'
+            ? collections.length > 0
+            : items.length > 0;
+
+    useEffect(() => {
+        if (!isTvShell() || !posterReady) return undefined;
+        const token = `${sectionKey}:${tab}`;
+        if (landedKey.current === token) return undefined;
+        const handle = window.setTimeout(() => {
+            landedKey.current = token;
+            window.dispatchEvent(new Event('smp-tv-focus-posters'));
+        }, 60);
+        return () => window.clearTimeout(handle);
+    }, [posterReady, sectionKey, tab]);
 
     useEffect(() => {
         const saved = readLibraryBrowseState(sectionKey);
@@ -384,12 +450,16 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
         'viewCount:desc': t('mediaPlayerPage.sortPlayCount'),
     };
 
+    const tvShell = isTvShell();
+    const tvControl = tvShell ? { 'data-tv-item': '1' as const, tabIndex: 0 as const } : undefined;
+
     return (
-        <div className="flex flex-col gap-5 pb-8">
+        <div className="flex flex-col gap-5 pb-8" data-tv-library="1">
             <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
                     <button
                         type="button"
+                        tabIndex={tvShell ? -1 : undefined}
                         onClick={onBack}
                         className="mb-2 inline-flex items-center gap-2 text-sm font-bold text-muted hover:text-text"
                     >
@@ -401,11 +471,12 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                 <DiscoverGridSizeSelect value={gridSize} onChange={setGridSize} />
             </div>
 
-            <div className="flex flex-wrap gap-2 border-b border-border pb-1">
+            <div className="flex flex-wrap gap-2 border-b border-border pb-1" data-tv-rail={tvShell ? '1' : undefined}>
                 {tabs.map((row) => (
                     <button
                         key={row.id}
                         type="button"
+                        data-tv-item={tvShell ? '1' : undefined}
                         onClick={() => onChangeTab(row.id)}
                         className={`rounded-t-lg px-4 py-2 text-sm font-bold ${
                             tab === row.id
@@ -427,12 +498,13 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
             ) : null}
 
             {tab === 'browse' ? (
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2" data-tv-rail={tvShell ? '1' : undefined}>
                     <CustomSelect
                         compact
                         value={sort}
                         onChange={setSort}
                         className="min-w-[11rem]"
+                        triggerProps={tvControl}
                         options={SORT_IDS.map((id) => ({ value: id, label: sortLabels[id] || id }))}
                     />
                     <CustomSelect
@@ -440,6 +512,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                         value={genre}
                         onChange={setGenre}
                         className="min-w-[10rem]"
+                        triggerProps={tvControl}
                         options={[
                             { value: '', label: t('mediaPlayerPage.allGenres') },
                             ...genres.map((row) => ({ value: row.key, label: row.title })),
@@ -451,6 +524,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                             value={decade}
                             onChange={setDecade}
                             className="min-w-[10rem]"
+                            triggerProps={tvControl}
                             options={[
                                 { value: '', label: t('mediaPlayerPage.allDecades') },
                                 ...decades.map((row) => ({ value: row.key, label: row.title })),
@@ -463,6 +537,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                             value={resolution}
                             onChange={setResolution}
                             className="min-w-[10rem]"
+                            triggerProps={tvControl}
                             options={[
                                 { value: '', label: t('mediaPlayerPage.allResolutions') },
                                 ...resolutions.map((row) => ({ value: row.key, label: row.title })),
@@ -475,6 +550,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                             value={studio}
                             onChange={setStudio}
                             className="min-w-[10rem]"
+                            triggerProps={tvControl}
                             options={[
                                 { value: '', label: t('mediaPlayerPage.allStudios') },
                                 ...studios.map((row) => ({ value: row.key, label: row.title })),
@@ -483,6 +559,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                     ) : null}
                     <button
                         type="button"
+                        data-tv-item={tvShell ? '1' : undefined}
                         onClick={() => {
                             setUnwatched((prev) => !prev);
                             setInProgress(false);
@@ -495,6 +572,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                     </button>
                     <button
                         type="button"
+                        data-tv-item={tvShell ? '1' : undefined}
                         onClick={() => {
                             setInProgress((prev) => !prev);
                             setUnwatched(false);
@@ -527,7 +605,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                 </div>
             ) : tab === 'home' ? (
                 homeHubs.length ? (
-                    <div className="flex flex-col gap-6">
+                    <div className="tv-poster-rows flex flex-col gap-6">
                         {homeHubs.map((hub) => {
                             const isCw = isContinueWatchingHub(hub) || /continue|ondeck/i.test(hub.identifier);
                             return (
@@ -554,7 +632,12 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                 )
             ) : tab === 'collections' ? (
                 collections.length ? (
-                    <div className={upgraderPosterGridClass(gridSize)} style={upgraderPosterGridStyle(gridSize)}>
+                    <div
+                        className={upgraderPosterGridClass(gridSize)}
+                        style={upgraderPosterGridStyle(gridSize)}
+                        data-tv-rail={tvShell ? '1' : undefined}
+                        data-tv-poster-rail={tvShell ? '1' : undefined}
+                    >
                         {collections.map((item, index) => (
                             <PlayerPosterCard
                                 key={item.ratingKey}
@@ -575,7 +658,12 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                 </div>
             ) : (
                 <>
-                    <div className={upgraderPosterGridClass(gridSize)} style={upgraderPosterGridStyle(gridSize)}>
+                    <div
+                        className={upgraderPosterGridClass(gridSize)}
+                        style={upgraderPosterGridStyle(gridSize)}
+                        data-tv-rail={tvShell ? '1' : undefined}
+                        data-tv-poster-rail={tvShell ? '1' : undefined}
+                    >
                         {items.map((item, index) => (
                             <PlayerPosterCard
                                 key={item.ratingKey}
@@ -591,6 +679,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                     {items.length < total ? (
                         <button
                             type="button"
+                            data-tv-item={tvShell ? '1' : undefined}
                             onClick={() => void loadBrowse(items.length, true)}
                             disabled={loadingMore}
                             className="mx-auto rounded-lg bg-white/5 px-4 py-2 text-sm font-bold text-text hover:bg-white/10"

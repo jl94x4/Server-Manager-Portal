@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { isAndroidTvUi } from './config';
 import { PLAYER_APP_BASE, PLAYER_NAVIGATE_EVENT, PLAYER_SCROLL_ID, PLAYER_TV_NAV_EVENT } from '../media-player/paths';
+import { rectToFixedPixels } from '../shared/ui';
 
 const TV_ITEM = '[data-tv-item="1"]';
 const TV_RAIL = '[data-tv-rail="1"]';
@@ -95,7 +96,48 @@ const scrollOverlayOnly = (el: HTMLElement) => {
     else if (row.bottom > box.bottom) scroller.scrollTop += (row.bottom - box.bottom);
 };
 
-const focusItem = (el: HTMLElement, block: ScrollLogicalPosition = 'nearest') => {
+const POSTER_HOLD_MS = 480;
+
+/**
+ * Keep the focused card fully inside its row, and leave a strip of the next
+ * row on screen when moving up or down.
+ */
+const scrollTvTarget = (el: HTMLElement, dir?: SpatialDir) => {
+    const rail = el.closest(TV_RAIL) as HTMLElement | null;
+    if (rail && rail.scrollWidth > rail.clientWidth + 8) {
+        const railBox = rectToFixedPixels(rail.getBoundingClientRect());
+        const itemBox = rectToFixedPixels(el.getBoundingClientRect());
+        const pad = 32;
+        let inline = 0;
+        if (itemBox.left < railBox.left + pad) inline = itemBox.left - (railBox.left + pad);
+        else if (itemBox.right > railBox.right - pad) inline = itemBox.right - (railBox.right - pad);
+        if (inline) rail.scrollLeft += inline;
+    }
+
+    const page = document.getElementById(PLAYER_SCROLL_ID);
+    if (!page) return;
+    const block = (el.closest('.player-rail-enter') || el) as HTMLElement;
+    const pageBox = rectToFixedPixels(page.getBoundingClientRect());
+    const blockBox = rectToFixedPixels(block.getBoundingClientRect());
+    const itemBox = rectToFixedPixels(el.getBoundingClientRect());
+    const peek = 120;
+    const topPad = 16;
+    const vertical = dir === 'up' || dir === 'down';
+    const rowFits = blockBox.bottom - blockBox.top < (pageBox.bottom - pageBox.top - peek - topPad);
+    let delta = 0;
+    if (vertical && rowFits && dir === 'down' && blockBox.bottom > pageBox.bottom - peek) {
+        delta = blockBox.bottom - (pageBox.bottom - peek);
+    } else if (vertical && rowFits && dir === 'up' && blockBox.top < pageBox.top + topPad) {
+        delta = blockBox.top - (pageBox.top + topPad);
+    } else if (itemBox.top < pageBox.top + topPad) {
+        delta = itemBox.top - (pageBox.top + topPad);
+    } else if (itemBox.bottom > pageBox.bottom - (vertical ? peek : topPad)) {
+        delta = itemBox.bottom - (pageBox.bottom - (vertical ? peek : topPad));
+    }
+    if (delta) page.scrollTop += delta;
+};
+
+const focusItem = (el: HTMLElement, block: ScrollLogicalPosition = 'nearest', dir?: SpatialDir) => {
     try {
         el.focus({ preventScroll: true });
     } catch {
@@ -108,16 +150,8 @@ const focusItem = (el: HTMLElement, block: ScrollLogicalPosition = 'nearest') =>
         if (page) page.scrollTop = frozen;
         return;
     }
-    try {
-        // Instant scroll on TV — smooth animation feels laggy on leanback remotes.
-        el.scrollIntoView({ inline: 'center', block, behavior: 'auto' });
-    } catch {
-        try {
-            el.scrollIntoView(false);
-        } catch {
-            /* ignore */
-        }
-    }
+    void block;
+    scrollTvTarget(el, dir);
 };
 
 const syncPosterFocusAttr = () => {
@@ -134,6 +168,8 @@ const syncPosterFocusAttr = () => {
 const currentPath = () => String(window.location.pathname || '').replace(/\/+$/, '') || '/';
 
 const tvFocusByPath = new Map<string, string>();
+
+export const hasRememberedTvFocus = (path = currentPath()) => Boolean(tvFocusByPath.get(path));
 
 export const rememberTvFocusKey = (key: string, path = currentPath()) => {
     const id = String(key || '').trim();
@@ -289,6 +325,29 @@ const focusNavItem = () => {
     if (target) focusItem(target, 'nearest');
 };
 
+const posterButtonOf = (node: EventTarget | null) => {
+    const el = node as HTMLElement | null;
+    if (!el?.closest) return null;
+    const poster = el.closest<HTMLElement>(TV_POSTER_BTN);
+    return poster && hasLayout(poster) ? poster : null;
+};
+
+const openPosterMenu = (poster: HTMLElement) => {
+    const ratingKey = poster.getAttribute('data-tv-key') || '';
+    if (!ratingKey) return;
+    window.dispatchEvent(new CustomEvent('smp-tv-poster-menu', { detail: { ratingKey } }));
+};
+
+/** Land on the remembered poster, or the first one in this library. */
+export const focusFirstPoster = (root: ParentNode = document) => {
+    if (hasRememberedTvFocus() && restoreTvFocus()) return true;
+    const poster = Array.from(root.querySelectorAll<HTMLElement>(TV_POSTER_BTN)).find(hasLayout);
+    if (!poster) return false;
+    focusItem(poster, 'nearest', 'down');
+    requestAnimationFrame(syncPosterFocusAttr);
+    return true;
+};
+
 /** Focus last remembered poster, else the first content control. */
 export const focusTvContent = () => {
     if (isAuthScreen()) {
@@ -306,6 +365,15 @@ export const focusTvContent = () => {
     }
     if (isPlayerItemPath() && focusTvPlayButton()) return;
     if (restoreTvFocus()) return;
+    const library = document.querySelector<HTMLElement>('[data-tv-library="1"]');
+    if (library && hasLayout(library)) {
+        const poster = Array.from(library.querySelectorAll<HTMLElement>(TV_POSTER_BTN)).find(hasLayout);
+        if (poster) {
+            focusItem(poster, 'nearest', 'down');
+            requestAnimationFrame(syncPosterFocusAttr);
+            return;
+        }
+    }
     const rails = visibleContentRails();
     if (rails.length) {
         const items = focusableTvItems(rails[0]);
@@ -322,7 +390,7 @@ export const focusTvContent = () => {
         return;
     }
     const search = document.getElementById('media-player-search') as HTMLElement | null;
-    if (search) {
+    if (search && hasLayout(search)) {
         search.focus();
         return;
     }
@@ -431,6 +499,14 @@ export const useTvRemote = (enabled = true) => {
 
         window.__SMP_HANDLE_BACK__ = handleTvBack;
 
+        let posterHoldTimer = 0;
+        let posterHoldFired = false;
+        let posterHoldEl: HTMLElement | null = null;
+        const clearPosterHold = () => {
+            if (posterHoldTimer) window.clearTimeout(posterHoldTimer);
+            posterHoldTimer = 0;
+        };
+
         const isBackKey = (event: KeyboardEvent) => (
             event.key === 'Escape'
             || event.key === 'BrowserBack'
@@ -469,6 +545,28 @@ export const useTvRemote = (enabled = true) => {
                     return;
                 }
                 if (document.documentElement?.dataset?.tvSelectOpen === '1') return;
+                const poster = document.querySelector(TV_OVERLAY)
+                    ? null
+                    : (posterButtonOf(event.target) || posterButtonOf(document.activeElement));
+                if (poster) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (event.repeat) return;
+                    const menuKey = event.key === 'ContextMenu' || event.keyCode === 82;
+                    clearPosterHold();
+                    posterHoldEl = poster;
+                    if (menuKey) {
+                        posterHoldFired = true;
+                        openPosterMenu(poster);
+                        return;
+                    }
+                    posterHoldFired = false;
+                    posterHoldTimer = window.setTimeout(() => {
+                        posterHoldFired = true;
+                        openPosterMenu(poster);
+                    }, POSTER_HOLD_MS);
+                    return;
+                }
                 if (activateFocusedTvItem(event)) return;
             }
 
@@ -542,11 +640,12 @@ export const useTvRemote = (enabled = true) => {
                 return;
             }
 
-            const target = findSpatialTarget(current, dir, menuRoot || undefined);
+            const rowRail = !menuRoot && (dir === 'left' || dir === 'right')
+                ? current.closest<HTMLElement>(TV_RAIL)
+                : null;
+            const target = findSpatialTarget(current, dir, menuRoot || rowRail || undefined);
             if (target) {
-                focusItem(target, menuRoot || isOverlayItem(current)
-                    ? 'nearest'
-                    : (dir === 'up' || dir === 'down' ? 'center' : 'nearest'));
+                focusItem(target, 'nearest', dir);
                 requestAnimationFrame(syncPosterFocusAttr);
                 return;
             }
@@ -579,7 +678,27 @@ export const useTvRemote = (enabled = true) => {
 
         const onNavigate = () => restoreTvFocusWhenReady();
 
+        const onKeyUp = (event: KeyboardEvent) => {
+            if (!isConfirmKey(event)) return;
+            clearPosterHold();
+            const held = posterHoldEl;
+            const fired = posterHoldFired;
+            posterHoldEl = null;
+            posterHoldFired = false;
+            if (!held) return;
+            event.preventDefault();
+            event.stopPropagation();
+            if (!fired) held.click();
+        };
+
+        const onFocusPosters = () => {
+            const root = document.querySelector('[data-tv-library="1"]') || document;
+            focusFirstPoster(root);
+        };
+
         window.addEventListener('keydown', onKeyDown, true);
+        window.addEventListener('keyup', onKeyUp, true);
+        window.addEventListener('smp-tv-focus-posters', onFocusPosters);
         document.addEventListener('focusin', onFocusIn, true);
         window.addEventListener('popstate', onNavigate);
         window.addEventListener(PLAYER_NAVIGATE_EVENT, onNavigate);
@@ -590,7 +709,10 @@ export const useTvRemote = (enabled = true) => {
             if (window.__SMP_HANDLE_BACK__ === handleTvBack) {
                 delete window.__SMP_HANDLE_BACK__;
             }
+            clearPosterHold();
             window.removeEventListener('keydown', onKeyDown, true);
+            window.removeEventListener('keyup', onKeyUp, true);
+            window.removeEventListener('smp-tv-focus-posters', onFocusPosters);
             document.removeEventListener('focusin', onFocusIn, true);
             window.removeEventListener('popstate', onNavigate);
             window.removeEventListener(PLAYER_NAVIGATE_EVENT, onNavigate);
