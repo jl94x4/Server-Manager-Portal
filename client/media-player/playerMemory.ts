@@ -1,5 +1,5 @@
 import { PLAYER_SCROLL_ID } from './paths';
-import type { PlayerHome } from './types';
+import type { PlayerHome, PlayerItem, PlayerItemPage } from './types';
 
 export const PLAYER_SEARCH_INPUT_ID = 'media-player-search';
 export const PLAYER_FOCUS_SEARCH_KEY = 'portal-media-player-focus-search';
@@ -208,7 +208,15 @@ export const focusPlayerSearchInput = () => {
     const input = document.getElementById(PLAYER_SEARCH_INPUT_ID) as HTMLInputElement | null;
     if (!input) return false;
     input.focus();
-    input.select();
+    // Leanback: focusing an editable input opens the IME. Keep TV focus visual-only;
+    // MediaPlayerHome arms editing on remote Select / Enter.
+    try {
+        const isTv = document.documentElement?.dataset?.tv === '1'
+            || window.__PLEX_CLIENT__?.isTv === true;
+        if (!isTv) input.select();
+    } catch {
+        input.select();
+    }
     return true;
 };
 
@@ -221,13 +229,16 @@ export const requestPlayerHomeReset = () => {
 };
 
 const PLAYER_HOME_CACHE_TTL_MS = 90_000;
+/** Still paint from disk after a cold TV launch — refresh in background. */
+const PLAYER_HOME_CACHE_MAX_AGE_MS = 30 * 60_000;
 const PLAYER_HOME_CACHE_KEY = 'portal-media-player-home-cache';
 let playerHomeCache: { at: number; data: PlayerHome } | null = null;
 
 const readPersistedHomeCache = (): { at: number; data: PlayerHome } | null => {
     if (typeof window === 'undefined') return null;
     try {
-        const raw = window.sessionStorage.getItem(PLAYER_HOME_CACHE_KEY);
+        const raw = window.localStorage.getItem(PLAYER_HOME_CACHE_KEY)
+            || window.sessionStorage.getItem(PLAYER_HOME_CACHE_KEY);
         if (!raw) return null;
         const parsed = JSON.parse(raw);
         if (!parsed?.data || !Number(parsed?.at)) return null;
@@ -239,11 +250,23 @@ const readPersistedHomeCache = (): { at: number; data: PlayerHome } | null => {
 
 const writePersistedHomeCache = (row: { at: number; data: PlayerHome }) => {
     if (typeof window === 'undefined') return;
+    const raw = JSON.stringify(row);
     try {
-        window.sessionStorage.setItem(PLAYER_HOME_CACHE_KEY, JSON.stringify(row));
+        window.localStorage.setItem(PLAYER_HOME_CACHE_KEY, raw);
     } catch {
         /* quota / private mode */
     }
+    try {
+        window.sessionStorage.setItem(PLAYER_HOME_CACHE_KEY, raw);
+    } catch {
+        /* ignore */
+    }
+};
+
+const clearPersistedHomeCache = () => {
+    if (typeof window === 'undefined') return;
+    try { window.localStorage.removeItem(PLAYER_HOME_CACHE_KEY); } catch { /* ignore */ }
+    try { window.sessionStorage.removeItem(PLAYER_HOME_CACHE_KEY); } catch { /* ignore */ }
 };
 
 export const readPlayerHomeCache = (): PlayerHome | null => {
@@ -252,11 +275,9 @@ export const readPlayerHomeCache = (): PlayerHome | null => {
         if (persisted) playerHomeCache = persisted;
     }
     if (!playerHomeCache) return null;
-    if (Date.now() - playerHomeCache.at > PLAYER_HOME_CACHE_TTL_MS * 5) {
+    if (Date.now() - playerHomeCache.at > PLAYER_HOME_CACHE_MAX_AGE_MS) {
         playerHomeCache = null;
-        if (typeof window !== 'undefined') {
-            try { window.sessionStorage.removeItem(PLAYER_HOME_CACHE_KEY); } catch { /* ignore */ }
-        }
+        clearPersistedHomeCache();
         return null;
     }
     return playerHomeCache.data;
@@ -270,6 +291,44 @@ export const writePlayerHomeCache = (data: PlayerHome) => {
 export const isPlayerHomeCacheFresh = (maxAgeMs = PLAYER_HOME_CACHE_TTL_MS) => (
     Boolean(playerHomeCache && Date.now() - playerHomeCache.at <= maxAgeMs)
 );
+
+const PLAYER_ITEM_CACHE_TTL_MS = 120_000;
+const playerItemCache = new Map<string, { at: number; data: PlayerItemPage }>();
+let pendingItemSeed: PlayerItem | null = null;
+
+/** Soft-open overview with poster metadata before the network round-trip finishes. */
+export const seedPlayerItemNav = (item: PlayerItem | null | undefined) => {
+    if (!item?.ratingKey) return;
+    pendingItemSeed = item;
+};
+
+export const takePlayerItemSeed = (ratingKey: string): PlayerItem | null => {
+    const seed = pendingItemSeed;
+    pendingItemSeed = null;
+    if (!seed || String(seed.ratingKey) !== String(ratingKey)) return null;
+    return seed;
+};
+
+export const readPlayerItemCache = (ratingKey: string): PlayerItemPage | null => {
+    const key = String(ratingKey || '');
+    if (!key) return null;
+    const row = playerItemCache.get(key);
+    if (!row) return null;
+    if (Date.now() - row.at > PLAYER_ITEM_CACHE_TTL_MS) {
+        playerItemCache.delete(key);
+        return null;
+    }
+    return row.data;
+};
+
+export const writePlayerItemCache = (ratingKey: string, data: PlayerItemPage) => {
+    const key = String(ratingKey || '');
+    if (!key || !data?.item) return;
+    playerItemCache.set(key, { at: Date.now(), data });
+    if (playerItemCache.size <= 48) return;
+    const oldest = playerItemCache.keys().next().value;
+    if (oldest && oldest !== key) playerItemCache.delete(oldest);
+};
 
 type LibraryHomePayload = {
     title?: string;
@@ -318,11 +377,50 @@ type HeroSlidesPayload = Array<{
 
 let heroSlidesCache: { at: number; data: HeroSlidesPayload } | null = null;
 const HERO_CLIENT_TTL_MS = 10 * 60_000;
+const HERO_CLIENT_MAX_AGE_MS = 45 * 60_000;
+const PLAYER_HERO_CACHE_KEY = 'portal-media-player-hero-cache';
+
+const readPersistedHeroCache = (): { at: number; data: HeroSlidesPayload } | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+        const raw = window.localStorage.getItem(PLAYER_HERO_CACHE_KEY)
+            || window.sessionStorage.getItem(PLAYER_HERO_CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed?.data) || !Number(parsed?.at)) return null;
+        return { at: Number(parsed.at), data: parsed.data as HeroSlidesPayload };
+    } catch {
+        return null;
+    }
+};
+
+const writePersistedHeroCache = (row: { at: number; data: HeroSlidesPayload }) => {
+    if (typeof window === 'undefined') return;
+    const raw = JSON.stringify(row);
+    try {
+        window.localStorage.setItem(PLAYER_HERO_CACHE_KEY, raw);
+    } catch {
+        /* quota */
+    }
+    try {
+        window.sessionStorage.setItem(PLAYER_HERO_CACHE_KEY, raw);
+    } catch {
+        /* ignore */
+    }
+};
 
 export const readHeroSlidesCache = (): HeroSlidesPayload | null => {
+    if (!heroSlidesCache) {
+        const persisted = readPersistedHeroCache();
+        if (persisted) heroSlidesCache = persisted;
+    }
     if (!heroSlidesCache) return null;
-    if (Date.now() - heroSlidesCache.at > HERO_CLIENT_TTL_MS * 3) {
+    if (Date.now() - heroSlidesCache.at > HERO_CLIENT_MAX_AGE_MS) {
         heroSlidesCache = null;
+        if (typeof window !== 'undefined') {
+            try { window.localStorage.removeItem(PLAYER_HERO_CACHE_KEY); } catch { /* ignore */ }
+            try { window.sessionStorage.removeItem(PLAYER_HERO_CACHE_KEY); } catch { /* ignore */ }
+        }
         return null;
     }
     return heroSlidesCache.data;
@@ -330,5 +428,6 @@ export const readHeroSlidesCache = (): HeroSlidesPayload | null => {
 
 export const writeHeroSlidesCache = (data: HeroSlidesPayload) => {
     heroSlidesCache = { at: Date.now(), data: Array.isArray(data) ? data : [] };
+    writePersistedHeroCache(heroSlidesCache);
 };
 

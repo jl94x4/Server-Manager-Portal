@@ -7211,7 +7211,7 @@ export { WrapUpModal } from './shared/WrapUpModal';
 
 
 export const DiscoverPosterCard: React.FC<{
-    item: { title: string; thumb?: string; thumbUrl?: string; posterFallbackUrl?: string; plexUrl: string; tags?: string[]; year?: number | string; parentTitle?: string };
+    item: { title: string; thumb?: string; thumbUrl?: string; posterFallbackUrl?: string; plexUrl: string; tags?: string[]; year?: number | string; parentTitle?: string; ratingKey?: string };
     aspect?: '2/3' | 'square' | '16/9';
     overlay?: React.ReactNode;
     variant?: 'discover' | 'home';
@@ -7229,9 +7229,10 @@ export const DiscoverPosterCard: React.FC<{
     }>;
     posterWidth?: number;
     posterHeight?: number;
+    posterQuality?: number;
     loading?: 'lazy' | 'eager';
     fetchPriority?: 'high' | 'low' | 'auto';
-}> = ({ item, aspect, overlay, variant = 'discover', className = 'w-full', footer, showQualityBadges = true, posterOnlyLink = false, onPosterClick, onPosterHover, quickActions, posterWidth = 300, posterHeight, loading, fetchPriority }) => {
+}> = ({ item, aspect, overlay, variant = 'discover', className = 'w-full', footer, showQualityBadges = true, posterOnlyLink = false, onPosterClick, onPosterHover, quickActions, posterWidth = 300, posterHeight, posterQuality, loading, fetchPriority }) => {
     const { t } = useDiscoverI18n();
     const resolvedAspect = aspect ?? (
         item?.mediaType === 'music' || item?.type === 'music' ? 'square' : '2/3'
@@ -7250,7 +7251,7 @@ export const DiscoverPosterCard: React.FC<{
     const primaryPosterSrc = item.thumbUrl
         ? resolvePortalAssetUrl(item.thumbUrl)
         : item.thumb
-            ? portalUrl(`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=${posterWidth}&height=${resolvedPosterHeight}`)
+            ? portalUrl(`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=${posterWidth}&height=${resolvedPosterHeight}${posterQuality ? `&quality=${posterQuality}` : ''}`)
             : '';
     const fallbackPosterSrc = item.posterFallbackUrl
         ? resolvePortalAssetUrl(item.posterFallbackUrl)
@@ -7279,7 +7280,10 @@ export const DiscoverPosterCard: React.FC<{
     const hasPoster = !!(primaryPosterSrc || fallbackPosterSrc);
     const hasQuickActions = Array.isArray(quickActions) && quickActions.length > 0;
     const posterInner = (
-        <div className={`${posterShell} ${resolvedAspect === 'square' ? 'aspect-square' : resolvedAspect === '16/9' ? 'aspect-video' : 'aspect-[2/3]'} w-full`}>
+        <div
+            data-tv-poster="1"
+            className={`${posterShell} ${resolvedAspect === 'square' ? 'aspect-square' : resolvedAspect === '16/9' ? 'aspect-video' : 'aspect-[2/3]'} w-full`}
+        >
             {!hasPoster ? (
                 <NoPosterPlaceholder />
             ) : (
@@ -7359,7 +7363,7 @@ export const DiscoverPosterCard: React.FC<{
     );
 
     const defaultFooter = (
-        <div className={`text-xs font-medium line-clamp-2 leading-tight text-text ${variant === 'home' ? 'text-left px-1' : 'text-center mt-1'}`}>
+        <div className={`${posterOnlyLink ? 'text-base font-semibold' : 'text-xs font-medium'} line-clamp-2 leading-snug text-text ${variant === 'home' ? 'text-left px-1' : 'text-center mt-1'}`}>
             {item.title}
         </div>
     );
@@ -7370,9 +7374,13 @@ export const DiscoverPosterCard: React.FC<{
                 type="button"
                 onClick={onPosterClick}
                 onMouseEnter={onPosterHover}
-                onFocus={onPosterHover}
+                onFocus={() => {
+                    onPosterHover?.();
+                }}
                 data-tv-item="1"
-                className="block w-full text-left border-0 p-0 bg-transparent cursor-pointer"
+                data-tv-poster-btn="1"
+                data-tv-key={item.ratingKey || undefined}
+                className="block w-full text-left border-0 p-0 bg-transparent cursor-pointer outline-none focus:outline-none"
                 style={{ color: 'inherit' }}
             >
                 {posterInner}
@@ -7392,7 +7400,7 @@ export const DiscoverPosterCard: React.FC<{
         );
 
         return (
-            <div className={`flex flex-col gap-2 group ${className}`} style={{ color: 'inherit' }}>
+            <div className={`flex flex-col gap-1.5 group outline-none ${className}`} style={{ color: 'inherit' }}>
                 {posterWrapper}
                 {footer ?? defaultFooter}
             </div>

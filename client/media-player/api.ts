@@ -2,6 +2,7 @@ import { apiErrorMessage, apiFetch, PORTAL_CSRF_HEADER, PORTAL_CSRF_VALUE } from
 import { portalUrl } from '../shared/basePath';
 import { pickTmdbPersonMatch } from '../discovery/personCredits';
 import { PLAYER_API_ROOT } from './paths';
+import { readPlayerItemCache, writePlayerItemCache, writePlayerHomeCache, isPlayerHomeCacheFresh, readPlayerHomeCache, writeHeroSlidesCache } from './playerMemory';
 import { browserPlaybackCaps } from './playerUtils';
 import type {
     PlayerHome,
@@ -20,7 +21,33 @@ import type {
 
 export const fetchMediaPlayerMe = () => apiFetch(`${PLAYER_API_ROOT}/me`) as Promise<PlayerProfile>;
 
-export const fetchMediaPlayerHome = () => apiFetch(`${PLAYER_API_ROOT}/home`) as Promise<PlayerHome>;
+let homeInflight: Promise<PlayerHome> | null = null;
+
+export const fetchMediaPlayerHome = () => {
+    if (homeInflight) return homeInflight;
+    homeInflight = (apiFetch(`${PLAYER_API_ROOT}/home`) as Promise<PlayerHome>)
+        .then((data) => {
+            writePlayerHomeCache(data);
+            return data;
+        })
+        .finally(() => {
+            homeInflight = null;
+        });
+    return homeInflight;
+};
+
+/** Kick off home (+ hero) during auth/boot so the first paint rarely waits on cold /home. */
+export const prefetchMediaPlayerHome = () => {
+    if (!(readPlayerHomeCache() && isPlayerHomeCacheFresh())) {
+        void fetchMediaPlayerHome().catch(() => undefined);
+    }
+    void fetchMediaPlayerHomeHero()
+        .then((data) => {
+            const items = data?.enabled && Array.isArray(data.items) ? data.items : [];
+            if (items.length) writeHeroSlidesCache(items);
+        })
+        .catch(() => undefined);
+};
 
 export type MediaPlayerHomeHeroPayload = {
     enabled: boolean;
@@ -126,20 +153,39 @@ export const fetchMediaPlayerCollection = (ratingKey: string, sectionKey?: strin
     return apiFetch(`${PLAYER_API_ROOT}/collection/${encodeURIComponent(ratingKey)}${qs}`) as Promise<PlayerItemPage>;
 };
 
-export const fetchMediaPlayerPlaylists = () => (
-    apiFetch(`${PLAYER_API_ROOT}/playlists`) as Promise<{ items: PlayerItem[] }>
-);
+let playlistsInflight: Promise<{ items: PlayerItem[] }> | null = null;
+let playlistsCache: { at: number; items: PlayerItem[] } | null = null;
+const PLAYLISTS_CACHE_TTL_MS = 60_000;
+
+export const fetchMediaPlayerPlaylists = (opts: { force?: boolean } = {}) => {
+    if (!opts.force && playlistsCache && Date.now() - playlistsCache.at < PLAYLISTS_CACHE_TTL_MS) {
+        return Promise.resolve({ items: playlistsCache.items });
+    }
+    if (!opts.force && playlistsInflight) return playlistsInflight;
+    playlistsInflight = apiFetch(`${PLAYER_API_ROOT}/playlists`)
+        .then((data: { items?: PlayerItem[] }) => {
+            const items = Array.isArray(data?.items) ? data.items : [];
+            playlistsCache = { at: Date.now(), items };
+            return { items };
+        })
+        .finally(() => {
+            playlistsInflight = null;
+        });
+    return playlistsInflight;
+};
 
 export const fetchMediaPlayerPlaylist = (ratingKey: string) => (
     apiFetch(`${PLAYER_API_ROOT}/playlists/${encodeURIComponent(ratingKey)}`) as Promise<PlayerItemPage>
 );
 
-export const createMediaPlayerPlaylist = (title: string, ratingKey?: string) => (
-    apiFetch(`${PLAYER_API_ROOT}/playlists`, {
+export const createMediaPlayerPlaylist = async (title: string, ratingKey?: string) => {
+    const created = await apiFetch(`${PLAYER_API_ROOT}/playlists`, {
         method: 'POST',
         body: JSON.stringify({ title, ratingKey }),
-    }) as Promise<{ item: PlayerItem }>
-);
+    }) as { item: PlayerItem };
+    playlistsCache = null;
+    return created;
+};
 
 export const addMediaPlayerPlaylistItem = (playlistKey: string, ratingKey: string) => (
     apiFetch(`${PLAYER_API_ROOT}/playlists/${encodeURIComponent(playlistKey)}/items`, {
@@ -220,15 +266,46 @@ export const fetchMediaPlayerNeighbors = (ratingKey: string) => (
     }>
 );
 
+const itemInflight = new Map<string, Promise<PlayerItemPage>>();
+
 export const fetchMediaPlayerItem = (ratingKey: string, opts: { core?: boolean } = {}) => {
+    const key = `${ratingKey}|${opts.core ? '1' : '0'}`;
+    const existing = itemInflight.get(key);
+    if (existing) return existing;
     const qs = opts.core ? '?core=1' : '';
-    return apiFetch(`${PLAYER_API_ROOT}/item/${encodeURIComponent(ratingKey)}${qs}`) as Promise<PlayerItemPage>;
+    const promise = (apiFetch(`${PLAYER_API_ROOT}/item/${encodeURIComponent(ratingKey)}${qs}`) as Promise<PlayerItemPage>)
+        .then((data) => {
+            const prev = readPlayerItemCache(ratingKey);
+            writePlayerItemCache(ratingKey, {
+                item: data.item,
+                children: data.children || [],
+                extras: data.extras?.length ? data.extras : (prev?.extras || []),
+                related: data.related?.length ? data.related : (prev?.related || []),
+                onDeck: data.onDeck !== undefined ? data.onDeck : (prev?.onDeck ?? null),
+            });
+            return data;
+        })
+        .finally(() => {
+            itemInflight.delete(key);
+        });
+    itemInflight.set(key, promise);
+    return promise;
+};
+
+/** Warm overview cache while a poster is focused (TV leanback). */
+export const prefetchMediaPlayerItem = (ratingKey: string) => {
+    const key = String(ratingKey || '').trim();
+    if (!key || !/^\d+$/.test(key)) return;
+    if (readPlayerItemCache(key)) return;
+    if (itemInflight.has(`${key}|1`) || itemInflight.has(`${key}|0`)) return;
+    void fetchMediaPlayerItem(key, { core: true }).catch(() => undefined);
 };
 
 export const fetchMediaPlayerItemMore = (ratingKey: string) => (
     apiFetch(`${PLAYER_API_ROOT}/item/${encodeURIComponent(ratingKey)}/more`) as Promise<{
         extras: PlayerItemPage['extras'];
         related: PlayerItemPage['related'];
+        onDeck?: PlayerItemPage['onDeck'];
     }>
 );
 
@@ -320,6 +397,10 @@ export const startMediaPlayerPlayback = (ratingKey: string, opts: {
 } = {}) => {
     const caps = browserPlaybackCaps();
     const isNativeApp = typeof window !== 'undefined' && !!window.__PLEX_CLIENT__;
+    const isTv = typeof window !== 'undefined' && (
+        window.__PLEX_CLIENT__?.isTv === true
+        || (typeof document !== 'undefined' && document.documentElement?.dataset?.tv === '1')
+    );
     const qs = new URLSearchParams({ client: isNativeApp ? 'android' : 'web' });
     if (opts.offsetMs != null) qs.set('offsetMs', String(opts.offsetMs));
     if (opts.qualityId && opts.qualityId !== 'auto') qs.set('qualityId', opts.qualityId);
@@ -332,8 +413,8 @@ export const startMediaPlayerPlayback = (ratingKey: string, opts: {
     if (opts.subtitleStreamId !== undefined) {
         qs.set('subtitleStreamId', String(opts.subtitleStreamId || '').replace(/\D/g, '') || '0');
     }
-    if (caps.hevc) qs.set('canPlayHevc', '1');
-    if (caps.ac3) qs.set('canPlayAc3', '1');
+    if (caps.hevc && !isTv) qs.set('canPlayHevc', '1');
+    if (caps.ac3 && !isTv) qs.set('canPlayAc3', '1');
     if (caps.hls) qs.set('canPlayNativeHls', '1');
     return apiFetch(`${PLAYER_API_ROOT}/play/${encodeURIComponent(ratingKey)}?${qs}`) as Promise<PlayerPlaySession>;
 };

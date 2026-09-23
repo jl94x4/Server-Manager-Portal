@@ -97,6 +97,9 @@ scripts/rebuild-poster-sets-*.mjs
 scripts/split-poster-sets-*.mjs
 
 # Capacitor Media Player app
+# Local tooling (portable JDKs, etc.)
+.tools/
+
 plex-client/node_modules/
 plex-client/dist/
 plex-client/android/.gradle/

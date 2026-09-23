@@ -1,9 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { Check, Eye, Play } from 'lucide-react';
 import { DiscoverPosterCard, useDiscoverI18n } from './host';
+import { prefetchMediaPlayerItem } from './api';
 import { PlayerItemMenu, type PlayerItemMenuHandle } from './PlayerItemMenu';
 import { watchedTickPositionClass } from './playerSettings';
-import { formatEpisodeCode, progressPercent, toPosterCardItem } from './playerUtils';
+import { formatEpisodeCode, PLAYER_POSTER_QUALITY, progressPercent, toPosterCardItem } from './playerUtils';
 import { usePlayerSettings } from './usePlayerSettings';
 import type { PlayerItem, PlayerPlayOptions } from './types';
 
@@ -24,6 +25,8 @@ type Props = {
     playlistsEnabled?: boolean;
     aspect?: '2/3' | 'square' | '16/9';
     className?: string;
+    /** Load this poster immediately. Later cards stay lazy so they don't clog the image queue. */
+    imagePriority?: boolean;
 };
 
 const LONG_PRESS_MS = 450;
@@ -46,6 +49,7 @@ export const PlayerPosterCard: React.FC<Props> = ({
     playlistsEnabled = true,
     aspect,
     className,
+    imagePriority = false,
 }) => {
     const { t } = useDiscoverI18n();
     const [settings] = usePlayerSettings();
@@ -96,6 +100,16 @@ export const PlayerPosterCard: React.FC<Props> = ({
     return (
         <div
             className="relative touch-manipulation select-none [-webkit-touch-callout:none]"
+            onFocusCapture={() => {
+                if (item?.ratingKey && item.type !== 'collection' && item.type !== 'playlist') {
+                    prefetchMediaPlayerItem(item.ratingKey);
+                }
+            }}
+            onPointerEnter={() => {
+                if (item?.ratingKey && item.type !== 'collection' && item.type !== 'playlist') {
+                    prefetchMediaPlayerItem(item.ratingKey);
+                }
+            }}
             onContextMenu={(event) => {
                 if (!menuEnabled) return;
                 event.preventDefault();
@@ -140,17 +154,23 @@ export const PlayerPosterCard: React.FC<Props> = ({
                 className={className}
                 item={toPosterCardItem(item)}
                 aspect={resolvedAspect}
-                posterWidth={resolvedAspect === '16/9' ? 640 : 300}
+                posterWidth={resolvedAspect === '16/9' ? 426 : resolvedAspect === 'square' ? 300 : 300}
+                posterQuality={PLAYER_POSTER_QUALITY}
+                loading={imagePriority ? 'eager' : 'lazy'}
+                fetchPriority={imagePriority ? 'high' : 'low'}
                 posterHeight={resolvedAspect === '16/9' ? 360 : undefined}
                 footer={item.type === 'episode' ? (
                     <div className="px-1 text-left">
-                        <div className="text-xs font-medium line-clamp-2 leading-tight text-text">{item.title}</div>
-                        <div className="mt-0.5 truncate text-[11px] text-muted">
-                            {[item.showTitle, episodeCode].filter(Boolean).join(' · ')}
-                        </div>
+                        <div className={`${isTvShell ? 'text-base font-semibold' : 'text-xs font-medium'} line-clamp-2 leading-snug text-text`}>{item.title}</div>
+                        {episodeCode ? (
+                            <div className={`${isTvShell ? 'text-sm' : 'text-[11px]'} mt-0.5 truncate text-muted`}>
+                                {episodeCode}
+                            </div>
+                        ) : null}
                     </div>
                 ) : undefined}
                 showQualityBadges={false}
+                posterOnlyLink={isTvShell}
                 onPosterClick={() => {
                     if (suppressClickRef.current) return;
                     onOpenItem(item);

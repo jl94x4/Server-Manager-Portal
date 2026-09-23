@@ -11,11 +11,17 @@ declare global {
             isTv?: boolean;
             nativePlayer?: boolean;
         };
+        /** Defined in plex-client/index.html — CSS-zoom to ~1920 desktop density on leanback. */
+        __SMP_APPLY_TV_SCALE__?: () => void;
+        __SMP_MARK_TV__?: () => void;
     }
 }
 
 const STORAGE_PORTAL = 'plexClient.portalBaseUrl';
 const STORAGE_TOKEN = 'plexClient.sessionToken';
+
+/** Desktop-like CSS layout width used by native TV density (MainActivity). */
+export const TV_LAYOUT_WIDTH = 1920;
 
 const trimSlash = (value: string) => String(value || '').replace(/\/+$/, '');
 
@@ -121,7 +127,7 @@ export const getSessionToken = (): string => {
     return readStoredSessionToken();
 };
 
-/** Leanback / Android TV detection — input layer only, not a separate UI density mode. */
+/** Leanback / Android TV detection — input layer; density is applied natively in MainActivity. */
 export const isAndroidTvUi = (): boolean => {
     if (typeof window === 'undefined') return false;
     if (window.__PLEX_CLIENT__?.isTv === true) return true;
@@ -151,16 +157,22 @@ const markTvUi = () => {
             ...(window.__PLEX_CLIENT__ || {}),
             isTv: true,
         };
+        document.documentElement.style.fontSize = '20px';
+        if (typeof window.__SMP_MARK_TV__ === 'function') {
+            window.__SMP_MARK_TV__();
+        } else if (typeof window.__SMP_APPLY_TV_SCALE__ === 'function') {
+            window.__SMP_APPLY_TV_SCALE__();
+        }
     } catch {
         /* ignore */
     }
 };
 
 type DeviceUiPlugin = {
-    getInfo: () => Promise<{ isTv?: boolean }>;
+    getInfo: () => Promise<{ isTv?: boolean; widthPixels?: number; heightPixels?: number; density?: number }>;
 };
 
-/** Ask native leanback detection; mark data-tv for remote layer (no layout scaling). */
+/** Ask native leanback detection, then apply TV CSS density (zoom). */
 export const detectAndApplyTvUi = async (): Promise<boolean> => {
     if (typeof window === 'undefined') return false;
     try {

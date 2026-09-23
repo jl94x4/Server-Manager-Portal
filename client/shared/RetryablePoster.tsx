@@ -32,12 +32,14 @@ export const RetryablePoster: React.FC<Props> = ({
     const [useFallback, setUseFallback] = useState(false);
     const [failed, setFailed] = useState(!src && !fallbackSrc);
     const [displaySrc, setDisplaySrc] = useState(src || fallbackSrc);
+    const [ready, setReady] = useState(false);
 
     useEffect(() => {
         setAttempt(0);
         setUseFallback(false);
         setFailed(!src && !fallbackSrc);
         setDisplaySrc(src || fallbackSrc);
+        setReady(false);
     }, [src, fallbackSrc]);
 
     if (failed || (!src && !fallbackSrc)) {
@@ -54,8 +56,10 @@ export const RetryablePoster: React.FC<Props> = ({
             loading={loading}
             {...(fetchPriority ? { fetchPriority } : {})}
             decoding="async"
-            className={className}
+            className={`${className} ${ready ? 'opacity-100' : 'opacity-0'} transition-opacity duration-75`}
+            onLoad={() => setReady(true)}
             onError={() => {
+                setReady(false);
                 if (!useFallback && fallbackSrc && fallbackSrc !== src) {
                     setUseFallback(true);
                     setAttempt(0);

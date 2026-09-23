@@ -3,6 +3,7 @@ import type { CombinedRatings } from './mediaDetailUtils';
 import { useDiscoverI18n } from './i18n';
 
 const pillLinkClass = 'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-all hover:brightness-110 hover:scale-[1.02]';
+const pillStaticClass = 'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold';
 
 const RtTomatoIcon: React.FC<{ fresh: boolean }> = ({ fresh }) => (
     <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0" aria-hidden>
@@ -36,14 +37,18 @@ type MediaRatingPillsProps = {
     ratings?: CombinedRatings | null;
     tmdbScore?: string | null;
     tmdbUrl?: string | null;
+    /** When false, show scores as static pills (no external links / focus targets). */
+    interactive?: boolean;
 };
 
 export const MediaRatingPills: React.FC<MediaRatingPillsProps> = ({
     ratings,
     tmdbScore,
     tmdbUrl,
+    interactive = true,
 }) => {
     const { t } = useDiscoverI18n();
+    const pillClass = interactive ? pillLinkClass : pillStaticClass;
     const rtCritics = Number(ratings?.rt?.criticsScore);
     const rtAudience = Number(ratings?.rt?.audienceScore);
     const imdbScore = ratings?.imdb?.criticsScore;
@@ -57,126 +62,102 @@ export const MediaRatingPills: React.FC<MediaRatingPillsProps> = ({
 
     const pills: React.ReactNode[] = [];
 
-    if (Number.isFinite(rtCritics)) {
-        const className = `${pillLinkClass} ${
-            rtCriticsFresh
-                ? 'border-green-500/30 bg-green-500/10 text-green-100'
-                : 'border-red-500/30 bg-red-500/10 text-red-100'
-        }`;
-        const content = (
-            <>
-                <RtTomatoIcon fresh={rtCriticsFresh} />
-                <span>{rtCritics}%</span>
-            </>
-        );
-        pills.push(
-            ratings?.rt?.url ? (
+    const renderPill = (
+        key: string,
+        className: string,
+        title: string,
+        content: React.ReactNode,
+        href?: string | null,
+    ) => {
+        if (interactive && href) {
+            return (
                 <a
-                    key="rt-critics"
-                    href={ratings.rt.url}
+                    key={key}
+                    href={href}
                     target="_blank"
                     rel="noopener noreferrer"
                     className={className}
-                    title={t('ratings.rottenTomatoesTomatometer')}
+                    title={title}
                 >
                     {content}
                 </a>
-            ) : (
-                <span key="rt-critics" className={className} title={t('ratings.rottenTomatoesTomatometer')}>
-                    {content}
-                </span>
-            ),
+            );
+        }
+        return (
+            <span key={key} className={className} title={title}>
+                {content}
+            </span>
         );
+    };
+
+    if (Number.isFinite(rtCritics)) {
+        pills.push(renderPill(
+            'rt-critics',
+            `${pillClass} ${
+                rtCriticsFresh
+                    ? 'border-green-500/30 bg-green-500/10 text-green-100'
+                    : 'border-red-500/30 bg-red-500/10 text-red-100'
+            }`,
+            t('ratings.rottenTomatoesTomatometer'),
+            (
+                <>
+                    <RtTomatoIcon fresh={rtCriticsFresh} />
+                    <span>{rtCritics}%</span>
+                </>
+            ),
+            ratings?.rt?.url,
+        ));
     }
 
     if (Number.isFinite(rtAudience)) {
-        const className = `${pillLinkClass} ${
-            rtAudienceFresh
-                ? 'border-green-500/30 bg-green-500/10 text-green-100'
-                : 'border-red-500/30 bg-red-500/10 text-red-100'
-        }`;
-        const content = (
-            <>
-                <RtPopcornIcon fresh={rtAudienceFresh} />
-                <span>{rtAudience}%</span>
-            </>
-        );
-        pills.push(
-            ratings?.rt?.url ? (
-                <a
-                    key="rt-audience"
-                    href={ratings.rt.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={className}
-                    title={t('ratings.rottenTomatoesAudience')}
-                >
-                    {content}
-                </a>
-            ) : (
-                <span key="rt-audience" className={className} title={t('ratings.rottenTomatoesAudience')}>
-                    {content}
-                </span>
+        pills.push(renderPill(
+            'rt-audience',
+            `${pillClass} ${
+                rtAudienceFresh
+                    ? 'border-green-500/30 bg-green-500/10 text-green-100'
+                    : 'border-red-500/30 bg-red-500/10 text-red-100'
+            }`,
+            t('ratings.rottenTomatoesAudience'),
+            (
+                <>
+                    <RtPopcornIcon fresh={rtAudienceFresh} />
+                    <span>{rtAudience}%</span>
+                </>
             ),
-        );
+            ratings?.rt?.url,
+        ));
     }
 
     if (imdbScoreLabel) {
-        const imdbClass = `${pillLinkClass} border-[#F5C518]/40 bg-[#F5C518]/15 text-white gap-2`;
-        const content = (
-            <>
-                <span className="px-1 py-0.5 rounded bg-[#F5C518] text-[10px] font-black text-black leading-none tracking-tight">
-                    IMDb
-                </span>
-                <span>{imdbScoreLabel}</span>
-            </>
-        );
-        pills.push(
-            ratings?.imdb?.url ? (
-                <a
-                    key="imdb"
-                    href={ratings.imdb.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={imdbClass}
-                    title={t('ratings.imdb')}
-                >
-                    {content}
-                </a>
-            ) : (
-                <span key="imdb" className={imdbClass} title={t('ratings.imdb')}>
-                    {content}
-                </span>
+        pills.push(renderPill(
+            'imdb',
+            `${pillClass} border-[#F5C518]/40 bg-[#F5C518]/15 text-white gap-2`,
+            t('ratings.imdb'),
+            (
+                <>
+                    <span className="px-1 py-0.5 rounded bg-[#F5C518] text-[10px] font-black text-black leading-none tracking-tight">
+                        IMDb
+                    </span>
+                    <span>{imdbScoreLabel}</span>
+                </>
             ),
-        );
+            ratings?.imdb?.url,
+        ));
     }
 
     if (tmdbScore) {
-        const tmdbClass = `${pillLinkClass} border-[#01b4e4]/35 bg-[#01b4e4]/10 text-[#b8ecf7]`;
-        const content = (
-            <>
-                <TmdbMark />
-                <span>{tmdbScore}</span>
-            </>
-        );
-        pills.push(
-            tmdbUrl ? (
-                <a
-                    key="tmdb"
-                    href={tmdbUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={tmdbClass}
-                    title={t('ratings.tmdb')}
-                >
-                    {content}
-                </a>
-            ) : (
-                <span key="tmdb" className={tmdbClass} title={t('ratings.tmdb')}>
-                    {content}
-                </span>
+        pills.push(renderPill(
+            'tmdb',
+            `${pillClass} border-[#01b4e4]/35 bg-[#01b4e4]/10 text-[#b8ecf7]`,
+            t('ratings.tmdb'),
+            (
+                <>
+                    <TmdbMark />
+                    <span>{tmdbScore}</span>
+                </>
             ),
-        );
+            tmdbUrl,
+        ));
     }
 
     if (!pills.length) return null;

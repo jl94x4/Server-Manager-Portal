@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="color-scheme" content="dark" />
   <title>SMP Media Player</title>
   <script>
@@ -12,39 +12,424 @@
       isTv: false
     };
     document.documentElement.dataset.plexClient = '1';
+
+    // Leanback WebViews report a phone-sized CSS width (~960 on 1080p). Native
+    // densityDpi does not change Chromium's layout width. Use CSS zoom (not
+    // transform:scale) so hit-testing / D-pad Select / clicks keep working.
+    (function () {
+      var TARGET = 1920;
+      var scheduled = false;
+
+      function applyTvScale() {
+        var vw = window.innerWidth || document.documentElement.clientWidth || TARGET;
+        if (vw < 2) return;
+        document.documentElement.dataset.tv = '1';
+        document.documentElement.style.fontSize = '20px';
+        // Narrow CSS viewport → zoom out so desktop density fits the screen.
+        // Very wide CSS viewport (4K 1x) → zoom toward a 1920 design width.
+        if (vw < TARGET * 0.92) {
+          document.documentElement.style.zoom = String(Math.max(0.45, Math.min(1, vw / TARGET)));
+        } else if (vw > TARGET * 1.2) {
+          document.documentElement.style.zoom = String(Math.max(0.45, Math.min(1, TARGET / vw)));
+        } else {
+          document.documentElement.style.zoom = '1';
+        }
+      }
+
+      function markTv() {
+        window.__PLEX_CLIENT__ = Object.assign({}, window.__PLEX_CLIENT__ || {}, { isTv: true });
+        document.documentElement.dataset.tv = '1';
+        document.documentElement.dataset.plexClient = '1';
+        var meta = document.querySelector('meta[name="viewport"]');
+        if (!meta) {
+          meta = document.createElement('meta');
+          meta.setAttribute('name', 'viewport');
+          document.head.appendChild(meta);
+        }
+        meta.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no');
+        applyTvScale();
+      }
+
+      function schedule() {
+        if (scheduled) return;
+        scheduled = true;
+        requestAnimationFrame(function () {
+          scheduled = false;
+          if (document.documentElement.dataset.tv === '1' || (window.__PLEX_CLIENT__ && window.__PLEX_CLIENT__.isTv)) {
+            applyTvScale();
+          }
+        });
+      }
+
+      window.__SMP_APPLY_TV_SCALE__ = applyTvScale;
+      window.__SMP_MARK_TV__ = markTv;
+      window.addEventListener('resize', schedule);
+      window.addEventListener('orientationchange', schedule);
+      document.addEventListener('DOMContentLoaded', schedule);
+
+      // Apply ASAP on leanback / TV emulator (before Capacitor DeviceUi).
+      try {
+        var ua = navigator.userAgent || '';
+        var noTouch = typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints === 0;
+        var large = Math.max(window.screen && window.screen.width || 0, window.screen && window.screen.height || 0) >= 720;
+        if (
+          (/Android/i.test(ua) && /TV|BRAVIA|AFT|GoogleTV|Android TV|SHIELD/i.test(ua))
+          || (/Android/i.test(ua) && noTouch && large)
+        ) {
+          markTv();
+        }
+      } catch (e) { /* ignore */ }
+    })();
   </script>
   <link rel="stylesheet" href="./tailwind.css" />
   <style>
     html, body, #root { height: 100%; margin: 0; background: #09090b; color: #fafafa; }
     /* TV remote: same web UI, clearer focus + no scrollbar chrome */
+    html[data-tv="1"] {
+      -webkit-tap-highlight-color: transparent;
+      font-size: 20px;
+    }
+    /* Poster / rail titles — readable at TV distance */
+    html[data-tv="1"] [data-tv-poster-btn="1"] + div {
+      font-size: 1.22rem;
+      line-height: 1.3;
+      font-weight: 600;
+    }
+    html[data-tv="1"] [data-tv-poster-btn="1"] + div .text-muted,
+    html[data-tv="1"] [data-tv-poster-btn="1"] + div [class*="text-muted"] {
+      font-size: 1.05rem;
+      font-weight: 500;
+    }
     html[data-tv="1"] body {
       -webkit-text-size-adjust: 100%;
       text-size-adjust: 100%;
     }
-    html[data-tv="1"] :focus {
+    /* Kill default / system focus chrome everywhere, then opt-in orange rings. */
+    html[data-tv="1"] :focus,
+    html[data-tv="1"] :focus-visible,
+    html[data-tv="1"] :focus-within {
+      outline: none;
+      box-shadow: none;
+    }
+    /* Nav chips, etc. — ring on the control itself (not posters / actions / cast / seasons / episodes). */
+    html[data-tv="1"] [data-tv-item="1"]:not([data-tv-nav="1"]):not([data-tv-poster-btn="1"]):not([data-tv-action="1"]):not([data-tv-cast="1"]):not([data-tv-season-poster-btn="1"]):not([data-tv-episode-btn="1"]):not([data-tv-menu-item="1"]):focus,
+    html[data-tv="1"] [data-tv-item="1"]:not([data-tv-nav="1"]):not([data-tv-poster-btn="1"]):not([data-tv-action="1"]):not([data-tv-cast="1"]):not([data-tv-season-poster-btn="1"]):not([data-tv-episode-btn="1"]):not([data-tv-menu-item="1"]):focus-visible {
       outline: 3px solid #f59e0b !important;
       outline-offset: 3px;
-    }
-    html[data-tv="1"] :focus:not(:focus-visible) {
-      outline: 3px solid #f59e0b !important;
-      outline-offset: 3px;
-    }
-    html[data-tv="1"] [data-tv-item="1"]:focus {
-      outline: 3px solid #f59e0b !important;
-      outline-offset: 4px;
       border-radius: 0.75rem;
+      box-shadow: none !important;
       z-index: 5;
     }
+    /* Side nav icons: full circle (inset — outer outline was clipped by the rail shell). */
+    html[data-tv="1"] [data-tv-nav="1"]:focus,
+    html[data-tv="1"] [data-tv-nav="1"]:focus-visible {
+      outline: none !important;
+      box-shadow: inset 0 0 0 3px #f59e0b !important;
+      border-radius: 9999px !important;
+      z-index: 5;
+    }
+    html[data-tv="1"] [data-tv-action="1"]:focus,
+    html[data-tv="1"] [data-tv-action="1"]:focus-visible {
+      outline: 3px solid #f59e0b !important;
+      outline-offset: 3px;
+      box-shadow: none !important;
+      z-index: 6;
+    }
+    html[data-tv="1"] [data-tv-menu-item="1"]:focus,
+    html[data-tv="1"] [data-tv-menu-item="1"]:focus-visible {
+      outline: none !important;
+      box-shadow: none !important;
+      background: transparent !important;
+      color: #f59e0b !important;
+    }
+    html[data-tv="1"] [data-tv-menu-item="1"]:focus svg,
+    html[data-tv="1"] [data-tv-menu-item="1"]:focus-visible svg {
+      color: #f59e0b !important;
+      stroke: #f59e0b !important;
+    }
+    /* Season posters: focus only the art button — ring on the image, never the title. */
+    html[data-tv="1"] [data-tv-season-poster-btn="1"],
+    html[data-tv="1"] [data-tv-season-poster-btn="1"]:focus,
+    html[data-tv="1"] [data-tv-season-poster-btn="1"]:focus-visible {
+      outline: none !important;
+      outline-width: 0 !important;
+      box-shadow: none !important;
+    }
+    html[data-tv="1"] [data-tv-season-poster-btn="1"]:focus [data-tv-season-art="1"],
+    html[data-tv="1"] [data-tv-season-poster-btn="1"]:focus-visible [data-tv-season-art="1"] {
+      border-color: transparent !important;
+    }
+    html[data-tv="1"] [data-tv-season-poster-btn="1"]:focus [data-tv-season-art="1"]::after,
+    html[data-tv="1"] [data-tv-season-poster-btn="1"]:focus-visible [data-tv-season-art="1"]::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 40;
+      pointer-events: none;
+      box-sizing: border-box;
+      border: 5px solid #f59e0b;
+      border-radius: inherit;
+    }
+    /* Episode thumbs: same image-only ring. */
+    html[data-tv="1"] [data-tv-episode-btn="1"],
+    html[data-tv="1"] [data-tv-episode-btn="1"]:focus,
+    html[data-tv="1"] [data-tv-episode-btn="1"]:focus-visible {
+      outline: none !important;
+      outline-width: 0 !important;
+      box-shadow: none !important;
+    }
+    html[data-tv="1"] [data-tv-episode-btn="1"]:focus [data-tv-episode-art="1"],
+    html[data-tv="1"] [data-tv-episode-btn="1"]:focus-visible [data-tv-episode-art="1"] {
+      border-color: transparent !important;
+    }
+    html[data-tv="1"] [data-tv-episode-btn="1"]:focus [data-tv-episode-art="1"]::after,
+    html[data-tv="1"] [data-tv-episode-btn="1"]:focus-visible [data-tv-episode-art="1"]::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 40;
+      pointer-events: none;
+      box-sizing: border-box;
+      border: 5px solid #f59e0b;
+      border-radius: inherit;
+    }
+    /* Cast: ring only the avatar circle — same 5px solid as home posters. */
+    html[data-tv="1"] [data-tv-cast="1"],
+    html[data-tv="1"] [data-tv-cast="1"]:focus,
+    html[data-tv="1"] [data-tv-cast="1"]:focus-visible {
+      outline: none !important;
+      box-shadow: none !important;
+    }
+    html[data-tv="1"] [data-tv-cast="1"]:focus [data-tv-cast-avatar="1"],
+    html[data-tv="1"] [data-tv-cast="1"]:focus-visible [data-tv-cast-avatar="1"] {
+      border-color: transparent !important;
+    }
+    html[data-tv="1"] [data-tv-cast="1"]:focus [data-tv-cast-avatar="1"]::after,
+    html[data-tv="1"] [data-tv-cast="1"]:focus-visible [data-tv-cast-avatar="1"]::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 40;
+      pointer-events: none;
+      box-sizing: border-box;
+      border: 5px solid #f59e0b;
+      border-radius: 9999px;
+    }
+    /*
+     * Poster cards: ring ONLY when this button is the real :focus AND marked
+     * data-tv-focused. Using either alone left sticky rings on the first item
+     * of each rail under WebView + CSS zoom.
+     */
+    html[data-tv="1"] [data-tv-poster-btn="1"],
+    html[data-tv="1"] [data-tv-poster-btn="1"]:focus,
+    html[data-tv="1"] [data-tv-poster-btn="1"]:focus-visible,
+    html[data-tv="1"] [data-tv-poster-btn="1"]:focus-within,
+    html[data-tv="1"] [data-tv-poster-btn="1"][data-tv-focused="1"] {
+      outline: none !important;
+      box-shadow: none !important;
+      border: none !important;
+      -webkit-tap-highlight-color: transparent;
+    }
+    html[data-tv="1"] [data-tv-poster-btn="1"] > [data-tv-poster="1"],
+    html[data-tv="1"] [data-tv-poster-btn="1"]:focus > [data-tv-poster="1"],
+    html[data-tv="1"] [data-tv-poster-btn="1"]:focus-visible > [data-tv-poster="1"],
+    html[data-tv="1"] .group:hover [data-tv-poster="1"],
+    html[data-tv="1"] .group:focus-within [data-tv-poster="1"] {
+      outline: none !important;
+      box-shadow: none !important;
+      border-color: transparent !important;
+    }
+    html[data-tv="1"] [data-tv-poster-btn="1"] > [data-tv-poster="1"]::after {
+      content: none !important;
+      display: none !important;
+    }
+    html[data-tv="1"] [data-tv-poster-btn="1"][data-tv-focused="1"]:focus > [data-tv-poster="1"],
+    html[data-tv="1"] [data-tv-poster-btn="1"][data-tv-focused="1"]:focus-visible > [data-tv-poster="1"] {
+      outline: none !important;
+      box-shadow: none !important;
+      border-color: transparent !important;
+      z-index: 5;
+    }
+    html[data-tv="1"] [data-tv-poster-btn="1"][data-tv-focused="1"]:focus > [data-tv-poster="1"]::after,
+    html[data-tv="1"] [data-tv-poster-btn="1"][data-tv-focused="1"]:focus-visible > [data-tv-poster="1"]::after {
+      content: "" !important;
+      display: block !important;
+      position: absolute;
+      inset: 0;
+      z-index: 40;
+      pointer-events: none;
+      box-sizing: border-box;
+      border: 5px solid #f59e0b;
+      border-radius: inherit;
+    }
     html[data-tv="1"],
-    html[data-tv="1"] * {
+    html[data-tv="1"] *,
+    html[data-tv="1"] .custom-scrollbar,
+    html[data-tv="1"] .hide-scrollbar {
       scrollbar-width: none !important;
       -ms-overflow-style: none !important;
+      scrollbar-color: transparent transparent !important;
     }
-    html[data-tv="1"] *::-webkit-scrollbar {
+    html[data-tv="1"]::-webkit-scrollbar,
+    html[data-tv="1"] *::-webkit-scrollbar,
+    html[data-tv="1"] .custom-scrollbar::-webkit-scrollbar,
+    html[data-tv="1"] .hide-scrollbar::-webkit-scrollbar {
       width: 0 !important;
       height: 0 !important;
+      max-width: 0 !important;
+      max-height: 0 !important;
       display: none !important;
+      appearance: none !important;
+      -webkit-appearance: none !important;
       background: transparent !important;
+    }
+    html[data-tv="1"] *::-webkit-scrollbar-thumb,
+    html[data-tv="1"] *::-webkit-scrollbar-track,
+    html[data-tv="1"] *::-webkit-scrollbar-corner,
+    html[data-tv="1"] .custom-scrollbar::-webkit-scrollbar-thumb,
+    html[data-tv="1"] .custom-scrollbar::-webkit-scrollbar-track {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
+    /* CSS zoom makes 100vw ≠ full content width — keep overview/home shells edge-to-edge. */
+    html[data-tv="1"] .page-bleed-x {
+      margin-left: 0 !important;
+      margin-right: 0 !important;
+      width: 100% !important;
+      max-width: none !important;
+    }
+    /* Overview backdrop: taller + focal point clear of the left poster. */
+    html[data-tv="1"] .media-details-hero-backdrop {
+      height: 100vh !important;
+      max-height: none !important;
+    }
+    html[data-tv="1"] .media-details-hero-backdrop img {
+      object-position: 72% 35% !important;
+      opacity: 0.72 !important;
+    }
+    /*
+     * Shorter bottom fade (less of the art is washed out), but darker through the
+     * mid-band where the dropped overview text sits — keeps copy readable on bright art.
+     */
+    html[data-tv="1"] .media-details-hero-scrim-bottom {
+      background: linear-gradient(
+        to top,
+        rgb(var(--color-card)) 0%,
+        rgb(var(--color-card) / 0.96) 10%,
+        rgb(var(--color-card) / 0.82) 22%,
+        rgb(var(--color-card) / 0.5) 34%,
+        transparent 48%
+      ) !important;
+    }
+    html[data-tv="1"] .media-details-hero-scrim-left {
+      background: linear-gradient(
+        to right,
+        rgb(var(--color-card) / 0.9) 0%,
+        rgb(var(--color-card) / 0.72) 26%,
+        rgb(var(--color-card) / 0.4) 52%,
+        transparent 72%
+      ) !important;
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 16%, #000 100%);
+      mask-image: linear-gradient(to bottom, transparent 0%, #000 16%, #000 100%);
+    }
+    /* Drop the hero so the backdrop reads above the poster. */
+    html[data-tv="1"] .media-details-hero-content {
+      padding-top: 5.5rem !important;
+    }
+    html[data-tv="1"] .media-details-kicker-row {
+      margin-bottom: 1.35rem !important;
+    }
+    html[data-tv="1"] .media-details-hero-row {
+      margin-top: 1.6rem !important;
+    }
+    html[data-tv="1"] .media-details-hero-poster {
+      margin-top: 0.85rem !important;
+    }
+    html[data-tv="1"] .media-details-panel {
+      gap: 0.65rem !important;
+    }
+    html[data-tv="1"] .media-details-facts {
+      gap: 0.4rem !important;
+    }
+    html[data-tv="1"] .media-details-facts .flex.flex-col.gap-3,
+    html[data-tv="1"] .media-details-facts .flex.flex-col.gap-1 {
+      gap: 0.35rem !important;
+    }
+    html[data-tv="1"] .media-details-facts .text-sm {
+      font-size: 0.95rem !important;
+      line-height: 1.35 !important;
+    }
+    html[data-tv="1"] .media-overview-summary p {
+      font-size: calc(1.12rem - 2px) !important;
+      line-height: 1.4 !important;
+    }
+    html[data-tv="1"] [data-tv-play="1"] {
+      font-size: 1.05rem !important;
+      min-height: 3.25rem !important;
+      padding-left: 1.5rem !important;
+      padding-right: 1.5rem !important;
+    }
+    html[data-tv="1"] .player-nav-label {
+      font-size: 0.95rem !important;
+    }
+    /* Season posters: TV leanback size. */
+    html[data-tv="1"] [data-tv-season-poster="1"] {
+      width: 13rem !important;
+    }
+    html[data-tv="1"] .media-details-facts-aside {
+      min-width: 0;
+      flex: 0 0 28rem !important;
+      width: 28rem !important;
+      max-width: 42% !important;
+      align-self: flex-start !important;
+    }
+    html[data-tv="1"] .media-details-seasons {
+      margin-top: 0.75rem !important;
+    }
+    /* Instant paint — rail/fade enters feel like lag on leanback. */
+    html[data-tv="1"] .player-rail-enter,
+    html[data-tv="1"] .player-nav-label,
+    html[data-tv="1"] .animate-fade-in,
+    html[data-tv="1"] .animate-slide-up,
+    html[data-tv="1"] .discover-content-enter,
+    html[data-tv="1"] .discover-poster-enter {
+      animation: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+    }
+    html[data-tv="1"] .media-details-hero-backdrop img,
+    html[data-tv="1"] .media-details-hero-poster img {
+      transition: none !important;
+    }
+    /* First-run setup — cinematic density on leanback. */
+    html[data-tv="1"] .smp-auth-shell {
+      padding-left: 5.5rem !important;
+      padding-right: 4rem !important;
+    }
+    html[data-tv="1"] .smp-auth-copy h1 {
+      font-size: 3.35rem !important;
+      line-height: 1.05 !important;
+    }
+    html[data-tv="1"] .smp-auth-pin-tile {
+      width: 4.75rem !important;
+      height: 6.25rem !important;
+      font-size: 2.7rem !important;
+    }
+    html[data-tv="1"] [data-tv-auth="1"] input[data-tv-item="1"]:focus,
+    html[data-tv="1"] [data-tv-auth="1"] input[data-tv-item="1"]:focus-visible {
+      outline: 3px solid #f59e0b !important;
+      outline-offset: 3px;
+      border-radius: 1rem;
+    }
+    html[data-tv="1"] [data-tv-home-profile="1"]:focus,
+    html[data-tv="1"] [data-tv-home-profile="1"]:focus-visible {
+      outline: 3px solid #f59e0b !important;
+      outline-offset: 3px;
+      z-index: 6;
     }
   </style>
 </head>

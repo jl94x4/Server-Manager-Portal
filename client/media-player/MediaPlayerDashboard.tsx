@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
     pushToast as appendToast,
     stripBasePath,
@@ -17,7 +17,8 @@ import { MediaPlayerStudio } from './MediaPlayerStudio';
 import { MediaPlayerSettings } from './MediaPlayerSettings';
 import { MediaPlayerVideo } from './MediaPlayerVideo';
 import { MediaPlayerNav } from './MediaPlayerNav';
-import { PLAYER_APP_BASE, PLAYER_NAVIGATE_EVENT, PLAYER_SCROLL_ID } from './paths';
+import { rememberTvFocusKey } from '../plex-client/useTvRemote';
+import { PLAYER_APP_BASE, PLAYER_NAVIGATE_EVENT, PLAYER_SCROLL_ID, PLAYER_TV_NAV_EVENT } from './paths';
 import { usePlayerSettings } from './usePlayerSettings';
 import { formatClock, shouldOfferResume } from './playerUtils';
 import {
@@ -27,8 +28,10 @@ import {
     requestPlayerHomeReset,
     requestPlayerSearchFocus,
     restorePlayerHomeScrollWhenReady,
+    seedPlayerItemNav,
     stashPlayerHomeScroll,
     writePlayerNavExpanded,
+    writePlayerScrollTop,
 } from './playerMemory';
 import type { PlayerItem, PlayerPlayOptions, PlayerPlaySession, PlayerSection } from './types';
 
@@ -122,7 +125,34 @@ export const MediaPlayerDashboard: React.FC = () => {
         return readPlayerNavExpanded();
     });
     const [keepHome, setKeepHome] = useState(() => view.kind === 'home');
+    const [tvShell, setTvShell] = useState(() => {
+        try {
+            return !!(
+                typeof window !== 'undefined'
+                && (window.__PLEX_CLIENT__?.isTv || document.documentElement?.dataset?.tv === '1')
+            );
+        } catch {
+            return false;
+        }
+    });
     const viewKindRef = useRef(view.kind);
+
+    useEffect(() => {
+        const syncTv = () => {
+            try {
+                setTvShell(!!(
+                    window.__PLEX_CLIENT__?.isTv
+                    || document.documentElement?.dataset?.tv === '1'
+                ));
+            } catch {
+                /* ignore */
+            }
+        };
+        syncTv();
+        const id = window.setInterval(syncTv, 500);
+        window.setTimeout(() => window.clearInterval(id), 4000);
+        return () => window.clearInterval(id);
+    }, []);
 
     const syncFromLocation = useCallback(() => {
         setView(readPlayerView());
@@ -139,6 +169,41 @@ export const MediaPlayerDashboard: React.FC = () => {
     }, []);
 
     useEffect(() => {
+        const onTvNav = (event: Event) => {
+            const action = (event as CustomEvent<{ action?: string }>).detail?.action;
+            if (action === 'open') {
+                setNavExpanded(true);
+                try {
+                    document.documentElement.dataset.tvNavOpen = '1';
+                } catch {
+                    /* ignore */
+                }
+                return;
+            }
+            if (action === 'close') {
+                setNavExpanded(false);
+                try {
+                    delete document.documentElement.dataset.tvNavOpen;
+                } catch {
+                    /* ignore */
+                }
+            }
+        };
+        window.addEventListener(PLAYER_TV_NAV_EVENT, onTvNav);
+        return () => window.removeEventListener(PLAYER_TV_NAV_EVENT, onTvNav);
+    }, []);
+
+    const viewKey = (
+        view.kind === 'item' ? `item:${view.ratingKey}`
+        : view.kind === 'person' ? `person:${view.actorId}`
+        : view.kind === 'studio' ? `studio:${view.studioKey}`
+        : view.kind === 'library' ? `library:${view.sectionKey}:${view.tab}`
+        : view.kind === 'collection' ? `collection:${view.sectionKey}:${view.ratingKey}`
+        : view.kind === 'playlist' ? `playlist:${view.ratingKey}`
+        : view.kind
+    );
+
+    useEffect(() => {
         const previous = viewKindRef.current;
         viewKindRef.current = view.kind;
         if (view.kind === 'home') setKeepHome(true);
@@ -146,6 +211,11 @@ export const MediaPlayerDashboard: React.FC = () => {
         if (view.kind !== 'home' || previous === 'home') return undefined;
         return restorePlayerHomeScrollWhenReady();
     }, [view.kind]);
+
+    useLayoutEffect(() => {
+        if (view.kind === 'home') return;
+        writePlayerScrollTop(0);
+    }, [view.kind, viewKey]);
 
     useEffect(() => {
         window.addEventListener('popstate', syncFromLocation);
@@ -201,6 +271,7 @@ export const MediaPlayerDashboard: React.FC = () => {
 
     const openItem = useCallback((item: PlayerItem) => {
         if (!item?.ratingKey) return;
+        rememberTvFocusKey(item.ratingKey);
         if (item.type === 'collection') {
             const section = String(item.librarySectionID || '').trim();
             if (section) {
@@ -214,6 +285,7 @@ export const MediaPlayerDashboard: React.FC = () => {
             navigate(`${PLAYER_APP_BASE}/playlist/${encodeURIComponent(item.ratingKey)}`);
             return;
         }
+        seedPlayerItemNav(item);
         navigate(`${PLAYER_APP_BASE}/item/${encodeURIComponent(item.ratingKey)}`);
     }, [navigate]);
 
@@ -322,6 +394,15 @@ export const MediaPlayerDashboard: React.FC = () => {
         await startPlayback(item, opts);
     }, [navigate, startPlayback, t]);
 
+    useEffect(() => {
+        if (!pendingResume) return undefined;
+        const id = window.setTimeout(() => {
+            const btn = document.querySelector<HTMLElement>('[data-tv-resume-primary="1"]');
+            btn?.focus();
+        }, 40);
+        return () => window.clearTimeout(id);
+    }, [pendingResume]);
+
     const openSettings = useCallback(() => navigate(`${PLAYER_APP_BASE}/settings`), [navigate]);
     const toggleNavExpanded = useCallback(() => {
         setNavExpanded((current) => {
@@ -356,9 +437,7 @@ export const MediaPlayerDashboard: React.FC = () => {
             <div
                 id={PLAYER_SCROLL_ID}
                 className={`min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-clip px-4 py-4 md:py-6 md:pr-6 ${
-                    typeof document !== 'undefined' && document.documentElement?.dataset?.tv === '1'
-                        ? 'hide-scrollbar'
-                        : 'custom-scrollbar'
+                    tvShell ? 'hide-scrollbar' : 'custom-scrollbar'
                 } ${
                     navExpanded ? 'md:pl-[18.25rem]' : 'md:pl-[6.5rem]'
                 } ${playSession ? 'pb-36' : ''}`}
@@ -426,6 +505,10 @@ export const MediaPlayerDashboard: React.FC = () => {
                     onOpenPerson={openPerson}
                     onOpenStudio={openStudio}
                     onPlay={playItem}
+                    onPlayNext={enqueuePlayNext}
+                    onToast={notify}
+                    isAdmin={isAdmin}
+                    playlistsEnabled={settings.showPlaylists}
                     playing={startingPlay}
                     playbackActive={Boolean(playSession)}
                 />
@@ -452,16 +535,24 @@ export const MediaPlayerDashboard: React.FC = () => {
                 />
             ) : null}
             {pendingResume ? (
-                <div className="fixed inset-0 z-[3500] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">
+                <div
+                    className="fixed inset-0 z-[3500] flex items-center justify-center bg-black/70 p-4"
+                    role="dialog"
+                    aria-modal="true"
+                    data-tv-resume-dialog="1"
+                >
                     <div className="w-full max-w-md rounded-2xl border border-white/10 bg-card p-5 shadow-2xl">
                         <p className="text-xs font-black uppercase tracking-widest text-muted">{t('mediaPlayerPage.resumeTitle')}</p>
                         <h2 className="mt-2 text-lg font-bold text-text">{pendingResume.item.title}</h2>
                         <p className="mt-1 text-sm text-muted">
                             {t('mediaPlayerPage.resumeFrom', { time: formatClock(pendingResume.offsetMs) })}
                         </p>
-                        <div className="mt-5 flex flex-wrap gap-2">
+                        <div className="mt-5 flex flex-wrap gap-2" data-tv-rail="1">
                             <button
                                 type="button"
+                                data-tv-item="1"
+                                data-tv-action="1"
+                                data-tv-resume-primary="1"
                                 onClick={() => void startPlayback(pendingResume.item, {
                                     offsetMs: pendingResume.offsetMs,
                                     mediaIndex: pendingResume.mediaIndex,
@@ -469,12 +560,14 @@ export const MediaPlayerDashboard: React.FC = () => {
                                     subtitleStreamId: pendingResume.subtitleStreamId,
                                     skipResume: true,
                                 })}
-                                className="rounded-xl bg-plex px-4 py-2.5 text-sm font-black text-black"
+                                className="rounded-xl bg-plex px-4 py-2.5 text-sm font-black text-black outline-none"
                             >
                                 {t('mediaPlayerPage.resume')}
                             </button>
                             <button
                                 type="button"
+                                data-tv-item="1"
+                                data-tv-action="1"
                                 onClick={() => void startPlayback(pendingResume.item, {
                                     offsetMs: 0,
                                     mediaIndex: pendingResume.mediaIndex,
@@ -482,14 +575,16 @@ export const MediaPlayerDashboard: React.FC = () => {
                                     subtitleStreamId: pendingResume.subtitleStreamId,
                                     skipResume: true,
                                 })}
-                                className="rounded-xl border border-border bg-white/5 px-4 py-2.5 text-sm font-bold text-text"
+                                className="rounded-xl border border-border bg-white/5 px-4 py-2.5 text-sm font-bold text-text outline-none"
                             >
                                 {t('mediaPlayerPage.startOver')}
                             </button>
                             <button
                                 type="button"
+                                data-tv-item="1"
+                                data-tv-action="1"
                                 onClick={() => setPendingResume(null)}
-                                className="rounded-xl px-4 py-2.5 text-sm font-bold text-muted hover:text-text"
+                                className="rounded-xl px-4 py-2.5 text-sm font-bold text-muted hover:text-text outline-none"
                             >
                                 {t('common.close')}
                             </button>

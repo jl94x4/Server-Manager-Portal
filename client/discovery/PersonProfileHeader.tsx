@@ -95,6 +95,8 @@ export const PersonProfileHeader: React.FC<Props> = ({
                     {bioHasMore ? (
                         <button
                             type="button"
+                            data-tv-item="1"
+                            data-tv-action="1"
                             onClick={() => setBioExpanded((expanded) => !expanded)}
                             className="inline-flex items-center gap-1.5 text-sm font-bold text-plex hover:text-plex-hover transition-colors w-fit"
                         >

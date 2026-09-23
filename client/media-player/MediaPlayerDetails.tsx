@@ -14,6 +14,7 @@ import { addMediaPlayerPlaylistItem, createMediaPlayerPlaylist, fetchMediaPlayer
 import { MediaPlayerMediaInfo } from './MediaPlayerMediaInfo';
 import { MediaPlayerThemeTune } from './MediaPlayerThemeTune';
 import { EpisodeNeighbors, OverviewFacts, OverviewGenres, OverviewLinks, OverviewSummary } from './MediaPlayerOverview';
+import { PlayerItemMenu } from './PlayerItemMenu';
 import { PlayerRail } from './PlayerRail';
 import { watchedTickPositionClass } from './playerSettings';
 import { usePlayerSettings } from './usePlayerSettings';
@@ -29,7 +30,7 @@ import {
     progressPercent,
     titleCaseProfile,
 } from './playerUtils';
-import { writePlayerScrollTop } from './playerMemory';
+import { writePlayerScrollTop, readPlayerItemCache, takePlayerItemSeed, writePlayerItemCache } from './playerMemory';
 import type { PlayerItem, PlayerLibraryHub, PlayerMediaPartInfo, PlayerPlayOptions, PlayerRatings } from './types';
 
 type Props = {
@@ -39,6 +40,10 @@ type Props = {
     onOpenPerson: (person: { id: string; name: string; thumb?: string | null }) => void;
     onOpenStudio: (studio: { key: string; name: string; sectionKey?: string; mediaType?: 'movie' | 'show' }) => void;
     onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
+    onPlayNext?: (item: PlayerItem) => void;
+    onToast?: (message: string, type?: 'success' | 'error' | 'info') => void;
+    isAdmin?: boolean;
+    playlistsEnabled?: boolean;
     playing?: boolean;
     playbackActive?: boolean;
 };
@@ -55,9 +60,12 @@ const CastAvatar: React.FC<{ name: string; thumb?: string | null }> = ({ name, t
     useEffect(() => {
         setFailed(false);
     }, [thumb]);
-    const src = thumb && !failed ? plexImageUrl(thumb, 400, 400) : '';
+    const src = thumb && !failed ? plexImageUrl(thumb, 240, 240, { quality: 60 }) : '';
     return (
-        <div className="w-36 h-36 rounded-full bg-white/5 border-2 border-border overflow-hidden transition-transform group-hover:scale-[1.03] group-hover:border-plex">
+        <div
+            data-tv-cast-avatar="1"
+            className="relative w-36 h-36 rounded-full bg-white/5 border-2 border-border overflow-hidden transition-transform group-hover:scale-[1.03] group-hover:border-plex"
+        >
             {src ? (
                 <img
                     src={src}
@@ -82,6 +90,34 @@ const typeLabel = (type: string) => {
     if (type === 'episode') return 'episode';
     return type;
 };
+
+const hasDetailsHero = (row?: PlayerItem | null) => Boolean(
+    String(row?.thumb || '').trim() || String(row?.art || '').trim(),
+);
+
+const DetailsHeroSkeleton: React.FC<{ label: string }> = ({ label }) => (
+    <div className="animate-fade-in" aria-busy="true" aria-live="polite">
+        <span className="sr-only">{label}</span>
+        <div className="flex flex-col md:flex-row gap-5 md:gap-6 lg:gap-10" aria-hidden="true">
+            <div className="aspect-[2/3] w-[50%] max-w-[14.4rem] sm:max-w-[16.8rem] md:w-[19.2rem] lg:w-[21.6rem] flex-shrink-0 overflow-hidden rounded-3xl border border-white/10 bg-white/5 animate-pulse" />
+            <div className="flex-1 min-w-0 flex flex-col gap-4 justify-end pb-2">
+                <div className="h-3 w-20 rounded bg-white/10 animate-pulse" />
+                <div className="h-10 w-2/3 max-w-md rounded-lg bg-white/10 animate-pulse" />
+                <div className="h-4 w-24 rounded bg-white/10 animate-pulse" />
+                <div className="space-y-2 max-w-xl">
+                    <div className="h-4 w-full rounded bg-white/10 animate-pulse" />
+                    <div className="h-4 w-5/6 rounded bg-white/10 animate-pulse" />
+                    <div className="h-4 w-2/3 rounded bg-white/10 animate-pulse" />
+                </div>
+                <div className="flex gap-2 mt-1">
+                    <div className="h-11 w-28 rounded-xl bg-white/10 animate-pulse" />
+                    <div className="h-11 w-11 rounded-xl bg-white/10 animate-pulse" />
+                    <div className="h-11 w-11 rounded-xl bg-white/10 animate-pulse" />
+                </div>
+            </div>
+        </div>
+    </div>
+);
 
 const toCombinedRatings = (ratings?: PlayerRatings | null): CombinedRatings | null => {
     if (!ratings) return null;
@@ -116,17 +152,30 @@ const touchTargetBlocksEpisodeSwipe = (target: EventTarget | null) => {
     ));
 };
 
-export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenItem, onOpenPerson, onOpenStudio, onPlay, playing = false, playbackActive = false }) => {
+export const MediaPlayerDetails: React.FC<Props> = ({
+    ratingKey,
+    onBack,
+    onOpenItem,
+    onOpenPerson,
+    onOpenStudio,
+    onPlay,
+    onPlayNext,
+    onToast,
+    isAdmin = false,
+    playlistsEnabled = true,
+    playing = false,
+    playbackActive = false,
+}) => {
     const { t } = useDiscoverI18n();
     const [settings] = usePlayerSettings();
     const [gridSize] = useDiscoverGridSize();
-    const [item, setItem] = useState<PlayerItem | null>(null);
-    const [children, setChildren] = useState<PlayerItem[]>([]);
-    const [extras, setExtras] = useState<PlayerItem[]>([]);
-    const [related, setRelated] = useState<PlayerLibraryHub[]>([]);
-    const [onDeck, setOnDeck] = useState<PlayerItem | null>(null);
+    const [item, setItem] = useState<PlayerItem | null>(() => readPlayerItemCache(ratingKey)?.item ?? null);
+    const [children, setChildren] = useState<PlayerItem[]>(() => readPlayerItemCache(ratingKey)?.children || []);
+    const [extras, setExtras] = useState<PlayerItem[]>(() => readPlayerItemCache(ratingKey)?.extras || []);
+    const [related, setRelated] = useState<PlayerLibraryHub[]>(() => readPlayerItemCache(ratingKey)?.related || []);
+    const [onDeck, setOnDeck] = useState<PlayerItem | null>(() => readPlayerItemCache(ratingKey)?.onDeck ?? null);
     const [neighbors, setNeighbors] = useState<{ previous: PlayerItem | null; next: PlayerItem | null }>({ previous: null, next: null });
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(() => !readPlayerItemCache(ratingKey)?.item);
     const [error, setError] = useState<string | null>(null);
     const [posterFailed, setPosterFailed] = useState(false);
     const [backdropFailed, setBackdropFailed] = useState(false);
@@ -146,21 +195,38 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
     const episodeSwipeRef = useRef<{ x: number; y: number } | null>(null);
     const neighborsRef = useRef(neighbors);
     neighborsRef.current = neighbors;
+    const isTvShell = typeof document !== 'undefined' && (
+        document.documentElement?.dataset?.tv === '1'
+        || window.__PLEX_CLIENT__?.isTv === true
+    );
 
     useLayoutEffect(() => {
         writePlayerScrollTop(0);
-    }, [ratingKey]);
-
-    useEffect(() => {
-        let cancelled = false;
-        // Drop the previous title immediately so old art never lingers under a veil.
-        setItem(null);
-        setChildren([]);
-        setExtras([]);
-        setRelated([]);
-        setOnDeck(null);
+        const cached = readPlayerItemCache(ratingKey);
+        const seed = takePlayerItemSeed(ratingKey);
+        if (cached?.item) {
+            setItem(cached.item);
+            setChildren(cached.children || []);
+            setExtras(cached.extras || []);
+            setRelated(cached.related || []);
+            setOnDeck(cached.onDeck ?? null);
+            setLoading(false);
+        } else if (seed && hasDetailsHero(seed)) {
+            setItem(seed);
+            setChildren([]);
+            setExtras([]);
+            setRelated([]);
+            setOnDeck(null);
+            setLoading(true);
+        } else {
+            setItem(null);
+            setChildren([]);
+            setExtras([]);
+            setRelated([]);
+            setOnDeck(null);
+            setLoading(true);
+        }
         setNeighbors({ previous: null, next: null });
-        setLoading(true);
         setError(null);
         setPosterFailed(false);
         setBackdropFailed(false);
@@ -175,24 +241,44 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
         setSubtitleStreamId('');
         setPlaylistOpen(false);
         setPlaylistMessage('');
-        // Core first (title + seasons/episodes + on-deck). Kick off extras/related in
-        // parallel so they are ready soon after paint without blocking the spinner.
+    }, [ratingKey]);
+
+    useEffect(() => {
+        const onOverlayClose = () => {
+            setPlaylistOpen(false);
+            setMediaInfoOpen(false);
+        };
+        window.addEventListener('smp-tv-overlay-close', onOverlayClose);
+        return () => window.removeEventListener('smp-tv-overlay-close', onOverlayClose);
+    }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+        // Core first (title + seasons/episodes). Extras/related/on-deck land via /more.
         const morePromise = fetchMediaPlayerItemMore(ratingKey).catch(() => null);
         fetchMediaPlayerItem(ratingKey, { core: true })
             .then((data) => {
                 if (cancelled) return false;
                 setItem(data.item);
                 setChildren(data.children || []);
-                setExtras(data.extras || []);
-                setRelated(data.related || []);
-                setOnDeck(data.onDeck || null);
+                if (data.extras?.length) setExtras(data.extras);
+                if (data.related?.length) setRelated(data.related);
+                if (data.onDeck) setOnDeck(data.onDeck);
                 setError(null);
                 setLoading(false);
                 return true;
             })
             .catch((err) => {
                 if (cancelled) return false;
-                setError(String(err?.message || t('mediaPlayerPage.loadError')));
+                let kept = false;
+                setItem((prev) => {
+                    if (prev && String(prev.ratingKey) === String(ratingKey)) {
+                        kept = true;
+                        return prev;
+                    }
+                    return null;
+                });
+                if (!kept) setError(String(err?.message || t('mediaPlayerPage.loadError')));
                 setLoading(false);
                 return false;
             })
@@ -202,9 +288,20 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                 if (cancelled || !more) return;
                 setExtras(more.extras || []);
                 setRelated(more.related || []);
+                if (more.onDeck !== undefined) setOnDeck(more.onDeck || null);
+                const prev = readPlayerItemCache(ratingKey);
+                if (prev?.item) {
+                    writePlayerItemCache(ratingKey, {
+                        ...prev,
+                        extras: more.extras || [],
+                        related: more.related || [],
+                        onDeck: more.onDeck !== undefined ? more.onDeck : prev.onDeck,
+                    });
+                }
             });
         return () => { cancelled = true; };
-    }, [ratingKey, t]);
+        // Intentionally omit `t` — unstable translate refs must not restart the fetch loop.
+    }, [ratingKey]);
 
     useEffect(() => {
         if (!item || item.type !== 'episode') {
@@ -236,7 +333,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                 if (!cancelled) setPlaylists([]);
             });
         return () => { cancelled = true; };
-    }, [ratingKey, settings.showPlaylists]);
+    }, [settings.showPlaylists]);
 
     useEffect(() => {
         if (!item || item.ratingKey !== ratingKey) return undefined;
@@ -317,16 +414,29 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
 
     useEffect(() => {
         setPosterReady(false);
+        setPosterFailed(false);
         setBackdropReady(false);
+        setBackdropFailed(false);
     }, [item?.ratingKey, item?.thumb, item?.art]);
 
-    if (loading && !item) {
-        return (
-            <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-muted animate-fade-in">
-                <Loader2 className="h-8 w-8 animate-spin text-plex" />
-                <span className="text-sm font-bold">{t('mediaPlayerPage.loading')}</span>
-            </div>
-        );
+    useEffect(() => {
+        if (!isTvShell || !item?.canPlay) return undefined;
+        let tries = 12;
+        const tick = () => {
+            const play = document.querySelector<HTMLElement>('[data-tv-play="1"]');
+            if (play) {
+                play.focus({ preventScroll: true });
+                return;
+            }
+            if (tries-- <= 0) return;
+            window.setTimeout(tick, 40);
+        };
+        const id = window.requestAnimationFrame(tick);
+        return () => window.cancelAnimationFrame(id);
+    }, [isTvShell, item?.ratingKey, item?.canPlay]);
+
+    if (loading && !hasDetailsHero(item)) {
+        return <DetailsHeroSkeleton label={t('mediaPlayerPage.loading')} />;
     }
 
     if (error || !item) {
@@ -341,10 +451,17 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
         );
     }
 
-    const posterUrl = plexImageUrl(item.thumb, item.type === 'episode' ? 960 : 720, item.type === 'episode' ? 540 : 1080);
+    const posterUrl = plexImageUrl(
+        item.thumb,
+        item.type === 'episode' ? 640 : 480,
+        item.type === 'episode' ? 360 : 720,
+        { quality: 70 },
+    );
     const backdropUrl = plexBackdropUrl(item.art || item.thumb);
     const logoUrl = plexLogoUrl(item.logo);
     const showLogo = Boolean(logoUrl) && !logoFailed && logoReady;
+    const showMissingPoster = !loading && (!posterUrl || posterFailed);
+    const showPosterPulse = !showMissingPoster && (!posterReady || posterFailed || !posterUrl);
     const isEpisodeGrid = children.some((row) => row.type === 'episode');
     const canPlay = !!item.canPlay;
     const playLabel = item.type === 'show' || item.type === 'season'
@@ -389,7 +506,16 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
         : (item.type === 'season' ? item.title : null);
     const openCrumb = (nextKey?: string | null) => {
         if (!nextKey || nextKey === item.ratingKey) return;
-        onOpenItem({ ratingKey: nextKey, title: '', type: nextKey === seasonKey ? 'season' : 'show' });
+        const nextType = nextKey === seasonKey ? 'season' : 'show';
+        onOpenItem({
+            ratingKey: nextKey,
+            title: nextType === 'season' ? (item.seasonTitle || item.title || '') : (item.showTitle || item.title || ''),
+            type: nextType,
+            thumb: item.thumb,
+            art: item.art,
+            showTitle: item.showTitle,
+            canPlay: true,
+        } as PlayerItem);
     };
     const tmdbScore = item.ratings?.tmdb?.percent != null ? `${item.ratings.tmdb.percent}%` : null;
     const posterTickClass = `${watchedTickPositionClass(
@@ -431,12 +557,19 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
         episodeSwipeRef.current = null;
     };
 
-    const titleBlock = (
-        <>
-            <div className="flex items-center gap-2 flex-wrap">
+    const typeAndGenres = (
+        <div className="media-details-kicker flex flex-wrap items-center gap-x-3 gap-y-2">
+            <div className="flex items-center gap-2">
                 {item.type === 'movie' ? <Film className="w-3.5 h-3.5 text-plex" /> : <Tv className="w-3.5 h-3.5 text-plex" />}
                 <span className="text-[10px] font-bold uppercase tracking-widest text-plex">{typeLabel(item.type)}</span>
             </div>
+            <OverviewGenres genres={genres} />
+        </div>
+    );
+
+    const titleBlock = (
+        <>
+            {isTvShell ? null : typeAndGenres}
             {showName ? (
                 showLogo ? (
                     <button
@@ -506,6 +639,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                 ratings={toCombinedRatings(item.ratings)}
                 tmdbScore={tmdbScore}
                 tmdbUrl={item.ratings?.tmdb?.url}
+                interactive={!isTvShell}
             />
         </>
     );
@@ -519,13 +653,13 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
             onTouchCancel={onEpisodeSwipeCancel}
         >
             <div className="relative isolate">
-                <div className="media-details-hero-backdrop absolute inset-x-0 top-0 h-[34rem] max-h-[72vh] sm:h-[36rem] md:h-[min(72vh,52rem)] md:max-h-none overflow-hidden pointer-events-none" aria-hidden>
+                <div className="media-details-hero-backdrop absolute inset-x-0 top-0 h-[50rem] max-h-[92vh] sm:h-[52rem] md:h-[min(100vh,76rem)] md:max-h-none overflow-hidden pointer-events-none" aria-hidden>
                     {backdropUrl && !backdropFailed ? (
                         <img
                             key={backdropUrl}
                             src={backdropUrl}
                             alt=""
-                            className={`absolute inset-0 w-full h-full object-cover object-[28%_30%] transition-opacity duration-700 ease-out md:object-[20%_28%] ${
+                            className={`absolute inset-0 w-full h-full object-cover object-[55%_30%] transition-opacity duration-700 ease-out md:object-[62%_28%] ${
                                 backdropReady ? 'opacity-45 md:opacity-90' : 'opacity-0'
                             }`}
                             fetchPriority="high"
@@ -537,45 +671,100 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                         <div className="absolute inset-0 bg-black" />
                     )}
                     <div className="media-details-hero-scrim-mobile absolute inset-0 bg-gradient-to-b from-black/50 via-card/65 via-[55%] to-card md:hidden" />
-                    <div className="media-details-hero-scrim-bottom absolute inset-0 hidden md:block bg-gradient-to-t from-card from-0% via-card/80 via-[38%] to-transparent" />
-                    <div className="media-details-hero-scrim-left absolute inset-0 hidden md:block bg-gradient-to-r from-card from-0% via-card/80 via-[42%] to-transparent to-[90%]" />
+                    <div className="media-details-hero-scrim-bottom absolute inset-0 hidden md:block bg-gradient-to-t from-card from-0% via-card/65 via-[8%] to-transparent to-[36%]" />
+                    <div className="media-details-hero-scrim-left absolute inset-0 hidden md:block bg-gradient-to-r from-card from-0% via-card/70 via-[28%] to-transparent to-[72%]" />
                 </div>
 
-                <div className={`relative z-10 w-full max-w-[2400px] mx-auto page-x sm:px-8 xl:px-12 pt-4 sm:pt-5 ${children.length ? 'pb-5' : 'pb-8'}`}>
-                    <button
-                        type="button"
-                        onClick={onBack}
-                        className="light-on-media mb-4 md:mb-6 inline-flex items-center gap-2 text-white/90 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-full backdrop-blur-md border border-white/10 hover:border-white/20 hover:bg-black/65"
-                    >
-                        <ArrowLeft className="w-5 h-5" />
-                        <span className="font-bold text-sm">{t('mediaPlayerPage.back')}</span>
-                    </button>
+                <div className={`media-details-hero-content relative z-10 w-full max-w-[2400px] mx-auto page-x sm:px-8 xl:px-12 pt-2 sm:pt-3 md:pt-2 ${children.length ? 'pb-5' : 'pb-8'}`}>
+                    {!isTvShell ? (
+                        <button
+                            type="button"
+                            onClick={onBack}
+                            className="light-on-media mb-2 md:mb-3 inline-flex items-center gap-2 text-white/90 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-full backdrop-blur-md border border-white/10 hover:border-white/20 hover:bg-black/65"
+                        >
+                            <ArrowLeft className="w-5 h-5" />
+                            <span className="font-bold text-sm">{t('mediaPlayerPage.back')}</span>
+                        </button>
+                    ) : null}
 
-                    <div className="flex flex-col md:flex-row gap-5 md:gap-6 lg:gap-10">
-                        <div className={`w-full flex-shrink-0 flex flex-col gap-3 ${item.type === 'episode' ? 'md:w-96 lg:w-[28rem]' : 'md:w-64 lg:w-72'}`}>
+                    {isTvShell && (item.type === 'episode' || item.type === 'season') ? (
+                        <div className="mb-3 flex flex-wrap items-center gap-2" data-tv-rail="1">
+                            {item.type === 'episode' && item.grandparentRatingKey ? (
+                                <button
+                                    type="button"
+                                    data-tv-item="1"
+                                    data-tv-action="1"
+                                    onClick={() => onOpenItem({ ratingKey: String(item.grandparentRatingKey), type: 'show', title: item.showTitle || '', thumb: item.thumb, art: item.art, canPlay: true } as PlayerItem)}
+                                    className="light-on-media inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/50 px-4 py-2 text-sm font-bold text-white/90 backdrop-blur-md transition-colors hover:bg-black/65 focus:border-plex focus:text-white"
+                                >
+                                    <ArrowLeft className="h-4 w-4" />
+                                    <span className="max-w-[24rem] truncate">{item.showTitle || t('mediaPlayerPage.back')}</span>
+                                </button>
+                            ) : null}
+                            {item.type === 'episode' && item.parentRatingKey ? (
+                                <button
+                                    type="button"
+                                    data-tv-item="1"
+                                    data-tv-action="1"
+                                    onClick={() => onOpenItem({ ratingKey: String(item.parentRatingKey), type: 'season', title: item.seasonTitle || '', thumb: item.thumb, art: item.art, showTitle: item.showTitle, canPlay: true } as PlayerItem)}
+                                    className="light-on-media inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/50 px-4 py-2 text-sm font-bold text-white/90 backdrop-blur-md transition-colors hover:bg-black/65 focus:border-plex focus:text-white"
+                                >
+                                    <span className="max-w-[16rem] truncate">
+                                        {item.seasonTitle || (item.parentIndex != null ? `Season ${item.parentIndex}` : t('mediaPlayerPage.seasons'))}
+                                    </span>
+                                </button>
+                            ) : null}
+                            {item.type === 'season' && item.parentRatingKey ? (
+                                <button
+                                    type="button"
+                                    data-tv-item="1"
+                                    data-tv-action="1"
+                                    onClick={() => onOpenItem({ ratingKey: String(item.parentRatingKey), type: 'show', title: item.showTitle || '', thumb: item.thumb, art: item.art, canPlay: true } as PlayerItem)}
+                                    className="light-on-media inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/50 px-4 py-2 text-sm font-bold text-white/90 backdrop-blur-md transition-colors hover:bg-black/65 focus:border-plex focus:text-white"
+                                >
+                                    <ArrowLeft className="h-4 w-4" />
+                                    <span className="max-w-[24rem] truncate">{item.showTitle || t('mediaPlayerPage.back')}</span>
+                                </button>
+                            ) : null}
+                        </div>
+                    ) : null}
+
+                    {isTvShell ? (
+                        <div className="media-details-kicker-row mb-4">
+                            {typeAndGenres}
+                        </div>
+                    ) : null}
+
+                    <div className="media-details-hero-row flex flex-col md:flex-row gap-5 md:gap-6 lg:gap-10">
+                        <div className={`media-details-hero-poster w-full flex-shrink-0 flex flex-col gap-3 md:-mt-3 lg:-mt-4 ${item.type === 'episode' ? 'md:w-[28.8rem] lg:w-[33.6rem]' : 'md:w-[19.2rem] lg:w-[21.6rem]'}`}>
                             <div className={`flex flex-row md:flex-col gap-4 ${item.type === 'episode' ? 'items-start' : 'items-stretch'}`}>
                                 <div
                                     className={
                                         item.type === 'episode'
-                                            ? 'group relative aspect-video w-[min(58%,14.5rem)] sm:w-full sm:max-w-[18rem] md:max-w-none flex-shrink-0 overflow-hidden rounded-xl border border-white/15 bg-black/50 shadow-[0_20px_60px_rgba(0,0,0,0.55)] ring-1 ring-white/10'
-                                            : 'group relative aspect-[2/3] w-[42%] max-w-[12rem] sm:max-w-[14rem] md:w-full md:max-w-none flex-shrink-0 overflow-hidden rounded-xl border border-white/15 bg-black/50 shadow-[0_20px_60px_rgba(0,0,0,0.55)] ring-1 ring-white/10'
+                                            ? 'group relative aspect-video w-[min(70%,17.4rem)] sm:w-full sm:max-w-[21.6rem] md:max-w-none flex-shrink-0 overflow-hidden rounded-3xl border border-white/15 bg-black/50 shadow-[0_20px_60px_rgba(0,0,0,0.55)] ring-1 ring-white/10 outline-none'
+                                            : 'group relative aspect-[2/3] w-[50%] max-w-[14.4rem] sm:max-w-[16.8rem] md:w-full md:max-w-none flex-shrink-0 overflow-hidden rounded-3xl border border-white/15 bg-black/50 shadow-[0_20px_60px_rgba(0,0,0,0.55)] ring-1 ring-white/10 outline-none'
                                     }
                                 >
+                                    <div data-tv-poster="1" className="pointer-events-none absolute inset-0 z-[5] rounded-[inherit]" aria-hidden />
                                     <div className="absolute -inset-4 bg-plex/10 blur-3xl opacity-40 pointer-events-none" />
                                     {posterUrl && !posterFailed ? (
                                         <img
                                             key={posterUrl}
                                             src={posterUrl}
                                             alt=""
-                                            className={`relative w-full h-full object-cover transition-opacity duration-500 ease-out ${
+                                            className={`relative z-0 w-full h-full object-cover transition-opacity duration-500 ease-out ${
                                                 posterReady ? 'opacity-100' : 'opacity-0'
                                             }`}
                                             onLoad={() => setPosterReady(true)}
                                             onError={() => setPosterFailed(true)}
                                         />
-                                    ) : (
+                                    ) : null}
+                                    {showPosterPulse ? (
+                                        <div className="absolute inset-0 z-[1] animate-pulse bg-white/10" aria-hidden />
+                                    ) : null}
+                                    {showMissingPoster ? (
                                         <NoPosterPlaceholder />
-                                    )}
+                                    ) : null}
                                     {item.watched ? (
                                         <span
                                             title={t('mediaPlayerPage.watched')}
@@ -585,19 +774,21 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                         </span>
                                     ) : null}
                                     {progressPercent(item) > 0 ? (
-                                        <div className="absolute inset-x-0 bottom-0 h-1.5 bg-black/70">
+                                        <div className="absolute inset-x-0 bottom-0 z-[6] h-1.5 bg-black/70">
                                             <div className="h-full bg-plex" style={{ width: `${progressPercent(item)}%` }} />
                                         </div>
                                     ) : null}
                                     {item.themeKey && settings.playThemeTunes ? (
-                                        <MediaPlayerThemeTune
-                                            themeKey={item.themeKey}
-                                            enabled
-                                            paused={playing || playbackActive}
-                                            playLabel={t('mediaPlayerPage.playTheme')}
-                                            muteLabel={t('mediaPlayerPage.mute')}
-                                            unmuteLabel={t('mediaPlayerPage.unmute')}
-                                        />
+                                        <div className="relative z-10">
+                                            <MediaPlayerThemeTune
+                                                themeKey={item.themeKey}
+                                                enabled
+                                                paused={playing || playbackActive}
+                                                playLabel={t('mediaPlayerPage.playTheme')}
+                                                muteLabel={t('mediaPlayerPage.mute')}
+                                                unmuteLabel={t('mediaPlayerPage.unmute')}
+                                            />
+                                        </div>
                                     ) : null}
                                 </div>
                                 <div className="light-on-media flex-1 min-w-0 flex flex-col justify-end gap-2 md:hidden">
@@ -610,23 +801,38 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                             <div className="light-on-media hidden md:flex flex-col gap-2.5">
                                 {titleBlock}
                             </div>
-                            <div className="media-details-panel flex flex-col gap-5 max-w-7xl">
-                                <OverviewSummary text={item.summary || t('media.noDescription')} />
-                                <OverviewGenres genres={genres} />
+                            <div className="media-details-panel flex w-full min-w-0 flex-col gap-5">
+                                {item.summary ? (
+                                    <OverviewSummary text={item.summary} />
+                                ) : loading ? (
+                                    <div className="space-y-2 max-w-xl" aria-hidden="true">
+                                        <div className="h-4 w-full rounded bg-white/10 animate-pulse" />
+                                        <div className="h-4 w-5/6 rounded bg-white/10 animate-pulse" />
+                                        <div className="h-4 w-2/3 rounded bg-white/10 animate-pulse" />
+                                    </div>
+                                ) : (
+                                    <OverviewSummary text={t('media.noDescription')} />
+                                )}
                                 {(canPlay
                                     || (item.versions || []).length > 1
                                     || trailer
                                     || item.mediaInfo?.length
-                                    || item.type === 'movie'
-                                    || item.type === 'episode'
-                                    || item.type === 'show'
-                                    || item.type === 'season'
+                                    || (!loading && (
+                                        item.type === 'movie'
+                                        || item.type === 'episode'
+                                        || item.type === 'show'
+                                        || item.type === 'season'
+                                    ))
                                 ) ? (
                                     <div className="flex flex-col gap-2">
-                                        <div className="flex flex-wrap items-center gap-2">
+                                        <div className="relative z-20 flex flex-wrap items-center gap-2 overflow-visible" data-tv-rail="1">
                                             {canPlay ? (
                                                 <button
                                                     type="button"
+                                                    data-tv-item="1"
+                                                    data-tv-action="1"
+                                                    data-tv-play="1"
+                                                    data-tv-key={`play:${item.ratingKey}`}
                                                     onClick={() => onPlay(onDeck || item, playOpts)}
                                                     disabled={playing}
                                                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-plex px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-plex/20 transition-colors hover:bg-plex-hover disabled:cursor-not-allowed disabled:opacity-50"
@@ -644,12 +850,18 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                                             value: String(row.mediaIndex),
                                                             label: row.label,
                                                         }))}
+                                                        triggerProps={{
+                                                            'data-tv-item': '1',
+                                                            'data-tv-action': '1',
+                                                        }}
                                                     />
                                                 </div>
                                             ) : null}
                                             {trailer ? (
                                                 <button
                                                     type="button"
+                                                    data-tv-item="1"
+                                                    data-tv-action="1"
                                                     onClick={() => onPlay(trailer, { offsetMs: 0, skipResume: true })}
                                                     disabled={playing}
                                                     title={t('mediaPlayerPage.trailer')}
@@ -662,6 +874,8 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                             {item.mediaInfo?.length ? (
                                                 <button
                                                     type="button"
+                                                    data-tv-item="1"
+                                                    data-tv-action="1"
                                                     onClick={() => setMediaInfoOpen(true)}
                                                     title={t('mediaPlayerPage.mediaInfo')}
                                                     aria-label={t('mediaPlayerPage.mediaInfo')}
@@ -673,6 +887,8 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                             {item.type === 'movie' || item.type === 'episode' || item.type === 'show' || item.type === 'season' ? (
                                                 <button
                                                     type="button"
+                                                    data-tv-item="1"
+                                                    data-tv-action="1"
                                                     onClick={async () => {
                                                         const next = !item.watched;
                                                         setItem({ ...item, watched: next });
@@ -694,6 +910,8 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                                 <div className="relative">
                                                     <button
                                                         type="button"
+                                                        data-tv-item="1"
+                                                        data-tv-action="1"
                                                         onClick={() => setPlaylistOpen((open) => !open)}
                                                         title={t('mediaPlayerPage.addToPlaylist')}
                                                         aria-label={t('mediaPlayerPage.addToPlaylist')}
@@ -702,7 +920,10 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                                         <ListPlus className="h-4 w-4" />
                                                     </button>
                                                     {playlistOpen ? (
-                                                        <div className="absolute left-0 z-20 mt-2 w-64 max-h-64 overflow-y-auto rounded-xl border border-white/15 bg-black/95 p-2 shadow-2xl sm:left-auto sm:right-0">
+                                                        <div
+                                                            className="absolute left-0 z-20 mt-2 w-64 max-h-64 overflow-y-auto rounded-xl border border-white/15 bg-black/95 p-2 shadow-2xl sm:left-auto sm:right-0"
+                                                            data-tv-select-menu="1"
+                                                        >
                                                             {playlists.map((playlist) => (
                                                                 <button
                                                                     key={playlist.ratingKey}
@@ -754,13 +975,37 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                                     ) : null}
                                                 </div>
                                             ) : null}
+                                            <PlayerItemMenu
+                                                variant="toolbar"
+                                                item={item}
+                                                isAdmin={isAdmin}
+                                                playlistsEnabled={playlistsEnabled && settings.showPlaylists}
+                                                onPlayNext={onPlayNext}
+                                                onWatchedChange={(_row, watched) => setItem((prev) => (prev ? { ...prev, watched } : prev))}
+                                                onDeleted={() => onBack()}
+                                                onToast={onToast}
+                                            />
                                         </div>
                                         {settings.showPlaylists && playlistMessage ? (
                                             <p className="text-[11px] font-bold text-plex">{playlistMessage}</p>
                                         ) : null}
                                     </div>
                                 ) : null}
-                                <OverviewFacts item={item} onOpenPerson={onOpenPerson} onOpenItem={onOpenItem} onOpenStudio={onOpenStudio} />
+                                <OverviewFacts
+                                    item={item}
+                                    onOpenPerson={onOpenPerson}
+                                    onOpenItem={onOpenItem}
+                                    onOpenStudio={onOpenStudio}
+                                    aside={
+                                        factMediaType && Number.isFinite(factMediaId) && factMediaId > 0 ? (
+                                            <DiscoveryFactWidget
+                                                mediaType={factMediaType}
+                                                mediaId={factMediaId}
+                                                title={factTitle}
+                                            />
+                                        ) : null
+                                    }
+                                />
                                 <OverviewLinks item={item} />
                                 {item.type === 'episode' ? (
                                     <>
@@ -776,20 +1021,26 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                     </>
                                 ) : null}
                                 {(item.type === 'movie' || item.type === 'episode') && mediaSummary ? (
-                                    <div className="flex flex-col gap-3" data-no-episode-swipe="1">
-                                        <button
-                                            type="button"
-                                            onClick={() => setMediaInfoExpanded((open) => !open)}
-                                            className="flex w-full items-center gap-3 pr-4 text-left"
-                                            aria-expanded={mediaInfoExpanded}
-                                        >
+                                    <div className="flex flex-col gap-3" data-no-episode-swipe="1" data-tv-rail="1">
+                                        {isTvShell ? (
                                             <h3 className="text-xs font-black text-muted uppercase tracking-[0.2em]">
                                                 {t('mediaPlayerPage.mediaInfo')}
                                             </h3>
-                                            <ChevronDown className={`h-4 w-4 shrink-0 text-muted transition-transform ${mediaInfoExpanded ? 'rotate-180' : ''}`} />
-                                            <div className="h-px min-w-0 flex-1 bg-gradient-to-r from-border to-transparent" />
-                                        </button>
-                                        {mediaInfoExpanded ? (
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                onClick={() => setMediaInfoExpanded((open) => !open)}
+                                                className="flex w-full items-center gap-3 pr-4 text-left"
+                                                aria-expanded={mediaInfoExpanded}
+                                            >
+                                                <h3 className="text-xs font-black text-muted uppercase tracking-[0.2em]">
+                                                    {t('mediaPlayerPage.mediaInfo')}
+                                                </h3>
+                                                <ChevronDown className={`h-4 w-4 shrink-0 text-muted transition-transform ${mediaInfoExpanded ? 'rotate-180' : ''}`} />
+                                                <div className="h-px min-w-0 flex-1 bg-gradient-to-r from-border to-transparent" />
+                                            </button>
+                                        )}
+                                        {isTvShell || mediaInfoExpanded ? (
                                             <div className="max-w-xl rounded-2xl border border-white/10 bg-black/30 px-4 py-3">
                                                 <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-6 gap-y-2.5">
                                                     {mediaSummary.video ? (
@@ -813,6 +1064,11 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                                                         value: String(row.id),
                                                                         label: String(row.displayTitle || row.language || t('mediaPlayerPage.audio')),
                                                                     }))}
+                                                                    triggerProps={isTvShell ? {
+                                                                        'data-tv-item': '1',
+                                                                        'data-tv-action': '1',
+                                                                        'aria-label': t('mediaPlayerPage.audio'),
+                                                                    } : undefined}
                                                                 />
                                                             ) : (
                                                                 <span className="text-sm font-semibold text-text">
@@ -842,6 +1098,11 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                                                     label: String(row.displayTitle || row.language || t('mediaPlayerPage.subtitles')),
                                                                 })),
                                                             ]}
+                                                            triggerProps={isTvShell ? {
+                                                                'data-tv-item': '1',
+                                                                'data-tv-action': '1',
+                                                                'aria-label': t('mediaPlayerPage.subtitles'),
+                                                            } : undefined}
                                                         />
                                                     ) : (
                                                         <span className="text-sm font-semibold text-text">
@@ -849,7 +1110,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                                         </span>
                                                     )}
                                                 </div>
-                                                {item.mediaInfo?.length ? (
+                                                {!isTvShell && item.mediaInfo?.length ? (
                                                     <button
                                                         type="button"
                                                         onClick={() => setMediaInfoOpen(true)}
@@ -862,87 +1123,107 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                         ) : null}
                                     </div>
                                 ) : streamRows.length ? (
-                                    <div className="flex flex-col gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => setMediaInfoExpanded((open) => !open)}
-                                            className="flex w-full items-center gap-3 pr-4 text-left"
-                                            aria-expanded={mediaInfoExpanded}
-                                        >
+                                    <div className="flex flex-col gap-3" data-tv-rail={isTvShell ? '1' : undefined}>
+                                        {isTvShell ? (
                                             <h3 className="text-xs font-black text-muted uppercase tracking-[0.2em]">
                                                 {t('mediaPlayerPage.mediaInfo')}
                                             </h3>
-                                            <ChevronDown className={`h-4 w-4 shrink-0 text-muted transition-transform ${mediaInfoExpanded ? 'rotate-180' : ''}`} />
-                                            <div className="h-px min-w-0 flex-1 bg-gradient-to-r from-border to-transparent" />
-                                        </button>
-                                        {mediaInfoExpanded ? (
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                onClick={() => setMediaInfoExpanded((open) => !open)}
+                                                className="flex w-full items-center gap-3 pr-4 text-left"
+                                                aria-expanded={mediaInfoExpanded}
+                                            >
+                                                <h3 className="text-xs font-black text-muted uppercase tracking-[0.2em]">
+                                                    {t('mediaPlayerPage.mediaInfo')}
+                                                </h3>
+                                                <ChevronDown className={`h-4 w-4 shrink-0 text-muted transition-transform ${mediaInfoExpanded ? 'rotate-180' : ''}`} />
+                                                <div className="h-px min-w-0 flex-1 bg-gradient-to-r from-border to-transparent" />
+                                            </button>
+                                        )}
+                                        {isTvShell || mediaInfoExpanded ? (
                                             <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 max-w-xl">
                                                 {streamRows.map((row) => (
                                                     <React.Fragment key={row.label}>
                                                         <span className="text-xs font-black uppercase tracking-wider text-muted pt-0.5">{row.label}</span>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => item.mediaInfo?.length && setMediaInfoOpen(true)}
-                                                            className="text-left text-sm font-semibold text-text hover:text-plex"
-                                                        >
-                                                            {row.value}
-                                                        </button>
+                                                        {isTvShell ? (
+                                                            <span className="text-left text-sm font-semibold text-text">{row.value}</span>
+                                                        ) : (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => item.mediaInfo?.length && setMediaInfoOpen(true)}
+                                                                className="text-left text-sm font-semibold text-text hover:text-plex"
+                                                            >
+                                                                {row.value}
+                                                            </button>
+                                                        )}
                                                     </React.Fragment>
                                                 ))}
                                             </div>
                                         ) : null}
                                     </div>
                                 ) : null}
-                                {item.type !== 'show' && item.type !== 'season' && factMediaType && Number.isFinite(factMediaId) && factMediaId > 0 ? (
-                                    <DiscoveryFactWidget
-                                        mediaType={factMediaType}
-                                        mediaId={factMediaId}
-                                        title={factTitle}
-                                    />
-                                ) : null}
                             </div>
                         </div>
                     </div>
 
                     {children.length && !isEpisodeGrid ? (
-                    <section className="mt-6">
+                    <section className="media-details-seasons mt-6">
                         <SectionHeading>{t('mediaPlayerPage.seasons')}</SectionHeading>
-                        <div className="flex flex-wrap gap-2.5 sm:gap-3">
+                        <div className="flex flex-wrap gap-2.5 sm:gap-3" data-tv-rail="1">
                             {children.map((row) => {
                                 const leaf = Number(row.leafCount || 0);
                                 const viewed = Number(row.viewedLeafCount || 0);
                                 const seasonWatched = Boolean(row.watched) || (leaf > 0 && viewed >= leaf);
                                 return (
-                                <button
+                                <div
                                     key={row.ratingKey}
-                                    type="button"
-                                    onClick={() => onOpenItem(row)}
-                                    className="group w-[7.25rem] sm:w-[8.25rem] lg:w-[9rem] shrink-0 text-left"
+                                    className="group w-[7.25rem] sm:w-[8.25rem] lg:w-[9rem] shrink-0"
+                                    data-tv-season-poster="1"
                                 >
-                                    <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black/30">
-                                        {row.thumb ? (
-                                            <img
-                                                src={plexImageUrl(row.thumb, 400, 600)}
-                                                alt=""
-                                                className="aspect-[2/3] w-full object-cover transition-transform group-hover:scale-[1.03]"
-                                            />
-                                        ) : (
-                                            <NoPosterPlaceholder />
-                                        )}
-                                        {seasonWatched ? (
-                                            <span
-                                                title={t('mediaPlayerPage.watched')}
-                                                className={seasonTickClass}
-                                            >
-                                                <Check className="h-3.5 w-3.5 stroke-[2.5]" />
-                                            </span>
-                                        ) : null}
-                                    </div>
+                                    <button
+                                        type="button"
+                                        data-tv-item="1"
+                                        data-tv-season-poster-btn="1"
+                                        data-tv-key={row.ratingKey}
+                                        onClick={() => onOpenItem({
+                                            ...row,
+                                            thumb: row.thumb || item.thumb,
+                                            art: row.art || item.art,
+                                            showTitle: row.showTitle || item.title || item.showTitle,
+                                        })}
+                                        className="block w-full overflow-hidden rounded-xl border-0 bg-transparent p-0 text-left outline-none"
+                                        aria-label={row.title}
+                                    >
+                                        <div
+                                            data-tv-season-art="1"
+                                            className="relative overflow-hidden rounded-xl border border-white/10 bg-black/30"
+                                        >
+                                            {row.thumb || item.thumb ? (
+                                                <img
+                                                    src={plexImageUrl(row.thumb || item.thumb, 300, 450, { quality: 60 })}
+                                                    alt=""
+                                                    className="aspect-[2/3] w-full object-cover transition-transform group-hover:scale-[1.03]"
+                                                />
+                                            ) : (
+                                                <NoPosterPlaceholder />
+                                            )}
+                                            {seasonWatched ? (
+                                                <span
+                                                    title={t('mediaPlayerPage.watched')}
+                                                    className={seasonTickClass}
+                                                >
+                                                    <Check className="h-3.5 w-3.5 stroke-[2.5]" />
+                                                </span>
+                                            ) : null}
+                                        </div>
+                                    </button>
                                     <div className="mt-1.5 truncate text-xs font-bold text-text group-hover:text-plex sm:text-sm">{row.title}</div>
                                     {row.leafCount ? (
                                         <div className="text-[10px] text-muted sm:text-[11px]">{t('common.episodeCount', { count: row.leafCount })}</div>
                                     ) : null}
-                                </button>
+                                </div>
                                 );
                             })}
                         </div>
@@ -952,41 +1233,54 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                     {children.length && isEpisodeGrid ? (
                     <section className="mt-6">
                         <SectionHeading>{t('mediaPlayerPage.episodes')}</SectionHeading>
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4" data-tv-rail="1">
                             {children.map((row) => (
-                                <button
-                                    key={row.ratingKey}
-                                    type="button"
-                                    onClick={() => onOpenItem(row)}
-                                    className="group min-w-0 text-left"
-                                >
-                                    <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black/30">
-                                        {row.thumb ? (
-                                            <img
-                                                src={plexImageUrl(row.thumb, 640, 360)}
-                                                alt=""
-                                                className="aspect-video w-full object-cover transition-transform group-hover:scale-[1.03]"
-                                            />
-                                        ) : (
-                                            <div className="flex aspect-video items-center justify-center text-[10px] font-bold uppercase tracking-widest text-muted">
-                                                {t('mediaPlayerPage.episodes')}
-                                            </div>
-                                        )}
-                                        {row.watched ? (
-                                            <span
-                                                title={t('mediaPlayerPage.watched')}
-                                                className="absolute right-1.5 top-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-plex text-zinc-950 shadow-md"
-                                            >
-                                                <Check className="h-3.5 w-3.5 stroke-[2.5]" />
-                                            </span>
-                                        ) : null}
-                                        {progressPercent(row) > 0 ? (
-                                            <div className="absolute inset-x-0 bottom-0 h-1 bg-black/50">
-                                                <div className="h-full bg-plex" style={{ width: `${progressPercent(row)}%` }} />
-                                            </div>
-                                        ) : null}
-                                    </div>
-                                    <div className="mt-2 truncate text-sm font-bold text-text group-hover:text-plex">{row.title}</div>
+                                <div key={row.ratingKey} className="group min-w-0">
+                                    <button
+                                        type="button"
+                                        data-tv-item="1"
+                                        data-tv-episode-btn="1"
+                                        data-tv-key={row.ratingKey}
+                                        onClick={() => onOpenItem({
+                                            ...row,
+                                            thumb: row.thumb || item.thumb,
+                                            art: row.art || item.art,
+                                            showTitle: row.showTitle || item.title || item.showTitle,
+                                        })}
+                                        className="block w-full overflow-hidden rounded-xl border-0 bg-transparent p-0 text-left outline-none"
+                                        aria-label={row.title}
+                                    >
+                                        <div
+                                            data-tv-episode-art="1"
+                                            className="relative overflow-hidden rounded-xl border border-white/10 bg-black/30"
+                                        >
+                                            {row.thumb ? (
+                                                <img
+                                                    src={plexImageUrl(row.thumb, 426, 240, { quality: 60 })}
+                                                    alt=""
+                                                    className="aspect-video w-full object-cover transition-transform group-hover:scale-[1.03]"
+                                                />
+                                            ) : (
+                                                <div className="flex aspect-video items-center justify-center text-[10px] font-bold uppercase tracking-widest text-muted">
+                                                    {t('mediaPlayerPage.episodes')}
+                                                </div>
+                                            )}
+                                            {row.watched ? (
+                                                <span
+                                                    title={t('mediaPlayerPage.watched')}
+                                                    className="absolute right-1.5 top-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-plex text-zinc-950 shadow-md"
+                                                >
+                                                    <Check className="h-3.5 w-3.5 stroke-[2.5]" />
+                                                </span>
+                                            ) : null}
+                                            {progressPercent(row) > 0 ? (
+                                                <div className="absolute inset-x-0 bottom-0 h-1 bg-black/50">
+                                                    <div className="h-full bg-plex" style={{ width: `${progressPercent(row)}%` }} />
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    </button>
+                                    <div className="mt-2 truncate text-sm font-bold text-text group-hover:text-plex group-focus-within:text-plex">{row.title}</div>
                                     <div className="text-[11px] text-muted">
                                         {row.index != null ? `Episode ${row.index}` : ''}
                                         {row.durationMs ? ` · ${formatPlayerDuration(row.durationMs)}` : ''}
@@ -994,20 +1288,10 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                     {row.summary ? (
                                         <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-muted">{row.summary}</p>
                                     ) : null}
-                                </button>
+                                </div>
                             ))}
                         </div>
                     </section>
-                    ) : null}
-
-                    {(item.type === 'show' || item.type === 'season') && factMediaType && Number.isFinite(factMediaId) && factMediaId > 0 ? (
-                        <div className="mt-6 max-w-7xl">
-                            <DiscoveryFactWidget
-                                mediaType={factMediaType}
-                                mediaId={factMediaId}
-                                title={factTitle}
-                            />
-                        </div>
                     ) : null}
                 </div>
             </div>
@@ -1015,19 +1299,21 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
             <div className="relative z-10 w-full max-w-[2400px] mx-auto page-x sm:px-8 xl:px-12 mt-2 md:mt-4 flex flex-col gap-8 md:gap-10 bg-card">
 
                 {item.guestStars?.length ? (
-                    <section className="border-t border-border pt-8">
+                    <section className="border-t border-border pt-8" data-tv-rail="1">
                         <SectionHeading>{t('mediaPlayerPage.guestStars')}</SectionHeading>
                         <Carousel>
                             {item.guestStars.slice(0, 15).map((actor) => (
                                 <button
                                     key={`guest-${actor.id}-${actor.name}`}
                                     type="button"
+                                    data-tv-item="1"
+                                    data-tv-cast="1"
                                     onClick={() => onOpenPerson({
                                         id: actor.id || actor.name,
                                         name: actor.name,
                                         thumb: actor.thumb,
                                     })}
-                                    className="group flex flex-col items-center gap-3 w-40 flex-shrink-0 snap-start text-center"
+                                    className="group flex flex-col items-center gap-3 w-40 flex-shrink-0 snap-start text-center outline-none"
                                 >
                                     <CastAvatar name={actor.name} thumb={actor.thumb} />
                                     <div className="w-full px-1">
@@ -1043,19 +1329,21 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                 ) : null}
 
                 {cast.length ? (
-                    <section className="border-t border-border pt-8">
+                    <section className="border-t border-border pt-8" data-tv-rail="1">
                         <SectionHeading>{t('media.topCast')}</SectionHeading>
                         <Carousel>
                             {cast.slice(0, 15).map((actor) => (
                                 <button
                                     key={`${actor.id}-${actor.name}`}
                                     type="button"
+                                    data-tv-item="1"
+                                    data-tv-cast="1"
                                     onClick={() => onOpenPerson({
                                         id: actor.id || actor.name,
                                         name: actor.name,
                                         thumb: actor.thumb,
                                     })}
-                                    className="group flex flex-col items-center gap-3 w-40 flex-shrink-0 snap-start text-center"
+                                    className="group flex flex-col items-center gap-3 w-40 flex-shrink-0 snap-start text-center outline-none"
                                 >
                                     <CastAvatar name={actor.name} thumb={actor.thumb} />
                                     <div className="w-full px-1">
@@ -1084,7 +1372,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({ ratingKey, onBack, onOpenI
                                     <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black/30">
                                         {extra.thumb ? (
                                             <img
-                                                src={plexImageUrl(extra.thumb, 640, 360)}
+                                                src={plexImageUrl(extra.thumb, 426, 240, { quality: 60 })}
                                                 alt=""
                                                 className="aspect-video w-full object-cover transition-transform group-hover:scale-[1.03]"
                                             />

@@ -9,6 +9,13 @@ export const DiscoverGridSizeSelect: React.FC<{
     className?: string;
 }> = ({ value, onChange, className = '' }) => {
     const { t } = useDiscoverI18n();
+    try {
+        if (document.documentElement?.dataset?.tv === '1' || window.__PLEX_CLIENT__?.isTv === true) {
+            return null;
+        }
+    } catch {
+        /* ignore */
+    }
     return (
         <PosterGridSizeSlider
             value={value}

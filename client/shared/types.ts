@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
 export interface User {
     id: string;
@@ -268,4 +268,6 @@ export interface CustomSelectProps {
     options: { label: string; value: string | number; icon?: ReactNode; isGroup?: boolean }[];
     className?: string;
     compact?: boolean;
+    /** Extra attrs on the trigger (e.g. data-tv-item for leanback focus). */
+    triggerProps?: ButtonHTMLAttributes<HTMLButtonElement> & Record<`data-${string}`, string | undefined>;
 }

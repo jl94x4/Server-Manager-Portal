@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import { ArrowLeft, Film } from 'lucide-react';
 import {
     DiscoverGridSizeSelect,
@@ -11,6 +11,7 @@ import {
     useDiscoverI18n,
 } from './host';
 import { fetchPlayerPersonBundle, setMediaPlayerWatched } from './api';
+import { writePlayerScrollTop } from './playerMemory';
 import { plexImageUrl } from './playerUtils';
 import { PlayerPosterCard } from './PlayerPosterCard';
 import type { PlayerItem, PlayerPersonProfile, PlayerPlayOptions } from './types';
@@ -33,6 +34,25 @@ export const MediaPlayerPerson: React.FC<Props> = ({ actorId, name, thumb, onBac
     const [items, setItems] = useState<PlayerItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    useLayoutEffect(() => {
+        writePlayerScrollTop(0);
+    }, [actorId]);
+
+    useEffect(() => {
+        writePlayerScrollTop(0);
+        const isTv = typeof document !== 'undefined' && (
+            document.documentElement?.dataset?.tv === '1'
+            || window.__PLEX_CLIENT__?.isTv === true
+        );
+        if (!isTv) return undefined;
+        const id = window.setTimeout(() => {
+            writePlayerScrollTop(0);
+            const back = document.querySelector<HTMLElement>('[data-tv-person-back="1"]');
+            back?.focus({ preventScroll: true });
+        }, 40);
+        return () => window.clearTimeout(id);
+    }, [actorId, loading]);
 
     useEffect(() => {
         let cancelled = false;
@@ -72,14 +92,18 @@ export const MediaPlayerPerson: React.FC<Props> = ({ actorId, name, thumb, onBac
         }
     };
 
-    const photoUrl = photo ? plexImageUrl(photo, 400, 600) : '';
+    const photoUrl = photo ? plexImageUrl(photo, 300, 450, { quality: 60 }) : '';
     const headerPerson = profile || { name: title };
 
     return (
         <div className="flex flex-col gap-8 pb-8">
-            <div>
+            <div data-tv-rail="1">
                 <button
                     type="button"
+                    data-tv-item="1"
+                    data-tv-action="1"
+                    data-tv-person-back="1"
+                    data-tv-key={`person-back:${actorId}`}
                     onClick={onBack}
                     className="mb-4 inline-flex items-center gap-2 text-sm font-bold text-muted hover:text-text"
                 >
@@ -134,7 +158,11 @@ export const MediaPlayerPerson: React.FC<Props> = ({ actorId, name, thumb, onBac
                         <p className={discoveryTheme.emptyTitle}>{t('mediaPlayerPage.emptyPerson', { name: title })}</p>
                     </div>
                 ) : (
-                    <div className={upgraderPosterGridClass(gridSize)} style={upgraderPosterGridStyle(gridSize)}>
+                    <div
+                        className={upgraderPosterGridClass(gridSize)}
+                        style={upgraderPosterGridStyle(gridSize)}
+                        data-tv-rail="1"
+                    >
                         {items.map((item) => (
                             <PlayerPosterCard
                                 key={item.ratingKey}

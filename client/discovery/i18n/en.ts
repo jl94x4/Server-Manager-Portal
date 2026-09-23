@@ -168,6 +168,7 @@ export const en = {
         switchUser: 'Switch user',
         switchUserError: 'Could not switch Plex Home profile.',
         exitToPortal: 'Back to portal',
+        logOut: 'Log out',
         homeHeroEyebrow: 'Trending this week',
         homeHeroEyebrowModes: {
             trending_week: 'Trending this week',

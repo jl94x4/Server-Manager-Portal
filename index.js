@@ -9394,7 +9394,7 @@ const serveMediaImage = async (res, key, fetchBuffer, failImage) => {
         const result = await getOrFetchMediaImage(key, fetchBuffer);
         if (!result?.body?.length) return failImage(404);
         sendImageBuffer(res, result, {
-            cacheControl: 'private, max-age=86400',
+            cacheControl: 'private, max-age=604800, stale-while-revalidate=604800',
             cacheStatus: result.cacheStatus,
         });
     } catch {

@@ -4,32 +4,95 @@
  * need @capacitor/core (that dep lives only under plex-client/).
  */
 
+export type NativePlayerTrackOption = { id: string; label: string };
+export type NativePlayerVersionOption = { id: string; label: string; mediaIndex?: number };
+
+export type NativePlayerSessionPayload = {
+    ratingKey?: string;
+    showKey?: string;
+    qualityId?: string;
+    audioStreamId?: string;
+    subtitleStreamId?: string;
+    mediaIndex?: number;
+    durationMs?: number;
+    qualities?: NativePlayerTrackOption[];
+    audioTracks?: NativePlayerTrackOption[];
+    subtitles?: NativePlayerTrackOption[];
+    versions?: NativePlayerVersionOption[];
+    markers?: {
+        intro?: { startMs: number; endMs: number } | null;
+        credits?: { startMs: number; endMs?: number } | null;
+    };
+    nextItem?: { ratingKey: string; title?: string } | null;
+    autoplayNext?: boolean;
+    autoSkipIntro?: boolean;
+    autoSkipCredits?: boolean;
+};
+
 export type NativePlayerOpenOptions = {
     url: string;
     title?: string;
     offsetMs?: number;
     headers?: Record<string, string>;
-    onClose?: (result: { ended: boolean; positionMs: number }) => void;
+    speed?: number;
+    autoplayNext?: boolean;
+    autoSkipIntro?: boolean;
+    autoSkipCredits?: boolean;
+    session?: NativePlayerSessionPayload;
+    onClose?: (result: NativePlayerCloseResult) => void;
+    onProgress?: (event: NativePlayerProgressEvent) => void;
+    onStreamChange?: (event: NativePlayerStreamChangeEvent) => void | Promise<void>;
+    onPlayNext?: (event: { ratingKey: string }) => void;
+    onSpeed?: (event: { speed: number }) => void;
+    onError?: (event: { message?: string }) => void;
 };
 
-type NativeMediaPlayerBridge = {
-    isAvailable: () => boolean | Promise<boolean>;
-    open: (opts: {
-        url: string;
-        title?: string;
-        offsetMs?: number;
-        headers?: Record<string, string>;
-    }) => Promise<{ ended: boolean; positionMs: number }>;
+export type NativePlayerCloseResult = {
+    ended: boolean;
+    positionMs: number;
+    error?: boolean;
+    playNext?: boolean;
+    nextRatingKey?: string;
+};
+
+export type NativePlayerProgressEvent = {
+    state: string;
+    positionMs: number;
+    durationMs: number;
+    ratingKey?: string;
+};
+
+export type NativePlayerStreamChangeEvent = {
+    qualityId?: string;
+    audioStreamId?: string;
+    subtitleStreamId?: string;
+    mediaIndex?: number;
+    positionMs?: number;
+};
+
+export type NativePlayerUpdateSrcOptions = {
+    url: string;
+    headers?: Record<string, string>;
+    offsetMs?: number;
+    session?: NativePlayerSessionPayload;
 };
 
 type CapNativeMediaPlayerPlugin = {
     isAvailable(): Promise<{ value: boolean }>;
-    open(opts: {
-        url: string;
-        title?: string;
-        offsetMs?: number;
-        headers?: Record<string, string>;
-    }): Promise<{ ended: boolean; positionMs: number }>;
+    open(opts: Record<string, unknown>): Promise<NativePlayerCloseResult>;
+    updateSrc(opts: Record<string, unknown>): Promise<{ ok: boolean }>;
+    seek(opts: { positionMs: number }): Promise<{ ok: boolean }>;
+    setSpeed(opts: { speed: number }): Promise<{ ok: boolean }>;
+    addListener(event: string, cb: (data: Record<string, unknown>) => void): Promise<{ remove: () => void }> | { remove: () => void };
+};
+
+type NativeMediaPlayerBridge = {
+    isAvailable: () => boolean | Promise<boolean>;
+    open: (opts: NativePlayerOpenOptions) => Promise<NativePlayerCloseResult>;
+    updateSrc: (opts: NativePlayerUpdateSrcOptions) => Promise<boolean>;
+    seek: (positionMs: number) => Promise<boolean>;
+    setSpeed: (speed: number) => Promise<boolean>;
+    addListener: CapNativeMediaPlayerPlugin['addListener'];
 };
 
 declare global {
@@ -39,13 +102,13 @@ declare global {
 }
 
 let installPromise: Promise<void> | null = null;
+let capPlugin: CapNativeMediaPlayerPlugin | null = null;
 
 const loadCapacitorCore = async (): Promise<{
     Capacitor: { isNativePlatform: () => boolean };
     registerPlugin: <T>(name: string) => T;
 } | null> => {
     try {
-        // External in portal esbuild; resolved from plex-client/node_modules in APK build.
         return await import('@capacitor/core');
     } catch {
         return null;
@@ -60,6 +123,7 @@ export const installNativeMediaPlayerBridge = () => {
         const cap = await loadCapacitorCore();
         if (!cap?.Capacitor?.isNativePlatform?.() || !cap.registerPlugin) return;
         const CapNativeMediaPlayer = cap.registerPlugin<CapNativeMediaPlayerPlugin>('NativeMediaPlayer');
+        capPlugin = CapNativeMediaPlayer;
         window.NativeMediaPlayer = {
             isAvailable: async () => {
                 try {
@@ -75,12 +139,50 @@ export const installNativeMediaPlayerBridge = () => {
                     title: opts.title,
                     offsetMs: opts.offsetMs || 0,
                     headers: opts.headers,
+                    speed: opts.speed ?? 1,
+                    autoplayNext: opts.autoplayNext !== false,
+                    autoSkipIntro: opts.autoSkipIntro === true,
+                    autoSkipCredits: opts.autoSkipCredits === true,
+                    sessionJson: opts.session ? JSON.stringify(opts.session) : '',
                 });
                 return {
                     ended: !!result?.ended,
                     positionMs: Math.max(0, Math.floor(Number(result?.positionMs) || 0)),
+                    error: !!result?.error,
+                    playNext: !!result?.playNext,
+                    nextRatingKey: result?.nextRatingKey ? String(result.nextRatingKey) : undefined,
                 };
             },
+            updateSrc: async (opts) => {
+                try {
+                    const result = await CapNativeMediaPlayer.updateSrc({
+                        url: opts.url,
+                        headers: opts.headers,
+                        offsetMs: opts.offsetMs || 0,
+                        sessionJson: opts.session ? JSON.stringify(opts.session) : undefined,
+                    });
+                    return !!result?.ok;
+                } catch {
+                    return false;
+                }
+            },
+            seek: async (positionMs) => {
+                try {
+                    const result = await CapNativeMediaPlayer.seek({ positionMs: Math.max(0, Math.floor(positionMs)) });
+                    return !!result?.ok;
+                } catch {
+                    return false;
+                }
+            },
+            setSpeed: async (speed) => {
+                try {
+                    const result = await CapNativeMediaPlayer.setSpeed({ speed });
+                    return !!result?.ok;
+                } catch {
+                    return false;
+                }
+            },
+            addListener: (event, cb) => CapNativeMediaPlayer.addListener(event, cb),
         };
     })().catch(() => {
         /* web / missing plugin */
@@ -101,21 +203,82 @@ export const isNativePlayerAvailable = async (): Promise<boolean> => {
     }
 };
 
+const attachTransientListeners = async (opts: NativePlayerOpenOptions) => {
+    const bridge = window.NativeMediaPlayer;
+    if (!bridge?.addListener) return () => undefined;
+    const removers: Array<() => void> = [];
+    const add = async (event: string, handler: (data: Record<string, unknown>) => void) => {
+        try {
+            const handle = await bridge.addListener(event, handler);
+            removers.push(() => {
+                try { handle.remove(); } catch { /* ignore */ }
+            });
+        } catch {
+            /* older capacitor */
+        }
+    };
+    if (opts.onProgress) {
+        await add('progress', (data) => {
+            opts.onProgress?.({
+                state: String(data.state || 'playing'),
+                positionMs: Math.max(0, Math.floor(Number(data.positionMs) || 0)),
+                durationMs: Math.max(0, Math.floor(Number(data.durationMs) || 0)),
+                ratingKey: data.ratingKey ? String(data.ratingKey) : undefined,
+            });
+        });
+    }
+    if (opts.onStreamChange) {
+        await add('streamChange', (data) => {
+            void opts.onStreamChange?.({
+                qualityId: data.qualityId != null ? String(data.qualityId) : undefined,
+                audioStreamId: data.audioStreamId != null ? String(data.audioStreamId) : undefined,
+                subtitleStreamId: data.subtitleStreamId != null ? String(data.subtitleStreamId) : undefined,
+                mediaIndex: data.mediaIndex != null ? Number(data.mediaIndex) : undefined,
+                positionMs: data.positionMs != null ? Math.max(0, Math.floor(Number(data.positionMs) || 0)) : undefined,
+            });
+        });
+    }
+    if (opts.onPlayNext) {
+        await add('playNext', (data) => {
+            const key = data.ratingKey ? String(data.ratingKey) : '';
+            if (key) opts.onPlayNext?.({ ratingKey: key });
+        });
+    }
+    if (opts.onSpeed) {
+        await add('speed', (data) => {
+            opts.onSpeed?.({ speed: Number(data.speed) || 1 });
+        });
+    }
+    if (opts.onError) {
+        await add('error', (data) => {
+            opts.onError?.({ message: data.message ? String(data.message) : undefined });
+        });
+    }
+    return () => {
+        for (const remove of removers) remove();
+    };
+};
+
 /**
  * Open stream in ExoPlayer when the Capacitor plugin is present.
  * Returns null when native playback is unavailable (caller should use WebView <video>).
  */
 export const openNativePlayer = async (
     opts: NativePlayerOpenOptions,
-): Promise<{ ended: boolean; positionMs: number } | null> => {
+): Promise<NativePlayerCloseResult | null> => {
     if (!(await isNativePlayerAvailable())) return null;
     const bridge = window.NativeMediaPlayer!;
-    const result = await bridge.open({
-        url: opts.url,
-        title: opts.title,
-        offsetMs: opts.offsetMs || 0,
-        headers: opts.headers,
-    });
-    opts.onClose?.(result);
-    return result;
+    const detach = await attachTransientListeners(opts);
+    try {
+        const result = await bridge.open(opts);
+        opts.onClose?.(result);
+        return result;
+    } finally {
+        detach();
+    }
+};
+
+export const updateNativePlayerSrc = async (opts: NativePlayerUpdateSrcOptions): Promise<boolean> => {
+    if (!(await isNativePlayerAvailable())) return false;
+    return window.NativeMediaPlayer!.updateSrc(opts);
 };

@@ -7,6 +7,7 @@ import {
     discoveryTheme,
     useDiscoverGridSize,
     useDiscoverI18n,
+    posterGridScaleRem,
     upgraderLandscapeGridStyle,
     upgraderPosterGridClass,
     upgraderPosterGridStyle,
@@ -76,6 +77,8 @@ export const MediaPlayerHome: React.FC<Props> = ({
     const [draftLibraryOrder, setDraftLibraryOrder] = useState<string[] | null>(null);
     const libraryNavOrder = draftLibraryOrder || settings.libraryNavOrder;
     const [gridSize, setGridSize] = useDiscoverGridSize();
+    /** Home rails sit 15% larger than the shared poster density slider. */
+    const homePosterDensity = posterGridScaleRem(posterGridScaleRem(gridSize) * 1.15);
     const [home, setHome] = useState<PlayerHome | null>(() => readPlayerHomeCache());
     const [heroSlides, setHeroSlides] = useState<HomeHeroSlide[]>(() => readHeroSlidesCache() || []);
     const [heroEffectiveMode, setHeroEffectiveMode] = useState<string | null>(null);
@@ -84,19 +87,36 @@ export const MediaPlayerHome: React.FC<Props> = ({
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<PlayerItem[]>([]);
     const [searching, setSearching] = useState(false);
+    /** TV: focus can land on search without IME; Select/Enter arms editing and opens the keyboard. */
+    const [searchArmed, setSearchArmed] = useState(false);
     const searchRef = useRef<HTMLInputElement>(null);
+    const isTvShell = typeof document !== 'undefined' && (
+        document.documentElement?.dataset?.tv === '1'
+        || window.__PLEX_CLIENT__?.isTv === true
+    );
+    const searchReadOnly = isTvShell && !searchArmed;
 
     useEffect(() => {
         if (!consumePlayerSearchFocus()) return;
-        searchRef.current?.focus();
-        searchRef.current?.select();
-    }, []);
+        // Focus the field only — on TV keep it read-only so the soft keyboard stays down.
+        searchRef.current?.focus({ preventScroll: false });
+        if (!isTvShell) searchRef.current?.select();
+    }, [isTvShell]);
+
+    useEffect(() => {
+        if (!searchArmed || !isTvShell) return;
+        const input = searchRef.current;
+        if (!input) return;
+        input.focus();
+        input.select();
+    }, [searchArmed, isTvShell]);
 
     useEffect(() => {
         const clearSearch = () => {
             setQuery('');
             setResults([]);
             setSearching(false);
+            setSearchArmed(false);
             searchRef.current?.blur();
         };
         window.addEventListener(PLAYER_HOME_RESET_EVENT, clearSearch);
@@ -132,6 +152,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
             setLoading(false);
         }
         // Fresh cache: paint immediately and skip a redundant /home round-trip.
+        // Stale disk cache still paints; prefetch/inflight refresh updates quietly.
         if (!(cachedHome && isPlayerHomeCacheFresh())) {
             fetchMediaPlayerHome()
                 .then((data) => {
@@ -147,6 +168,8 @@ export const MediaPlayerHome: React.FC<Props> = ({
                 .finally(() => {
                     if (!cancelled) setLoading(false);
                 });
+        } else {
+            setLoading(false);
         }
         const cachedHero = readHeroSlidesCache();
         fetchMediaPlayerHomeHero()
@@ -378,7 +401,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
                 key={hub.identifier}
                 title={hub.title}
                 items={hub.items}
-                density={gridSize}
+                density={homePosterDensity}
                 staggerIndex={hubIndex}
                 onOpenItem={onOpenItem}
                 onPlay={onPlay}
@@ -405,7 +428,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
                     key="continueWatching"
                     title={t('mediaPlayerPage.continueWatching')}
                     items={home.continueWatching}
-                    density={gridSize}
+                    density={homePosterDensity}
                     staggerIndex={rowIndex}
                     onOpenItem={onOpenItem}
                     onPlay={onPlay}
@@ -423,7 +446,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
                     key="playlists"
                     title={t('mediaPlayerPage.playlists')}
                     items={home.playlists || []}
-                    density={gridSize}
+                    density={homePosterDensity}
                     staggerIndex={rowIndex}
                     onOpenItem={onOpenItem}
                     onPlay={onPlay}
@@ -438,7 +461,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
                         key={row.id}
                         title={row.title}
                         items={row.items}
-                        density={gridSize}
+                        density={homePosterDensity}
                         staggerIndex={rowIndex + recentIndex}
                         onOpenItem={onOpenItem}
                         onPlay={onPlay}
@@ -472,17 +495,14 @@ export const MediaPlayerHome: React.FC<Props> = ({
                     onPlay={onPlay}
                 />
             ) : null}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                    <p className={discoveryTheme.personalEyebrow}>{t('navigation.mediaPlayer')}</p>
-                    <h1 className={discoveryTheme.heading}>{t('mediaPlayerPage.navHome')}</h1>
-                </div>
-                {query.trim() || !orderedLibraries.length || !onOpenLibrary ? (
+            <h1 className="sr-only">{t('mediaPlayerPage.navHome')}</h1>
+            {!isTvShell && (query.trim() || !orderedLibraries.length || !onOpenLibrary) ? (
+                <div className="flex justify-end">
                     <DiscoverGridSizeSelect value={gridSize} onChange={setGridSize} />
-                ) : null}
-            </div>
+                </div>
+            ) : null}
 
-            {!query.trim() && orderedLibraries.length && onOpenLibrary ? (
+            {!query.trim() && orderedLibraries.length && onOpenLibrary && !isTvShell ? (
                 <section className="flex flex-col gap-2" aria-label={t('mediaPlayerPage.jumpToLibrary')}>
                     <div className="flex items-center justify-between gap-3">
                         <p className="min-w-0 text-[10px] font-bold uppercase tracking-[0.18em] text-muted">
@@ -510,13 +530,33 @@ export const MediaPlayerHome: React.FC<Props> = ({
                 </section>
             ) : null}
 
-            <div className="relative">
+            <div className="relative" data-tv-rail={isTvShell ? '1' : undefined}>
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
                 <input
                     id={PLAYER_SEARCH_INPUT_ID}
                     ref={searchRef}
                     value={query}
+                    readOnly={searchReadOnly}
+                    inputMode={searchReadOnly ? 'none' : 'search'}
+                    enterKeyHint="search"
+                    data-tv-item={isTvShell ? '1' : undefined}
+                    aria-label={t('mediaPlayerPage.searchPlaceholder')}
                     onChange={(event) => setQuery(event.target.value)}
+                    onBlur={() => {
+                        if (isTvShell) setSearchArmed(false);
+                    }}
+                    onKeyDown={(event) => {
+                        if (!isTvShell) return;
+                        if (searchArmed) return;
+                        if (event.key !== 'Enter' && event.key !== ' ') return;
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setSearchArmed(true);
+                    }}
+                    onClick={() => {
+                        // Touch / mouse: open IME. TV D-pad focus alone must not.
+                        if (isTvShell && !searchArmed) setSearchArmed(true);
+                    }}
                     placeholder={t('mediaPlayerPage.searchPlaceholder')}
                     className={discoveryTheme.searchInput}
                 />
@@ -531,6 +571,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
                         <section key={group.id} className="flex flex-col gap-3">
                             <DiscoverSectionHeader title={group.title} />
                             <div
+                                data-tv-rail={isTvShell ? '1' : undefined}
                                 className={upgraderPosterGridClass(gridSize)}
                                 style={group.aspect === '16/9' ? upgraderLandscapeGridStyle(gridSize) : upgraderPosterGridStyle(gridSize)}
                             >

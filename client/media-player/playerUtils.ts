@@ -2,7 +2,28 @@ import { portalUrl, resolvePortalAssetUrl } from '../shared/basePath';
 import { PLAYER_API_ROOT, PLAYER_IMAGE_PATH } from './paths';
 import type { PlayerItem } from './types';
 
-export const plexImageUrl = (path?: string | null, width = 300, height = 450, opts?: { fit?: 'contain' | 'cover' }) => {
+/** Shared rail size so home, library, and season grids hit the same cached JPEG. */
+export const PLAYER_POSTER_WIDTH = 300;
+export const PLAYER_POSTER_HEIGHT = 450;
+export const PLAYER_POSTER_QUALITY = 60;
+
+const prefetchedPlayerImages = new Set<string>();
+
+export const prefetchPlayerImages = (urls: Array<string | null | undefined>, limit = 12) => {
+    if (typeof window === 'undefined') return;
+    let started = 0;
+    for (const url of urls) {
+        if (!url || prefetchedPlayerImages.has(url)) continue;
+        prefetchedPlayerImages.add(url);
+        const img = new Image();
+        img.decoding = 'async';
+        img.src = url;
+        started += 1;
+        if (started >= limit) return;
+    }
+};
+
+export const plexImageUrl = (path?: string | null, width = PLAYER_POSTER_WIDTH, height = PLAYER_POSTER_HEIGHT, opts?: { fit?: 'contain' | 'cover'; quality?: number }) => {
     if (!path) return '';
     if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/api/')) {
         return resolvePortalAssetUrl(path);
@@ -13,15 +34,22 @@ export const plexImageUrl = (path?: string | null, width = 300, height = 450, op
         height: String(height),
     });
     if (opts?.fit === 'contain') params.set('fit', 'contain');
+    if (opts?.quality) params.set('quality', String(opts.quality));
     return portalUrl(`${PLAYER_IMAGE_PATH}?${params.toString()}`);
 };
 
-export const plexLogoUrl = (path?: string | null) => plexImageUrl(path, 1000, 360, { fit: 'contain' });
+export const playerCardImageUrl = (thumb?: string | null, aspect: '2/3' | 'square' | '16/9' = '2/3') => {
+    if (!thumb) return '';
+    if (aspect === '16/9') return plexImageUrl(thumb, 426, 240, { quality: PLAYER_POSTER_QUALITY });
+    if (aspect === 'square') return plexImageUrl(thumb, 300, 300, { quality: PLAYER_POSTER_QUALITY });
+    return plexImageUrl(thumb, PLAYER_POSTER_WIDTH, PLAYER_POSTER_HEIGHT, { quality: PLAYER_POSTER_QUALITY });
+};
+
+export const plexLogoUrl = (path?: string | null) => plexImageUrl(path, 640, 240, { fit: 'contain', quality: 70 });
 
 export const plexBackdropUrl = (path?: string | null) => {
     if (!path) return '';
-    const dpr = typeof window === 'undefined' ? 2 : Math.min(Math.max(window.devicePixelRatio || 1, 1), 2);
-    return plexImageUrl(path, Math.round(1920 * dpr), Math.round(1080 * dpr));
+    return plexImageUrl(path, 1280, 720, { quality: 62 });
 };
 
 export const plexThemeUrl = (ratingKey?: string | null) => {
@@ -141,7 +169,7 @@ export const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 export const toPosterCardItem = (item: PlayerItem) => {
     const thumb = item.thumb || (item.ratingKey ? `/library/metadata/${item.ratingKey}/thumb` : undefined);
     const posterFallbackUrl = item.ratingKey && thumb !== `/library/metadata/${item.ratingKey}/thumb`
-        ? `/api/plex/image?path=${encodeURIComponent(`/library/metadata/${item.ratingKey}/thumb`)}&width=300&height=450`
+        ? `/api/plex/image?path=${encodeURIComponent(`/library/metadata/${item.ratingKey}/thumb`)}&width=${PLAYER_POSTER_WIDTH}&height=${PLAYER_POSTER_HEIGHT}&quality=${PLAYER_POSTER_QUALITY}`
         : undefined;
     return {
         title: item.title,
@@ -150,6 +178,7 @@ export const toPosterCardItem = (item: PlayerItem) => {
         plexUrl: item.plexUrl || '',
         year: item.year || undefined,
         parentTitle: item.showTitle || item.seasonTitle || undefined,
+        ratingKey: item.ratingKey || undefined,
     };
 };
 
@@ -222,11 +251,29 @@ export const canUseNativeHls = () => {
     return result === 'probably' || result === 'maybe';
 };
 
+/** HLS transcode profile ExoPlayer can actually decode (h264/aac). */
+export const NATIVE_SAFE_QUALITY_ID = '1080-12';
+
+export const isPlexNativePlayback = () => (
+    typeof window !== 'undefined'
+    && !!window.__PLEX_CLIENT__
+    && window.__PLEX_CLIENT__.nativePlayer !== false
+);
+
+export const nativeSafeQualityId = (qualityId?: string | null) => {
+    const q = String(qualityId || '').trim();
+    if (!q || q === 'original' || q === 'auto') return NATIVE_SAFE_QUALITY_ID;
+    return q;
+};
+
 export const browserPlaybackCaps = () => {
     if (typeof document === 'undefined') return { hevc: false, ac3: false, hls: false };
-    // Capacitor + ExoPlayer path: advertise Android-class direct-play caps to the portal.
-    if (typeof window !== 'undefined' && window.__PLEX_CLIENT__?.nativePlayer !== false && window.__PLEX_CLIENT__) {
-        return { hevc: true, ac3: true, hls: true };
+    // Stock ExoPlayer has no FFmpeg/TrueHD/DTS extensions. TV especially cannot direct-play
+    // typical Plex MKV (HEVC + TrueHD/DTS) — that path is a black screen at 0:00.
+    if (isPlexNativePlayback()) {
+        const tv = window.__PLEX_CLIENT__?.isTv === true
+            || (typeof document !== 'undefined' && document.documentElement?.dataset?.tv === '1');
+        return { hevc: !tv, ac3: !tv, hls: true };
     }
     const video = document.createElement('video');
     const can = (type: string) => {

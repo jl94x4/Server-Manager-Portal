@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { Lock, User, X } from 'lucide-react';
+import { lockBackgroundScroll } from './lockBackgroundScroll';
 
 export type PlexHomeProfile = {
     id: string;
@@ -84,6 +85,8 @@ export const PlexHomeSwitchModal: React.FC<{
     const [pinUser, setPinUser] = useState<PlexHomeProfile | null>(null);
     const [pin, setPin] = useState('');
     const [remember, setRemember] = useState(rememberDefault);
+    const onCloseRef = useRef(onClose);
+    onCloseRef.current = onClose;
 
     useEffect(() => {
         if (open) {
@@ -92,6 +95,39 @@ export const PlexHomeSwitchModal: React.FC<{
             setPin('');
         }
     }, [open, rememberDefault]);
+
+    const isTvShell = typeof document !== 'undefined' && (
+        document.documentElement?.dataset?.tv === '1'
+        || window.__PLEX_CLIENT__?.isTv === true
+    );
+
+    useEffect(() => {
+        if (!open) return undefined;
+        const unlock = lockBackgroundScroll();
+        const onOverlayClose = () => {
+            if (busy) return;
+            if (pinUser) {
+                setPinUser(null);
+                setPin('');
+                return;
+            }
+            onCloseRef.current();
+        };
+        window.addEventListener('smp-tv-overlay-close', onOverlayClose);
+        const id = window.requestAnimationFrame(() => {
+            const root = document.querySelector<HTMLElement>('[data-tv-home-switch="1"]');
+            if (!root) return;
+            const profile = root.querySelector<HTMLElement>('[data-tv-home-profile="1"]');
+            const field = root.querySelector<HTMLElement>('input[data-tv-item="1"]');
+            const target = field || profile || root.querySelector<HTMLElement>('[data-tv-item="1"]');
+            target?.focus({ preventScroll: true });
+        });
+        return () => {
+            unlock();
+            window.removeEventListener('smp-tv-overlay-close', onOverlayClose);
+            window.cancelAnimationFrame(id);
+        };
+    }, [open, busy, pinUser]);
 
     const profiles = useMemo(
         () => (Array.isArray(users) ? users.filter((user) => user?.id) : []),
@@ -135,6 +171,7 @@ export const PlexHomeSwitchModal: React.FC<{
         <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-0 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="plex-home-switch-title">
             <button
                 type="button"
+                tabIndex={-1}
                 className="absolute inset-0 bg-black/75 backdrop-blur-xl cursor-default"
                 aria-label={loginMode ? 'Use a different Plex account' : 'Close profile switcher'}
                 onClick={dismiss}
@@ -144,7 +181,10 @@ export const PlexHomeSwitchModal: React.FC<{
                 <div className="absolute bottom-0 right-0 h-56 w-56 rounded-full bg-amber-500/10 blur-[80px]" />
             </div>
 
-            <div className="relative w-full sm:max-w-2xl max-h-[min(72dvh,32rem)] sm:max-h-[min(86vh,40rem)] overflow-y-auto rounded-t-2xl sm:rounded-3xl border border-white/10 bg-[rgb(var(--color-card))]/95 shadow-[0_30px_80px_rgba(0,0,0,0.55)] animate-fade-in">
+            <div
+                data-tv-home-switch="1"
+                className="relative w-full sm:max-w-2xl max-h-[min(72dvh,32rem)] sm:max-h-[min(86vh,40rem)] overflow-y-auto rounded-t-2xl sm:rounded-3xl border border-white/10 bg-[rgb(var(--color-card))]/95 shadow-[0_30px_80px_rgba(0,0,0,0.55)] animate-fade-in"
+            >
                 <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-plex/70 to-transparent" />
                 <div className="sm:hidden flex justify-center pt-2.5 pb-0.5" aria-hidden>
                     <span className="h-1 w-10 rounded-full bg-white/25" />
@@ -163,6 +203,9 @@ export const PlexHomeSwitchModal: React.FC<{
                     </div>
                     <button
                         type="button"
+                        data-tv-item="1"
+                        data-tv-key="home-switch-close"
+                        tabIndex={0}
                         onClick={dismiss}
                         className="p-1.5 sm:p-2 rounded-xl text-muted hover:text-text hover:bg-white/5 transition-colors shrink-0"
                         aria-label={loginMode ? 'Use a different Plex account' : 'Close profile switcher'}
@@ -181,7 +224,7 @@ export const PlexHomeSwitchModal: React.FC<{
                             </div>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4" data-tv-rail="1">
                             {profiles.map((user) => {
                                 const current = isSameProfile(user, currentUserId);
                                 const remembered = isSameProfile(user, rememberUserId);
@@ -189,6 +232,10 @@ export const PlexHomeSwitchModal: React.FC<{
                                     <button
                                         key={user.id}
                                         type="button"
+                                        data-tv-item="1"
+                                        data-tv-home-profile="1"
+                                        data-tv-key={`home-switch-${user.id}`}
+                                        tabIndex={0}
                                         disabled={busy}
                                         onClick={() => choose(user)}
                                         className={`group relative flex flex-col items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl border px-2 py-3 sm:px-3 sm:py-5 transition-all duration-200 disabled:opacity-50 ${
@@ -212,7 +259,7 @@ export const PlexHomeSwitchModal: React.FC<{
                         </div>
                     )}
 
-                    {showRemember && !pinUser ? (
+                    {showRemember && !pinUser && !isTvShell ? (
                         <label className="mt-3 sm:mt-5 flex items-start gap-2.5 max-w-md cursor-pointer">
                             <input
                                 type="checkbox"
@@ -236,6 +283,9 @@ export const PlexHomeSwitchModal: React.FC<{
                                 type="password"
                                 inputMode="numeric"
                                 autoComplete="one-time-code"
+                                data-tv-item="1"
+                                data-tv-key="home-switch-pin"
+                                tabIndex={0}
                                 value={pin}
                                 onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 8))}
                                 className="w-full bg-black/25 border border-white/15 rounded-xl px-4 py-2.5 sm:py-3 text-center text-base sm:text-lg tracking-[0.4em] text-text outline-none focus:border-plex/70 focus:ring-2 focus:ring-plex/20"
@@ -243,7 +293,7 @@ export const PlexHomeSwitchModal: React.FC<{
                                 autoFocus
                                 disabled={busy}
                             />
-                            {showRemember ? (
+                            {showRemember && !isTvShell ? (
                                 <label className="mt-3 flex items-start gap-2.5 cursor-pointer">
                                     <input
                                         type="checkbox"
@@ -260,6 +310,9 @@ export const PlexHomeSwitchModal: React.FC<{
                             <div className="mt-3 flex gap-2">
                                 <button
                                     type="button"
+                                    data-tv-item="1"
+                                    data-tv-key="home-switch-pin-back"
+                                    tabIndex={0}
                                     className="flex-1 rounded-xl border border-white/10 px-3 py-2 sm:py-2.5 text-xs font-bold text-muted hover:text-text"
                                     onClick={() => { setPinUser(null); setPin(''); }}
                                     disabled={busy}
@@ -268,6 +321,10 @@ export const PlexHomeSwitchModal: React.FC<{
                                 </button>
                                 <button
                                     type="submit"
+                                    data-tv-item="1"
+                                    data-tv-action="1"
+                                    data-tv-key="home-switch-pin-submit"
+                                    tabIndex={0}
                                     className="flex-1 rounded-xl bg-plex px-3 py-2 sm:py-2.5 text-xs font-bold text-background disabled:opacity-40"
                                     disabled={busy || pin.trim().length < 4}
                                 >
@@ -286,6 +343,8 @@ export const PlexHomeSwitchModal: React.FC<{
                             {loginMode && onUseDifferentAccount ? (
                                 <button
                                     type="button"
+                                    data-tv-item="1"
+                                    tabIndex={0}
                                     className="text-xs font-bold text-muted hover:text-text transition"
                                     onClick={onUseDifferentAccount}
                                     disabled={busy}

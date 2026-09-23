@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Carousel, DiscoverSectionHeader, discoverRowCardWidthClass, posterGridCardWidthStyle, posterGridScaleRem } from './host';
 import { PlayerPosterCard } from './PlayerPosterCard';
+import { playerCardImageUrl, prefetchPlayerImages } from './playerUtils';
 import type { PlayerItem, PlayerPlayOptions } from './types';
 
 export const PlayerRail: React.FC<{
@@ -45,6 +46,16 @@ export const PlayerRail: React.FC<{
     viewAllLabel,
     staggerIndex = 0,
 }) => {
+    useEffect(() => {
+        const urls = items.slice(0, 8).map((item) => {
+            const cardAspect = aspect
+                || (item.type === 'artist' || item.type === 'album' ? 'square' : null)
+                || (item.type === 'episode' ? '16/9' : '2/3');
+            return playerCardImageUrl(item.thumb, cardAspect || '2/3');
+        });
+        prefetchPlayerImages(urls, staggerIndex === 0 ? 8 : 4);
+    }, [aspect, items, staggerIndex]);
+
     if (!items.length) return null;
     return (
         <div
@@ -69,6 +80,7 @@ export const PlayerRail: React.FC<{
                             <PlayerPosterCard
                                 item={item}
                                 aspect={cardAspect}
+                                imagePriority={idx < (staggerIndex === 0 ? 8 : 4)}
                                 showProgress={showProgress}
                                 showRemoveFromContinueWatching={showRemoveFromContinueWatching}
                                 isAdmin={isAdmin}

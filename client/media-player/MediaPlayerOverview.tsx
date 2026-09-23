@@ -9,13 +9,25 @@ import {
     splitOverviewServiceLogos,
     pickWatchProvidersForRegion,
 } from './studioLogo.js';
-import type { PlayerCollectionRef, PlayerItem, PlayerPersonCredit } from './types';
+import type { PlayerItem, PlayerPersonCredit } from './types';
 import { useDiscoveryPreferences } from '../discovery/useDiscoveryPreferences';
 import { usePlayerSettings } from './usePlayerSettings';
 
 type PersonHandler = (person: { id: string; name: string; thumb?: string | null }) => void;
 type StudioHandler = (studio: { key: string; name: string; sectionKey?: string; mediaType?: 'movie' | 'show' }) => void;
 type NetworkLogo = { name: string; logoPath: string; key: string };
+
+const isTvShell = () => {
+    try {
+        return document.documentElement?.dataset?.tv === '1'
+            || window.__PLEX_CLIENT__?.isTv === true;
+    } catch {
+        return false;
+    }
+};
+
+const creditPillClass = 'px-2.5 py-1 rounded-lg bg-white/5 border border-border text-sm text-text';
+const creditPillInteractiveClass = `${creditPillClass} hover:bg-plex/15 hover:border-plex/40 hover:text-plex transition-colors`;
 
 const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div className="flex items-center gap-3 mb-3">
@@ -27,17 +39,24 @@ const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) =
 const CreditPills: React.FC<{
     people: PlayerPersonCredit[];
     onOpenPerson: PersonHandler;
-}> = ({ people, onOpenPerson }) => (
+    interactive?: boolean;
+}> = ({ people, onOpenPerson, interactive = true }) => (
     <div className="flex flex-wrap gap-2">
         {people.map((person) => (
-            <button
-                key={`${person.id}-${person.name}`}
-                type="button"
-                onClick={() => onOpenPerson({ id: person.id || person.name, name: person.name, thumb: person.thumb })}
-                className="px-2.5 py-1 rounded-lg bg-white/5 border border-border text-sm text-text hover:bg-plex/15 hover:border-plex/40 hover:text-plex transition-colors"
-            >
-                {person.name}
-            </button>
+            interactive ? (
+                <button
+                    key={`${person.id}-${person.name}`}
+                    type="button"
+                    onClick={() => onOpenPerson({ id: person.id || person.name, name: person.name, thumb: person.thumb })}
+                    className={creditPillInteractiveClass}
+                >
+                    {person.name}
+                </button>
+            ) : (
+                <span key={`${person.id}-${person.name}`} className={creditPillClass}>
+                    {person.name}
+                </span>
+            )
         ))}
     </div>
 );
@@ -45,7 +64,7 @@ const CreditPills: React.FC<{
 const StudioPill: React.FC<{
     name: string;
     logoPath?: string | null;
-    size?: 'md' | 'sm';
+    size?: 'md' | 'sm' | 'lg';
     showPlate?: boolean;
     onClick?: () => void;
 }> = ({ name, logoPath, size = 'md', showPlate = true, onClick }) => {
@@ -55,12 +74,16 @@ const StudioPill: React.FC<{
 
     const preserveColor = shouldPreserveColorLogo(String(logoPath), name);
     // Fixed plate height so wordmarks and square marks sit on one baseline.
-    const plateClass = size === 'sm'
-        ? 'inline-flex h-8 items-center justify-center rounded-lg px-2.5'
-        : 'inline-flex h-9 items-center justify-center rounded-lg px-3';
-    const logoClass = size === 'sm'
-        ? 'h-5 max-w-[110px] sm:max-w-[130px] w-auto object-contain opacity-95'
-        : 'h-5 sm:h-6 max-w-[130px] sm:max-w-[150px] w-auto object-contain opacity-95';
+    const plateClass = size === 'lg'
+        ? 'inline-flex h-16 items-center justify-center rounded-xl px-4'
+        : size === 'sm'
+            ? 'inline-flex h-8 items-center justify-center rounded-lg px-2.5'
+            : 'inline-flex h-9 items-center justify-center rounded-lg px-3';
+    const logoClass = size === 'lg'
+        ? 'h-10 sm:h-12 max-w-[180px] sm:max-w-[220px] w-auto object-contain opacity-95'
+        : size === 'sm'
+            ? 'h-5 max-w-[110px] sm:max-w-[130px] w-auto object-contain opacity-95'
+            : 'h-5 sm:h-6 max-w-[130px] sm:max-w-[150px] w-auto object-contain opacity-95';
     const className = !showPlate
         ? `${plateClass} border border-transparent hover:bg-white/5 transition-colors`
         : preserveColor
@@ -102,9 +125,11 @@ const NetworkLogoRow: React.FC<{
     mediaType?: 'movie' | 'show';
     /** When true, search movie + show libraries (streaming brands). */
     searchAllTypes?: boolean;
-    size?: 'md' | 'sm';
+    size?: 'md' | 'sm' | 'lg';
     showPlate?: boolean;
-}> = ({ networks, onOpenStudio, sectionKey, mediaType, searchAllTypes = false, size = 'md', showPlate = true }) => (
+}> = ({ networks, onOpenStudio, sectionKey, mediaType, searchAllTypes = false, size = 'md', showPlate = true }) => {
+    const interactive = Boolean(onOpenStudio) && !isTvShell();
+    return (
     <div className="flex flex-wrap gap-2 items-stretch">
         {networks.filter((row) => row.logoPath).map((row) => (
             <StudioPill
@@ -113,7 +138,7 @@ const NetworkLogoRow: React.FC<{
                 logoPath={row.logoPath}
                 size={size}
                 showPlate={showPlate}
-                onClick={onOpenStudio ? () => onOpenStudio({
+                onClick={interactive ? () => onOpenStudio!({
                     // Prefer the display name — TMDB catalog ids do not match Plex tag ids.
                     key: row.name || row.key,
                     name: row.name,
@@ -123,40 +148,8 @@ const NetworkLogoRow: React.FC<{
             />
         ))}
     </div>
-);
-
-const CollectionPills: React.FC<{
-    collections: PlayerCollectionRef[];
-    sectionKey?: string;
-    onOpenItem: (item: PlayerItem) => void;
-}> = ({ collections, sectionKey, onOpenItem }) => (
-    <div className="flex flex-wrap gap-2">
-        {collections.map((collection) => (
-            collection.ratingKey ? (
-                <button
-                    key={collection.ratingKey}
-                    type="button"
-                    onClick={() => onOpenItem({
-                        ratingKey: collection.ratingKey,
-                        title: collection.title,
-                        type: 'collection',
-                        librarySectionID: sectionKey || null,
-                    })}
-                    className="px-2.5 py-1 rounded-lg bg-white/5 border border-border text-sm text-text hover:bg-plex/15 hover:border-plex/40 hover:text-plex transition-colors"
-                >
-                    {collection.title}
-                </button>
-            ) : (
-                <span
-                    key={collection.title}
-                    className="px-2.5 py-1 rounded-lg bg-white/5 border border-border text-sm text-text"
-                >
-                    {collection.title}
-                </span>
-            )
-        ))}
-    </div>
-);
+    );
+};
 
 /** Studio, broadcast network, and streaming providers — separate stacked rows. */
 const useOverviewServiceLogos = (item: PlayerItem, region: string) => {
@@ -210,12 +203,13 @@ export const OverviewSummary: React.FC<{ text: string }> = ({ text }) => {
     const { t } = useDiscoverI18n();
     const [open, setOpen] = useState(false);
     const long = text.length > 420;
+    const tvShell = isTvShell();
     return (
-        <div className="flex flex-col gap-2">
-            <p className={`text-sm sm:text-base lg:text-[17px] text-text leading-relaxed ${long && !open ? 'line-clamp-5' : ''}`}>
+        <div className="media-overview-summary flex flex-col gap-2">
+            <p className={`text-sm sm:text-base lg:text-[17px] text-text leading-relaxed ${long && !open ? (tvShell ? 'line-clamp-3' : 'line-clamp-5') : ''}`}>
                 {text}
             </p>
-            {long ? (
+            {long && !tvShell ? (
                 <button
                     type="button"
                     onClick={() => setOpen((prev) => !prev)}
@@ -249,10 +243,13 @@ export const OverviewFacts: React.FC<{
     onOpenPerson: PersonHandler;
     onOpenItem: (item: PlayerItem) => void;
     onOpenStudio?: StudioHandler;
-}> = ({ item, onOpenPerson, onOpenItem, onOpenStudio }) => {
+    /** Optional panel (e.g. Did You Know) — sits beside the compact facts columns. */
+    aside?: React.ReactNode;
+}> = ({ item, onOpenPerson, onOpenStudio, aside }) => {
     const { t, locale } = useDiscoverI18n();
     const { preferences } = useDiscoveryPreferences();
     const [settings] = usePlayerSettings();
+    const tvShell = isTvShell();
     const { studio, network, streaming } = useOverviewServiceLogos(
         item,
         preferences.discoverRegion || 'US',
@@ -262,34 +259,29 @@ export const OverviewFacts: React.FC<{
     const lastPlayed = formatPlayerDate(item.lastViewedAt, locale);
     const watched = Number(item.viewedLeafCount || 0);
     const total = Number(item.leafCount || 0);
-    const collectionItems = (item.collectionItems?.length
-        ? item.collectionItems
-        : (item.collections || []).map((title) => ({ ratingKey: '', title }))
-    ).filter((row) => row.title);
     const serviceSections = [
         studio.length ? { label: t('media.studio'), networks: studio, size: 'sm' as const, searchAllTypes: false } : null,
         network.length ? { label: t('mediaPlayerPage.network'), networks: network, size: 'sm' as const, searchAllTypes: false } : null,
         streaming.length ? { label: t('mediaPlayerPage.streaming'), networks: streaming, size: 'sm' as const, searchAllTypes: true } : null,
-    ].filter(Boolean) as Array<{ label: string; networks: NetworkLogo[]; size: 'sm' | 'md'; searchAllTypes: boolean }>;
+    ].filter(Boolean) as Array<{ label: string; networks: NetworkLogo[]; size: 'sm' | 'md' | 'lg'; searchAllTypes: boolean }>;
+    const leadCredit = (people?: PlayerPersonCredit[]) => {
+        const first = (people || []).find((person) => String(person?.name || '').trim());
+        return first ? [first] : [];
+    };
     const crewRows: Array<{
         label: string;
         people?: PlayerPersonCredit[];
     }> = [
-        item.directorPeople?.length ? { label: t('mediaPlayerPage.directedBy'), people: item.directorPeople } : null,
-        item.writerPeople?.length ? { label: t('mediaPlayerPage.writtenBy'), people: item.writerPeople } : null,
-        item.producers?.length ? { label: t('mediaPlayerPage.producedBy'), people: item.producers } : null,
+        leadCredit(item.directorPeople).length ? { label: t('mediaPlayerPage.directedBy'), people: leadCredit(item.directorPeople) } : null,
+        leadCredit(item.writerPeople).length ? { label: t('mediaPlayerPage.writtenBy'), people: leadCredit(item.writerPeople) } : null,
+        leadCredit(item.producers).length ? { label: t('mediaPlayerPage.producedBy'), people: leadCredit(item.producers) } : null,
     ].filter(Boolean) as Array<{ label: string; people?: PlayerPersonCredit[] }>;
     const metaRows: Array<{
         label: string;
         value?: string;
-        collections?: PlayerCollectionRef[];
     }> = [
         aired ? { label: item.type === 'episode' ? t('mediaPlayerPage.aired') : t('mediaPlayerPage.released'), value: aired } : null,
         item.countries?.length ? { label: t('mediaPlayerPage.countries'), value: item.countries.join(', ') } : null,
-        collectionItems.length ? {
-            label: collectionItems.length > 1 ? t('mediaPlayerPage.collections') : t('mediaPlayerPage.collection'),
-            collections: collectionItems,
-        } : null,
         (item.type === 'show' || item.type === 'season') && total > 0
             ? { label: t('mediaPlayerPage.episodeProgress'), value: t('mediaPlayerPage.episodeProgressValue', { watched, total }) }
             : null,
@@ -300,44 +292,47 @@ export const OverviewFacts: React.FC<{
     ].filter(Boolean) as Array<{
         label: string;
         value?: string;
-        collections?: PlayerCollectionRef[];
     }>;
 
     if (!crewRows.length && !serviceSections.length && !metaRows.length) return null;
 
-    const renderMetaRow = (row: { label: string; value?: string; people?: PlayerPersonCredit[]; collections?: PlayerCollectionRef[] }) => (
+    const renderMetaRow = (row: { label: string; value?: string; people?: PlayerPersonCredit[] }) => (
         <div key={row.label} className="flex flex-col gap-1 min-w-0">
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted">{row.label}</span>
             {row.people?.length ? (
-                <CreditPills people={row.people} onOpenPerson={onOpenPerson} />
-            ) : row.collections?.length ? (
-                <CollectionPills
-                    collections={row.collections}
-                    sectionKey={item.librarySectionID || ''}
-                    onOpenItem={onOpenItem}
-                />
+                <CreditPills people={row.people} onOpenPerson={onOpenPerson} interactive={!tvShell} />
             ) : (
                 <span className="text-sm text-text leading-snug">{row.value}</span>
             )}
         </div>
     );
 
+    const renderServiceSection = (section: { label: string; networks: NetworkLogo[]; size: 'sm' | 'md' | 'lg'; searchAllTypes: boolean }) => (
+        <div key={section.label} className="flex flex-col gap-1 min-w-0">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted">{section.label}</span>
+            <NetworkLogoRow
+                networks={section.networks}
+                onOpenStudio={onOpenStudio}
+                sectionKey={item.librarySectionID || ''}
+                mediaType={item.type === 'movie' ? 'movie' : 'show'}
+                searchAllTypes={section.searchAllTypes}
+                size={section.size}
+                showPlate={settings.serviceLogoPlates}
+            />
+        </div>
+    );
+
+    const streamingSection = serviceSections.find((section) => section.label === t('mediaPlayerPage.streaming')) || null;
+    const movieWatch = item.type === 'movie' && streamingSection?.networks.length
+        ? { ...streamingSection, networks: streamingSection.networks.slice(0, 1) }
+        : null;
+    const asideServices = movieWatch
+        ? [movieWatch, ...serviceSections.filter((section) => section !== streamingSection)]
+        : serviceSections;
+    const logosUnderAside = Boolean(aside) && asideServices.length > 0;
     const detailBlocks: React.ReactNode[] = [
         ...crewRows.map((row) => renderMetaRow(row)),
-        ...serviceSections.map((section) => (
-            <div key={section.label} className="flex flex-col gap-1 min-w-0">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted">{section.label}</span>
-                <NetworkLogoRow
-                    networks={section.networks}
-                    onOpenStudio={onOpenStudio}
-                    sectionKey={item.librarySectionID || ''}
-                    mediaType={item.type === 'movie' ? 'movie' : 'show'}
-                    searchAllTypes={section.searchAllTypes}
-                    size={section.size}
-                    showPlate={settings.serviceLogoPlates}
-                />
-            </div>
-        )),
+        ...(logosUnderAside ? [] : serviceSections.map((section) => renderServiceSection(section))),
         ...metaRows.map((row) => renderMetaRow(row)),
     ];
 
@@ -349,27 +344,47 @@ export const OverviewFacts: React.FC<{
         return cols;
     };
 
+    const useCompactTwoCol = Boolean(aside) || tvShell;
+
     return (
-        <div className="flex flex-col gap-3">
+        <div className="media-details-facts flex flex-col gap-3">
             <SectionHeading>{t('media.details')}</SectionHeading>
-            {/* Round-robin columns so short fields (Streaming, Released) sit under
-                Directed / Written instead of waiting below a tall Produced By row. */}
-            <div className="flex flex-col gap-3 sm:hidden">
-                {detailBlocks}
-            </div>
-            <div className="hidden gap-x-10 sm:flex xl:hidden">
-                {packColumns(2).map((column, index) => (
-                    <div key={`sm-${index}`} className="flex min-w-0 flex-1 flex-col gap-3">
-                        {column}
+            <div className={`flex flex-col gap-4 ${aside ? 'md:flex-row md:items-start md:gap-10 lg:gap-12' : ''}`}>
+                {/* Compact fact columns — stay grouped on the left when aside is present. */}
+                <div className={aside ? 'w-full min-w-0 md:w-auto md:shrink-0' : 'w-full'}>
+                    <div className="flex flex-col gap-3 sm:hidden">
+                        {detailBlocks}
                     </div>
-                ))}
-            </div>
-            <div className="hidden gap-x-10 xl:flex">
-                {packColumns(3).map((column, index) => (
-                    <div key={`xl-${index}`} className="flex min-w-0 flex-1 flex-col gap-3">
-                        {column}
+                    <div className={`hidden sm:flex ${aside ? 'gap-x-8' : 'gap-x-10'} ${useCompactTwoCol ? '' : 'xl:hidden'}`}>
+                        {packColumns(2).map((column, index) => (
+                            <div
+                                key={`sm-${index}`}
+                                className={`flex min-w-0 flex-col gap-3 ${aside ? 'w-[12.5rem] sm:w-[14rem]' : 'flex-1'}`}
+                            >
+                                {column}
+                            </div>
+                        ))}
                     </div>
-                ))}
+                    {!useCompactTwoCol ? (
+                        <div className="hidden gap-x-10 xl:flex">
+                            {packColumns(3).map((column, index) => (
+                                <div key={`xl-${index}`} className="flex min-w-0 flex-1 flex-col gap-3">
+                                    {column}
+                                </div>
+                            ))}
+                        </div>
+                    ) : null}
+                </div>
+                {aside ? (
+                    <div className="media-details-facts-aside flex min-w-0 w-full flex-col gap-4 md:w-[min(100%,28rem)] md:max-w-[42%] md:shrink-0 md:self-start">
+                        {aside}
+                        {logosUnderAside ? (
+                            <div className="flex flex-col gap-3">
+                                {asideServices.map((section) => renderServiceSection({ ...section, size: 'lg' }))}
+                            </div>
+                        ) : null}
+                    </div>
+                ) : null}
             </div>
         </div>
     );
@@ -377,6 +392,8 @@ export const OverviewFacts: React.FC<{
 
 export const OverviewLinks: React.FC<{ item: PlayerItem }> = ({ item }) => {
     const { t } = useDiscoverI18n();
+    // External browser links are useless on leanback — hide IMDb / TMDB / TVDB entirely.
+    if (isTvShell()) return null;
     const ids = item.externalIds || { imdb: null, tmdb: item.tmdbId || null, tvdb: null };
     const tmdbType = item.type === 'movie' ? 'movie' : 'tv';
     const season = Number(item.parentIndex);
@@ -422,12 +439,14 @@ export const EpisodeNeighbors: React.FC<{
         <div className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-border bg-white/5 p-2">
             <button
                 type="button"
+                data-tv-item="1"
+                data-tv-action="1"
                 onClick={() => onOpenItem(item)}
                 className="flex min-w-0 flex-1 items-center gap-3 text-left"
             >
                 <div className="relative h-14 w-24 shrink-0 overflow-hidden rounded-lg bg-black/40">
                     {item.thumb ? (
-                        <img src={plexImageUrl(item.thumb, 320, 180)} alt="" className="h-full w-full object-cover" />
+                        <img src={plexImageUrl(item.thumb, 426, 240, { quality: 60 })} alt="" className="h-full w-full object-cover" />
                     ) : (
                         <div className="flex h-full items-center justify-center text-muted">{icon}</div>
                     )}
@@ -450,6 +469,8 @@ export const EpisodeNeighbors: React.FC<{
             {item.canPlay ? (
                 <button
                     type="button"
+                    data-tv-item="1"
+                    data-tv-action="1"
                     onClick={() => onPlay(item)}
                     className="shrink-0 rounded-full bg-plex p-2 text-black hover:bg-plex-hover"
                     aria-label={t('mediaPlayerPage.play')}
@@ -461,7 +482,7 @@ export const EpisodeNeighbors: React.FC<{
     );
 
     return (
-        <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-2 lg:grid-cols-2" data-tv-rail="1">
             {previous ? (
                 <Card item={previous} label={t('mediaPlayerPage.previousEpisode')} icon={<ChevronLeft className="h-5 w-5" />} />
             ) : <div className="hidden lg:block" />}

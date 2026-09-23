@@ -653,11 +653,29 @@ html[data-theme="light"] .media-details-hero-scrim-left {
 
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
+  width: 0;
+  height: 0;
 }
 
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* TV / leanback: never show scrollbar chrome (beats .custom-scrollbar). */
+html[data-tv="1"] .custom-scrollbar,
+html[data-tv="1"] .custom-scrollbar * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  scrollbar-color: transparent transparent !important;
+}
+html[data-tv="1"] .custom-scrollbar::-webkit-scrollbar,
+html[data-tv="1"] .custom-scrollbar::-webkit-scrollbar-thumb,
+html[data-tv="1"] .custom-scrollbar::-webkit-scrollbar-track {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
 }
 
 @layer components {
@@ -1227,11 +1245,24 @@ html.branded-skeleton .skeleton-base::after {
   .discover-content-enter,
   .discover-poster-enter,
   .animate-fade-in,
-  .animate-slide-up {
+  .animate-slide-up,
+  .player-rail-enter,
+  .player-nav-label {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
   }
+}
+
+html[data-tv="1"] .player-rail-enter,
+html[data-tv="1"] .player-nav-label,
+html[data-tv="1"] .animate-fade-in,
+html[data-tv="1"] .animate-slide-up,
+html[data-tv="1"] .discover-content-enter,
+html[data-tv="1"] .discover-poster-enter {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
 }
 
 @keyframes cinematic-draw {
@@ -1429,7 +1460,18 @@ html.branded-skeleton .skeleton-base::after {
       margin-left: 0;
       margin-right: 0;
       width: 100%;
+      /* Do not keep max-width:100vw — with CSS zoom (TV density) vw ≠ parent width and
+         leaves a black gutter on the right (home has no page-bleed-x, so it looked fine). */
+      max-width: none;
     }
+  }
+
+  /* Leanback / CSS-zoom shell: never cap bleed boxes to vw. */
+  html[data-tv="1"] .page-bleed-x {
+    margin-left: 0;
+    margin-right: 0;
+    width: 100%;
+    max-width: none;
   }
 }
 

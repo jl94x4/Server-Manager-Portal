@@ -223,14 +223,16 @@ export const DiscoverI18nProvider: React.FC<{
     );
 };
 
+/** Stable fallback so effects that list `t` as a dep do not cancel/refetch forever without a provider. */
+const FALLBACK_DISCOVER_T = createDiscoverTranslate('en');
+
 export const useDiscoverI18n = () => {
     const ctx = useContext(DiscoverI18nContext);
     if (!ctx) {
-        const t = createDiscoverTranslate('en');
         return {
             locale: 'en' as DiscoverLocale,
             setLocale: (_locale: DiscoverLocale) => undefined,
-            t,
+            t: FALLBACK_DISCOVER_T,
         };
     }
     return ctx;

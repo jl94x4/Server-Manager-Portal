@@ -50,7 +50,7 @@ const heroBackdropSrc = (slide: HomeHeroSlide): string => {
     if (slide.backdropUrl) return resolvePortalAssetUrl(slide.backdropUrl);
     if (slide.posterUrl) return resolvePortalAssetUrl(slide.posterUrl);
     if (slide.art) return plexBackdropUrl(slide.art);
-    if (slide.thumb) return plexImageUrl(slide.thumb, 1280, 720);
+    if (slide.thumb) return plexImageUrl(slide.thumb, 960, 540, { quality: 62 });
     return '';
 };
 
@@ -256,7 +256,7 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, effectiveMode, onO
                                 {active.summary}
                             </p>
                         ) : null}
-                        <div className="mt-2.5 flex flex-wrap items-center gap-1.5 sm:mt-4 sm:gap-2">
+                        <div className="mt-2.5 flex flex-wrap items-center gap-1.5 sm:mt-4 sm:gap-2" data-tv-rail="1">
                             {active.canPlay !== false ? (
                                 <button
                                     type="button"

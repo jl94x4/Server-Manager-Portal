@@ -82,7 +82,7 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
             const target = event.target as HTMLElement | null;
             if (!target || !node.contains(target)) return;
             try {
-                target.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+                target.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'auto' });
             } catch {
                 /* ignore */
             }
@@ -147,7 +147,10 @@ export const Carousel: React.FC<CarouselProps> = ({ children }) => {
                 <div
                     ref={scrollContainerRef}
                     onScroll={handleScroll}
-                    className="flex gap-4 overflow-x-auto snap-x snap-proximity scrollbar-hide hide-scrollbar py-2 px-2 w-full"
+                    data-tv-rail="1"
+                    className={`flex gap-4 overflow-x-auto snap-x snap-proximity scrollbar-hide hide-scrollbar w-full ${
+                        tvShell ? 'px-4 py-3' : 'px-2 py-2'
+                    }`}
                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
                     {children}

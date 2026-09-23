@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, Check, Globe, Loader2, Play } from 'lucide-react';
 import { apiFetch } from '../shared/api';
 import {
     clearPlexClientPortal,
@@ -29,6 +30,72 @@ type HomeUser = {
 };
 
 const LINK_URL = 'https://plex.tv/link';
+const POSTER_HUES = [24, 32, 18, 38, 28, 14, 42, 22, 35, 16, 30, 40, 20, 26, 12, 36, 19, 33];
+
+const displayHost = (raw: string) => {
+    const normalized = normalizePortalBaseUrl(raw);
+    if (!normalized.ok) return raw.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+    try {
+        const url = new URL(normalized.url);
+        return url.host + (url.pathname !== '/' ? url.pathname.replace(/\/+$/, '') : '');
+    } catch {
+        return normalized.url.replace(/^https?:\/\//i, '');
+    }
+};
+
+const AuthAtmosphere: React.FC = () => (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        <div className="absolute inset-0 bg-[#07080c]" />
+        <div className="absolute -top-32 -left-24 h-[34rem] w-[34rem] rounded-full bg-plex/20 blur-[140px]" />
+        <div className="absolute top-[18%] right-[-8%] h-[28rem] w-[28rem] rounded-full bg-amber-700/20 blur-[120px]" />
+        <div className="absolute bottom-[-18%] left-[22%] h-[24rem] w-[24rem] rounded-full bg-plex/10 blur-[110px]" />
+        <div
+            className="absolute inset-0 opacity-90"
+            style={{ backgroundImage: 'radial-gradient(ellipse 70% 55% at 18% 12%, rgba(229,160,13,0.16), transparent 58%)' }}
+        />
+        <div className="absolute inset-y-[-12%] right-[-6%] hidden w-[58%] rotate-[-11deg] md:block">
+            <div className="grid h-full grid-cols-6 gap-3 opacity-[0.42]">
+                {POSTER_HUES.map((hue, index) => (
+                    <div
+                        key={`${hue}-${index}`}
+                        className="relative overflow-hidden rounded-xl border border-white/10 shadow-[0_18px_40px_rgba(0,0,0,0.45)]"
+                        style={{
+                            marginTop: `${(index % 3) * 1.6}rem`,
+                            background: `linear-gradient(165deg, hsl(${hue} 55% ${22 + (index % 4) * 4}%) 0%, hsl(${hue + 8} 40% 8%) 100%)`,
+                        }}
+                    >
+                        <div className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-white/10 to-transparent" />
+                    </div>
+                ))}
+            </div>
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-r from-[#07080c] via-[#07080c]/88 to-[#07080c]/35" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#07080c] via-transparent to-[#07080c]/70" />
+        <div
+            className="absolute inset-0 opacity-[0.04] mix-blend-overlay"
+            style={{
+                backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.35) 2px, rgba(255,255,255,0.35) 3px), repeating-linear-gradient(90deg, transparent, transparent 3px, rgba(255,255,255,0.2) 3px, rgba(255,255,255,0.2) 4px)',
+            }}
+        />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.55)_100%)]" />
+    </div>
+);
+
+const AuthMark: React.FC<{ pulse?: boolean }> = ({ pulse = false }) => (
+    <div className={`relative inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-plex to-amber-600 shadow-[0_12px_40px_rgba(229,160,13,0.38)] ring-1 ring-white/20 ${pulse ? 'animate-pulse' : ''}`}>
+        <Play className="h-7 w-7 fill-zinc-950 text-zinc-950" />
+    </div>
+);
+
+export const PlexClientBootSplash: React.FC = () => (
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#07080c] text-zinc-100">
+        <AuthAtmosphere />
+        <div className="relative z-10 flex flex-col items-center gap-5">
+            <AuthMark pulse />
+            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-plex/90">SMP Media Player</p>
+        </div>
+    </div>
+);
 
 export const PlexClientAuthScreen: React.FC<Props> = ({ onAuthenticated }) => {
     const [portalUrl, setPortalUrl] = useState(getPortalBaseUrl());
@@ -216,129 +283,268 @@ export const PlexClientAuthScreen: React.FC<Props> = ({ onAuthenticated }) => {
         setPortalUrl('');
     };
 
+    const selectedHomeUser = useMemo(
+        () => (homeUsers || []).find((user) => String(user.id) === String(selectedHomeUserId || '')) || null,
+        [homeUsers, selectedHomeUserId],
+    );
+    const hostLabel = displayHost(portalUrl);
+    const stage = homeUsers ? 'home' : pin ? 'pin' : 'connect';
+
+    useEffect(() => {
+        if (!isTv) return;
+        const id = window.requestAnimationFrame(() => {
+            const root = document.querySelector<HTMLElement>('[data-tv-auth="1"]');
+            if (!root) return;
+            const active = document.activeElement as HTMLElement | null;
+            // Typing must keep the IME open. Refocusing Continue after each
+            // letter was dismissing the leanback keyboard.
+            if (active && root.contains(active) && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+            const action = root.querySelector<HTMLElement>('[data-tv-action="1"]');
+            const field = root.querySelector<HTMLInputElement>('input[data-tv-item="1"]');
+            const prefilled = stage === 'connect' && Boolean(field?.value?.trim());
+            const target = (prefilled ? action : field) || action || field;
+            target?.focus({ preventScroll: true });
+        });
+        return () => window.cancelAnimationFrame(id);
+    }, [isTv, stage]);
+
+    const title = stage === 'home'
+        ? 'Who’s watching?'
+        : stage === 'pin'
+            ? 'Link this device'
+            : 'Start watching';
+    const subtitle = stage === 'home'
+        ? 'Choose a Plex Home profile to continue.'
+        : stage === 'pin'
+            ? 'On any phone or computer, open plex.tv/link and enter the code below.'
+            : 'Connect once to your Server Manager Portal, then sign in with Plex.';
+
     return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 px-6 text-zinc-100">
-            <div className="w-full max-w-md space-y-6">
-                <div className="space-y-2 text-center">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-500/90">Server Manager Portal</p>
-                    <h1 className="text-3xl font-semibold tracking-tight">Media Player</h1>
-                    <p className="text-sm text-zinc-400">
-                        Connect to <span className="text-zinc-200">your</span> portal, then sign in with Plex.
-                        Works with any SMP install.
-                    </p>
-                </div>
-
-                {!homeUsers ? (
-                    <label className="block space-y-2">
-                        <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">Your portal URL</span>
-                        <input
-                            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-base outline-none focus:border-amber-500"
-                            value={portalUrl}
-                            onChange={(e) => setPortalUrl(e.target.value)}
-                            placeholder="https://portal.example.com"
-                            autoCapitalize="off"
-                            autoCorrect="off"
-                            spellCheck={false}
-                            inputMode="url"
-                            disabled={busy && !!pin}
-                        />
-                        <span className="block text-xs text-zinc-500">
-                            Ask your server admin for the portal address if you do not host SMP yourself.
-                        </span>
-                    </label>
-                ) : null}
-
-                {pin ? (
-                    <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/80 p-6 text-center">
-                        <p className="text-sm text-zinc-400">On your phone or computer, open</p>
-                        <p className="text-lg font-medium text-amber-400">{LINK_URL}</p>
-                        <p className="font-mono text-6xl font-bold tracking-[0.4em] text-white">{pin.code}</p>
-                        <p className="text-xs text-zinc-500">Enter this 4-character code, then return here</p>
-                    </div>
-                ) : null}
-
-                {homeUsers ? (
-                    <div className="space-y-4">
-                        <p className="text-center text-sm text-zinc-400">Choose a Plex Home profile</p>
-                        <div className="max-h-[40vh] space-y-2 overflow-y-auto">
-                            {homeUsers.map((user) => {
-                                const active = selectedHomeUserId === String(user.id);
-                                const label = user.title || user.username || user.id;
-                                return (
-                                    <button
-                                        key={user.id}
-                                        type="button"
-                                        onClick={() => setSelectedHomeUserId(String(user.id))}
-                                        className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
-                                            active
-                                                ? 'border-amber-500 bg-amber-500/10'
-                                                : 'border-zinc-800 bg-zinc-900/80 hover:border-zinc-600'
-                                        }`}
-                                    >
-                                        {user.thumb ? (
-                                            <img src={user.thumb} alt="" className="h-10 w-10 rounded-full object-cover" />
-                                        ) : (
-                                            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-800 text-sm font-bold">
-                                                {String(label).charAt(0).toUpperCase()}
-                                            </span>
-                                        )}
-                                        <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
-                                        {user.protected ? (
-                                            <span className="text-[10px] uppercase tracking-wider text-zinc-500">PIN</span>
-                                        ) : null}
-                                    </button>
-                                );
-                            })}
+        <div className="relative min-h-screen overflow-hidden bg-[#07080c] text-zinc-100" data-tv-auth="1">
+            <AuthAtmosphere />
+            <div className="smp-auth-shell relative z-10 flex min-h-screen items-center px-5 py-10 sm:px-10 lg:px-16">
+                <div className="w-full max-w-xl lg:max-w-[34rem]">
+                    <div className="smp-auth-copy mb-8 space-y-5">
+                        <AuthMark />
+                        <div className="space-y-3">
+                            <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-plex">SMP Media Player</p>
+                            <h1 className="text-4xl font-black tracking-tight text-white sm:text-5xl">
+                                {title}
+                            </h1>
+                            <p className="max-w-md text-base leading-relaxed text-zinc-400">
+                                {subtitle}
+                            </p>
                         </div>
-                        <label className="block space-y-2">
-                            <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">Profile PIN (if required)</span>
-                            <input
-                                className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-base outline-none focus:border-amber-500"
-                                value={homePin}
-                                onChange={(e) => setHomePin(e.target.value)}
-                                inputMode="numeric"
-                                autoComplete="one-time-code"
-                                placeholder="Optional"
-                            />
-                        </label>
                     </div>
-                ) : null}
 
-                {error ? (
-                    <p className="rounded-lg border border-red-900/60 bg-red-950/40 px-3 py-2 text-sm text-red-200" role="alert">
-                        {error}
-                    </p>
-                ) : null}
+                    <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.45)] backdrop-blur-2xl sm:p-7">
+                        {stage === 'connect' ? (
+                            <form
+                                className="space-y-5"
+                                data-tv-rail="1"
+                                onSubmit={(event) => {
+                                    event.preventDefault();
+                                    void startPinLogin();
+                                }}
+                            >
+                                <label className="block space-y-2.5">
+                                    <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                                        <Globe className="h-3.5 w-3.5 text-plex" />
+                                        Portal address
+                                    </span>
+                                    <input
+                                        data-tv-item="1"
+                                        data-tv-key="auth-portal-url"
+                                        tabIndex={0}
+                                        className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-base text-white outline-none transition placeholder:text-zinc-600 focus:border-plex/70 focus:ring-2 focus:ring-plex/25"
+                                        value={portalUrl}
+                                        onChange={(e) => setPortalUrl(e.target.value)}
+                                        placeholder="https://portal.example.com"
+                                        autoCapitalize="off"
+                                        autoCorrect="off"
+                                        spellCheck={false}
+                                        inputMode="url"
+                                        autoComplete="url"
+                                        disabled={busy}
+                                    />
+                                    <span className="block text-xs leading-relaxed text-zinc-500">
+                                        The address you open in a browser for Server Manager Portal.
+                                    </span>
+                                </label>
+                                <button
+                                    type="submit"
+                                    data-tv-item="1"
+                                    data-tv-action="1"
+                                    data-tv-key="auth-continue"
+                                    tabIndex={0}
+                                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-plex to-amber-400 px-5 py-3.5 text-base font-black text-zinc-950 shadow-[0_10px_30px_rgba(229,160,13,0.28)] transition hover:brightness-110 disabled:opacity-60"
+                                    disabled={busy}
+                                >
+                                    {checkingPortal ? (
+                                        <>
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            Checking portal…
+                                        </>
+                                    ) : (
+                                        <>
+                                            Continue with Plex
+                                        </>
+                                    )}
+                                </button>
+                            </form>
+                        ) : null}
 
-                {homeUsers ? (
-                    <button
-                        type="button"
-                        className="w-full rounded-lg bg-amber-500 px-4 py-3 text-base font-semibold text-zinc-950 hover:bg-amber-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 disabled:opacity-60"
-                        onClick={() => void confirmHomeUser()}
-                        disabled={busy}
-                    >
-                        {busy ? 'Signing in…' : 'Continue'}
-                    </button>
-                ) : (
-                    <button
-                        type="button"
-                        className="w-full rounded-lg bg-amber-500 px-4 py-3 text-base font-semibold text-zinc-950 hover:bg-amber-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 disabled:opacity-60"
-                        onClick={() => void startPinLogin()}
-                        disabled={busy && !!pin}
-                    >
-                        {checkingPortal ? 'Checking portal…' : pin ? 'Waiting…' : 'Continue with Plex'}
-                    </button>
-                )}
+                        {stage === 'pin' && pin ? (
+                            <div className="space-y-6" data-tv-rail="1">
+                                {hostLabel ? (
+                                    <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-semibold text-emerald-200">
+                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+                                        Connected to {hostLabel}
+                                    </div>
+                                ) : null}
+                                <div className="space-y-4 text-center">
+                                    <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500">Your code</p>
+                                    <div className="flex justify-center gap-2.5">
+                                        {pin.code.split('').map((ch, index) => (
+                                            <span
+                                                key={`${ch}-${index}`}
+                                                className="smp-auth-pin-tile flex h-[4.5rem] w-[3.25rem] items-center justify-center rounded-2xl border border-plex/35 bg-black/45 font-mono text-3xl font-black tracking-wide text-white shadow-[0_0_32px_rgba(229,160,13,0.12)] sm:h-20 sm:w-16 sm:text-4xl"
+                                            >
+                                                {ch}
+                                            </span>
+                                        ))}
+                                    </div>
+                                    <p className="text-sm text-zinc-400">
+                                        Enter this at{' '}
+                                        <span className="font-semibold text-plex">{LINK_URL.replace('https://', '')}</span>
+                                    </p>
+                                    <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin text-plex" />
+                                        Waiting for Plex
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    data-tv-item="1"
+                                    data-tv-action="1"
+                                    data-tv-auth-back="1"
+                                    data-tv-key="auth-change-portal"
+                                    tabIndex={0}
+                                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-bold text-zinc-300 transition hover:border-white/20 hover:text-white"
+                                    onClick={changePortal}
+                                >
+                                    <ArrowLeft className="h-4 w-4" />
+                                    Use a different portal
+                                </button>
+                            </div>
+                        ) : null}
 
-                {(pin || homeUsers || getPortalBaseUrl()) ? (
-                    <button
-                        type="button"
-                        className="w-full text-center text-sm text-zinc-500 underline-offset-2 hover:text-zinc-300 hover:underline"
-                        onClick={changePortal}
-                    >
-                        Use a different portal
-                    </button>
-                ) : null}
+                        {stage === 'home' && homeUsers ? (
+                            <div className="space-y-5" data-tv-rail="1">
+                                <div className={`grid gap-2.5 ${isTv ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'}`}>
+                                    {homeUsers.map((user) => {
+                                        const active = selectedHomeUserId === String(user.id);
+                                        const label = user.title || user.username || user.id;
+                                        return (
+                                            <button
+                                                key={user.id}
+                                                type="button"
+                                                data-tv-item="1"
+                                                data-tv-key={`auth-home-${user.id}`}
+                                                tabIndex={0}
+                                                onClick={() => setSelectedHomeUserId(String(user.id))}
+                                                className={`flex items-center gap-3 rounded-2xl border px-3.5 py-3 text-left transition ${
+                                                    active
+                                                        ? 'border-plex bg-plex/10 shadow-[0_0_24px_rgba(229,160,13,0.12)]'
+                                                        : 'border-white/10 bg-black/30 hover:border-white/20'
+                                                }`}
+                                            >
+                                                {user.thumb ? (
+                                                    <img src={user.thumb} alt="" className="h-11 w-11 rounded-full object-cover ring-1 ring-white/10" />
+                                                ) : (
+                                                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-sm font-black">
+                                                        {String(label).charAt(0).toUpperCase()}
+                                                    </span>
+                                                )}
+                                                <span className="min-w-0 flex-1 truncate font-semibold">{label}</span>
+                                                {active ? <Check className="h-4 w-4 shrink-0 text-plex" /> : null}
+                                                {user.protected ? (
+                                                    <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-zinc-500">PIN</span>
+                                                ) : null}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                {selectedHomeUser?.protected ? (
+                                    <label className="block space-y-2">
+                                        <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Profile PIN</span>
+                                        <input
+                                            data-tv-item="1"
+                                            data-tv-key="auth-home-pin"
+                                            tabIndex={0}
+                                            className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-base text-white outline-none transition focus:border-plex/70 focus:ring-2 focus:ring-plex/25"
+                                            value={homePin}
+                                            onChange={(e) => setHomePin(e.target.value)}
+                                            inputMode="numeric"
+                                            autoComplete="one-time-code"
+                                            placeholder="Required for this profile"
+                                        />
+                                    </label>
+                                ) : null}
+                                <button
+                                    type="button"
+                                    data-tv-item="1"
+                                    data-tv-action="1"
+                                    data-tv-key="auth-home-continue"
+                                    tabIndex={0}
+                                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-plex to-amber-400 px-5 py-3.5 text-base font-black text-zinc-950 shadow-[0_10px_30px_rgba(229,160,13,0.28)] transition hover:brightness-110 disabled:opacity-60"
+                                    onClick={() => void confirmHomeUser()}
+                                    disabled={busy}
+                                >
+                                    {busy ? (
+                                        <>
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            Signing in…
+                                        </>
+                                    ) : (
+                                        'Continue'
+                                    )}
+                                </button>
+                                <button
+                                    type="button"
+                                    data-tv-item="1"
+                                    data-tv-auth-back="1"
+                                    data-tv-key="auth-home-change-portal"
+                                    tabIndex={0}
+                                    className="inline-flex w-full items-center justify-center gap-2 text-sm font-semibold text-zinc-500 transition hover:text-zinc-300"
+                                    onClick={changePortal}
+                                >
+                                    Use a different portal
+                                </button>
+                            </div>
+                        ) : null}
+
+                        {error ? (
+                            <p className="mt-5 rounded-2xl border border-red-500/25 bg-red-950/40 px-4 py-3 text-sm leading-relaxed text-red-100" role="alert">
+                                {error}
+                            </p>
+                        ) : null}
+                    </div>
+
+                    {stage === 'connect' && getPortalBaseUrl() ? (
+                        <button
+                            type="button"
+                            data-tv-item="1"
+                            data-tv-auth-back="1"
+                            data-tv-key="auth-connect-change-portal"
+                            tabIndex={0}
+                            className="mt-5 text-sm font-semibold text-zinc-500 transition hover:text-zinc-300"
+                            onClick={changePortal}
+                        >
+                            Use a different portal
+                        </button>
+                    ) : null}
+                </div>
             </div>
         </div>
     );

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import {
     CustomSelect,
@@ -23,6 +23,7 @@ import { readLibraryBrowseState, readLibraryHomeCache, writeLibraryBrowseState, 
 import { MediaPlayerLibrariesPanel } from './MediaPlayerLibrariesPanel';
 import { PlayerPosterCard } from './PlayerPosterCard';
 import { PlayerRail } from './PlayerRail';
+import { playerCardImageUrl, prefetchPlayerImages } from './playerUtils';
 import type { PlayerItem, PlayerLibraryHub, PlayerPlayOptions, PlayerSection } from './types';
 
 type LibraryTab = 'home' | 'browse' | 'collections';
@@ -47,6 +48,46 @@ const PAGE_SIZE = 50;
 const isContinueWatchingHub = (hub: PlayerLibraryHub) => (
     /continue\s*watch|ondeck|on[.\s_-]?deck|in[.\s_-]?progress/i.test(`${hub.identifier || ''} ${hub.title || ''}`)
 );
+
+const hubBlob = (hub: PlayerLibraryHub) => `${hub.identifier || ''} ${hub.title || ''}`;
+const isRecentHub = (hub: PlayerLibraryHub) => /recently\s*added|recentlyadded/i.test(hubBlob(hub));
+const isReleasedHub = (hub: PlayerLibraryHub) => /recently\s*released|recentlyreleased/i.test(hubBlob(hub));
+
+const itemHead = (items: PlayerItem[] = []) => items.slice(0, 8).map((row) => row.ratingKey).join('|');
+
+/** Paint library rows from the section list while the slower hub request is still in flight. */
+const withLibraryListRows = (prev: PlayerLibraryHub[], recentItems: PlayerItem[], releasedItems: PlayerItem[]) => {
+    const next = prev.slice();
+    let insertAt = next.filter(isContinueWatchingHub).length;
+    const push = (identifier: string, title: string, items: PlayerItem[]) => {
+        if (!items.length) return;
+        if (identifier === 'recentlyAdded' && next.some(isRecentHub)) return;
+        if (identifier === 'recentlyReleased' && (next.some(isReleasedHub) || itemHead(items) === itemHead(recentItems))) return;
+        if (next.some((hub) => hub.identifier === identifier)) return;
+        next.splice(insertAt, 0, { identifier, title, items });
+        insertAt += 1;
+    };
+    push('recentlyAdded', 'Recently Added', recentItems);
+    push('recentlyReleased', 'Recently Released', releasedItems);
+    return next;
+};
+
+const mergeServerLibraryHubs = (serverHubs: PlayerLibraryHub[], prev: PlayerLibraryHub[]) => {
+    const server = serverHubs || [];
+    const extras: PlayerLibraryHub[] = [];
+    if (!server.some(isRecentHub)) {
+        const row = prev.find((hub) => hub.identifier === 'recentlyAdded');
+        if (row?.items?.length) extras.push(row);
+    }
+    const recentItems = extras[0]?.items || server.find(isRecentHub)?.items || [];
+    if (!server.some(isReleasedHub)) {
+        const row = prev.find((hub) => hub.identifier === 'recentlyReleased');
+        if (row?.items?.length && itemHead(row.items) !== itemHead(recentItems)) extras.push(row);
+    }
+    if (!extras.length) return server;
+    const seen = new Set(server.map((hub) => hub.identifier));
+    return [...server, ...extras.filter((hub) => !seen.has(hub.identifier))];
+};
 
 const SORT_IDS = [
     'addedAt:desc',
@@ -73,6 +114,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
     playlistsEnabled = true,
 }) => {
     const { t } = useDiscoverI18n();
+    const homeLoadRef = useRef(0);
     const [gridSize, setGridSize] = useDiscoverGridSize();
     const [title, setTitle] = useState(t('mediaPlayerPage.libraries'));
     const [hubs, setHubs] = useState<PlayerLibraryHub[]>(() => readLibraryHomeCache(sectionKey)?.hubs || []);
@@ -106,6 +148,9 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
     }, [hubs]);
 
     const loadHome = useCallback(async () => {
+        const seq = homeLoadRef.current + 1;
+        homeLoadRef.current = seq;
+        const alive = () => homeLoadRef.current === seq;
         const cached = readLibraryHomeCache(sectionKey);
         if (cached?.hubs?.length) {
             setTitle(cached.title || t('mediaPlayerPage.libraries'));
@@ -114,18 +159,42 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
         } else {
             setLoading(true);
         }
+        // Section lists return before promoted hubs. Paint them so a movie
+        // library is not stuck on a single Continue Watching row.
+        const listsPainted = Promise.all([
+            fetchMediaPlayerLibrary(sectionKey, 0, 18, { sort: 'addedAt:desc' }),
+            fetchMediaPlayerLibrary(sectionKey, 0, 18, { sort: 'originallyAvailableAt:desc' }),
+        ]).then(([recent, released]) => {
+            if (!alive()) return false;
+            if (recent.title) setTitle(recent.title);
+            const recentItems = recent.items || [];
+            const releasedItems = released.items || [];
+            setHubs((prev) => {
+                const next = withLibraryListRows(prev, recentItems, releasedItems);
+                return next;
+            });
+            setError(null);
+            setLoading(false);
+            return recentItems.length > 0 || releasedItems.length > 0;
+        }).catch(() => false);
         try {
             const data = await fetchMediaPlayerLibraryHome(sectionKey);
-            writeLibraryHomeCache(sectionKey, data);
+            if (!alive()) return;
             setTitle(data.title || t('mediaPlayerPage.libraries'));
-            setHubs(data.hubs || []);
+            setHubs((prev) => {
+                const next = mergeServerLibraryHubs(data.hubs || [], prev);
+                writeLibraryHomeCache(sectionKey, { ...data, hubs: next });
+                return next;
+            });
             setError(null);
         } catch (err: any) {
-            if (!cached?.hubs?.length) {
+            const painted = await listsPainted;
+            if (!alive()) return;
+            if (!painted && !cached?.hubs?.length) {
                 setError(String(err?.message || t('mediaPlayerPage.loadError')));
             }
         } finally {
-            setLoading(false);
+            if (alive()) setLoading(false);
         }
     }, [sectionKey, t]);
 
@@ -167,6 +236,12 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
             setLoading(false);
         }
     }, [sectionKey, t]);
+
+    useEffect(() => {
+        const list = tab === 'collections' ? collections : tab === 'browse' ? items : [];
+        if (!list.length) return;
+        prefetchPlayerImages(list.slice(0, 18).map((item) => playerCardImageUrl(item.thumb, item.type === 'episode' ? '16/9' : '2/3')), 12);
+    }, [collections, items, tab]);
 
     useEffect(() => {
         if (tab === 'home') void loadHome();
@@ -480,10 +555,11 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
             ) : tab === 'collections' ? (
                 collections.length ? (
                     <div className={upgraderPosterGridClass(gridSize)} style={upgraderPosterGridStyle(gridSize)}>
-                        {collections.map((item) => (
+                        {collections.map((item, index) => (
                             <PlayerPosterCard
                                 key={item.ratingKey}
                                 item={item}
+                                imagePriority={index < 12}
                                 onOpenItem={() => onOpenCollection(sectionKey, item)}
                             />
                         ))}
@@ -500,10 +576,11 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
             ) : (
                 <>
                     <div className={upgraderPosterGridClass(gridSize)} style={upgraderPosterGridStyle(gridSize)}>
-                        {items.map((item) => (
+                        {items.map((item, index) => (
                             <PlayerPosterCard
                                 key={item.ratingKey}
                                 item={item}
+                                imagePriority={index < 12}
                                 onOpenItem={onOpenItem}
                                 onPlay={onPlay}
                                 onToggleWatched={toggleWatched}

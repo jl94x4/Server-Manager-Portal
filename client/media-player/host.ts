@@ -31,7 +31,7 @@ export { CustomSelect, SettingsToggleRow } from '../shared/ui';
 export { StickySaveBar } from '../shared/StickySaveBar';
 export { PlexHomeSwitchModal, type PlexHomeProfile } from '../shared/PlexHomeSwitchModal';
 export { portalUrl, stripBasePath } from '../shared/basePath';
-export { PLAYER_EXIT_EVENT, exitToPortal } from './paths';
+export { PLAYER_EXIT_EVENT, PLAYER_LOGOUT_EVENT, exitToPortal, logoutMediaPlayer } from './paths';
 export { lockBackgroundScroll } from '../shared/lockBackgroundScroll';
 export { PORTAL_CSRF_HEADER, PORTAL_CSRF_VALUE } from '../shared/api';
 export { apiFetch } from '../shared/api';

@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { DiscoverI18nProvider } from '../discovery/i18n';
 import { MediaPlayerDashboard } from '../media-player/MediaPlayerDashboard';
-import { PLAYER_APP_BASE } from '../media-player/paths';
+import { prefetchMediaPlayerHome } from '../media-player/api';
+import { PLAYER_APP_BASE, PLAYER_LOGOUT_EVENT } from '../media-player/paths';
 import { apiFetch } from '../shared/api';
-import { PlexClientAuthScreen } from './AuthScreen';
+import { PlexClientAuthScreen, PlexClientBootSplash } from './AuthScreen';
 import {
     bootstrapPlexClientConfig,
     clearPlexClientSession,
@@ -52,6 +54,7 @@ const PlexClientApp: React.FC = () => {
                 if (cancelled) return;
                 if (data?.authenticated) {
                     ensurePlayerRoute();
+                    prefetchMediaPlayerHome();
                     setAuthed(true);
                 } else clearPlexClientSession();
             } catch {
@@ -66,15 +69,22 @@ const PlexClientApp: React.FC = () => {
 
     const onAuthenticated = useCallback(() => {
         ensurePlayerRoute();
+        prefetchMediaPlayerHome();
         setAuthed(true);
     }, []);
 
+    useEffect(() => {
+        const onLogout = () => {
+            void apiFetch('/api/auth/logout', { method: 'POST' }).catch(() => null);
+            clearPlexClientSession();
+            setAuthed(false);
+        };
+        window.addEventListener(PLAYER_LOGOUT_EVENT, onLogout);
+        return () => window.removeEventListener(PLAYER_LOGOUT_EVENT, onLogout);
+    }, []);
+
     if (!ready || checking) {
-        return (
-            <div className="flex min-h-screen items-center justify-center bg-zinc-950 text-zinc-400">
-                Loading…
-            </div>
-        );
+        return <PlexClientBootSplash />;
     }
 
     if (!authed) {
@@ -90,5 +100,9 @@ const PlexClientApp: React.FC = () => {
 
 const container = document.getElementById('root');
 if (container) {
-    createRoot(container).render(<PlexClientApp />);
+    createRoot(container).render(
+        <DiscoverI18nProvider>
+            <PlexClientApp />
+        </DiscoverI18nProvider>,
+    );
 }

@@ -67,8 +67,13 @@ export const MediaPlayerMediaInfo: React.FC<Props> = ({ item, onClose }) => {
         const onKey = (event: KeyboardEvent) => {
             if (event.key === 'Escape') onClose();
         };
+        const onOverlayClose = () => onClose();
         window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
+        window.addEventListener('smp-tv-overlay-close', onOverlayClose);
+        return () => {
+            window.removeEventListener('keydown', onKey);
+            window.removeEventListener('smp-tv-overlay-close', onOverlayClose);
+        };
     }, [onClose]);
 
     const overlay = (
@@ -85,6 +90,7 @@ export const MediaPlayerMediaInfo: React.FC<Props> = ({ item, onClose }) => {
             }}
             role="dialog"
             aria-modal="true"
+            data-tv-select-menu="1"
             aria-label={t('mediaPlayerPage.mediaInfo')}
         >
             <button

@@ -17,6 +17,7 @@ import {
     apiFetch,
     exitToPortal,
     lockBackgroundScroll,
+    logoutMediaPlayer,
     portalUrl,
     PlexHomeSwitchModal,
     useDiscoverI18n,
@@ -24,7 +25,9 @@ import {
 } from './host';
 import { fetchMediaPlayerMe } from './api';
 import { applyLibraryNavOrder, PLAYER_SETTINGS_DRAFT_EVENT, PLAYER_SETTINGS_EVENT } from './playerSettings';
+import { PLAYER_TV_NAV_EVENT } from './paths';
 import type { PlayerProfile, PlayerSection } from './types';
+import { focusTvContent } from '../plex-client/useTvRemote';
 
 type NavPage = 'home' | 'library' | 'settings' | 'other';
 
@@ -82,6 +85,13 @@ const navButtonClass = (active: boolean, expanded: boolean) => (
     }`
 );
 
+const tvNavProps = (isTvShell: boolean, expanded: boolean, active = false) => ({
+    'data-tv-item': '1' as const,
+    'data-tv-nav': '1' as const,
+    ...(active ? { 'data-tv-nav-active': '1' as const } : {}),
+    tabIndex: isTvShell && !expanded ? -1 : 0,
+});
+
 export const MediaPlayerNav: React.FC<Props> = ({
     libraries,
     libraryOrder,
@@ -105,7 +115,12 @@ export const MediaPlayerNav: React.FC<Props> = ({
     const [homeSwitchAvailable, setHomeSwitchAvailable] = useState(false);
     const [homeSwitchBusy, setHomeSwitchBusy] = useState(false);
     const [homeSwitchError, setHomeSwitchError] = useState('');
+    const isPlexClient = typeof window !== 'undefined' && Boolean(window.__PLEX_CLIENT__);
     const orderedLibraries = applyLibraryNavOrder(libraries, draftLibraryOrder || libraryOrder);
+    const isTvShell = typeof document !== 'undefined' && (
+        document.documentElement?.dataset?.tv === '1'
+        || window.__PLEX_CLIENT__?.isTv === true
+    );
 
     const loadHomeProfiles = useCallback(async () => {
         try {
@@ -135,6 +150,19 @@ export const MediaPlayerNav: React.FC<Props> = ({
             });
         return () => { cancelled = true; };
     }, []);
+
+    useEffect(() => {
+        if (!isTvShell || !expanded) return undefined;
+        const id = window.setTimeout(() => {
+            const root = document.querySelector('[data-tv-nav-root="1"]');
+            if (!root) return;
+            const active = root.querySelector<HTMLElement>('[data-tv-nav="1"][data-tv-nav-active="1"]');
+            const first = root.querySelector<HTMLElement>('[data-tv-nav="1"]');
+            const target = active || first;
+            if (target && !root.contains(document.activeElement)) target.focus();
+        }, 30);
+        return () => window.clearTimeout(id);
+    }, [expanded, isTvShell]);
 
     useEffect(() => {
         void loadHomeProfiles();
@@ -176,10 +204,29 @@ export const MediaPlayerNav: React.FC<Props> = ({
     const go = (action: () => void) => {
         action();
         closeMobile();
+        if (isTvShell) {
+            try {
+                delete document.documentElement.dataset.tvNavOpen;
+            } catch {
+                /* ignore */
+            }
+            window.dispatchEvent(new CustomEvent(PLAYER_TV_NAV_EVENT, { detail: { action: 'close' } }));
+            // Next frame is enough — long timeouts make nav exits feel laggy on TV.
+            window.requestAnimationFrame(() => focusTvContent());
+        }
     };
 
     const openHomeSwitcher = async () => {
         setHomeSwitchError('');
+        closeMobile();
+        if (isTvShell) {
+            try {
+                delete document.documentElement.dataset.tvNavOpen;
+            } catch {
+                /* ignore */
+            }
+            window.dispatchEvent(new CustomEvent(PLAYER_TV_NAV_EVENT, { detail: { action: 'close' } }));
+        }
         setHomeSwitchOpen(true);
         const result = await loadHomeProfiles();
         if (!result.available) setHomeSwitchOpen(false);
@@ -209,6 +256,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
             {desktop ? (
                 <button
                     type="button"
+                    tabIndex={isTvShell ? -1 : undefined}
                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/80 hover:bg-white/10 hover:text-white"
                     onClick={onToggleExpanded}
                     title={expanded ? t('mediaPlayerPage.collapseNav') : t('mediaPlayerPage.expandNav')}
@@ -217,33 +265,11 @@ export const MediaPlayerNav: React.FC<Props> = ({
                     <Menu className="h-4 w-4 shrink-0" />
                 </button>
             ) : null}
-            <div className={`flex shrink-0 ${showLabels ? 'items-center' : 'flex-col items-center'}`}>
-                <button
-                    type="button"
-                    data-tv-item="1"
-                    className={showLabels
-                        ? 'flex min-w-0 flex-1 items-center gap-3 rounded-full px-2 py-1.5 text-left hover:bg-white/10'
-                        : 'flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10'}
-                    onClick={() => go(onOpenSettings)}
-                    title={profile?.username
-                        ? t('mediaPlayerPage.signedInAs', { name: profile.username })
-                        : t('mediaPlayerPage.navSettings')}
-                >
-                    <NavAvatar key={profile?.thumb || profile?.username || 'avatar'} profile={profile} sizeClass={showLabels ? 'h-9 w-9' : 'h-8 w-8'} />
-                    {showLabels ? (
-                        <>
-                            <span className="min-w-0 flex-1 truncate text-sm font-bold text-white">
-                                {profile?.username || t('mediaPlayerPage.navSettings')}
-                            </span>
-                            <ChevronRight className="h-4 w-4 shrink-0 text-white/40" />
-                        </>
-                    ) : null}
-                </button>
-            </div>
+            {/* Home → Search → libraries → Settings → profile (TV focus order). */}
             <div className={`flex shrink-0 flex-col ${showLabels ? 'gap-1' : 'items-center gap-1'}`}>
                 <button
                     type="button"
-                    data-tv-item="1"
+                    {...tvNavProps(isTvShell, expanded, page === 'home')}
                     className={navButtonClass(page === 'home', showLabels)}
                     onClick={() => go(onHome)}
                     title={t('mediaPlayerPage.navHome')}
@@ -253,7 +279,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
                 </button>
                 <button
                     type="button"
-                    data-tv-item="1"
+                    {...tvNavProps(isTvShell, expanded, false)}
                     className={navButtonClass(false, showLabels)}
                     onClick={() => go(onSearch)}
                     title={t('mediaPlayerPage.navSearch')}
@@ -283,7 +309,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
                                 <button
                                     key={section.key}
                                     type="button"
-                                    data-tv-item="1"
+                                    {...tvNavProps(isTvShell, expanded, active)}
                                     className={navButtonClass(active, showLabels)}
                                     onClick={() => go(() => onOpenLibrary(section))}
                                     title={section.title}
@@ -301,7 +327,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
                 {!showLabels ? <div className="mb-1 h-px w-6 bg-white/15" /> : null}
                 <button
                     type="button"
-                    data-tv-item="1"
+                    {...tvNavProps(isTvShell, expanded, page === 'settings')}
                     className={navButtonClass(page === 'settings', showLabels)}
                     onClick={() => go(onOpenSettings)}
                     title={t('mediaPlayerPage.navSettings')}
@@ -312,22 +338,59 @@ export const MediaPlayerNav: React.FC<Props> = ({
                 {homeSwitchAvailable ? (
                     <button
                         type="button"
+                        {...tvNavProps(isTvShell, expanded, false)}
                         className={navButtonClass(false, showLabels)}
-                        onClick={() => go(() => { void openHomeSwitcher(); })}
+                        onClick={() => { void openHomeSwitcher(); }}
                         title={t('mediaPlayerPage.switchUser')}
                     >
                         <Users className="h-4 w-4 shrink-0" />
                         {showLabels ? <span className="player-nav-label min-w-0 truncate">{t('mediaPlayerPage.switchUser')}</span> : null}
                     </button>
                 ) : null}
+                {isPlexClient ? (
+                    <button
+                        type="button"
+                        {...tvNavProps(isTvShell, expanded, false)}
+                        className={navButtonClass(false, showLabels)}
+                        onClick={() => go(logoutMediaPlayer)}
+                        title={t('mediaPlayerPage.logOut')}
+                    >
+                        <LogOut className="h-4 w-4 shrink-0" />
+                        {showLabels ? <span className="player-nav-label min-w-0 truncate">{t('mediaPlayerPage.logOut')}</span> : null}
+                    </button>
+                ) : null}
+                {!isTvShell && !isPlexClient ? (
+                    <button
+                        type="button"
+                        {...tvNavProps(isTvShell, expanded, false)}
+                        className={navButtonClass(false, showLabels)}
+                        onClick={() => go(exitToPortal)}
+                        title={t('mediaPlayerPage.exitToPortal')}
+                    >
+                        <LogOut className="h-4 w-4 shrink-0" />
+                        {showLabels ? <span className="player-nav-label min-w-0 truncate">{t('mediaPlayerPage.exitToPortal')}</span> : null}
+                    </button>
+                ) : null}
                 <button
                     type="button"
-                    className={navButtonClass(false, showLabels)}
-                    onClick={() => go(exitToPortal)}
-                    title={t('mediaPlayerPage.exitToPortal')}
+                    {...tvNavProps(isTvShell, expanded, page === 'settings')}
+                    className={showLabels
+                        ? 'mt-1 flex min-w-0 w-full items-center gap-3 rounded-full px-2 py-1.5 text-left hover:bg-white/10'
+                        : 'flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10'}
+                    onClick={() => go(onOpenSettings)}
+                    title={profile?.username
+                        ? t('mediaPlayerPage.signedInAs', { name: profile.username })
+                        : t('mediaPlayerPage.navSettings')}
                 >
-                    <LogOut className="h-4 w-4 shrink-0" />
-                    {showLabels ? <span className="player-nav-label min-w-0 truncate">{t('mediaPlayerPage.exitToPortal')}</span> : null}
+                    <NavAvatar key={profile?.thumb || profile?.username || 'avatar'} profile={profile} sizeClass={showLabels ? 'h-9 w-9' : 'h-8 w-8'} />
+                    {showLabels ? (
+                        <>
+                            <span className="min-w-0 flex-1 truncate text-sm font-bold text-white">
+                                {profile?.username || t('mediaPlayerPage.navSettings')}
+                            </span>
+                            <ChevronRight className="h-4 w-4 shrink-0 text-white/40" />
+                        </>
+                    ) : null}
                 </button>
             </div>
         </nav>
@@ -360,9 +423,18 @@ export const MediaPlayerNav: React.FC<Props> = ({
                 </div>
             </div>
 
-            <aside className="pointer-events-none absolute inset-y-0 left-0 z-40 hidden md:flex items-center pl-3">
+            <aside
+                className={`pointer-events-none z-40 hidden md:flex pl-3 ${
+                    isTvShell
+                        ? 'fixed inset-y-0 left-0 items-start pt-3'
+                        : 'absolute inset-y-0 left-0 items-center'
+                }`}
+            >
                 <div
-                    className={`pointer-events-auto flex max-h-[calc(100%-3rem)] flex-col overflow-hidden rounded-[28px] bg-[#0b1018]/80 shadow-[0_18px_50px_rgba(0,0,0,0.45)] ring-1 ring-white/10 backdrop-blur-2xl transition-[width] duration-200 ${
+                    data-tv-nav-root="1"
+                    className={`pointer-events-auto flex max-h-[calc(100%-3rem)] flex-col rounded-[28px] bg-[#0b1018]/80 shadow-[0_18px_50px_rgba(0,0,0,0.45)] ring-1 ring-white/10 backdrop-blur-2xl transition-[width] duration-200 ${
+                        isTvShell ? 'overflow-x-visible overflow-y-auto' : 'overflow-hidden'
+                    } ${
                         expanded ? 'w-[16.25rem]' : 'w-[4.25rem]'
                     }`}
                 >
@@ -397,12 +469,16 @@ export const MediaPlayerNav: React.FC<Props> = ({
                 users={homeSwitchUsers}
                 currentUserId={homeSwitchCurrentId}
                 rememberUserId={homeSwitchRememberUserId}
-                showRemember
+                showRemember={!isTvShell}
                 rememberDefault={!!homeSwitchRememberUserId}
                 busy={homeSwitchBusy}
                 error={homeSwitchError}
                 onSelect={handleHomeSwitch}
-                onClose={() => { if (!homeSwitchBusy) setHomeSwitchOpen(false); }}
+                onClose={() => {
+                    if (homeSwitchBusy) return;
+                    setHomeSwitchOpen(false);
+                    if (isTvShell) window.requestAnimationFrame(() => focusTvContent());
+                }}
             />
         </>
     );

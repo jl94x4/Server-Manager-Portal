@@ -1,7 +1,6 @@
 package com.servermanagerportal.mediaplayer;
 
 import android.content.Intent;
-import android.os.Bundle;
 
 import androidx.activity.result.ActivityResult;
 
@@ -14,6 +13,22 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 @CapacitorPlugin(name = "NativeMediaPlayer")
 public class NativeMediaPlayerPlugin extends Plugin {
+
+    @Override
+    public void load() {
+        super.load();
+        PlayerBridge.get().attachPlugin(this);
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        PlayerBridge.get().detachPlugin(this);
+        super.handleOnDestroy();
+    }
+
+    void notifyPlayerEvent(String event, JSObject data) {
+        notifyListeners(event, data == null ? new JSObject() : data);
+    }
 
     @PluginMethod
     public void isAvailable(PluginCall call) {
@@ -41,7 +56,72 @@ public class NativeMediaPlayerPlugin extends Plugin {
             intent.putExtra(PlayerActivity.EXTRA_HEADERS_JSON, headers.toString());
         }
 
+        String sessionJson = call.getString("sessionJson", "");
+        if (sessionJson != null && !sessionJson.isEmpty()) {
+            intent.putExtra(PlayerActivity.EXTRA_SESSION_JSON, sessionJson);
+        }
+
+        Double speed = call.getDouble("speed", 1.0);
+        intent.putExtra(PlayerActivity.EXTRA_SPEED, speed == null ? 1f : speed.floatValue());
+
+        Boolean autoplayNext = call.getBoolean("autoplayNext", true);
+        intent.putExtra(PlayerActivity.EXTRA_AUTOPLAY_NEXT, autoplayNext == null || autoplayNext);
+
+        Boolean autoSkipIntro = call.getBoolean("autoSkipIntro", false);
+        intent.putExtra(PlayerActivity.EXTRA_AUTO_SKIP_INTRO, autoSkipIntro != null && autoSkipIntro);
+
+        Boolean autoSkipCredits = call.getBoolean("autoSkipCredits", false);
+        intent.putExtra(PlayerActivity.EXTRA_AUTO_SKIP_CREDITS, autoSkipCredits != null && autoSkipCredits);
+
         startActivityForResult(call, intent, "onPlayerFinished");
+    }
+
+    @PluginMethod
+    public void updateSrc(PluginCall call) {
+        String url = call.getString("url", "");
+        if (url == null || url.trim().isEmpty()) {
+            call.reject("url is required");
+            return;
+        }
+        JSObject headers = call.getObject("headers");
+        String headersJson = headers != null ? headers.toString() : null;
+        Integer offset = call.getInt("offsetMs", 0);
+        long offsetMs = offset == null ? 0L : offset.longValue();
+        boolean ok = PlayerBridge.get().updateSrc(url.trim(), headersJson, offsetMs);
+
+        String sessionJson = call.getString("sessionJson", null);
+        PlayerActivity activity = PlayerBridge.get().activity();
+        if (activity != null && sessionJson != null && !sessionJson.isEmpty()) {
+            activity.runOnUiThread(() -> activity.applySessionJson(sessionJson));
+        }
+
+        JSObject ret = new JSObject();
+        ret.put("ok", ok);
+        if (!ok) {
+            call.reject("No active player");
+            return;
+        }
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void seek(PluginCall call) {
+        Integer position = call.getInt("positionMs", 0);
+        long positionMs = position == null ? 0L : position.longValue();
+        boolean ok = PlayerBridge.get().seekTo(positionMs);
+        JSObject ret = new JSObject();
+        ret.put("ok", ok);
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void setSpeed(PluginCall call) {
+        Double speed = call.getDouble("speed", 1.0);
+        float value = speed == null ? 1f : speed.floatValue();
+        boolean ok = PlayerBridge.get().setSpeed(value);
+        JSObject ret = new JSObject();
+        ret.put("ok", ok);
+        call.resolve(ret);
     }
 
     @ActivityCallback
@@ -51,11 +131,19 @@ public class NativeMediaPlayerPlugin extends Plugin {
         }
         Intent data = result.getData();
         boolean ended = data != null && data.getBooleanExtra(PlayerActivity.EXTRA_ENDED, false);
+        boolean error = data != null && data.getBooleanExtra(PlayerActivity.EXTRA_ERROR, false);
+        boolean playNext = data != null && data.getBooleanExtra(PlayerActivity.EXTRA_PLAY_NEXT, false);
         long positionMs = data != null ? data.getLongExtra(PlayerActivity.EXTRA_POSITION_MS, 0L) : 0L;
+        String nextRatingKey = data != null ? data.getStringExtra(PlayerActivity.EXTRA_NEXT_RATING_KEY) : null;
 
         JSObject ret = new JSObject();
         ret.put("ended", ended);
         ret.put("positionMs", positionMs);
+        ret.put("error", error);
+        ret.put("playNext", playNext);
+        if (nextRatingKey != null && !nextRatingKey.isEmpty()) {
+            ret.put("nextRatingKey", nextRatingKey);
+        }
         call.resolve(ret);
     }
 }
