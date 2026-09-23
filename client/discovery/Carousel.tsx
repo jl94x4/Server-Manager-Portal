@@ -12,6 +12,25 @@ interface CarouselProps {
 
 const SCROLL_EDGE_PX = 8;
 
+const scrollPageFromWheel = (from: HTMLElement, deltaY: number) => {
+    const named = document.getElementById('media-player-scroll')
+        || document.getElementById('main-scroll-container');
+    if (named) {
+        named.scrollTop += deltaY;
+        return;
+    }
+    let el: HTMLElement | null = from.parentElement;
+    while (el && el !== document.body) {
+        const overflowY = window.getComputedStyle(el).overflowY;
+        if ((overflowY === 'auto' || overflowY === 'scroll') && el.scrollHeight > el.clientHeight + 8) {
+            el.scrollTop += deltaY;
+            return;
+        }
+        el = el.parentElement;
+    }
+    window.scrollBy(0, deltaY);
+};
+
 const isTvShell = () => {
     try {
         return document.documentElement?.dataset?.tv === '1'
@@ -24,7 +43,6 @@ const isTvShell = () => {
 export const Carousel: React.FC<CarouselProps> = ({ children, posterRow = false, flush = false }) => {
     const { t } = useDiscoverI18n();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
-    const canScrollRef = useRef(false);
     const [atStart, setAtStart] = useState(true);
     const [atEnd, setAtEnd] = useState(true);
     const [canScroll, setCanScroll] = useState(false);
@@ -40,7 +58,6 @@ export const Carousel: React.FC<CarouselProps> = ({ children, posterRow = false,
         const { scrollLeft, scrollWidth, clientWidth } = node;
         const overflow = scrollWidth > clientWidth + SCROLL_EDGE_PX;
         setCanScroll(overflow);
-        canScrollRef.current = overflow;
         if (!overflow) {
             setAtStart(true);
             setAtEnd(true);
@@ -68,16 +85,12 @@ export const Carousel: React.FC<CarouselProps> = ({ children, posterRow = false,
         mutationObserver?.observe(node, { childList: true, subtree: true });
 
         const onWheel = (event: WheelEvent) => {
-            if (!canScrollRef.current) return;
-            if (Math.abs(event.deltaY) <= Math.abs(event.deltaX) || event.shiftKey) return;
-            const max = node.scrollWidth - node.clientWidth;
-            if (max <= SCROLL_EDGE_PX) return;
-            const next = node.scrollLeft + event.deltaY;
-            if ((event.deltaY > 0 && node.scrollLeft < max - SCROLL_EDGE_PX)
-                || (event.deltaY < 0 && node.scrollLeft > SCROLL_EDGE_PX)) {
-                event.preventDefault();
-                node.scrollLeft = Math.min(max, Math.max(0, next));
-            }
+            if (isTvShell()) return;
+            if (event.shiftKey) return;
+            if (Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
+            // Chrome turns vertical wheel into row-scroll on overflow-x. Keep the page moving.
+            event.preventDefault();
+            scrollPageFromWheel(node, event.deltaY);
         };
         node.addEventListener('wheel', onWheel, { passive: false });
 
@@ -140,7 +153,9 @@ export const Carousel: React.FC<CarouselProps> = ({ children, posterRow = false,
                     onScroll={handleScroll}
                     data-tv-rail="1"
                     data-tv-poster-rail={posterRow ? '1' : undefined}
-                    className={`flex gap-4 overflow-x-auto snap-x snap-proximity scrollbar-hide hide-scrollbar w-full ${
+                    className={`flex gap-4 overflow-x-auto scrollbar-hide hide-scrollbar w-full ${
+                        tvShell ? 'snap-x snap-proximity' : ''
+                    } ${
                         flush
                             ? (tvShell ? 'px-0 py-5' : 'px-0 py-2')
                             : tvShell ? (posterRow ? 'px-5 py-5' : 'px-4 py-3') : 'px-2 py-2'

@@ -367,10 +367,18 @@ const findSpatialTarget = (from: HTMLElement, dir: SpatialDir, root?: ParentNode
     const nearest = Math.min(...cands.map((c) => Math.max(0, c.primary)));
     const nearestH = cands.find((c) => Math.max(0, c.primary) === nearest)?.r.height || 80;
     const band = cands.filter((c) => Math.max(0, c.primary) <= nearest + Math.max(64, nearestH * 0.7));
+    const firstInCastRow = (el: HTMLElement | null) => {
+        if (!el || el.getAttribute('data-tv-cast') !== '1') return el;
+        const fromRow = from.closest<HTMLElement>('[data-tv-row="1"]');
+        const toRow = el.closest<HTMLElement>('[data-tv-row="1"]');
+        if (!toRow || toRow === fromRow) return el;
+        return focusableTvItems(toRow).find(hasLayout) || el;
+    };
+
     const columnHit = band.some((c) => spanOverlap(fromRect.left, fromRect.right, c.r.left, c.r.right) > 0);
     if (!columnHit) {
         band.sort((a, b) => a.r.left - b.r.left);
-        return band[0].el;
+        return firstInCastRow(band[0].el);
     }
 
     let best: HTMLElement | null = null;
@@ -386,7 +394,7 @@ const findSpatialTarget = (from: HTMLElement, dir: SpatialDir, root?: ParentNode
             best = c.el;
         }
     }
-    return best;
+    return firstInCastRow(best);
 };
 
 const isNavOpen = () => document.documentElement?.dataset?.tvNavOpen === '1';
@@ -775,6 +783,9 @@ export const useTvRemote = (enabled = true) => {
                 )).find(hasLayout)
                     || Array.from(details.querySelectorAll<HTMLElement>(
                         '[data-tv-season-poster-btn="1"], [data-tv-episode-btn="1"]'
+                    )).find(hasLayout)
+                    || Array.from(details.querySelectorAll<HTMLElement>(
+                        '[data-tv-cast="1"]'
                     )).find(hasLayout)
                     || null;
             }

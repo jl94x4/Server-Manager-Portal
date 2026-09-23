@@ -521,9 +521,12 @@ html[data-theme="light"] .company-card .company-duotone-logo {
   filter: none;
 }
 
-/* Details hero: same cinematic wash on web and TV — art up top-right,
- * card-colored fade through the overview so copy never sits on raw pixels. */
+/* Details hero: web art stops above Details; TV keeps the full-page wash. */
 .media-details-hero-backdrop {
+  height: min(34vh, 20rem);
+  max-height: 20rem;
+}
+html[data-tv="1"] .media-details-hero-backdrop {
   height: 100vh;
   max-height: none;
 }
@@ -533,6 +536,16 @@ html[data-theme="light"] .company-card .company-duotone-logo {
   filter: none;
 }
 .media-details-hero-scrim-bottom {
+  background: linear-gradient(
+    to top,
+    rgb(var(--color-card)) 0%,
+    rgb(var(--color-card) / 0.98) 28%,
+    rgb(var(--color-card) / 0.88) 52%,
+    rgb(var(--color-card) / 0.45) 74%,
+    transparent 100%
+  );
+}
+html[data-tv="1"] .media-details-hero-scrim-bottom {
   background: linear-gradient(
     to top,
     rgb(var(--color-card)) 0%,

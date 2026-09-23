@@ -279,9 +279,80 @@ export const OverviewFactsSpotlight: React.FC<{
     const showFact = Boolean(factMediaType) && Number.isFinite(factMediaId) && factMediaId > 0;
     const showNeighbors = Boolean((previous || next) && onOpenItem && onPlayNeighbor);
     if (!marks.length && !showFact && !showNeighbors) return null;
+    const interactive = Boolean(onOpenStudio) && !isTvShell();
+    const leftRows: React.ReactNode[] = [];
+    if (showNeighbors && previous) {
+        leftRows.push(
+            <EpisodeNeighborCard
+                item={previous}
+                label={t('mediaPlayerPage.previousEpisode')}
+                icon={<ChevronLeft className="h-5 w-5" />}
+                onOpenItem={onOpenItem!}
+                onPlay={onPlayNeighbor!}
+            />,
+        );
+    }
+    if (showFact && factMediaType) {
+        leftRows.push(
+            <DiscoveryFactWidget
+                mediaType={factMediaType}
+                mediaId={factMediaId}
+                title={factTitle}
+            />,
+        );
+    }
+    if (showNeighbors && next) {
+        leftRows.push(
+            <EpisodeNeighborCard
+                item={next}
+                label={t('mediaPlayerPage.nextEpisode')}
+                icon={<ChevronRight className="h-5 w-5" />}
+                onOpenItem={onOpenItem!}
+                onPlay={onPlayNeighbor!}
+            />,
+        );
+    }
+    const paired = Math.max(leftRows.length, marks.length);
+    const hasLogoColumn = marks.length > 0 && leftRows.length > 0;
     return (
-        <div className="flex w-full flex-col gap-3" data-tv-rail="1" data-tv-row="1">
-            {marks.length ? (
+        <div
+            className={hasLogoColumn
+                ? 'grid w-full grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(9.5rem,12rem)] sm:items-stretch'
+                : 'flex w-full flex-col gap-3'}
+            data-tv-rail="1"
+            data-tv-row="1"
+        >
+            {Array.from({ length: paired }, (_, index) => {
+                const left = leftRows[index];
+                const mark = marks[index];
+                if (!left && !mark) return null;
+                return (
+                    <React.Fragment key={mark ? `${mark.key}-${mark.name}` : `row-${index}`}>
+                        {left ? (
+                            <div className={`min-w-0 ${hasLogoColumn && !mark ? 'sm:col-span-2' : ''}`}>{left}</div>
+                        ) : (
+                            <div className="hidden sm:block" />
+                        )}
+                        {mark ? (
+                            <div className="flex min-h-[5.25rem] items-center justify-center rounded-xl border border-border bg-white/5 px-4">
+                                <StudioPill
+                                    name={mark.name}
+                                    logoPath={mark.logoPath}
+                                    size="lg"
+                                    showPlate={false}
+                                    onClick={interactive ? () => onOpenStudio!({
+                                        key: mark.name || mark.key,
+                                        name: mark.name,
+                                        sectionKey: item.librarySectionID || '',
+                                        mediaType: 'show',
+                                    }) : undefined}
+                                />
+                            </div>
+                        ) : null}
+                    </React.Fragment>
+                );
+            })}
+            {!leftRows.length && marks.length ? (
                 <NetworkLogoRow
                     networks={marks}
                     onOpenStudio={onOpenStudio}
@@ -289,31 +360,6 @@ export const OverviewFactsSpotlight: React.FC<{
                     mediaType="show"
                     size="hero"
                     showPlate={false}
-                />
-            ) : null}
-            {showNeighbors && previous ? (
-                <EpisodeNeighborCard
-                    item={previous}
-                    label={t('mediaPlayerPage.previousEpisode')}
-                    icon={<ChevronLeft className="h-5 w-5" />}
-                    onOpenItem={onOpenItem!}
-                    onPlay={onPlayNeighbor!}
-                />
-            ) : null}
-            {showFact && factMediaType ? (
-                <DiscoveryFactWidget
-                    mediaType={factMediaType}
-                    mediaId={factMediaId}
-                    title={factTitle}
-                />
-            ) : null}
-            {showNeighbors && next ? (
-                <EpisodeNeighborCard
-                    item={next}
-                    label={t('mediaPlayerPage.nextEpisode')}
-                    icon={<ChevronRight className="h-5 w-5" />}
-                    onOpenItem={onOpenItem!}
-                    onPlay={onPlayNeighbor!}
                 />
             ) : null}
         </div>
@@ -415,7 +461,7 @@ export const OverviewFacts: React.FC<{
     const asideServices = movieWatch
         ? [movieWatch, ...serviceSections.filter((section) => section !== streamingSection)]
         : serviceSections;
-    const logosUnderAside = Boolean(aside) && asideServices.length > 0;
+    const logosUnderAside = Boolean(aside) && asideServices.length > 0 && item.type !== 'episode';
     const detailBlocks: React.ReactNode[] = [
         ...crewRows.map((row) => renderMetaRow(row)),
         ...(logosUnderAside ? [] : serviceSections.map((section) => renderServiceSection(section))),
@@ -475,7 +521,7 @@ export const OverviewFacts: React.FC<{
                     </div>
                 ) : null}
                 {aside ? (
-                    <div className={`media-details-facts-aside flex min-w-0 w-full flex-col gap-4 md:self-start ${middle ? '' : 'md:w-[min(100%,36rem)] md:max-w-[min(40rem,58%)] md:shrink'}`}>
+                    <div className={`media-details-facts-aside flex min-w-0 w-full flex-col gap-4 md:self-start ${middle ? '' : 'md:min-w-[28rem] md:w-[min(100%,46rem)] md:max-w-[min(52rem,72%)] md:shrink'}`}>
                         {aside}
                         {logosUnderAside ? (
                             <div className="flex flex-col gap-3">
