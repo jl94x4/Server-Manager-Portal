@@ -105,6 +105,13 @@ export const formatBackgroundPosition = (focal: FocalPoint = DEFAULT_FOCAL) => (
     `${focal.x}% ${focal.y}%`
 );
 
+/** TV title pages: keep faces in the art column beside the poster (not under it). */
+export const formatTvDetailsBackdropPosition = (focal: FocalPoint = DEFAULT_FOCAL) => {
+    const x = focal.x < 44 ? clamp(focal.x + 14, 52, 88) : clamp(focal.x + 3, 40, 88);
+    const y = clamp(focal.y, 10, 34);
+    return `${x}% ${y}%`;
+};
+
 /**
  * Resolve a background-position focal point for an image URL.
  * Uses FaceDetector when available; otherwise biases toward the upper third

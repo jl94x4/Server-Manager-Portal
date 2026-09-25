@@ -333,8 +333,13 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, effectiveMode, onO
                             {eyebrow}
                         </p>
                         <div className="player-home-hero-copy min-h-0">
-                            {copy}
-                            <div className="mt-4">{dots}</div>
+                            <div
+                                key={active.ratingKey}
+                                className={tvShell ? 'smp-tv-hero-copy-enter' : undefined}
+                            >
+                                {copy}
+                                <div className="mt-4">{dots}</div>
+                            </div>
                         </div>
                     </button>
                 ) : (

@@ -1,5 +1,6 @@
 import { portalUrl, resolvePortalAssetUrl } from '../shared/basePath';
 import { PLAYER_API_ROOT, PLAYER_IMAGE_PATH } from './paths';
+import type { PlayerContinueWatchingLayout } from './playerSettings';
 import type { PlayerItem } from './types';
 
 /** Shared rail size so home, library, and season grids hit the same cached JPEG. */
@@ -257,13 +258,45 @@ export const withShowPoster = (item: PlayerItem): PlayerItem => {
     };
 };
 
+/** Poster row vs widescreen episode still + episode title (Continue Watching layout). */
+export const applyContinueWatchingLayout = (
+    item: PlayerItem,
+    layout: PlayerContinueWatchingLayout,
+): PlayerItem => {
+    if (layout !== 'title') {
+        if (item.type === 'episode') return { ...item, cardAspect: '2/3' };
+        return item;
+    }
+    if (item.type !== 'episode') {
+        return { ...item, cardAspect: '16/9' };
+    }
+    const ratingKey = String(item.ratingKey || '').replace(/\D/g, '');
+    const episodeThumb = item.episodeThumb
+        || (ratingKey ? `/library/metadata/${ratingKey}/thumb` : item.thumb);
+    const episodeTitle = String(item.episodeTitle || item.title || '').trim() || item.title;
+    return {
+        ...item,
+        title: episodeTitle,
+        thumb: episodeThumb,
+        cardAspect: '16/9',
+    };
+};
+
+export const mapContinueWatchingItemsForLayout = (
+    items: PlayerItem[],
+    layout: PlayerContinueWatchingLayout,
+): PlayerItem[] => items.map((row) => applyContinueWatchingLayout(row, layout));
+
 export const toPosterCardItem = (item: PlayerItem) => {
     const leafThumb = item.ratingKey ? `/library/metadata/${item.ratingKey}/thumb` : '';
     const showKey = String(
         (item.type === 'season' ? item.parentRatingKey : item.grandparentRatingKey) || '',
     ).replace(/\D/g, '');
     const showThumb = showKey ? `/library/metadata/${showKey}/thumb` : '';
-    const preferShowPoster = (item.type === 'episode' || item.type === 'season') && item.cardAspect === '2/3' && !!showThumb;
+    const preferShowPoster = (item.type === 'episode' || item.type === 'season')
+        && item.cardAspect !== '16/9'
+        && (item.cardAspect === '2/3' || !item.cardAspect)
+        && !!showThumb;
     const thumb = (preferShowPoster ? showThumb : '') || item.thumb || leafThumb || undefined;
     const remoteThumb = /^https?:\/\//i.test(String(thumb || ''));
     // Episode stills are title cards. Never use them as a poster fallback.
@@ -364,6 +397,94 @@ export const nativeSafeQualityId = (qualityId?: string | null) => {
     const q = String(qualityId || '').trim();
     if (!q || q === 'auto') return 'original';
     return q;
+};
+
+/** Native TV/Fire TV should default to Original (Direct Play), not a transcode preset from settings. */
+export const resolveStartPlaybackQualityId = (
+    explicit?: string | null,
+    settingsDefault?: string | null,
+): string | undefined => {
+    const picked = String(explicit || '').trim();
+    if (picked && picked !== 'auto') return picked;
+    if (isPlexNativePlayback()) return 'original';
+    const def = String(settingsDefault || 'auto').trim();
+    if (!def || def === 'auto') return undefined;
+    return def;
+};
+
+export const nativeDirectPlayEligible = (input: {
+    canDirectPlay?: boolean;
+    playbackMode?: string;
+    qualityId?: string | null;
+    audioStreamId?: string | null;
+    subtitleStreamId?: string | null;
+    audioTracks?: Array<{ id: string; codec?: string | null }>;
+    source?: { audioCodec?: string | null };
+}, opts?: {
+    qualityId?: string | null;
+    audioStreamId?: string | null;
+    subtitleStreamId?: string | null;
+}) => {
+    if (input.playbackMode === 'directPlay') return true;
+    const quality = nativeSafeQualityId(opts?.qualityId ?? input.qualityId);
+    if (quality !== 'original' || !input.canDirectPlay) return false;
+    const sub = String(opts?.subtitleStreamId ?? input.subtitleStreamId ?? '').replace(/\D/g, '');
+    if (sub) return false;
+    const audioId = opts?.audioStreamId ?? input.audioStreamId ?? '';
+    const codec = (input.audioTracks || []).find((row) => row.id === audioId)?.codec
+        || input.source?.audioCodec
+        || '';
+    return nativeAudioIsDirectPlayable(codec);
+};
+
+export const buildNativePlaybackSrc = (
+    ratingKey: string,
+    session: {
+        src: string;
+        sessionId: string;
+        offsetMs?: number;
+        qualityId?: string;
+        audioStreamId?: string | null;
+        subtitleStreamId?: string | null;
+        mediaIndex?: number;
+        canDirectPlay?: boolean;
+        playbackMode?: string;
+        audioTracks?: Array<{ id: string; codec?: string | null }>;
+        source?: { audioCodec?: string | null };
+    },
+    opts?: {
+        qualityId?: string | null;
+        audioStreamId?: string | null;
+        subtitleStreamId?: string | null;
+        mediaIndex?: number;
+        offsetMs?: number;
+        sessionId?: string;
+    },
+) => {
+    const qualityId = nativeSafeQualityId(opts?.qualityId ?? session.qualityId);
+    const audioStreamId = opts?.audioStreamId ?? session.audioStreamId ?? '';
+    const subtitleStreamId = opts?.subtitleStreamId ?? session.subtitleStreamId ?? '';
+    const mediaIndex = opts?.mediaIndex ?? session.mediaIndex ?? 0;
+    const offsetMs = opts?.offsetMs ?? session.offsetMs ?? 0;
+    const sessionId = opts?.sessionId ?? session.sessionId;
+    const directFile = nativeDirectPlayEligible(session, {
+        qualityId,
+        audioStreamId,
+        subtitleStreamId,
+    });
+    if (directFile && isFilePlaybackSrc(session.src)) {
+        return session.src;
+    }
+    return buildPlaybackSrc(ratingKey, {
+        sessionId,
+        offsetMs,
+        qualityId,
+        audioStreamId,
+        subtitleStreamId,
+        directFile,
+        copy: true,
+        mediaIndex,
+    });
 };
 
 /** Stock ExoPlayer has no TrueHD/DTS decoder. Those tracks remux to AAC instead of Direct Play. */

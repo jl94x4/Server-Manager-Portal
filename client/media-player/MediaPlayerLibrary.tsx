@@ -23,7 +23,10 @@ import { readLibraryBrowseState, readLibraryHomeCache, writeLibraryBrowseState, 
 import { MediaPlayerLibrariesPanel } from './MediaPlayerLibrariesPanel';
 import { PlayerPosterCard } from './PlayerPosterCard';
 import { PlayerRail } from './PlayerRail';
-import { playerCardImageUrl, prefetchPlayerImages, withShowPoster } from './playerUtils';
+import { PlayerTvStatusPanel } from './PlayerTvStatusPanel';
+import { continueWatchingRailAspect } from './playerSettings';
+import { usePlayerSettings } from './usePlayerSettings';
+import { mapContinueWatchingItemsForLayout, playerCardImageUrl, prefetchPlayerImages, withShowPoster } from './playerUtils';
 import type { PlayerItem, PlayerLibraryHub, PlayerPlayOptions, PlayerSection } from './types';
 
 type LibraryTab = 'home' | 'browse' | 'collections';
@@ -130,6 +133,12 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
     playlistsEnabled = true,
 }) => {
     const { t } = useDiscoverI18n();
+    const [settings] = usePlayerSettings();
+    const continueWatchingAspect = continueWatchingRailAspect(settings.continueWatchingLayout);
+    const layoutContinueWatching = useCallback(
+        (items: PlayerItem[]) => mapContinueWatchingItemsForLayout(items, settings.continueWatchingLayout),
+        [settings.continueWatchingLayout],
+    );
     const homeLoadRef = useRef(0);
     const [gridSize, setGridSize] = useDiscoverGridSize();
     const [title, setTitle] = useState(t('mediaPlayerPage.libraries'));
@@ -603,9 +612,22 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                     />
                 )
             ) : error ? (
-                <div className={discoveryTheme.emptyState}>
-                    <p className={discoveryTheme.emptyTitle}>{error}</p>
-                </div>
+                tvShell ? (
+                    <PlayerTvStatusPanel
+                        title={error}
+                        onRetry={() => {
+                            setError(null);
+                            if (tab === 'home') void loadHome();
+                            else if (tab === 'collections') void loadCollections();
+                            else void loadBrowse(0, false);
+                        }}
+                        onBack={onBack}
+                    />
+                ) : (
+                    <div className={discoveryTheme.emptyState}>
+                        <p className={discoveryTheme.emptyTitle}>{error}</p>
+                    </div>
+                )
             ) : tab === 'home' ? (
                 homeHubs.length ? (
                     <div className="tv-poster-rows flex flex-col gap-6">
@@ -615,14 +637,14 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                             <PlayerRail
                                 key={hub.identifier || hub.title}
                                 title={hub.title}
-                                items={hub.items}
+                                items={isCw ? layoutContinueWatching(hub.items) : hub.items}
                                 density={gridSize}
                                 onOpenItem={onOpenItem}
                                 onPlay={onPlay}
                                 onToggleWatched={toggleWatched}
                                 showProgress={isCw}
                                 showRemoveFromContinueWatching={isCw}
-                                aspect={(isCw || /recent/i.test(`${hub.identifier || ''} ${hub.title || ''}`)) ? '2/3' : undefined}
+                                aspect={isCw ? continueWatchingAspect : (/recent/i.test(`${hub.identifier || ''} ${hub.title || ''}`) ? '2/3' : undefined)}
                                 {...menuProps}
                             />
                             );

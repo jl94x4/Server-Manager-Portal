@@ -99,8 +99,7 @@ export const PlayerPosterCard: React.FC<Props> = ({
             if (!key || key !== item.ratingKey) return;
             const btn = rootRef.current?.querySelector<HTMLElement>('[data-tv-poster-btn="1"]');
             if (!btn || btn.getAttribute('data-tv-focused') !== '1') return;
-            const rect = btn.getBoundingClientRect();
-            menuRef.current?.openAt(rect.left + 16, Math.max(16, rect.top + 16));
+            menuRef.current?.openAt();
         };
         window.addEventListener('smp-tv-poster-menu', onOpen);
         return () => window.removeEventListener('smp-tv-poster-menu', onOpen);
@@ -182,8 +181,17 @@ export const PlayerPosterCard: React.FC<Props> = ({
                 footer={item.type === 'episode' ? (
                     <div className="px-1 text-left">
                         <div className={`${isTvShell ? 'text-base font-semibold' : 'text-xs font-medium'} line-clamp-2 leading-snug text-text`}>{item.title}</div>
-                        {episodeCode ? (
+                        {item.showTitle && item.showTitle !== item.title ? (
                             <div className={`${isTvShell ? 'text-sm' : 'text-[11px]'} mt-0.5 truncate text-muted`}>
+                                {item.showTitle}
+                            </div>
+                        ) : episodeCode ? (
+                            <div className={`${isTvShell ? 'text-sm' : 'text-[11px]'} mt-0.5 truncate text-muted`}>
+                                {episodeCode}
+                            </div>
+                        ) : null}
+                        {item.showTitle && item.showTitle !== item.title && episodeCode ? (
+                            <div className={`${isTvShell ? 'text-sm' : 'text-[11px]'} mt-0.5 truncate text-muted/80`}>
                                 {episodeCode}
                             </div>
                         ) : null}

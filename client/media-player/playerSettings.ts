@@ -13,6 +13,18 @@ export const isPlayerWatchedTickPosition = (value: unknown): value is PlayerWatc
     PLAYER_WATCHED_TICK_POSITIONS.includes(String(value || '') as PlayerWatchedTickPosition)
 );
 
+export type PlayerContinueWatchingLayout = 'poster' | 'title';
+
+export const PLAYER_CONTINUE_WATCHING_LAYOUTS: PlayerContinueWatchingLayout[] = ['poster', 'title'];
+
+export const isPlayerContinueWatchingLayout = (value: unknown): value is PlayerContinueWatchingLayout => (
+    PLAYER_CONTINUE_WATCHING_LAYOUTS.includes(String(value || '') as PlayerContinueWatchingLayout)
+);
+
+export const continueWatchingRailAspect = (
+    layout: PlayerContinueWatchingLayout,
+): '2/3' | '16/9' => (layout === 'title' ? '16/9' : '2/3');
+
 /** Absolute corner classes for watched ticks on posters (not episode thumbs). */
 export const watchedTickPositionClass = (
     position: PlayerWatchedTickPosition | string | null | undefined,
@@ -36,6 +48,8 @@ export type PlayerSettings = {
     mixLibraries: boolean;
     autoplayNext: boolean;
     showContinueWatching: boolean;
+    /** Portrait posters vs widescreen episode-style cards on Continue Watching rows. */
+    continueWatchingLayout: PlayerContinueWatchingLayout;
     showPlaylists: boolean;
     defaultQualityId: string;
     audioLanguage: string;
@@ -330,6 +344,7 @@ export const DEFAULT_PLAYER_SETTINGS: PlayerSettings = {
     mixLibraries: false,
     autoplayNext: true,
     showContinueWatching: true,
+    continueWatchingLayout: 'poster',
     showPlaylists: true,
     defaultQualityId: 'auto',
     audioLanguage: '',
@@ -354,6 +369,9 @@ export const normalizePlayerSettings = (raw: Partial<PlayerSettings> | Record<st
         mixLibraries: raw?.mixLibraries === true,
         autoplayNext: raw?.autoplayNext !== false,
         showContinueWatching: raw?.showContinueWatching !== false,
+        continueWatchingLayout: isPlayerContinueWatchingLayout(raw?.continueWatchingLayout)
+            ? raw.continueWatchingLayout
+            : 'poster',
         showPlaylists: raw?.showPlaylists !== false,
         defaultQualityId: QUALITY_IDS.has(quality) ? quality : 'auto',
         audioLanguage: /^[a-z]{2}(?:-[a-z]{2})?$/.test(audioLanguage) ? audioLanguage : '',
@@ -379,6 +397,7 @@ export const playerSettingsEqual = (a: PlayerSettings, b: PlayerSettings) => (
     a.mixLibraries === b.mixLibraries
     && a.autoplayNext === b.autoplayNext
     && a.showContinueWatching === b.showContinueWatching
+    && a.continueWatchingLayout === b.continueWatchingLayout
     && a.showPlaylists === b.showPlaylists
     && a.defaultQualityId === b.defaultQualityId
     && a.audioLanguage === b.audioLanguage

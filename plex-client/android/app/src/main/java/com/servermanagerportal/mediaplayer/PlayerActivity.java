@@ -93,9 +93,16 @@ public class PlayerActivity extends AppCompatActivity {
     private TextView speedLabel;
     private TextView titleView;
     private TextView upNextLabel;
-    private Button playPauseBtn;
+    private ImageButton playPauseBtn;
     private Button skipIntroBtn;
     private Button skipCreditsBtn;
+    private Button qualityBtn;
+    private Button audioBtn;
+    private Button subsBtn;
+    private Button versionBtn;
+    private Button speedBtn;
+    private Button sleepBtn;
+    private Button externalBtn;
     private LinearLayout upNextRow;
     private Button pipBtn;
 
@@ -249,6 +256,8 @@ public class PlayerActivity extends AppCompatActivity {
             player.prepare();
             wirePlayerListener();
             wireControls();
+            updateActionVisibility();
+            updateChipLabels();
             bumpChrome();
             if (playPauseBtn != null) playPauseBtn.requestFocus();
             mainHandler.post(tickRunnable);
@@ -274,6 +283,13 @@ public class PlayerActivity extends AppCompatActivity {
         playPauseBtn = findViewById(R.id.player_play_pause);
         skipIntroBtn = findViewById(R.id.player_skip_intro);
         skipCreditsBtn = findViewById(R.id.player_skip_credits);
+        qualityBtn = findViewById(R.id.player_quality);
+        audioBtn = findViewById(R.id.player_audio);
+        subsBtn = findViewById(R.id.player_subs);
+        versionBtn = findViewById(R.id.player_version);
+        speedBtn = findViewById(R.id.player_speed);
+        sleepBtn = findViewById(R.id.player_sleep);
+        externalBtn = findViewById(R.id.player_external);
         upNextRow = findViewById(R.id.player_up_next);
         upNextLabel = findViewById(R.id.player_up_next_label);
         pipBtn = findViewById(R.id.player_pip);
@@ -289,18 +305,18 @@ public class PlayerActivity extends AppCompatActivity {
         skipIntroBtn.setOnClickListener(v -> doSkipIntro());
         skipCreditsBtn.setOnClickListener(v -> doSkipCredits());
         findViewById(R.id.player_up_next_play).setOnClickListener(v -> finishForPlayNext());
-        findViewById(R.id.player_quality).setOnClickListener(v -> showOptionMenu("quality", qualities, qualityId));
-        findViewById(R.id.player_audio).setOnClickListener(v -> showOptionMenu("audio", audioTracks, audioStreamId));
-        findViewById(R.id.player_subs).setOnClickListener(v -> {
+        qualityBtn.setOnClickListener(v -> showOptionMenu(R.string.player_quality, "quality", qualities, qualityId));
+        audioBtn.setOnClickListener(v -> showOptionMenu(R.string.player_audio, "audio", audioTracks, audioStreamId));
+        subsBtn.setOnClickListener(v -> {
             List<OptionItem> withOff = new ArrayList<>();
             withOff.add(new OptionItem("", getString(R.string.player_subs_off)));
             withOff.addAll(subtitles);
-            showOptionMenu("subtitle", withOff, subtitleStreamId == null ? "" : subtitleStreamId);
+            showOptionMenu(R.string.player_subs, "subtitle", withOff, subtitleStreamId == null ? "" : subtitleStreamId);
         });
-        findViewById(R.id.player_version).setOnClickListener(v -> showOptionMenu("version", versions, String.valueOf(mediaIndex)));
-        findViewById(R.id.player_speed).setOnClickListener(v -> showSpeedMenu());
-        findViewById(R.id.player_sleep).setOnClickListener(v -> showSleepMenu());
-        findViewById(R.id.player_external).setOnClickListener(v -> openExternalPlayer());
+        versionBtn.setOnClickListener(v -> showOptionMenu(R.string.player_version, "version", versions, String.valueOf(mediaIndex)));
+        speedBtn.setOnClickListener(v -> showSpeedMenu());
+        sleepBtn.setOnClickListener(v -> showSleepMenu());
+        externalBtn.setOnClickListener(v -> openExternalPlayer());
         pipBtn.setOnClickListener(v -> enterPip());
 
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
@@ -445,8 +461,62 @@ public class PlayerActivity extends AppCompatActivity {
             subtitles.addAll(parseOptions(root.optJSONArray("subtitles")));
             versions.clear();
             versions.addAll(parseOptions(root.optJSONArray("versions")));
+            runOnUiThread(() -> {
+                updateActionVisibility();
+                updateChipLabels();
+            });
         } catch (Exception e) {
             Log.w(TAG, "Failed to parse sessionJson", e);
+        }
+    }
+
+    private void updateActionVisibility() {
+        boolean tv = isTelevision();
+        setVisible(qualityBtn, qualities.size() > 1);
+        setVisible(audioBtn, audioTracks.size() > 1);
+        setVisible(subsBtn, true);
+        setVisible(versionBtn, versions.size() > 1);
+        setVisible(speedBtn, true);
+        setVisible(sleepBtn, true);
+        setVisible(externalBtn, !tv);
+        updatePipVisibility();
+    }
+
+    private void setVisible(@Nullable View view, boolean visible) {
+        if (view != null) {
+            view.setVisibility(visible ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    private void updateChipLabels() {
+        setChipLabel(qualityBtn, R.string.player_quality, labelFor(qualities, qualityId));
+        setChipLabel(audioBtn, R.string.player_audio, labelFor(audioTracks, audioStreamId));
+        String subId = subtitleStreamId == null ? "" : subtitleStreamId;
+        String subLabel = subId.isEmpty() ? getString(R.string.player_subs_off) : labelFor(subtitles, subId);
+        setChipLabel(subsBtn, R.string.player_subs, subLabel);
+        setChipLabel(versionBtn, R.string.player_version, labelFor(versions, String.valueOf(mediaIndex)));
+        if (speedBtn != null) {
+            speedBtn.setText(getString(R.string.player_speed) + " · "
+                + String.format(Locale.US, "%.2g×", playbackSpeed));
+        }
+    }
+
+    private static String labelFor(List<OptionItem> items, String id) {
+        if (id == null) return "";
+        for (OptionItem item : items) {
+            if (item.id.equals(id)) return item.label;
+        }
+        return "";
+    }
+
+    private void setChipLabel(@Nullable Button button, int titleRes, @Nullable String detail) {
+        if (button == null) return;
+        String base = getString(titleRes);
+        if (detail != null && !detail.isEmpty()) {
+            String shortDetail = detail.length() > 28 ? detail.substring(0, 25) + "…" : detail;
+            button.setText(base + " · " + shortDetail);
+        } else {
+            button.setText(base);
         }
     }
 
@@ -496,14 +566,15 @@ public class PlayerActivity extends AppCompatActivity {
             player.setPlaybackParameters(new PlaybackParameters(playbackSpeed));
         }
         if (speedLabel != null) {
-            speedLabel.setText(String.format(Locale.US, "%.2gx", playbackSpeed));
+            speedLabel.setText(String.format(Locale.US, "%.2g×", playbackSpeed));
         }
+        updateChipLabels();
     }
 
-    private void showOptionMenu(String kind, List<OptionItem> items, String selectedId) {
+    private void showOptionMenu(int titleRes, String kind, List<OptionItem> items, String selectedId) {
         bumpChrome();
         if (items.isEmpty()) {
-            toast("No " + kind + " options");
+            toast(getString(R.string.player_no_options));
             return;
         }
         String[] labels = new String[items.size()];
@@ -512,8 +583,8 @@ public class PlayerActivity extends AppCompatActivity {
             labels[i] = items.get(i).label;
             if (items.get(i).id.equals(selectedId)) checked = i;
         }
-        new AlertDialog.Builder(this)
-            .setTitle(kind.substring(0, 1).toUpperCase(Locale.US) + kind.substring(1))
+        new AlertDialog.Builder(this, R.style.PlayerDialogTheme)
+            .setTitle(titleRes)
             .setSingleChoiceItems(labels, checked, (dialog, which) -> {
                 OptionItem picked = items.get(which);
                 dialog.dismiss();
@@ -537,6 +608,7 @@ public class PlayerActivity extends AppCompatActivity {
                     saveAvPrefs();
                     requestStreamChange(qualityId, audioStreamId, subtitleStreamId, mediaIndex);
                 }
+                updateChipLabels();
             })
             .setNegativeButton(android.R.string.cancel, null)
             .show();
@@ -551,11 +623,12 @@ public class PlayerActivity extends AppCompatActivity {
             labels[i] = String.format(Locale.US, "%.2gx", speeds[i]);
             if (Math.abs(speeds[i] - playbackSpeed) < 0.01f) checked = i;
         }
-        new AlertDialog.Builder(this)
+        new AlertDialog.Builder(this, R.style.PlayerDialogTheme)
             .setTitle(R.string.player_speed)
             .setSingleChoiceItems(labels, checked, (dialog, which) -> {
                 applySpeed(speeds[which]);
                 dialog.dismiss();
+                updateChipLabels();
                 JSObject data = new JSObject();
                 data.put("speed", playbackSpeed);
                 PlayerBridge.get().emit("speed", data);
@@ -573,7 +646,7 @@ public class PlayerActivity extends AppCompatActivity {
             getString(R.string.player_sleep_45),
             getString(R.string.player_sleep_end),
         };
-        new AlertDialog.Builder(this)
+        new AlertDialog.Builder(this, R.style.PlayerDialogTheme)
             .setTitle(R.string.player_sleep)
             .setItems(labels, (dialog, which) -> {
                 sleepEndOfEpisode = false;
@@ -596,7 +669,7 @@ public class PlayerActivity extends AppCompatActivity {
         data.put("mediaIndex", mi);
         data.put("positionMs", pos);
         PlayerBridge.get().emit("streamChange", data);
-        toast("Updating stream…");
+        setBufferingVisible(true);
     }
 
     private void openExternalPlayer() {
@@ -735,7 +808,9 @@ public class PlayerActivity extends AppCompatActivity {
 
     private void updatePlayPauseLabel() {
         if (playPauseBtn == null || player == null) return;
-        playPauseBtn.setText(player.isPlaying() ? R.string.player_pause : R.string.player_play);
+        boolean playing = player.isPlaying();
+        playPauseBtn.setImageResource(playing ? R.drawable.ic_player_pause : R.drawable.ic_player_play);
+        playPauseBtn.setContentDescription(getString(playing ? R.string.player_pause : R.string.player_play));
     }
 
     private void emitProgress(String state) {

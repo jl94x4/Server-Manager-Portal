@@ -81,6 +81,10 @@ export type PlayerItem = {
     year?: number | null;
     summary?: string;
     thumb?: string | null;
+    /** Episode still path before Continue Watching poster swap (server). */
+    episodeThumb?: string | null;
+    /** Episode name before Continue Watching show-title swap (server). */
+    episodeTitle?: string | null;
     /** Force rail/card shape (recently added TV uses show posters). */
     cardAspect?: '2/3' | 'square' | '16/9';
     /** Dedupe recently-added TV by show while keeping the episode ratingKey. */

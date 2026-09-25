@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Film, Music, Search, Tv } from 'lucide-react';
 import {
     DiscoverGridSizeSelect,
@@ -20,11 +20,13 @@ import {
     applyHomeRowOrder,
     applyLibraryNavOrder,
     applyLibraryNavOrderToHubs,
+    continueWatchingRailAspect,
     PLAYER_SETTINGS_DRAFT_EVENT,
     PLAYER_SETTINGS_EVENT,
 } from './playerSettings';
-import { consumePlayerSearchFocus, isPlayerHomeCacheFresh, PLAYER_HOME_RESET_EVENT, PLAYER_SEARCH_INPUT_ID, PLAYER_SEARCH_OPEN_EVENT, readHeroSlidesCache, readPlayerHomeCache, writeHeroSlidesCache, writePlayerHomeCache } from './playerMemory';
-import { withShowPoster } from './playerUtils';
+import { consumePlayerSearchFocus, isPlayerHomeCacheFresh, PLAYER_HOME_RESET_EVENT, PLAYER_SEARCH_INPUT_ID, PLAYER_SEARCH_OPEN_EVENT, readHeroSlidesCache, readPlayerHomeCache, usePlayerNetworkStatus, writeHeroSlidesCache, writePlayerHomeCache } from './playerMemory';
+import { PlayerTvStatusPanel } from './PlayerTvStatusPanel';
+import { mapContinueWatchingItemsForLayout, withShowPoster } from './playerUtils';
 import { usePlayerSettings } from './usePlayerSettings';
 import type { PlayerHome, PlayerItem, PlayerLibraryHub, PlayerPlayOptions, PlayerSection } from './types';
 
@@ -84,7 +86,9 @@ export const MediaPlayerHome: React.FC<Props> = ({
     const [heroSlides, setHeroSlides] = useState<HomeHeroSlide[]>(() => readHeroSlidesCache() || []);
     const [heroEffectiveMode, setHeroEffectiveMode] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [homeStale, setHomeStale] = useState(false);
     const [loading, setLoading] = useState(() => !readPlayerHomeCache());
+    const networkOnline = usePlayerNetworkStatus();
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<PlayerItem[]>([]);
     const [searching, setSearching] = useState(false);
@@ -150,36 +154,42 @@ export const MediaPlayerHome: React.FC<Props> = ({
         setDraftLibraryOrder(null);
     }, [settings.libraryNavOrder]);
 
-    useEffect(() => {
-        if (!active) return undefined;
-        let cancelled = false;
+    const refreshHome = useCallback((opts?: { force?: boolean }) => {
         const cachedHome = readPlayerHomeCache();
-        // Keep showing cached home while refreshing — never flash skeletons on revisit.
         if (!cachedHome) setLoading(true);
         else {
             setHome(cachedHome);
             setLoading(false);
         }
-        // Fresh cache: paint immediately and skip a redundant /home round-trip.
-        // Stale disk cache still paints; prefetch/inflight refresh updates quietly.
-        if (!(cachedHome && isPlayerHomeCacheFresh())) {
-            fetchMediaPlayerHome()
-                .then((data) => {
-                    if (cancelled) return;
-                    writePlayerHomeCache(data);
-                    setHome(data);
-                    setError(null);
-                })
-                .catch((err) => {
-                    if (cancelled) return;
-                    if (!cachedHome) setError(String(err?.message || t('mediaPlayerPage.loadError')));
-                })
-                .finally(() => {
-                    if (!cancelled) setLoading(false);
-                });
-        } else {
+        if (!opts?.force && cachedHome && isPlayerHomeCacheFresh()) {
             setLoading(false);
+            return Promise.resolve();
         }
+        return fetchMediaPlayerHome()
+            .then((data) => {
+                writePlayerHomeCache(data);
+                setHome(data);
+                setError(null);
+                setHomeStale(false);
+            })
+            .catch((err) => {
+                if (readPlayerHomeCache()) {
+                    setHomeStale(true);
+                } else {
+                    setError(String(err?.message || t('mediaPlayerPage.loadError')));
+                }
+            })
+            .finally(() => {
+                setLoading(false);
+            });
+    }, [t]);
+
+    useEffect(() => {
+        if (!active) return undefined;
+        let cancelled = false;
+        void refreshHome().then(() => {
+            if (cancelled) return;
+        });
         const cachedHero = readHeroSlidesCache();
         fetchMediaPlayerHomeHero()
             .then((data) => {
@@ -216,7 +226,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
                 if (!cancelled && !cachedHero?.length) setHeroSlides([]);
             });
         return () => { cancelled = true; };
-    }, [active, t]);
+    }, [active, refreshHome]);
 
     useEffect(() => {
         const trimmed = query.trim();
@@ -294,6 +304,11 @@ export const MediaPlayerHome: React.FC<Props> = ({
 
     const hideContinueWatchingRail = heroEffectiveMode === 'continue_watching';
     const showContinueWatchingRail = settings.showContinueWatching && !hideContinueWatchingRail;
+    const continueWatchingAspect = continueWatchingRailAspect(settings.continueWatchingLayout);
+    const layoutContinueWatching = useCallback(
+        (items: PlayerItem[]) => mapContinueWatchingItemsForLayout(items, settings.continueWatchingLayout),
+        [settings.continueWatchingLayout],
+    );
 
     const plexHubs = useMemo(() => {
         const filtered = (home?.hubs || []).filter((hub) => {
@@ -414,7 +429,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
             <PlayerRail
                 key={hub.identifier}
                 title={hub.title}
-                items={hub.items}
+                items={isCw ? layoutContinueWatching(hub.items) : hub.items}
                 density={homePosterDensity}
                 staggerIndex={hubIndex}
                 onOpenItem={onOpenItem}
@@ -422,7 +437,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
                 onToggleWatched={toggleWatched}
                 showProgress={isCw}
                 showRemoveFromContinueWatching={isCw}
-                aspect={(isCw || /recent/i.test(`${hub.identifier || ''} ${hub.title || ''}`)) ? '2/3' : undefined}
+                aspect={isCw ? continueWatchingAspect : (/recent/i.test(`${hub.identifier || ''} ${hub.title || ''}`) ? '2/3' : undefined)}
                 onViewAll={viewAllKey ? () => onOpenItem({
                     ratingKey: viewAllKey,
                     title: hub.title,
@@ -441,7 +456,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
                 <PlayerRail
                     key="continueWatching"
                     title={t('mediaPlayerPage.continueWatching')}
-                    items={home.continueWatching}
+                    items={layoutContinueWatching(home.continueWatching)}
                     density={homePosterDensity}
                     staggerIndex={rowIndex}
                     onOpenItem={onOpenItem}
@@ -449,7 +464,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
                     onToggleWatched={toggleWatched}
                     showProgress
                     showRemoveFromContinueWatching
-                    aspect="2/3"
+                    aspect={continueWatchingAspect}
                     {...railMenuProps}
                 />
             ) : null;
@@ -489,6 +504,14 @@ export const MediaPlayerHome: React.FC<Props> = ({
     });
 
     if (loading && !home) {
+        if (isTvShell && error) {
+            return (
+                <PlayerTvStatusPanel
+                    title={error}
+                    onRetry={() => { setError(null); void refreshHome({ force: true }); }}
+                />
+            );
+        }
         return (
             <div className="flex flex-col gap-6 pb-8" aria-busy="true" aria-label={t('mediaPlayerPage.navHome')}>
                 <div className="h-[300px] animate-pulse rounded-2xl bg-white/5 sm:h-[380px]" />
@@ -497,6 +520,15 @@ export const MediaPlayerHome: React.FC<Props> = ({
                 <DiscoverHomeRowSkeleton />
                 <DiscoverHomeRowSkeleton showViewAll />
             </div>
+        );
+    }
+
+    if (isTvShell && error && !home) {
+        return (
+            <PlayerTvStatusPanel
+                title={error}
+                onRetry={() => { setError(null); void refreshHome({ force: true }); }}
+            />
         );
     }
 
@@ -620,9 +652,28 @@ export const MediaPlayerHome: React.FC<Props> = ({
                 </div>
             ) : null}
 
-            {error ? (
+            {!isTvShell && error ? (
                 <div className={discoveryTheme.emptyState}>
                     <p className={discoveryTheme.emptyTitle}>{error}</p>
+                </div>
+            ) : null}
+
+            {isTvShell && (homeStale || !networkOnline) && home && !query.trim() ? (
+                <div
+                    data-tv-row="1"
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-400/20 bg-amber-500/10 px-4 py-3"
+                    aria-live="polite"
+                >
+                    <p className="text-sm text-amber-100/90">{t('mediaPlayerPage.showingSavedHome')}</p>
+                    <button
+                        type="button"
+                        data-tv-item="1"
+                        data-tv-action="1"
+                        onClick={() => void refreshHome({ force: true })}
+                        className="shrink-0 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold text-white outline-none ring-plex/40 focus-visible:ring-2"
+                    >
+                        {t('common.retry')}
+                    </button>
                 </div>
             ) : null}
 
@@ -633,9 +684,16 @@ export const MediaPlayerHome: React.FC<Props> = ({
             ) : null}
 
             {!query.trim() && !error && !hasRails ? (
-                <div className={discoveryTheme.emptyState}>
-                    <p className={discoveryTheme.emptyTitle}>{t('mediaPlayerPage.emptyHome')}</p>
-                </div>
+                isTvShell ? (
+                    <PlayerTvStatusPanel
+                        title={t('mediaPlayerPage.emptyHome')}
+                        onRetry={() => void refreshHome({ force: true })}
+                    />
+                ) : (
+                    <div className={discoveryTheme.emptyState}>
+                        <p className={discoveryTheme.emptyTitle}>{t('mediaPlayerPage.emptyHome')}</p>
+                    </div>
+                )
             ) : null}
         </div>
     );

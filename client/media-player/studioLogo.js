@@ -191,7 +191,7 @@ export const pickWatchProvidersForRegion = (watchProviders = [], region = 'US') 
         || rows.find((row) => String(row?.iso_3166_1 || '').toUpperCase() === 'US')
         || rows[0]
         || null;
-    const providers = [].concat(hit?.flatrate || []);
+    const providers = [].concat(hit?.flatrate || [], hit?.ads || []);
     const out = [];
     const seen = new Set();
     for (const row of providers) {
@@ -210,7 +210,7 @@ export const pickWatchProvidersForRegion = (watchProviders = [], region = 'US') 
 
 /**
  * Split into Studio / Network / Streaming for stacked overview rows.
- * Streaming uses catalog wordmarks; raw TMDB provider badges are skipped.
+ * Streaming prefers catalog wordmarks and falls back to TMDB provider badges.
  */
 export const splitOverviewServiceLogos = ({
     plexName = '',
@@ -241,9 +241,12 @@ export const splitOverviewServiceLogos = ({
 
     for (const row of Array.isArray(streamingProviders) ? streamingProviders : []) {
         const catalog = resolvePlayerStudioLogo(row?.name, mediaType, { networks, studios });
-        // Prefer network catalog marks for streamers (Netflix, Peacock, Disney+).
-        if (!catalog?.logoPath) continue;
-        const next = claim(catalog.name, catalog.logoPath, catalog.name || row?.key);
+        // Prefer catalog wordmarks; keep the TMDB badge so streamers still show.
+        const next = claim(
+            catalog?.name || row?.name,
+            catalog?.logoPath || row?.logoPath || '',
+            catalog?.name || row?.key || row?.name,
+        );
         if (next) streaming.push(next);
     }
 

@@ -27,13 +27,16 @@
         document.documentElement.style.fontSize = '20px';
         // Narrow CSS viewport → zoom out so desktop density fits the screen.
         // Very wide CSS viewport (4K 1x) → zoom toward a 1920 design width.
+        var zoom = '1';
         if (vw < TARGET * 0.92) {
-          document.documentElement.style.zoom = String(Math.max(0.45, Math.min(1, vw / TARGET)));
+          zoom = String(Math.max(0.45, Math.min(1, vw / TARGET)));
         } else if (vw > TARGET * 1.2) {
-          document.documentElement.style.zoom = String(Math.max(0.45, Math.min(1, TARGET / vw)));
-        } else {
-          document.documentElement.style.zoom = '1';
+          zoom = String(Math.max(0.45, Math.min(1, TARGET / vw)));
         }
+        document.documentElement.style.zoom = zoom;
+        // Layout px are multiplied by this zoom on screen. Divide by it when a
+        // gap must match desktop device pixels (details hero band).
+        document.documentElement.style.setProperty('--tv-zoom', zoom);
       }
 
       function markTv() {
@@ -93,6 +96,7 @@
     }
     /* Poster / rail titles — readable at TV distance */
     html[data-tv="1"] [data-tv-poster-btn="1"] + div {
+      margin-top: 0.45rem;
       font-size: 1.22rem;
       line-height: 1.3;
       font-weight: 600;
@@ -258,8 +262,12 @@
     html[data-tv="1"] .tv-poster-rows {
       gap: 0.65rem !important;
     }
-    /* Peek the next poster to the right. Keep the first card + glow off the clip edge. */
+    /* Line poster rails up with the home hero; keep left inset for focus glow. */
     html[data-tv="1"] [data-tv-poster-rail="1"] {
+      box-sizing: border-box;
+      width: calc(100% + 1.35rem) !important;
+      max-width: calc(100% + 1.35rem) !important;
+      margin-left: -1.35rem !important;
       scroll-padding-left: 1.35rem;
       scroll-padding-right: 4.5rem;
       padding-left: 1.35rem !important;
@@ -268,6 +276,9 @@
     html[data-tv="1"] [data-tv-row="1"] {
       min-width: 0 !important;
       max-width: 100% !important;
+    }
+    html[data-tv="1"] [data-tv-row="1"] > .relative.w-full.min-w-0 {
+      overflow: visible !important;
     }
     html[data-tv="1"] [data-tv-poster-btn="1"] {
       scroll-margin-left: 0.85rem;
@@ -316,47 +327,110 @@
     html[data-tv="1"] .media-details-hero-backdrop {
       height: 100vh !important;
       max-height: none !important;
+      border-top-left-radius: 28px !important;
+      border-top-right-radius: 28px !important;
+      overflow: hidden !important;
     }
     html[data-tv="1"] .media-details-hero-backdrop img {
-      object-position: 72% 35% !important;
+      object-fit: cover !important;
+      object-position: var(--tv-backdrop-position, 58% 20%) !important;
+      transform: none !important;
       opacity: 1 !important;
       filter: none !important;
       image-rendering: auto !important;
+      -webkit-mask-image: none !important;
+      mask-image: none !important;
     }
-    /*
-     * Shorter bottom fade (less of the art is washed out), but darker through the
-     * mid-band where the dropped overview text sits — keeps copy readable on bright art.
-     */
+    /* Cinematic scrims — full art visible; washes only where text sits. */
+    html[data-tv="1"] .media-details-hero-backdrop::before {
+      content: "";
+      position: absolute;
+      z-index: 2;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(to right, rgb(var(--color-card) / 0.94) 0%, rgb(var(--color-card) / 0.42) 16%, transparent 38%),
+        linear-gradient(to bottom, rgb(0 0 0 / 0.42) 0%, transparent 22%, transparent 100%);
+    }
+    html[data-tv="1"] .media-details-hero-backdrop::after {
+      content: "";
+      position: absolute;
+      z-index: 3;
+      left: 0;
+      right: 0;
+      top: calc(var(--tv-hero-fade, 52%) - 14%);
+      height: 34%;
+      pointer-events: none;
+      background: linear-gradient(
+        to bottom,
+        transparent 0%,
+        rgb(var(--color-card) / 0.12) 28%,
+        rgb(var(--color-card) / 0.42) 58%,
+        rgb(var(--color-card) / 0.78) 82%,
+        rgb(var(--color-card)) 100%
+      );
+      filter: blur(calc(28px / var(--tv-zoom, 1)));
+    }
     html[data-tv="1"] .media-details-hero-scrim-bottom {
       background: linear-gradient(
-        to top,
-        rgb(var(--color-card)) 0%,
-        rgb(var(--color-card) / 0.96) 10%,
-        rgb(var(--color-card) / 0.82) 22%,
-        rgb(var(--color-card) / 0.5) 34%,
-        transparent 48%
+        to bottom,
+        transparent 0%,
+        transparent calc(var(--tv-hero-fade, 52%) - 12%),
+        rgb(var(--color-card) / 0.1) calc(var(--tv-hero-fade, 52%) - 6%),
+        rgb(var(--color-card) / 0.28) calc(var(--tv-hero-fade, 52%) + 4%),
+        rgb(var(--color-card) / 0.52) calc(var(--tv-hero-fade, 52%) + 14%),
+        rgb(var(--color-card) / 0.78) calc(var(--tv-hero-fade, 52%) + 24%),
+        rgb(var(--color-card) / 0.94) calc(var(--tv-hero-fade, 52%) + 32%),
+        rgb(var(--color-card)) calc(var(--tv-hero-fade, 52%) + 38%)
       ) !important;
     }
     html[data-tv="1"] .media-details-hero-scrim-left {
       background: linear-gradient(
         to right,
-        rgb(var(--color-card) / 0.9) 0%,
-        rgb(var(--color-card) / 0.72) 26%,
-        rgb(var(--color-card) / 0.4) 52%,
-        transparent 72%
+        rgb(var(--color-card) / 0.88) 0%,
+        rgb(var(--color-card) / 0.45) 12%,
+        rgb(var(--color-card) / 0.12) 26%,
+        transparent 40%
       ) !important;
-      -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 16%, #000 100%);
-      mask-image: linear-gradient(to bottom, transparent 0%, #000 16%, #000 100%);
+      -webkit-mask-image: linear-gradient(
+        to bottom,
+        #000 0%,
+        #000 78%,
+        transparent 100%
+      );
+      mask-image: linear-gradient(
+        to bottom,
+        #000 0%,
+        #000 78%,
+        transparent 100%
+      );
     }
-    /* Drop the hero so the backdrop reads above the poster. */
+    /* Full-bleed art to the top. Clip the card fill to the same curve so the
+       page background does not leave a square beside the rounded art. */
+    html[data-tv="1"] [data-tv-details="1"] {
+      overflow: hidden !important;
+      border-radius: 28px 28px 0 0 !important;
+      border: none !important;
+      box-shadow: none !important;
+      outline: none !important;
+    }
+    html[data-tv="1"] #media-player-scroll:has([data-tv-details="1"]) {
+      padding-top: 0 !important;
+      scroll-padding-top: 0;
+    }
+    /*
+     * Desktop art band above the poster is ~150 device px (hero padding + Back).
+     * Leanback zoom (~0.5 on 1080p) shrinks rem padding by that factor, so the
+     * same 3.5rem looks like a sliver. Divide by --tv-zoom so the band stays 150px.
+     */
     html[data-tv="1"] .media-details-hero-content {
-      padding-top: 5.5rem !important;
+      padding-top: calc(150px / var(--tv-zoom, 1)) !important;
     }
-    html[data-tv="1"] .media-details-kicker-row {
-      margin-bottom: 1.35rem !important;
+    html[data-tv="1"] .media-details-tv-top-spacer {
+      display: none !important;
     }
     html[data-tv="1"] .media-details-hero-row {
-      margin-top: 1.6rem !important;
+      margin-top: 0 !important;
       align-items: flex-start !important;
     }
     html[data-tv="1"] .media-details-panel {
@@ -413,6 +487,7 @@
     }
     html[data-tv="1"] #media-player-scroll {
       padding-top: 1.35rem !important;
+      scroll-padding-top: 1.35rem;
       scroll-padding-left: 1.35rem;
     }
     html[data-tv="1"] .player-home-hero {
@@ -511,20 +586,12 @@
       font-size: 1.45rem !important;
       line-height: 1.5 !important;
     }
-    /* Instant paint — rail/fade enters feel like lag on leanback. */
-    html[data-tv="1"] .player-rail-enter,
-    html[data-tv="1"] .player-nav-label,
-    html[data-tv="1"] .animate-fade-in,
-    html[data-tv="1"] .animate-slide-up,
-    html[data-tv="1"] .discover-content-enter,
-    html[data-tv="1"] .discover-poster-enter {
-      animation: none !important;
-      opacity: 1 !important;
-      transform: none !important;
+    /* Cinematic motion on leanback (see input.css tv-* keyframes). */
+    html[data-tv="1"] .media-details-hero-backdrop img {
+      transition: opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1) !important;
     }
-    html[data-tv="1"] .media-details-hero-backdrop img,
     html[data-tv="1"] .media-details-hero-poster img {
-      transition: none !important;
+      transition: opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1) !important;
     }
     /* First-run setup — cinematic density on leanback. */
     html[data-tv="1"] .smp-auth-shell {

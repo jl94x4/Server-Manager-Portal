@@ -324,7 +324,7 @@ export const PlexClientAuthScreen: React.FC<Props> = ({ onAuthenticated }) => {
             <AuthAtmosphere />
             <div className="smp-auth-shell relative z-10 flex min-h-screen items-center px-5 py-10 sm:px-10 lg:px-16">
                 <div className="w-full max-w-xl lg:max-w-[34rem]">
-                    <div className="smp-auth-copy mb-8 space-y-5">
+                    <div className={`smp-auth-copy mb-8 space-y-5 ${isTv ? 'smp-tv-screen-enter' : ''}`}>
                         <AuthMark />
                         <div className="space-y-3">
                             <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-plex">SMP Media Player</p>
@@ -337,7 +337,7 @@ export const PlexClientAuthScreen: React.FC<Props> = ({ onAuthenticated }) => {
                         </div>
                     </div>
 
-                    <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.45)] backdrop-blur-2xl sm:p-7">
+                    <div className={`rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.45)] backdrop-blur-2xl sm:p-7 ${isTv ? 'smp-tv-auth-panel-enter' : ''}`}>
                         {stage === 'connect' ? (
                             <form
                                 className="space-y-5"

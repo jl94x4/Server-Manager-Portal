@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { focalFromFaces, formatBackgroundPosition } from './imageFocalPoint.ts';
+import { focalFromFaces, formatBackgroundPosition, formatTvDetailsBackdropPosition } from './imageFocalPoint.ts';
 
 const box = (x, y, width, height) => ({ boundingBox: { x, y, width, height } });
 
@@ -35,5 +35,7 @@ const box = (x, y, width, height) => ({ boundingBox: { x, y, width, height } });
 
 assert.equal(formatBackgroundPosition({ x: 40, y: 18 }), '40% 18%');
 assert.equal(formatBackgroundPosition(), '50% 22%');
+assert.equal(formatTvDetailsBackdropPosition({ x: 30, y: 18 }), '52% 18%');
+assert.equal(formatTvDetailsBackdropPosition({ x: 60, y: 22 }), '63% 22%');
 
 console.log('image focal point ok');

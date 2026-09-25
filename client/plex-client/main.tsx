@@ -6,6 +6,8 @@ import { prefetchMediaPlayerHome } from '../media-player/api';
 import { PLAYER_APP_BASE, PLAYER_LOGOUT_EVENT } from '../media-player/paths';
 import { apiFetch } from '../shared/api';
 import { PlexClientAuthScreen, PlexClientBootSplash } from './AuthScreen';
+import { hydratePlexClientAuthStorage } from './authPersistence';
+import { withBootTimeout } from './bootTimeout';
 import {
     bootstrapPlexClientConfig,
     clearPlexClientSession,
@@ -38,8 +40,9 @@ const PlexClientApp: React.FC = () => {
     useEffect(() => {
         let cancelled = false;
         const boot = async () => {
+            await withBootTimeout(hydratePlexClientAuthStorage(), 2000);
             bootstrapPlexClientConfig();
-            const tv = await detectAndApplyTvUi();
+            const tv = await withBootTimeout(detectAndApplyTvUi(), 3000);
             if (cancelled) return;
             setTvReady(tv || isAndroidTvUi());
             installNativeMediaPlayerBridge();
@@ -50,15 +53,29 @@ const PlexClientApp: React.FC = () => {
                 return;
             }
             try {
-                const data = await apiFetch('/api/auth/session');
+                const data = await withBootTimeout(
+                    apiFetch('/api/auth/session'),
+                    12_000,
+                );
                 if (cancelled) return;
                 if (data?.authenticated) {
                     ensurePlayerRoute();
                     prefetchMediaPlayerHome();
                     setAuthed(true);
-                } else clearPlexClientSession();
+                } else if (data === undefined) {
+                    // Portal slow / unreachable — do not trap on the splash screen.
+                    ensurePlayerRoute();
+                    prefetchMediaPlayerHome();
+                    setAuthed(true);
+                } else {
+                    clearPlexClientSession();
+                }
             } catch {
-                if (!cancelled) clearPlexClientSession();
+                if (!cancelled && getSessionToken()) {
+                    ensurePlayerRoute();
+                    prefetchMediaPlayerHome();
+                    setAuthed(true);
+                }
             } finally {
                 if (!cancelled) setChecking(false);
             }

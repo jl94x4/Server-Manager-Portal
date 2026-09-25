@@ -26,4 +26,6 @@
     <string name="player_sleep_30">30 min</string>
     <string name="player_sleep_45">45 min</string>
     <string name="player_sleep_end">End of episode</string>
+    <string name="player_no_options">No options for this title</string>
+    <string name="player_updating_stream">Updating…</string>
 </resources>

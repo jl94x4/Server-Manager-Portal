@@ -137,13 +137,20 @@ export const PlayerItemMenu = forwardRef<PlayerItemMenuHandle, Props>(({
         const rect = triggerRef.current?.getBoundingClientRect();
         const box = rect ? rectToFixedPixels(rect) : null;
         const zoom = box?.zoom || 1;
-        const hasPoint = clientX != null && clientY != null && Number.isFinite(clientX) && Number.isFinite(clientY);
-        let left = hasPoint ? Number(clientX) / zoom : (box ? box.left : 0);
-        let top = hasPoint ? Number(clientY) / zoom : (box ? box.bottom + 4 : 0);
         const viewportW = (typeof window !== 'undefined' ? window.innerWidth : MENU_WIDTH) / zoom;
         const viewportH = (typeof window !== 'undefined' ? window.innerHeight : height) / zoom;
-        left = Math.min(Math.max(pad, left), viewportW - MENU_WIDTH - pad);
-        top = Math.min(Math.max(pad, top), viewportH - height - pad);
+        const centerOnTv = isTv && variant !== 'toolbar';
+        const hasPoint = !centerOnTv
+            && clientX != null && clientY != null && Number.isFinite(clientX) && Number.isFinite(clientY);
+        let left = hasPoint ? Number(clientX) / zoom : (box ? box.left : 0);
+        let top = hasPoint ? Number(clientY) / zoom : (box ? box.bottom + 4 : 0);
+        if (centerOnTv) {
+            left = Math.max(pad, (viewportW - MENU_WIDTH) / 2);
+            top = Math.max(pad, (viewportH - height) / 2);
+        } else {
+            left = Math.min(Math.max(pad, left), viewportW - MENU_WIDTH - pad);
+            top = Math.min(Math.max(pad, top), viewportH - height - pad);
+        }
         setPos({ top, left });
     };
 

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { PLAYER_SCROLL_ID } from './paths';
 import type { PlayerHome, PlayerItem, PlayerItemPage, PlayerSection } from './types';
 
@@ -292,6 +293,25 @@ export const writePlayerHomeCache = (data: PlayerHome) => {
     if (Array.isArray(data?.libraries) && data.libraries.length) {
         writePlayerLibrariesCache(data.libraries);
     }
+};
+
+/** Browser online flag for stale-cache / offline UI. */
+export const usePlayerNetworkStatus = () => {
+    const [online, setOnline] = useState(() => (
+        typeof navigator === 'undefined' ? true : navigator.onLine
+    ));
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+        const on = () => setOnline(true);
+        const off = () => setOnline(false);
+        window.addEventListener('online', on);
+        window.addEventListener('offline', off);
+        return () => {
+            window.removeEventListener('online', on);
+            window.removeEventListener('offline', off);
+        };
+    }, []);
+    return online;
 };
 
 const PLAYER_LIBRARIES_CACHE_KEY = 'portal-media-player-libraries-cache';

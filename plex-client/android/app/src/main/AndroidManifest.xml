@@ -41,7 +41,7 @@
             android:resizeableActivity="true"
             android:supportsPictureInPicture="true"
             android:screenOrientation="sensor"
-            android:theme="@style/AppTheme.NoActionBar" />
+            android:theme="@style/PlayerTheme" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

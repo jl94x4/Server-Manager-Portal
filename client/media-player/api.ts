@@ -426,6 +426,11 @@ export const startMediaPlayerPlayback = (ratingKey: string, opts: {
     const caps = browserPlaybackCaps();
     const isNativeApp = typeof window !== 'undefined' && !!window.__PLEX_CLIENT__;
     const qs = new URLSearchParams({ client: isNativeApp ? 'android' : 'web' });
+    if (isNativeApp) {
+        qs.set('textSubs', '1');
+        qs.set('hevc', '1');
+        qs.set('ac3', '1');
+    }
     if (opts.offsetMs != null) qs.set('offsetMs', String(opts.offsetMs));
     if (opts.qualityId && opts.qualityId !== 'auto') qs.set('qualityId', opts.qualityId);
     if (opts.mediaIndex != null) qs.set('mediaIndex', String(opts.mediaIndex));

@@ -555,10 +555,20 @@ html[data-theme="light"] .company-card .company-duotone-logo {
 
 /* Web: leave room above the poster so the full-page art reads like TV. */
 html:not([data-tv="1"]) .media-details-hero-content {
-  padding-top: 3.5rem;
+  padding-top: clamp(3.5rem, 6vh, 5.5rem);
 }
 html:not([data-tv="1"]) .media-details-hero-row {
-  margin-top: 1.6rem;
+  margin-top: 2rem;
+}
+html:not([data-tv="1"]) .media-details-hero-scrim-bottom {
+  background: linear-gradient(
+    to top,
+    rgb(var(--color-card)) 0%,
+    rgb(var(--color-card) / 0.96) 8%,
+    rgb(var(--color-card) / 0.78) 20%,
+    rgb(var(--color-card) / 0.42) 36%,
+    transparent 52%
+  );
 }
 
 /* Media details: only in light mode, put overview/facts on an opaque panel
@@ -668,6 +678,46 @@ html[data-theme="light"] .media-details-hero-scrim-left {
 @keyframes player-rail-enter {
   from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Leanback / TV — Netflix-style motion (opacity + translate3d, GPU-friendly). */
+@keyframes tv-screen-enter {
+  from { opacity: 0; transform: translate3d(0, 28px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes player-resume-dialog-enter {
+  from { opacity: 0; transform: translate3d(0, 18px, 0) scale(0.97); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+.player-resume-dialog-enter {
+  animation: player-resume-dialog-enter 0.44s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes tv-rail-enter {
+  from { opacity: 0; transform: translate3d(0, 22px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes tv-hero-copy-enter {
+  from { opacity: 0; transform: translate3d(0, 18px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes tv-nav-label-in {
+  from { opacity: 0; transform: translate3d(-10px, 0, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes tv-auth-panel-enter {
+  from { opacity: 0; transform: translate3d(0, 24px, 0) scale(0.988); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes tv-hero-backdrop-in {
+  from { opacity: 0; transform: scale(1.06); }
+  to { opacity: 1; transform: scale(1.032); }
 }
 
 @keyframes slide-up {
@@ -807,6 +857,18 @@ html[data-tv="1"] .custom-scrollbar::-webkit-scrollbar-track {
 
   .player-rail-enter {
     animation: player-rail-enter 0.45s ease-out both;
+  }
+
+  .smp-tv-screen-enter {
+    animation: tv-screen-enter 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .smp-tv-hero-copy-enter {
+    animation: tv-hero-copy-enter 0.44s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .smp-tv-auth-panel-enter {
+    animation: tv-auth-panel-enter 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   .player-nav-label {
@@ -1062,6 +1124,18 @@ html[data-tv="1"] .custom-scrollbar::-webkit-scrollbar-track {
 
   .player-rail-enter {
     animation: player-rail-enter 0.45s ease-out both;
+  }
+
+  .smp-tv-screen-enter {
+    animation: tv-screen-enter 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .smp-tv-hero-copy-enter {
+    animation: tv-hero-copy-enter 0.44s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .smp-tv-auth-panel-enter {
+    animation: tv-auth-panel-enter 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   .player-nav-label {
@@ -1287,22 +1361,74 @@ html.branded-skeleton .skeleton-base::after {
   .animate-fade-in,
   .animate-slide-up,
   .player-rail-enter,
-  .player-nav-label {
+  .player-nav-label,
+  .smp-tv-screen-enter,
+  .smp-tv-hero-copy-enter,
+  .smp-tv-auth-panel-enter {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
   }
 }
 
-html[data-tv="1"] .player-rail-enter,
-html[data-tv="1"] .player-nav-label,
+html[data-tv="1"] .player-rail-enter {
+  animation: tv-rail-enter 0.52s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 html[data-tv="1"] .animate-fade-in,
+html[data-tv="1"] .smp-tv-screen-enter {
+  animation: tv-screen-enter 0.48s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 html[data-tv="1"] .animate-slide-up,
-html[data-tv="1"] .discover-content-enter,
+html[data-tv="1"] .discover-content-enter {
+  animation: tv-screen-enter 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 html[data-tv="1"] .discover-poster-enter {
-  animation: none !important;
-  opacity: 1 !important;
-  transform: none !important;
+  animation: tv-rail-enter 0.48s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+html[data-tv="1"] .player-nav-label {
+  animation: tv-nav-label-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+html[data-tv="1"] .player-home-hero-stage > div.opacity-100 img {
+  animation: tv-hero-backdrop-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: opacity, transform;
+}
+
+html[data-tv="1"] .player-home-hero-stage > div {
+  transition: opacity 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html[data-tv="1"] [data-tv-poster-btn="1"] > [data-tv-poster="1"] {
+  transition:
+    transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html[data-tv="1"] [data-tv-poster-btn="1"][data-tv-focused="1"]:focus > [data-tv-poster="1"],
+html[data-tv="1"] [data-tv-poster-btn="1"][data-tv-focused="1"]:focus-visible > [data-tv-poster="1"] {
+  transform: scale(1.042);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-tv="1"] .player-rail-enter,
+  html[data-tv="1"] .animate-fade-in,
+  html[data-tv="1"] .smp-tv-screen-enter,
+  html[data-tv="1"] .smp-tv-hero-copy-enter,
+  html[data-tv="1"] .smp-tv-auth-panel-enter,
+  html[data-tv="1"] .player-nav-label,
+  html[data-tv="1"] .player-home-hero-stage > div.opacity-100 img {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  html[data-tv="1"] [data-tv-poster-btn="1"] > [data-tv-poster="1"] {
+    transition: none !important;
+  }
 }
 
 @keyframes cinematic-draw {

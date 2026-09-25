@@ -454,13 +454,7 @@ export const OverviewFacts: React.FC<{
         </div>
     );
 
-    const streamingSection = serviceSections.find((section) => section.label === t('mediaPlayerPage.streaming')) || null;
-    const movieWatch = item.type === 'movie' && streamingSection?.networks.length
-        ? { ...streamingSection, networks: streamingSection.networks.slice(0, 1) }
-        : null;
-    const asideServices = movieWatch
-        ? [movieWatch, ...serviceSections.filter((section) => section !== streamingSection)]
-        : serviceSections;
+    const asideServices = serviceSections;
     const logosUnderAside = Boolean(aside) && asideServices.length > 0 && item.type !== 'episode';
     const detailBlocks: React.ReactNode[] = [
         ...crewRows.map((row) => renderMetaRow(row)),

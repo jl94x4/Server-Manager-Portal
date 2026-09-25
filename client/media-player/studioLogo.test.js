@@ -104,8 +104,9 @@ test('splitOverviewServiceLogos stacks Studio then Streaming separately', () => 
     });
     assert.deepEqual(split.studio.map((row) => row.name), ['DreamWorks Animation']);
     assert.deepEqual(split.network, []);
-    assert.deepEqual(split.streaming.map((row) => row.name), ['Peacock']);
+    assert.deepEqual(split.streaming.map((row) => row.name), ['Peacock', 'Unknown Streamer']);
     assert.equal(split.streaming[0].logoPath, '/peacock-wordmark.png');
+    assert.equal(split.streaming[1].logoPath, '/ugly.png');
 });
 
 test('splitOverviewServiceLogos puts TV plex labels under Network', () => {

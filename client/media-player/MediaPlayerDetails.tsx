@@ -16,6 +16,7 @@ import { PlayerClearLogo } from './PlayerClearLogo';
 import { PlayerFileInfo } from './PlayerFileInfo';
 import { PlayerItemMenu } from './PlayerItemMenu';
 import { PlayerRail } from './PlayerRail';
+import { PlayerTvStatusPanel } from './PlayerTvStatusPanel';
 import { watchedTickPositionClass } from './playerSettings';
 import { usePlayerSettings } from './usePlayerSettings';
 import {
@@ -33,6 +34,8 @@ import {
     progressPercent,
     titleCaseProfile,
 } from './playerUtils';
+import { pinTvDetailsTop } from '../plex-client/useTvRemote';
+import { formatTvDetailsBackdropPosition, resolveImageFocalPoint } from '../shared/imageFocalPoint';
 import { writePlayerScrollTop, readPlayerItemCache, takePlayerItemSeed, writePlayerItemCache } from './playerMemory';
 import type { PlayerItem, PlayerLibraryHub, PlayerMediaPartInfo, PlayerPlayOptions, PlayerRatings, PlayerVersion } from './types';
 
@@ -172,6 +175,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
     const [neighbors, setNeighbors] = useState<{ previous: PlayerItem | null; next: PlayerItem | null }>({ previous: null, next: null });
     const [loading, setLoading] = useState(() => !readPlayerItemCache(ratingKey)?.item);
     const [error, setError] = useState<string | null>(null);
+    const [reloadToken, setReloadToken] = useState(0);
     const [posterFailed, setPosterFailed] = useState(false);
     const [backdropFailed, setBackdropFailed] = useState(false);
     const [posterReady, setPosterReady] = useState(false);
@@ -297,7 +301,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
             });
         return () => { cancelled = true; };
         // Intentionally omit `t` — unstable translate refs must not restart the fetch loop.
-    }, [ratingKey]);
+    }, [ratingKey, reloadToken]);
 
     useEffect(() => {
         if (!item || item.type !== 'episode') {
@@ -448,6 +452,33 @@ export const MediaPlayerDetails: React.FC<Props> = ({
         setBackdropFailed(false);
     }, [item?.ratingKey, item?.thumb, item?.art]);
 
+    useLayoutEffect(() => {
+        if (!isTvShell) return undefined;
+        const place = () => {
+            pinTvDetailsTop();
+            const root = document.querySelector<HTMLElement>('[data-tv-details="1"]');
+            const anchor = root?.querySelector<HTMLElement>('[data-tv-fade-anchor="1"]');
+            const backdrop = root?.querySelector<HTMLElement>('.media-details-hero-backdrop');
+            if (!root || !anchor || !backdrop) return;
+            const box = backdrop.getBoundingClientRect();
+            if (box.height < 8) return;
+            const pct = ((anchor.getBoundingClientRect().top - box.top) / box.height) * 100;
+            const clamped = Math.max(38, Math.min(64, pct));
+            root.style.setProperty('--tv-hero-fade', `${clamped.toFixed(1)}%`);
+        };
+        place();
+        const frame = window.requestAnimationFrame(place);
+        const timer = window.setTimeout(place, 120);
+        const content = document.querySelector('[data-tv-details="1"] .media-details-hero-content');
+        const observer = content ? new ResizeObserver(() => place()) : null;
+        if (content) observer.observe(content);
+        return () => {
+            window.cancelAnimationFrame(frame);
+            window.clearTimeout(timer);
+            observer?.disconnect();
+        };
+    }, [isTvShell, item?.ratingKey, item?.summary, item?.title]);
+
     useEffect(() => {
         if (!isTvShell || !item?.canPlay) return undefined;
         let tries = 12;
@@ -455,6 +486,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
             const play = document.querySelector<HTMLElement>('[data-tv-play="1"]');
             if (play) {
                 play.focus({ preventScroll: true });
+                pinTvDetailsTop();
                 return;
             }
             if (tries-- <= 0) return;
@@ -464,11 +496,39 @@ export const MediaPlayerDetails: React.FC<Props> = ({
         return () => window.cancelAnimationFrame(id);
     }, [isTvShell, item?.ratingKey, item?.canPlay]);
 
+    useEffect(() => {
+        if (!isTvShell || !item?.ratingKey) return undefined;
+        const url = plexBackdropUrl(item.art || item.thumb);
+        if (!url) return undefined;
+        let cancelled = false;
+        const root = document.querySelector<HTMLElement>('[data-tv-details="1"]');
+        root?.style.setProperty('--tv-backdrop-position', '58% 20%');
+        void resolveImageFocalPoint(url).then((focal) => {
+            if (cancelled) return;
+            document.querySelector<HTMLElement>('[data-tv-details="1"]')
+                ?.style.setProperty('--tv-backdrop-position', formatTvDetailsBackdropPosition(focal));
+        });
+        return () => { cancelled = true; };
+    }, [isTvShell, item?.ratingKey, item?.art, item?.thumb]);
+
     if (loading && !hasDetailsHero(item)) {
         return <DetailsHeroSkeleton label={t('mediaPlayerPage.loading')} />;
     }
 
     if (error || !item) {
+        if (isTvShell) {
+            return (
+                <PlayerTvStatusPanel
+                    title={error || t('mediaPlayerPage.loadError')}
+                    onRetry={() => {
+                        setError(null);
+                        setLoading(true);
+                        setReloadToken((n) => n + 1);
+                    }}
+                    onBack={onBack}
+                />
+            );
+        }
         return (
             <div className="flex flex-col gap-4">
                 <button type="button" onClick={onBack} className="inline-flex items-center gap-2 text-sm font-bold text-muted hover:text-text">
@@ -618,7 +678,6 @@ export const MediaPlayerDetails: React.FC<Props> = ({
 
     const titleBlock = (
         <>
-            {isTvShell ? null : typeAndGenres}
             {showName ? (
                 showLogo ? (
                     <button
@@ -697,7 +756,13 @@ export const MediaPlayerDetails: React.FC<Props> = ({
         <div
             key={ratingKey}
             data-tv-details="1"
-            className="relative page-bleed-x md:w-full flex flex-col min-h-screen bg-card animate-fade-in pb-24 md:pb-16 rounded-none md:rounded-2xl lg:rounded-3xl overflow-x-hidden border-0 md:border border-white/5 shadow-2xl"
+            className={`relative page-bleed-x md:w-full flex flex-col min-h-screen bg-card pb-24 md:pb-16 ${
+                isTvShell ? '' : 'animate-fade-in'
+            } ${
+                isTvShell
+                    ? 'rounded-none overflow-visible border-0 shadow-none'
+                    : 'rounded-none md:rounded-2xl lg:rounded-3xl overflow-x-hidden border-0 md:border border-white/5 shadow-2xl'
+            }`}
             onTouchStart={onEpisodeSwipeStart}
             onTouchEnd={onEpisodeSwipeEnd}
             onTouchCancel={onEpisodeSwipeCancel}
@@ -726,17 +791,21 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                     <div className="media-details-hero-scrim-left absolute inset-0 hidden md:block" />
                 </div>
 
-                <div className={`media-details-hero-content relative z-10 w-full max-w-[2400px] mx-auto page-x sm:px-8 xl:px-12 pt-2 sm:pt-3 md:pt-2 ${children.length ? 'pb-5' : 'pb-8'}`}>
+                <div className={`media-details-hero-content relative z-10 w-full max-w-[2400px] mx-auto page-x sm:px-8 xl:px-12 pt-2 sm:pt-3 ${
+                    isTvShell ? 'md:pt-2' : 'md:pt-10 lg:pt-14'
+                } ${children.length ? 'pb-5' : 'pb-8'}`}>
                     {!isTvShell ? (
                         <button
                             type="button"
                             onClick={onBack}
-                            className="light-on-media mb-2 md:mb-3 inline-flex items-center gap-2 text-white/90 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-full backdrop-blur-md border border-white/10 hover:border-white/20 hover:bg-black/65"
+                            className="light-on-media mb-3 md:mb-5 inline-flex items-center gap-2 text-white/90 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-full backdrop-blur-md border border-white/10 hover:border-white/20 hover:bg-black/65"
                         >
                             <ArrowLeft className="w-5 h-5" />
                             <span className="font-bold text-sm">{t('mediaPlayerPage.back')}</span>
                         </button>
-                    ) : null}
+                    ) : (
+                        <div className="media-details-tv-top-spacer mb-3" aria-hidden />
+                    )}
 
                     {isTvShell && (item.type === 'episode' || item.type === 'season') ? (
                         <div className="mb-3 flex flex-wrap items-center gap-2" data-tv-rail="1">
@@ -780,13 +849,13 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                         </div>
                     ) : null}
 
-                    {isTvShell ? (
-                        <div className="media-details-kicker-row mb-4">
+                    {typeAndGenres ? (
+                        <div className={`media-details-kicker-row light-on-media ${isTvShell ? 'mb-4' : 'mb-4 md:mb-6'}`}>
                             {typeAndGenres}
                         </div>
                     ) : null}
 
-                    <div className="media-details-hero-row flex flex-col items-start md:flex-row gap-5 md:gap-6 lg:gap-10">
+                    <div className={`media-details-hero-row flex flex-col items-start md:flex-row gap-5 md:gap-6 lg:gap-10 ${isTvShell ? '' : 'md:mt-2'}`}>
                         <div className={`media-details-hero-poster w-full flex-shrink-0 flex flex-col gap-3 ${item.type === 'episode' ? 'md:w-[28.8rem] lg:w-[33.6rem]' : 'md:w-[19.2rem] lg:w-[21.6rem]'}`}>
                             <div className={`flex flex-row md:flex-col gap-4 ${item.type === 'episode' ? 'items-start' : 'items-stretch'}`}>
                                 <div
@@ -852,7 +921,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                             <div className="light-on-media hidden md:flex flex-col items-start gap-2.5">
                                 {titleBlock}
                             </div>
-                            <div className="media-details-panel flex w-full min-w-0 flex-col gap-5">
+                            <div className="media-details-panel flex w-full min-w-0 flex-col gap-5" data-tv-fade-anchor="1">
                                 {item.summary ? (
                                     <OverviewSummary text={item.summary} />
                                 ) : loading ? (

@@ -17,8 +17,8 @@ declare global {
     }
 }
 
-const STORAGE_PORTAL = 'plexClient.portalBaseUrl';
-const STORAGE_TOKEN = 'plexClient.sessionToken';
+import { mirrorAuthToNativeStorage } from './authPersistence';
+import { STORAGE_PORTAL, STORAGE_TOKEN } from './configStorageKeys';
 
 /** Desktop-like CSS layout width used by native TV density (MainActivity). */
 export const TV_LAYOUT_WIDTH = 1920;
@@ -69,6 +69,7 @@ export const writeStoredPortalBaseUrl = (url: string) => {
         const next = trimSlash(url);
         if (next) localStorage.setItem(STORAGE_PORTAL, next);
         else localStorage.removeItem(STORAGE_PORTAL);
+        void mirrorAuthToNativeStorage(STORAGE_PORTAL, next);
         if (typeof window !== 'undefined') {
             window.__PLEX_CLIENT__ = {
                 ...(window.__PLEX_CLIENT__ || {}),
@@ -93,6 +94,7 @@ export const writeStoredSessionToken = (token: string) => {
         const next = String(token || '').trim();
         if (next) localStorage.setItem(STORAGE_TOKEN, next);
         else localStorage.removeItem(STORAGE_TOKEN);
+        void mirrorAuthToNativeStorage(STORAGE_TOKEN, next);
         if (typeof window !== 'undefined') {
             window.__PLEX_CLIENT__ = {
                 ...(window.__PLEX_CLIENT__ || {}),
@@ -115,9 +117,11 @@ export const clearPlexClientPortal = () => {
 
 export const getPortalBaseUrl = (): string => {
     if (typeof window === 'undefined') return '';
+    const stored = readStoredPortalBaseUrl();
+    if (stored) return stored;
     const fromWindow = trimSlash(window.__PLEX_CLIENT__?.portalBaseUrl || '');
     if (fromWindow) return fromWindow;
-    return readStoredPortalBaseUrl();
+    return '';
 };
 
 export const getSessionToken = (): string => {

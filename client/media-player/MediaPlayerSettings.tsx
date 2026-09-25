@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ArrowLeft, ChevronDown, ChevronUp, Loader2, Save } from 'lucide-react';
 import { CustomSelect, discoveryTheme, MediaPlayerAlphaBanner, SettingsToggleRow, StickySaveBar, useDiscoverI18n } from './host';
 import { fetchMediaPlayerHomeHeroConfig, fetchMediaPlayerLibraries, saveMediaPlayerHomeHeroConfig } from './api';
@@ -103,15 +104,15 @@ const TvChoiceRow: React.FC<TvChoiceRowProps> = ({ title, description, value, op
                 </span>
                 <span className="shrink-0 text-base font-bold text-white/85">{selected?.label || '—'}</span>
             </button>
-            {open ? (
+            {open && typeof document !== 'undefined' ? createPortal(
                 <div
-                    className="fixed inset-0 z-[3500] flex items-center justify-center bg-black/70 p-6"
+                    className="fixed inset-0 z-[3500] flex items-center justify-center bg-black/70 p-6 sm:p-10"
                     role="dialog"
                     aria-modal="true"
                     data-tv-settings-dialog="1"
                 >
-                    <div className="flex max-h-[min(78vh,44rem)] w-full max-w-xl flex-col rounded-2xl border border-white/10 bg-card p-6 shadow-2xl">
-                        <p className="shrink-0 text-xs font-black uppercase tracking-widest text-muted">{title}</p>
+                    <div className="flex max-h-[min(78vh,44rem)] w-full max-w-xl flex-col rounded-2xl border border-white/10 bg-[#5a5e66] p-6 shadow-[0_28px_90px_rgba(0,0,0,0.55)]">
+                        <p className="shrink-0 text-xs font-black uppercase tracking-widest text-white/55">{title}</p>
                         <div
                             className="mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain hide-scrollbar"
                             data-tv-rail="1"
@@ -132,7 +133,7 @@ const TvChoiceRow: React.FC<TvChoiceRowProps> = ({ title, description, value, op
                                         className={`rounded-xl border px-4 py-3.5 text-left text-base font-bold outline-none ${
                                             row.value === value
                                                 ? 'border-plex/50 bg-plex/15 text-text'
-                                                : 'border-white/10 bg-white/5 text-text'
+                                                : 'border-white/15 bg-[#484c54] text-text'
                                         }`}
                                     >
                                         {row.label}
@@ -145,12 +146,13 @@ const TvChoiceRow: React.FC<TvChoiceRowProps> = ({ title, description, value, op
                             data-tv-item="1"
                             data-tv-action="1"
                             onClick={() => setOpen(false)}
-                            className="mt-3 shrink-0 rounded-xl px-4 py-3 text-base font-bold text-muted outline-none"
+                            className="mt-3 shrink-0 rounded-xl px-4 py-3 text-base font-bold text-white/70 outline-none hover:text-white"
                         >
                             {t('common.close')}
                         </button>
                     </div>
-                </div>
+                </div>,
+                document.body,
             ) : null}
         </>
     );
@@ -394,6 +396,18 @@ export const MediaPlayerSettings: React.FC<Props> = ({ onBack, isAdmin = false }
                         checked={settings.showContinueWatching}
                         onChange={(checked) => updateSettings({ showContinueWatching: checked })}
                     />
+                    <TvChoiceRow
+                        title={t('mediaPlayerPage.continueWatchingLayout')}
+                        description={t('mediaPlayerPage.continueWatchingLayoutHint')}
+                        value={settings.continueWatchingLayout}
+                        options={[
+                            { value: 'poster', label: t('mediaPlayerPage.continueWatchingLayoutPoster') },
+                            { value: 'title', label: t('mediaPlayerPage.continueWatchingLayoutTitle') },
+                        ]}
+                        onChange={(value) => updateSettings({
+                            continueWatchingLayout: value as typeof settings.continueWatchingLayout,
+                        })}
+                    />
                     <TvToggleRow
                         title={t('mediaPlayerPage.showPlaylists')}
                         description={t('mediaPlayerPage.showPlaylistsHint')}
@@ -619,6 +633,24 @@ export const MediaPlayerSettings: React.FC<Props> = ({ onBack, isAdmin = false }
                         checked={settings.showContinueWatching}
                         onChange={(checked) => updateSettings({ showContinueWatching: checked })}
                     />
+                    <div className="border-b border-border/40 py-4">
+                        <label className="mb-2 block text-sm font-bold text-text" htmlFor="media-player-cw-layout">
+                            {t('mediaPlayerPage.continueWatchingLayout')}
+                        </label>
+                        <p className="mb-3 text-xs text-muted">{t('mediaPlayerPage.continueWatchingLayoutHint')}</p>
+                        <CustomSelect
+                            id="media-player-cw-layout"
+                            value={settings.continueWatchingLayout}
+                            onChange={(value) => updateSettings({
+                                continueWatchingLayout: value as typeof settings.continueWatchingLayout,
+                            })}
+                            className="max-w-xl"
+                            options={[
+                                { value: 'poster', label: t('mediaPlayerPage.continueWatchingLayoutPoster') },
+                                { value: 'title', label: t('mediaPlayerPage.continueWatchingLayoutTitle') },
+                            ]}
+                        />
+                    </div>
                     <SettingsToggleRow
                         title={t('mediaPlayerPage.showPlaylists')}
                         description={t('mediaPlayerPage.showPlaylistsHint')}

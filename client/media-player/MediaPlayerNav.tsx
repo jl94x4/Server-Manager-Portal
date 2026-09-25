@@ -42,6 +42,7 @@ type Props = {
     onSearch: () => void;
     onOpenLibrary: (section: PlayerSection) => void;
     onOpenSettings: () => void;
+    offline?: boolean;
 };
 
 const libraryIcon = (type: string) => {
@@ -101,6 +102,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
     onSearch,
     onOpenLibrary,
     onOpenSettings,
+    offline = false,
 }) => {
     const { t } = useDiscoverI18n();
     const [mobileOpen, setMobileOpen] = useState(false);
@@ -264,6 +266,14 @@ export const MediaPlayerNav: React.FC<Props> = ({
                 >
                     <Menu className="h-4 w-4 shrink-0" />
                 </button>
+            ) : null}
+            {offline && showLabels ? (
+                <div
+                    className="mx-1 rounded-lg border border-amber-400/25 bg-amber-500/10 px-2 py-1.5 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-amber-100/90"
+                    aria-live="polite"
+                >
+                    {t('mediaPlayerPage.offlineBadge')}
+                </div>
             ) : null}
             {/* Home → Search → libraries → Settings → profile (TV focus order). */}
             <div className={`flex shrink-0 flex-col ${showLabels ? 'gap-1' : 'items-center gap-1'}`}>

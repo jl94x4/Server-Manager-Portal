@@ -17,10 +17,12 @@ import { MediaPlayerStudio } from './MediaPlayerStudio';
 import { MediaPlayerSettings } from './MediaPlayerSettings';
 import { MediaPlayerVideo } from './MediaPlayerVideo';
 import { MediaPlayerNav } from './MediaPlayerNav';
-import { rememberTvFocusKey } from '../plex-client/useTvRemote';
+import { captureTvFocusSnapshot, rememberTvFocusKey, restoreTvFocusWhenReady } from '../plex-client/useTvRemote';
+import { isAndroidTvUi } from '../plex-client/config';
 import { PLAYER_APP_BASE, PLAYER_NAVIGATE_EVENT, PLAYER_SCROLL_ID, PLAYER_TV_NAV_EVENT } from './paths';
 import { usePlayerSettings } from './usePlayerSettings';
-import { formatClock, shouldOfferResume } from './playerUtils';
+import { PlayerResumeDialog } from './PlayerResumeDialog';
+import { resolveStartPlaybackQualityId, shouldOfferResume } from './playerUtils';
 import {
     consumePlayerSearchFocus,
     focusPlayerSearchInput,
@@ -33,6 +35,7 @@ import {
     stashPlayerHomeScroll,
     writePlayerNavExpanded,
     writePlayerScrollTop,
+    usePlayerNetworkStatus,
 } from './playerMemory';
 import type { PlayerItem, PlayerPlayOptions, PlayerPlaySession, PlayerSection } from './types';
 
@@ -103,6 +106,29 @@ const libraryPath = (sectionKey: string, tab: LibraryTab = 'home') => (
         ? `${PLAYER_APP_BASE}/library/${encodeURIComponent(sectionKey)}`
         : `${PLAYER_APP_BASE}/library/${encodeURIComponent(sectionKey)}/${tab}`
 );
+
+const viewScreenMotionKey = (view: PlayerView): string => {
+    switch (view.kind) {
+        case 'library':
+            return `library:${view.sectionKey}:${view.tab}`;
+        case 'collection':
+            return `collection:${view.ratingKey}`;
+        case 'playlist':
+            return `playlist:${view.ratingKey}`;
+        case 'item':
+            return `item:${view.ratingKey}`;
+        case 'person':
+            return `person:${view.actorId}`;
+        case 'studio':
+            return `studio:${view.studioKey}`;
+        case 'settings':
+            return 'settings';
+        default:
+            return 'home';
+    }
+};
+
+const screenEnterClass = (tvShell: boolean) => (tvShell ? 'smp-tv-screen-enter' : 'animate-fade-in');
 
 export const MediaPlayerDashboard: React.FC = () => {
     const { t } = useDiscoverI18n();
@@ -352,12 +378,13 @@ export const MediaPlayerDashboard: React.FC = () => {
     }, [goHome]);
 
     const startPlayback = useCallback(async (item: PlayerItem, opts: PlayerPlayOptions = {}) => {
+        if (isAndroidTvUi()) captureTvFocusSnapshot();
         setStartingPlay(true);
         setPendingResume(null);
         try {
             const session = await startMediaPlayerPlayback(item.ratingKey, {
                 offsetMs: opts.offsetMs,
-                qualityId: opts.qualityId || settings.defaultQualityId,
+                qualityId: resolveStartPlaybackQualityId(opts.qualityId, settings.defaultQualityId),
                 mediaIndex: opts.mediaIndex,
                 audioLanguage: settings.audioLanguage,
                 subtitleMode: settings.subtitleMode,
@@ -396,6 +423,12 @@ export const MediaPlayerDashboard: React.FC = () => {
     }, [navigate, startPlayback, t]);
 
     useEffect(() => {
+        if (playSession || !isAndroidTvUi()) return undefined;
+        const id = window.setTimeout(() => restoreTvFocusWhenReady(), 60);
+        return () => window.clearTimeout(id);
+    }, [playSession]);
+
+    useEffect(() => {
         if (!pendingResume) return undefined;
         const id = window.setTimeout(() => {
             const btn = document.querySelector<HTMLElement>('[data-tv-resume-primary="1"]');
@@ -420,6 +453,7 @@ export const MediaPlayerDashboard: React.FC = () => {
                 ? 'library'
                 : 'other';
     const activeLibraryKey = view.kind === 'library' || view.kind === 'collection' ? view.sectionKey : undefined;
+    const networkOnline = usePlayerNetworkStatus();
 
     return (
         <div className="relative flex h-full min-h-0 w-full flex-col">
@@ -434,6 +468,7 @@ export const MediaPlayerDashboard: React.FC = () => {
                 onSearch={openSearch}
                 onOpenLibrary={openLibrary}
                 onOpenSettings={openSettings}
+                offline={tvShell && !networkOnline}
             />
             <div
                 id={PLAYER_SCROLL_ID}
@@ -461,9 +496,12 @@ export const MediaPlayerDashboard: React.FC = () => {
                 </div>
             ) : null}
             {view.kind === 'settings' ? (
-                <MediaPlayerSettings onBack={goHome} isAdmin={isAdmin} />
+                <div key="settings" className={screenEnterClass(tvShell)}>
+                    <MediaPlayerSettings onBack={goHome} isAdmin={isAdmin} />
+                </div>
             ) : null}
             {view.kind === 'library' ? (
+                <div key={viewScreenMotionKey(view)} className={screenEnterClass(tvShell)}>
                 <MediaPlayerLibrary
                     sectionKey={view.sectionKey}
                     tab={view.tab}
@@ -478,8 +516,10 @@ export const MediaPlayerDashboard: React.FC = () => {
                     isAdmin={isAdmin}
                     playlistsEnabled={settings.showPlaylists}
                 />
+                </div>
             ) : null}
             {view.kind === 'collection' ? (
+                <div key={viewScreenMotionKey(view)} className={screenEnterClass(tvShell)}>
                 <MediaPlayerCollection
                     ratingKey={view.ratingKey}
                     sectionKey={view.sectionKey}
@@ -491,16 +531,20 @@ export const MediaPlayerDashboard: React.FC = () => {
                     onOpenItem={openItem}
                     onPlay={playItem}
                 />
+                </div>
             ) : null}
             {view.kind === 'playlist' ? (
+                <div key={viewScreenMotionKey(view)} className={screenEnterClass(tvShell)}>
                 <MediaPlayerPlaylist
                     ratingKey={view.ratingKey}
                     onBack={goHome}
                     onOpenItem={openItem}
                     onPlay={playItem}
                 />
+                </div>
             ) : null}
             {view.kind === 'item' ? (
+                <div key={viewScreenMotionKey(view)} className={screenEnterClass(tvShell)}>
                 <MediaPlayerDetails
                     ratingKey={view.ratingKey}
                     onBack={goBack}
@@ -515,8 +559,10 @@ export const MediaPlayerDashboard: React.FC = () => {
                     playing={startingPlay}
                     playbackActive={Boolean(playSession)}
                 />
+                </div>
             ) : null}
             {view.kind === 'person' ? (
+                <div key={viewScreenMotionKey(view)} className={screenEnterClass(tvShell)}>
                 <MediaPlayerPerson
                     actorId={view.actorId}
                     name={view.name}
@@ -525,8 +571,10 @@ export const MediaPlayerDashboard: React.FC = () => {
                     onOpenItem={openItem}
                     onPlay={playItem}
                 />
+                </div>
             ) : null}
             {view.kind === 'studio' ? (
+                <div key={viewScreenMotionKey(view)} className={screenEnterClass(tvShell)}>
                 <MediaPlayerStudio
                     studioKey={view.studioKey}
                     name={view.name}
@@ -536,64 +584,29 @@ export const MediaPlayerDashboard: React.FC = () => {
                     onOpenItem={openItem}
                     onPlay={playItem}
                 />
+                </div>
             ) : null}
             {pendingResume ? (
-                <div
-                    className="fixed inset-0 z-[3500] flex items-center justify-center bg-black/70 p-4"
-                    role="dialog"
-                    aria-modal="true"
-                    data-tv-resume-dialog="1"
-                >
-                    <div className="w-full max-w-md rounded-2xl border border-white/10 bg-card p-5 shadow-2xl">
-                        <p className="text-xs font-black uppercase tracking-widest text-muted">{t('mediaPlayerPage.resumeTitle')}</p>
-                        <h2 className="mt-2 text-lg font-bold text-text">{pendingResume.item.title}</h2>
-                        <p className="mt-1 text-sm text-muted">
-                            {t('mediaPlayerPage.resumeFrom', { time: formatClock(pendingResume.offsetMs) })}
-                        </p>
-                        <div className="mt-5 flex flex-wrap gap-2" data-tv-rail="1">
-                            <button
-                                type="button"
-                                data-tv-item="1"
-                                data-tv-action="1"
-                                data-tv-resume-primary="1"
-                                onClick={() => void startPlayback(pendingResume.item, {
-                                    offsetMs: pendingResume.offsetMs,
-                                    mediaIndex: pendingResume.mediaIndex,
-                                    audioStreamId: pendingResume.audioStreamId,
-                                    subtitleStreamId: pendingResume.subtitleStreamId,
-                                    skipResume: true,
-                                })}
-                                className="rounded-xl bg-plex px-4 py-2.5 text-sm font-black text-black outline-none"
-                            >
-                                {t('mediaPlayerPage.resume')}
-                            </button>
-                            <button
-                                type="button"
-                                data-tv-item="1"
-                                data-tv-action="1"
-                                onClick={() => void startPlayback(pendingResume.item, {
-                                    offsetMs: 0,
-                                    mediaIndex: pendingResume.mediaIndex,
-                                    audioStreamId: pendingResume.audioStreamId,
-                                    subtitleStreamId: pendingResume.subtitleStreamId,
-                                    skipResume: true,
-                                })}
-                                className="rounded-xl border border-border bg-white/5 px-4 py-2.5 text-sm font-bold text-text outline-none"
-                            >
-                                {t('mediaPlayerPage.startOver')}
-                            </button>
-                            <button
-                                type="button"
-                                data-tv-item="1"
-                                data-tv-action="1"
-                                onClick={() => setPendingResume(null)}
-                                className="rounded-xl px-4 py-2.5 text-sm font-bold text-muted hover:text-text outline-none"
-                            >
-                                {t('common.close')}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <PlayerResumeDialog
+                    item={pendingResume.item}
+                    offsetMs={pendingResume.offsetMs}
+                    tvShell={tvShell}
+                    onResume={() => void startPlayback(pendingResume.item, {
+                        offsetMs: pendingResume.offsetMs,
+                        mediaIndex: pendingResume.mediaIndex,
+                        audioStreamId: pendingResume.audioStreamId,
+                        subtitleStreamId: pendingResume.subtitleStreamId,
+                        skipResume: true,
+                    })}
+                    onStartOver={() => void startPlayback(pendingResume.item, {
+                        offsetMs: 0,
+                        mediaIndex: pendingResume.mediaIndex,
+                        audioStreamId: pendingResume.audioStreamId,
+                        subtitleStreamId: pendingResume.subtitleStreamId,
+                        skipResume: true,
+                    })}
+                    onClose={() => setPendingResume(null)}
+                />
             ) : null}
             {playSession ? (
                 <MediaPlayerVideo
