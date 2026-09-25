@@ -1345,7 +1345,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                                             art: row.art || item.art,
                                             showTitle: row.showTitle || item.title || item.showTitle,
                                         })}
-                                        className="block w-full overflow-hidden rounded-xl border-0 bg-transparent p-0 text-left outline-none"
+                                        className="relative z-0 block w-full overflow-visible rounded-xl border-0 bg-transparent p-0 text-left outline-none"
                                         aria-label={row.title}
                                     >
                                         <div
@@ -1401,7 +1401,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                                             art: row.art || item.art,
                                             showTitle: row.showTitle || item.title || item.showTitle,
                                         })}
-                                        className="block w-full overflow-hidden rounded-xl border-0 bg-transparent p-0 text-left outline-none"
+                                        className="relative z-0 block w-full overflow-visible rounded-xl border-0 bg-transparent p-0 text-left outline-none"
                                         aria-label={row.title}
                                     >
                                         <div
@@ -1527,7 +1527,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                                         data-tv-extra-btn="1"
                                         data-tv-key={extra.ratingKey}
                                         onClick={() => onPlay(extra, { offsetMs: 0, skipResume: true })}
-                                        className="block w-full overflow-hidden rounded-xl border-0 bg-transparent p-0 text-left outline-none"
+                                        className="relative z-0 block w-full overflow-visible rounded-xl border-0 bg-transparent p-0 text-left outline-none"
                                         aria-label={extra.title}
                                     >
                                         <div

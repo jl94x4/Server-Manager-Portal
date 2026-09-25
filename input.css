@@ -521,13 +521,8 @@ html[data-theme="light"] .company-card .company-duotone-logo {
   filter: none;
 }
 
-/* Details hero: web art sits behind the poster/title, then fades before Details.
-   TV keeps the full-page wash (overridden below + in plex-client/index.html). */
+/* Details hero: same full-page wash on web and TV. */
 .media-details-hero-backdrop {
-  height: min(48vh, 28rem);
-  max-height: 28rem;
-}
-html[data-tv="1"] .media-details-hero-backdrop {
   height: 100vh;
   max-height: none;
 }
@@ -540,17 +535,6 @@ html[data-tv="1"] .media-details-hero-backdrop {
   background: linear-gradient(
     to top,
     rgb(var(--color-card)) 0%,
-    rgb(var(--color-card) / 0.97) 20%,
-    rgb(var(--color-card) / 0.86) 40%,
-    rgb(var(--color-card) / 0.58) 58%,
-    rgb(var(--color-card) / 0.22) 74%,
-    transparent 90%
-  );
-}
-html[data-tv="1"] .media-details-hero-scrim-bottom {
-  background: linear-gradient(
-    to top,
-    rgb(var(--color-card)) 0%,
     rgb(var(--color-card) / 0.96) 10%,
     rgb(var(--color-card) / 0.82) 22%,
     rgb(var(--color-card) / 0.5) 34%,
@@ -560,22 +544,21 @@ html[data-tv="1"] .media-details-hero-scrim-bottom {
 .media-details-hero-scrim-left {
   background: linear-gradient(
     to right,
-    rgb(var(--color-card) / 0.96) 0%,
-    rgb(var(--color-card) / 0.88) 20%,
-    rgb(var(--color-card) / 0.68) 42%,
-    rgb(var(--color-card) / 0.36) 62%,
-    transparent 80%
+    rgb(var(--color-card) / 0.9) 0%,
+    rgb(var(--color-card) / 0.72) 26%,
+    rgb(var(--color-card) / 0.4) 52%,
+    transparent 72%
   );
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 8%, #000 100%);
-  mask-image: linear-gradient(to bottom, transparent 0%, #000 8%, #000 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 16%, #000 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 16%, #000 100%);
 }
 
-/* Web only: drop the poster + title block so they sit in the art, not the top chrome. */
+/* Web: leave room above the poster so the full-page art reads like TV. */
 html:not([data-tv="1"]) .media-details-hero-content {
-  padding-top: 2.25rem;
+  padding-top: 3.5rem;
 }
 html:not([data-tv="1"]) .media-details-hero-row {
-  margin-top: 1.35rem;
+  margin-top: 1.6rem;
 }
 
 /* Media details: only in light mode, put overview/facts on an opaque panel

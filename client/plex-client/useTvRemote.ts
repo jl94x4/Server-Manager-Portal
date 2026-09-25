@@ -8,6 +8,7 @@ const TV_RAIL = '[data-tv-rail="1"]';
 const TV_NAV_ROOT = '[data-tv-nav-root="1"]';
 const TV_NAV_ITEM = '[data-tv-nav="1"]';
 const TV_POSTER_BTN = '[data-tv-poster-btn="1"]';
+const TV_COVER_BTN = '[data-tv-poster-btn="1"], [data-tv-extra-btn="1"], [data-tv-episode-btn="1"], [data-tv-season-poster-btn="1"]';
 
 const isEditableTarget = (target: EventTarget | null) => {
     const el = target as HTMLElement | null;
@@ -247,8 +248,8 @@ let focusedPosterEl: HTMLElement | null = null;
 
 const syncPosterFocusAttr = () => {
     const active = document.activeElement as HTMLElement | null;
-    const next = (active?.closest?.(TV_POSTER_BTN) as HTMLElement | null)
-        || (active?.getAttribute?.('data-tv-poster-btn') === '1' ? active : null);
+    const next = (active?.closest?.(TV_COVER_BTN) as HTMLElement | null)
+        || (active?.matches?.(TV_COVER_BTN) ? active : null);
     if (focusedPosterEl && focusedPosterEl !== next) {
         focusedPosterEl.removeAttribute('data-tv-focused');
     }

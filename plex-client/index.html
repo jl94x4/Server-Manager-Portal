@@ -171,33 +171,20 @@
       color: #f59e0b !important;
       stroke: #f59e0b !important;
     }
-    /* Season posters: focus only the art button — ring on the image, never the title. */
+    /* Season / episode / extra: glow the card button, never the title under it.
+       Outer box-shadow must live on the button — overflow-hidden on the button
+       clips a child glow completely. */
+    html[data-tv="1"] [data-tv-season-poster-btn="1"],
+    html[data-tv="1"] [data-tv-episode-btn="1"],
+    html[data-tv="1"] [data-tv-extra-btn="1"] {
+      overflow: visible !important;
+    }
     html[data-tv="1"] [data-tv-season-poster-btn="1"],
     html[data-tv="1"] [data-tv-season-poster-btn="1"]:focus,
-    html[data-tv="1"] [data-tv-season-poster-btn="1"]:focus-visible {
-      outline: none !important;
-      outline-width: 0 !important;
-      box-shadow: none !important;
-    }
-    html[data-tv="1"] [data-tv-season-poster-btn="1"]:focus [data-tv-season-art="1"],
-    html[data-tv="1"] [data-tv-season-poster-btn="1"]:focus-visible [data-tv-season-art="1"] {
-      border-color: transparent !important;
-      box-shadow: var(--tv-focus-glow-cover) !important;
-    }
-    /* Episode thumbs: same image-only ring. */
+    html[data-tv="1"] [data-tv-season-poster-btn="1"]:focus-visible,
     html[data-tv="1"] [data-tv-episode-btn="1"],
     html[data-tv="1"] [data-tv-episode-btn="1"]:focus,
-    html[data-tv="1"] [data-tv-episode-btn="1"]:focus-visible {
-      outline: none !important;
-      outline-width: 0 !important;
-      box-shadow: none !important;
-    }
-    html[data-tv="1"] [data-tv-episode-btn="1"]:focus [data-tv-episode-art="1"],
-    html[data-tv="1"] [data-tv-episode-btn="1"]:focus-visible [data-tv-episode-art="1"] {
-      border-color: transparent !important;
-      box-shadow: var(--tv-focus-glow-cover) !important;
-    }
-    /* Extras / trailers: same image-only ring as episodes. */
+    html[data-tv="1"] [data-tv-episode-btn="1"]:focus-visible,
     html[data-tv="1"] [data-tv-extra-btn="1"],
     html[data-tv="1"] [data-tv-extra-btn="1"]:focus,
     html[data-tv="1"] [data-tv-extra-btn="1"]:focus-visible {
@@ -205,10 +192,16 @@
       outline-width: 0 !important;
       box-shadow: none !important;
     }
-    html[data-tv="1"] [data-tv-extra-btn="1"]:focus [data-tv-extra-art="1"],
-    html[data-tv="1"] [data-tv-extra-btn="1"]:focus-visible [data-tv-extra-art="1"] {
-      border-color: transparent !important;
+    html[data-tv="1"] [data-tv-season-poster-btn="1"][data-tv-focused="1"]:focus,
+    html[data-tv="1"] [data-tv-season-poster-btn="1"][data-tv-focused="1"]:focus-visible,
+    html[data-tv="1"] [data-tv-episode-btn="1"][data-tv-focused="1"]:focus,
+    html[data-tv="1"] [data-tv-episode-btn="1"][data-tv-focused="1"]:focus-visible,
+    html[data-tv="1"] [data-tv-extra-btn="1"][data-tv-focused="1"]:focus,
+    html[data-tv="1"] [data-tv-extra-btn="1"][data-tv-focused="1"]:focus-visible {
+      outline: none !important;
+      border-radius: 0.75rem;
       box-shadow: var(--tv-focus-glow-cover) !important;
+      z-index: 5;
     }
     /* Cast: ring only the avatar circle — same 5px solid as home posters. */
     html[data-tv="1"] [data-tv-cast="1"],
