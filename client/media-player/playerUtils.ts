@@ -265,13 +265,15 @@ export const toPosterCardItem = (item: PlayerItem) => {
     const showThumb = showKey ? `/library/metadata/${showKey}/thumb` : '';
     const preferShowPoster = (item.type === 'episode' || item.type === 'season') && item.cardAspect === '2/3' && !!showThumb;
     const thumb = (preferShowPoster ? showThumb : '') || item.thumb || leafThumb || undefined;
+    const remoteThumb = /^https?:\/\//i.test(String(thumb || ''));
     // Episode stills are title cards. Never use them as a poster fallback.
-    const posterFallbackUrl = !showKey && item.ratingKey && thumb && thumb !== leafThumb
+    const posterFallbackUrl = !showKey && !remoteThumb && item.ratingKey && thumb && thumb !== leafThumb
         ? `/api/plex/image?path=${encodeURIComponent(leafThumb)}&width=${PLAYER_POSTER_WIDTH}&height=${PLAYER_POSTER_HEIGHT}&quality=${PLAYER_POSTER_QUALITY}`
         : undefined;
     return {
         title: item.title,
-        thumb: thumb || undefined,
+        thumb: remoteThumb ? undefined : (thumb || undefined),
+        thumbUrl: remoteThumb ? thumb : undefined,
         posterFallbackUrl,
         plexUrl: item.plexUrl || '',
         year: item.year || undefined,

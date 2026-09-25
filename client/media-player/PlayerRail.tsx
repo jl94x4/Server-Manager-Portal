@@ -61,7 +61,7 @@ export const PlayerRail: React.FC<{
     return (
         <div
             data-tv-row="1"
-            className="player-rail-enter flex flex-col gap-2"
+            className="player-rail-enter flex min-w-0 max-w-full flex-col gap-2"
             style={{ animationDelay: `${Math.min(Math.max(staggerIndex, 0), 12) * 55}ms` }}
         >
             <DiscoverSectionHeader title={title} onViewAll={onViewAll} viewAllLabel={viewAllLabel} />

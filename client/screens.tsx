@@ -7248,11 +7248,14 @@ export const DiscoverPosterCard: React.FC<{
         ? 'relative rounded-xl overflow-hidden bg-background border border-border transition-[border-color] duration-300 group-hover:border-plex/50'
         : 'relative rounded-lg overflow-hidden border border-border group-hover:border-plex transition-colors bg-card';
 
+    const remoteThumb = typeof item.thumb === 'string' && /^https?:\/\//i.test(item.thumb);
     const primaryPosterSrc = item.thumbUrl
         ? resolvePortalAssetUrl(item.thumbUrl)
-        : item.thumb
-            ? portalUrl(`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=${posterWidth}&height=${resolvedPosterHeight}${posterQuality ? `&quality=${posterQuality}` : ''}`)
-            : '';
+        : remoteThumb
+            ? resolvePortalAssetUrl(item.thumb)
+            : item.thumb
+                ? portalUrl(`/api/plex/image?path=${encodeURIComponent(item.thumb)}&width=${posterWidth}&height=${resolvedPosterHeight}${posterQuality ? `&quality=${posterQuality}` : ''}`)
+                : '';
     const fallbackPosterSrc = item.posterFallbackUrl
         ? resolvePortalAssetUrl(item.posterFallbackUrl)
         : '';

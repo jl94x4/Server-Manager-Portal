@@ -135,7 +135,7 @@ const revealNeighbor = (el: HTMLElement, dir: SpatialDir | undefined) => {
 
 /** Play / Open / title actions — not seasons, cast, or poster rails. */
 const isHeaderControl = (el: HTMLElement) => {
-    if (el.closest('[data-tv-row="1"], [data-tv-poster-rail="1"], [data-tv-season-poster-btn="1"], [data-tv-episode-btn="1"], [data-tv-episode-neighbor="1"]')) {
+    if (el.closest('[data-tv-row="1"], [data-tv-poster-rail="1"], [data-tv-season-poster-btn="1"], [data-tv-episode-btn="1"], [data-tv-extra-btn="1"], [data-tv-episode-neighbor="1"]')) {
         return false;
     }
     return Boolean(el.closest('.player-home-hero, [data-tv-action-row="1"], .media-details-hero-row, .media-details-hero-content'));
@@ -179,6 +179,20 @@ const scrollEl = (node: HTMLElement, block: ScrollLogicalPosition) => {
     }
 };
 
+/** Vertical row moves must not pan overflow-x rails — that clips the first poster / glow. */
+const scrollRowWithoutPanningRails = (row: HTMLElement, block: ScrollLogicalPosition) => {
+    const rails = row.querySelectorAll<HTMLElement>('[data-tv-poster-rail="1"], [data-tv-rail="1"]');
+    const prev: string[] = [];
+    rails.forEach((rail) => {
+        prev.push(rail.style.overflowX);
+        rail.style.overflowX = 'hidden';
+    });
+    scrollEl(row, block);
+    rails.forEach((rail, i) => {
+        rail.style.overflowX = prev[i] || '';
+    });
+};
+
 const focusItem = (el: HTMLElement, block: ScrollLogicalPosition = 'nearest', dir?: SpatialDir) => {
     try {
         el.focus({ preventScroll: true });
@@ -208,7 +222,7 @@ const focusItem = (el: HTMLElement, block: ScrollLogicalPosition = 'nearest', di
             return;
         }
         if (dir === 'up' || dir === 'down') {
-            scrollEl(focusedRow(el), 'nearest');
+            scrollRowWithoutPanningRails(focusedRow(el), 'nearest');
             return;
         }
     }
@@ -216,7 +230,7 @@ const focusItem = (el: HTMLElement, block: ScrollLogicalPosition = 'nearest', di
     // Title pages have a tall hero. Centering the seasons/episodes/cast row
     // chops the poster to a sliver. Park the row at the bottom instead.
     if (dir === 'up' || dir === 'down') {
-        scrollEl(focusedRow(el), details ? 'end' : 'center');
+        scrollRowWithoutPanningRails(focusedRow(el), details ? 'end' : 'center');
         return;
     }
     if (details && el.closest('[data-tv-row="1"]')) {

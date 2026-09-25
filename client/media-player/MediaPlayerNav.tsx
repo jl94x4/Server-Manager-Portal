@@ -398,7 +398,7 @@ export const MediaPlayerNav: React.FC<Props> = ({
 
     return (
         <>
-            <div className="sticky top-0 z-40 border-b border-white/10 bg-[#0b1018]/90 pt-[env(safe-area-inset-top,0px)] backdrop-blur-xl md:hidden">
+            <div className={`sticky top-0 z-40 border-b border-white/10 bg-[#0b1018]/90 pt-[env(safe-area-inset-top,0px)] backdrop-blur-xl ${isTvShell ? 'hidden' : 'md:hidden'}`}>
                 <div className="flex items-center gap-2 px-3 py-2">
                     <button
                         type="button"
@@ -424,10 +424,10 @@ export const MediaPlayerNav: React.FC<Props> = ({
             </div>
 
             <aside
-                className={`pointer-events-none z-40 hidden md:flex pl-3 ${
+                className={`pointer-events-none z-40 pl-3 ${
                     isTvShell
-                        ? 'fixed inset-y-0 left-0 items-start pt-3'
-                        : 'absolute inset-y-0 left-0 items-center'
+                        ? 'fixed inset-y-0 left-0 flex items-start pt-3'
+                        : 'absolute inset-y-0 left-0 hidden items-center md:flex'
                 }`}
             >
                 <div

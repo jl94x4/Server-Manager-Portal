@@ -630,7 +630,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                         <PlayerClearLogo
                             src={logoUrl}
                             alt={showName}
-                            className="h-10 sm:h-12 lg:h-16 w-auto max-w-[min(100%,26rem)] object-contain object-left object-top drop-shadow-[0_10px_24px_rgba(0,0,0,0.7)]"
+                            className="h-10 sm:h-12 lg:h-16 w-auto max-w-[min(100%,26rem)] self-start object-contain object-left-top drop-shadow-[0_10px_24px_rgba(0,0,0,0.7)]"
                         />
                     </button>
                 ) : (
@@ -664,7 +664,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                     <PlayerClearLogo
                         src={logoUrl}
                         alt={item.title}
-                        className="h-14 sm:h-20 lg:h-[6.5rem] w-auto max-w-[min(100%,32rem)] object-contain object-left object-top drop-shadow-[0_12px_28px_rgba(0,0,0,0.75)]"
+                        className="h-14 sm:h-20 lg:h-[6.5rem] w-auto max-w-[min(100%,32rem)] self-start object-contain object-left-top drop-shadow-[0_12px_28px_rgba(0,0,0,0.75)]"
                     />
                     <h1 className="sr-only">{item.title}</h1>
                 </>
@@ -842,14 +842,14 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                                         </div>
                                     ) : null}
                                 </div>
-                                <div className="light-on-media flex-1 min-w-0 flex flex-col justify-end gap-2 md:hidden">
+                                <div className="light-on-media flex-1 min-w-0 flex flex-col items-start justify-end gap-2 md:hidden">
                                     {titleBlock}
                                 </div>
                             </div>
                         </div>
 
                         <div className="flex-1 min-w-0 flex flex-col gap-4 pb-2">
-                            <div className="light-on-media hidden md:flex flex-col gap-2.5">
+                            <div className="light-on-media hidden md:flex flex-col items-start gap-2.5">
                                 {titleBlock}
                             </div>
                             <div className="media-details-panel flex w-full min-w-0 flex-col gap-5">
@@ -1516,42 +1516,48 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                 ) : null}
 
                 {extras.length ? (
-                    <section className="border-t border-border pt-8" data-tv-row="1">
+                    <section className="border-t border-border pt-8" data-tv-rail="1" data-tv-row="1">
                         <SectionHeading>{t('mediaPlayerPage.extras')}</SectionHeading>
                         <Carousel posterRow>
                             {extras.map((extra) => (
-                                <button
-                                    key={extra.ratingKey}
-                                    type="button"
-                                    data-tv-item="1"
-                                    data-tv-key={extra.ratingKey}
-                                    onClick={() => onPlay(extra, { offsetMs: 0, skipResume: true })}
-                                    className="group w-64 sm:w-72 flex-shrink-0 snap-start text-left outline-none"
-                                >
-                                    <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black/30">
-                                        {extra.thumb ? (
-                                            <img
-                                                src={plexImageUrl(extra.thumb, 426, 240, { quality: 60 })}
-                                                alt=""
-                                                className="aspect-video w-full object-cover transition-transform group-hover:scale-[1.03]"
-                                            />
-                                        ) : (
-                                            <div className="flex aspect-video items-center justify-center bg-white/5">
-                                                <Play className="h-8 w-8 text-white/70" />
+                                <div key={extra.ratingKey} className="group w-64 sm:w-72 flex-shrink-0 snap-start">
+                                    <button
+                                        type="button"
+                                        data-tv-item="1"
+                                        data-tv-extra-btn="1"
+                                        data-tv-key={extra.ratingKey}
+                                        onClick={() => onPlay(extra, { offsetMs: 0, skipResume: true })}
+                                        className="block w-full overflow-hidden rounded-xl border-0 bg-transparent p-0 text-left outline-none"
+                                        aria-label={extra.title}
+                                    >
+                                        <div
+                                            data-tv-extra-art="1"
+                                            className="relative overflow-hidden rounded-xl border border-white/10 bg-black/30"
+                                        >
+                                            {extra.thumb ? (
+                                                <img
+                                                    src={plexImageUrl(extra.thumb, 426, 240, { quality: 60 })}
+                                                    alt=""
+                                                    className="aspect-video w-full object-cover transition-transform group-hover:scale-[1.03]"
+                                                />
+                                            ) : (
+                                                <div className="flex aspect-video items-center justify-center bg-white/5">
+                                                    <Play className="h-8 w-8 text-white/70" />
+                                                </div>
+                                            )}
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 transition-opacity group-hover:opacity-100">
+                                                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-plex text-white shadow-lg">
+                                                    <Play className="h-5 w-5 fill-current" />
+                                                </span>
                                             </div>
-                                        )}
-                                        <div className="absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 transition-opacity group-hover:opacity-100">
-                                            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-plex text-white shadow-lg">
-                                                <Play className="h-5 w-5 fill-current" />
-                                            </span>
                                         </div>
-                                    </div>
-                                    <div className="mt-2 truncate text-sm font-bold text-text group-hover:text-plex">{extra.title}</div>
+                                    </button>
+                                    <div className="mt-2 truncate text-sm font-bold text-text group-hover:text-plex group-focus-within:text-plex">{extra.title}</div>
                                     <div className="text-[11px] text-muted">
                                         {isPlayerTrailer(extra) ? t('mediaPlayerPage.trailer') : (extra.extraSubtype || extra.type)}
                                         {extra.durationMs ? ` · ${formatPlayerDuration(extra.durationMs)}` : ''}
                                     </div>
-                                </button>
+                                </div>
                             ))}
                         </Carousel>
                     </section>

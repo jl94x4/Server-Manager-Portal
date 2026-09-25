@@ -88,6 +88,8 @@
     html[data-tv="1"] {
       -webkit-tap-highlight-color: transparent;
       font-size: 20px;
+      --tv-focus-glow: 0 0 0 1px rgba(245, 158, 11, 0.28), 0 0 12px 2px rgba(245, 158, 11, 0.2);
+      --tv-focus-glow-cover: 0 0 0 1px rgba(245, 158, 11, 0.55), 0 0 12px 2px rgba(245, 158, 11, 0.45);
     }
     /* Poster / rail titles — readable at TV distance */
     html[data-tv="1"] [data-tv-poster-btn="1"] + div {
@@ -112,12 +114,12 @@
       box-shadow: none;
     }
     /* Nav chips, etc. — ring sits inside the control so focus does not grow it. */
-    html[data-tv="1"] [data-tv-item="1"]:not([data-tv-nav="1"]):not([data-tv-poster-btn="1"]):not([data-tv-action="1"]):not([data-tv-cast="1"]):not([data-tv-season-poster-btn="1"]):not([data-tv-episode-btn="1"]):not([data-tv-menu-item="1"]):not([data-tv-home-hero="1"]):focus,
-    html[data-tv="1"] [data-tv-item="1"]:not([data-tv-nav="1"]):not([data-tv-poster-btn="1"]):not([data-tv-action="1"]):not([data-tv-cast="1"]):not([data-tv-season-poster-btn="1"]):not([data-tv-episode-btn="1"]):not([data-tv-menu-item="1"]):not([data-tv-home-hero="1"]):focus-visible {
+    html[data-tv="1"] [data-tv-item="1"]:not([data-tv-nav="1"]):not([data-tv-poster-btn="1"]):not([data-tv-action="1"]):not([data-tv-cast="1"]):not([data-tv-season-poster-btn="1"]):not([data-tv-episode-btn="1"]):not([data-tv-extra-btn="1"]):not([data-tv-menu-item="1"]):not([data-tv-home-hero="1"]):focus,
+    html[data-tv="1"] [data-tv-item="1"]:not([data-tv-nav="1"]):not([data-tv-poster-btn="1"]):not([data-tv-action="1"]):not([data-tv-cast="1"]):not([data-tv-season-poster-btn="1"]):not([data-tv-episode-btn="1"]):not([data-tv-extra-btn="1"]):not([data-tv-menu-item="1"]):not([data-tv-home-hero="1"]):focus-visible {
       outline: none !important;
       outline-offset: 0;
       border-radius: 0.75rem;
-      box-shadow: inset 0 0 0 2px #111, inset 0 0 0 5px #f59e0b !important;
+      box-shadow: var(--tv-focus-glow) !important;
       z-index: 5;
     }
     /* Side nav: white fill only while the item is focused (nav open). */
@@ -142,7 +144,7 @@
     html[data-tv="1"] [data-tv-action="1"]:focus-visible {
       outline: none !important;
       outline-offset: 0;
-      box-shadow: inset 0 0 0 2px #111, inset 0 0 0 5px #f59e0b !important;
+      box-shadow: var(--tv-focus-glow) !important;
       z-index: 6;
     }
     /* Prev/next episode: ring the whole rounded card, not the title text. */
@@ -154,7 +156,7 @@
     html[data-tv="1"] [data-tv-episode-neighbor="1"]:focus-within {
       outline: none !important;
       border-color: transparent !important;
-      box-shadow: inset 0 0 0 2px #111, inset 0 0 0 5px #f59e0b !important;
+      box-shadow: var(--tv-focus-glow) !important;
       z-index: 6;
     }
     html[data-tv="1"] [data-tv-menu-item="1"]:focus,
@@ -180,17 +182,7 @@
     html[data-tv="1"] [data-tv-season-poster-btn="1"]:focus [data-tv-season-art="1"],
     html[data-tv="1"] [data-tv-season-poster-btn="1"]:focus-visible [data-tv-season-art="1"] {
       border-color: transparent !important;
-    }
-    html[data-tv="1"] [data-tv-season-poster-btn="1"]:focus [data-tv-season-art="1"]::after,
-    html[data-tv="1"] [data-tv-season-poster-btn="1"]:focus-visible [data-tv-season-art="1"]::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      z-index: 40;
-      pointer-events: none;
-      box-sizing: border-box;
-      border: 5px solid #f59e0b;
-      border-radius: inherit;
+      box-shadow: var(--tv-focus-glow-cover) !important;
     }
     /* Episode thumbs: same image-only ring. */
     html[data-tv="1"] [data-tv-episode-btn="1"],
@@ -203,17 +195,20 @@
     html[data-tv="1"] [data-tv-episode-btn="1"]:focus [data-tv-episode-art="1"],
     html[data-tv="1"] [data-tv-episode-btn="1"]:focus-visible [data-tv-episode-art="1"] {
       border-color: transparent !important;
+      box-shadow: var(--tv-focus-glow-cover) !important;
     }
-    html[data-tv="1"] [data-tv-episode-btn="1"]:focus [data-tv-episode-art="1"]::after,
-    html[data-tv="1"] [data-tv-episode-btn="1"]:focus-visible [data-tv-episode-art="1"]::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      z-index: 40;
-      pointer-events: none;
-      box-sizing: border-box;
-      border: 5px solid #f59e0b;
-      border-radius: inherit;
+    /* Extras / trailers: same image-only ring as episodes. */
+    html[data-tv="1"] [data-tv-extra-btn="1"],
+    html[data-tv="1"] [data-tv-extra-btn="1"]:focus,
+    html[data-tv="1"] [data-tv-extra-btn="1"]:focus-visible {
+      outline: none !important;
+      outline-width: 0 !important;
+      box-shadow: none !important;
+    }
+    html[data-tv="1"] [data-tv-extra-btn="1"]:focus [data-tv-extra-art="1"],
+    html[data-tv="1"] [data-tv-extra-btn="1"]:focus-visible [data-tv-extra-art="1"] {
+      border-color: transparent !important;
+      box-shadow: var(--tv-focus-glow-cover) !important;
     }
     /* Cast: ring only the avatar circle — same 5px solid as home posters. */
     html[data-tv="1"] [data-tv-cast="1"],
@@ -225,17 +220,7 @@
     html[data-tv="1"] [data-tv-cast="1"]:focus [data-tv-cast-avatar="1"],
     html[data-tv="1"] [data-tv-cast="1"]:focus-visible [data-tv-cast-avatar="1"] {
       border-color: transparent !important;
-    }
-    html[data-tv="1"] [data-tv-cast="1"]:focus [data-tv-cast-avatar="1"]::after,
-    html[data-tv="1"] [data-tv-cast="1"]:focus-visible [data-tv-cast-avatar="1"]::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      z-index: 40;
-      pointer-events: none;
-      box-sizing: border-box;
-      border: 5px solid #f59e0b;
-      border-radius: 9999px;
+      box-shadow: var(--tv-focus-glow-cover) !important;
     }
     /*
      * Poster cards: ring ONLY when this button is the real :focus AND marked
@@ -268,28 +253,31 @@
     html[data-tv="1"] [data-tv-poster-btn="1"][data-tv-focused="1"]:focus > [data-tv-poster="1"],
     html[data-tv="1"] [data-tv-poster-btn="1"][data-tv-focused="1"]:focus-visible > [data-tv-poster="1"] {
       outline: none !important;
-      box-shadow: none !important;
       border-color: transparent !important;
       z-index: 5;
+      box-shadow: var(--tv-focus-glow-cover) !important;
     }
     html[data-tv="1"] [data-tv-poster-btn="1"][data-tv-focused="1"]:focus > [data-tv-poster="1"]::after,
     html[data-tv="1"] [data-tv-poster-btn="1"][data-tv-focused="1"]:focus-visible > [data-tv-poster="1"]::after {
-      content: "" !important;
-      display: block !important;
-      position: absolute;
-      inset: 0;
-      z-index: 40;
-      pointer-events: none;
-      box-sizing: border-box;
-      border: 5px solid #f59e0b;
-      border-radius: inherit;
+      content: none !important;
+      display: none !important;
     }
     html[data-tv="1"] .tv-poster-rows {
       gap: 0.65rem !important;
     }
-    /* Peek the next poster to the right. Do not pad the top — that blocked scrolling back to the start. */
+    /* Peek the next poster to the right. Keep the first card + glow off the clip edge. */
     html[data-tv="1"] [data-tv-poster-rail="1"] {
+      scroll-padding-left: 1.35rem;
       scroll-padding-right: 4.5rem;
+      padding-left: 1.35rem !important;
+    }
+    html[data-tv="1"] .player-rail-enter,
+    html[data-tv="1"] [data-tv-row="1"] {
+      min-width: 0 !important;
+      max-width: 100% !important;
+    }
+    html[data-tv="1"] [data-tv-poster-btn="1"] {
+      scroll-margin-left: 0.85rem;
     }
     html[data-tv="1"],
     html[data-tv="1"] *,
@@ -428,10 +416,21 @@
     html[data-tv="1"] [data-tv-play="1"]:focus-visible {
       outline: none !important;
       border-radius: 0.75rem !important;
-      box-shadow: inset 0 0 0 2px #111, inset 0 0 0 5px #fff !important;
+      box-shadow: var(--tv-focus-glow) !important;
+    }
+    html[data-tv="1"] #media-player-scroll {
+      padding-top: 1.35rem !important;
+      scroll-padding-left: 1.35rem;
     }
     html[data-tv="1"] .player-home-hero {
       border-radius: 1rem !important;
+      scroll-margin-top: 1.35rem;
+    }
+    html[data-tv="1"] .player-home-hero:focus-within {
+      box-shadow:
+        0 18px 50px rgba(0, 0, 0, 0.35),
+        0 0 0 1px rgba(245, 158, 11, 0.2),
+        0 0 14px 3px rgba(245, 158, 11, 0.16) !important;
     }
     html[data-tv="1"] .player-home-hero-stage {
       aspect-ratio: auto !important;
@@ -445,12 +444,13 @@
     html[data-tv="1"] [data-tv-home-hero="1"]:focus,
     html[data-tv="1"] [data-tv-home-hero="1"]:focus-visible {
       outline: none !important;
-      box-shadow: inset 0 0 0 3px #111, inset 0 0 0 8px #f59e0b !important;
+      box-shadow: inset 0 0 20px 5px rgba(245, 158, 11, 0.08) !important;
       z-index: 6;
     }
     html[data-tv="1"] .player-home-hero-eyebrow {
-      font-size: 0.7rem !important;
-      letter-spacing: 0.16em !important;
+      font-size: 1.55rem !important;
+      letter-spacing: 0.14em !important;
+      line-height: 1.15 !important;
     }
     html[data-tv="1"] .player-home-hero-logo {
       max-height: 3.25rem !important;
@@ -549,14 +549,14 @@
     }
     html[data-tv="1"] [data-tv-auth="1"] input[data-tv-item="1"]:focus,
     html[data-tv="1"] [data-tv-auth="1"] input[data-tv-item="1"]:focus-visible {
-      outline: 3px solid #f59e0b !important;
-      outline-offset: 3px;
+      outline: none !important;
       border-radius: 1rem;
+      box-shadow: var(--tv-focus-glow) !important;
     }
     html[data-tv="1"] [data-tv-home-profile="1"]:focus,
     html[data-tv="1"] [data-tv-home-profile="1"]:focus-visible {
-      outline: 3px solid #f59e0b !important;
-      outline-offset: 3px;
+      outline: none !important;
+      box-shadow: var(--tv-focus-glow) !important;
       z-index: 6;
     }
   </style>

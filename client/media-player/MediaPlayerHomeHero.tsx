@@ -329,7 +329,7 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, effectiveMode, onO
                         className="absolute inset-0 z-10 flex flex-col justify-between gap-3 p-5 text-left outline-none sm:p-6 lg:p-8"
                         aria-label={active.title}
                     >
-                        <p className="player-home-hero-eyebrow shrink-0 text-[10px] font-black uppercase tracking-[0.22em] text-plex drop-shadow-[0_2px_8px_rgba(0,0,0,0.65)]">
+                        <p className="player-home-hero-eyebrow shrink-0 text-base font-black uppercase tracking-[0.16em] text-plex drop-shadow-[0_2px_8px_rgba(0,0,0,0.65)] sm:text-lg">
                             {eyebrow}
                         </p>
                         <div className="player-home-hero-copy min-h-0">
@@ -339,7 +339,7 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, effectiveMode, onO
                     </button>
                 ) : (
                     <div className="absolute inset-0 flex flex-col justify-between gap-2 p-3 sm:gap-3 sm:p-5 lg:p-6">
-                        <p className="player-home-hero-eyebrow shrink-0 text-[10px] font-black uppercase tracking-[0.22em] text-plex drop-shadow-[0_2px_8px_rgba(0,0,0,0.65)]">
+                        <p className="player-home-hero-eyebrow shrink-0 text-base font-black uppercase tracking-[0.16em] text-plex drop-shadow-[0_2px_8px_rgba(0,0,0,0.65)] sm:text-lg">
                             {eyebrow}
                         </p>
                         <div className="player-home-hero-copy min-h-0">

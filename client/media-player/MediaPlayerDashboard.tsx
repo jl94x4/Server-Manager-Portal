@@ -440,7 +440,9 @@ export const MediaPlayerDashboard: React.FC = () => {
                 className={`min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-clip px-4 py-4 md:py-6 md:pr-6 ${
                     tvShell ? 'hide-scrollbar' : 'custom-scrollbar'
                 } ${
-                    navExpanded ? 'md:pl-[18.25rem]' : 'md:pl-[6.5rem]'
+                    navExpanded
+                        ? (tvShell ? 'pl-[18.5rem]' : 'md:pl-[18.25rem]')
+                        : (tvShell ? 'pl-[6.75rem]' : 'md:pl-[6.5rem]')
                 } ${playSession ? 'pb-36' : ''}`}
             >
                 <div className="mx-auto flex w-full max-w-[2400px] flex-col gap-4">
