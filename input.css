@@ -521,10 +521,11 @@ html[data-theme="light"] .company-card .company-duotone-logo {
   filter: none;
 }
 
-/* Details hero: web art stops above Details; TV keeps the full-page wash. */
+/* Details hero: web art sits behind the poster/title, then fades before Details.
+   TV keeps the full-page wash (overridden below + in plex-client/index.html). */
 .media-details-hero-backdrop {
-  height: min(34vh, 20rem);
-  max-height: 20rem;
+  height: min(48vh, 28rem);
+  max-height: 28rem;
 }
 html[data-tv="1"] .media-details-hero-backdrop {
   height: 100vh;
@@ -539,10 +540,10 @@ html[data-tv="1"] .media-details-hero-backdrop {
   background: linear-gradient(
     to top,
     rgb(var(--color-card)) 0%,
-    rgb(var(--color-card) / 0.98) 28%,
-    rgb(var(--color-card) / 0.88) 52%,
-    rgb(var(--color-card) / 0.45) 74%,
-    transparent 100%
+    rgb(var(--color-card) / 0.94) 14%,
+    rgb(var(--color-card) / 0.62) 36%,
+    rgb(var(--color-card) / 0.22) 58%,
+    transparent 82%
   );
 }
 html[data-tv="1"] .media-details-hero-scrim-bottom {
@@ -565,6 +566,14 @@ html[data-tv="1"] .media-details-hero-scrim-bottom {
   );
   -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 16%, #000 100%);
   mask-image: linear-gradient(to bottom, transparent 0%, #000 16%, #000 100%);
+}
+
+/* Web only: drop the poster + title block so they sit in the art, not the top chrome. */
+html:not([data-tv="1"]) .media-details-hero-content {
+  padding-top: 2.25rem;
+}
+html:not([data-tv="1"]) .media-details-hero-row {
+  margin-top: 1.35rem;
 }
 
 /* Media details: only in light mode, put overview/facts on an opaque panel

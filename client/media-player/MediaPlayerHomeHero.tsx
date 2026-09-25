@@ -103,15 +103,24 @@ const HeroTitle: React.FC<{ slide: HomeHeroSlide }> = ({ slide }) => {
             <PlayerClearLogo
                 src={logoUrl}
                 alt={slide.title}
-                className="player-home-hero-logo max-h-8 w-auto max-w-[min(100%,12rem)] object-contain object-left drop-shadow-[0_8px_24px_rgba(0,0,0,0.55)] sm:max-h-14 sm:max-w-[min(100%,22rem)] lg:max-h-16"
+                className="player-home-hero-logo max-h-10 w-auto max-w-[min(100%,14rem)] object-contain object-left drop-shadow-[0_8px_24px_rgba(0,0,0,0.55)] sm:max-h-16 sm:max-w-[min(100%,24rem)] lg:max-h-[4.5rem]"
             />
         );
     }
     return (
-        <h2 className="player-home-hero-title text-base font-black tracking-tight text-white sm:text-2xl lg:text-3xl">
+        <h2 className="player-home-hero-title text-lg font-black tracking-tight text-white sm:text-3xl lg:text-4xl">
             {slide.title}
         </h2>
     );
+};
+
+const isTvShell = () => {
+    try {
+        return document.documentElement?.dataset?.tv === '1'
+            || window.__PLEX_CLIENT__?.isTv === true;
+    } catch {
+        return false;
+    }
 };
 
 export const MediaPlayerHomeHero: React.FC<Props> = ({ items, effectiveMode, onOpenItem, onPlay }) => {
@@ -124,8 +133,14 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, effectiveMode, onO
         : modeEyebrow;
     const [index, setIndex] = useState(0);
     const [paused, setPaused] = useState(false);
+    const [tvShell, setTvShell] = useState(() => isTvShell());
     const [focalByUrl, setFocalByUrl] = useState<Record<string, FocalPoint>>({});
     const swipeRef = useRef<{ x: number; y: number } | null>(null);
+    const heroBtnRef = useRef<HTMLButtonElement | null>(null);
+
+    useEffect(() => {
+        setTvShell(isTvShell());
+    }, []);
     const slides = Array.isArray(items) ? items.filter((row) => row?.ratingKey && row?.title) : [];
     const slideKey = slides.map((row) => row.ratingKey).join('|');
     const backdropKey = slides.map((row) => heroBackdropSrc(row)).join('|');
@@ -167,11 +182,26 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, effectiveMode, onO
         // eslint-disable-next-line react-hooks/exhaustive-deps -- slides rebuilt each render
     }, [backdropKey, index, slides.length]);
 
+    useEffect(() => {
+        const btn = heroBtnRef.current;
+        if (!btn) return undefined;
+        const onCycle = (event: Event) => {
+            const delta = Number((event as CustomEvent<{ delta?: number }>).detail?.delta || 0);
+            if (!delta) return;
+            setIndex((current) => (current + delta + slides.length) % slides.length);
+            setPaused(true);
+        };
+        btn.addEventListener('smp-tv-hero-cycle', onCycle);
+        return () => btn.removeEventListener('smp-tv-hero-cycle', onCycle);
+    }, [slides.length, tvShell]);
+
     if (!slides.length) return null;
 
     const active = slides[Math.min(index, slides.length - 1)];
     const go = (delta: number) => {
+        if (slides.length < 2) return;
         setIndex((current) => (current + delta + slides.length) % slides.length);
+        setPaused(true);
     };
 
     const onTouchStart = (event: React.TouchEvent) => {
@@ -201,19 +231,63 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, effectiveMode, onO
         setPaused(false);
     };
 
+    const copy = (
+        <div className="max-w-2xl">
+            <HeroTitle key={active.ratingKey} slide={active} />
+            <p className="mt-1 text-xs font-semibold text-white/65 sm:text-sm">
+                {[active.year, heroMediaKindLabel(active.type, t)]
+                    .filter(Boolean)
+                    .join(' · ')}
+            </p>
+            {active.summary ? (
+                <p className="player-home-hero-summary mt-2 hidden max-w-xl text-sm leading-relaxed text-white/75 sm:line-clamp-3">
+                    {active.summary}
+                </p>
+            ) : null}
+        </div>
+    );
+
+    const dots = (
+        <div className="flex items-center gap-1.5">
+            {slides.map((slide, slideIndex) => (
+                tvShell ? (
+                    <span
+                        key={slide.ratingKey}
+                        aria-hidden
+                        className={`h-1.5 rounded-full transition-all ${
+                            slideIndex === index ? 'w-6 bg-plex' : 'w-1.5 bg-white/35'
+                        }`}
+                    />
+                ) : (
+                    <button
+                        key={slide.ratingKey}
+                        type="button"
+                        tabIndex={-1}
+                        aria-label={`${slide.title}`}
+                        aria-current={slideIndex === index ? 'true' : undefined}
+                        onClick={() => setIndex(slideIndex)}
+                        className={`h-1.5 rounded-full transition-all ${
+                            slideIndex === index ? 'w-6 bg-plex' : 'w-1.5 bg-white/35 hover:bg-white/55'
+                        }`}
+                    />
+                )
+            ))}
+        </div>
+    );
+
     return (
         <section
             data-tv-page-top="1"
             className="player-home-hero relative touch-pan-y overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 shadow-[0_18px_50px_rgba(0,0,0,0.35)]"
-            onMouseEnter={() => setPaused(true)}
-            onMouseLeave={() => setPaused(false)}
+            onMouseEnter={() => { if (!tvShell) setPaused(true); }}
+            onMouseLeave={() => { if (!tvShell) setPaused(false); }}
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
             onTouchCancel={onTouchCancel}
             aria-roledescription="carousel"
             aria-label={eyebrow}
         >
-            <div className="relative aspect-[21/9] min-h-[200px] max-h-[380px] w-full overflow-hidden sm:min-h-[250px]">
+            <div className="player-home-hero-stage relative aspect-[21/8] min-h-[300px] max-h-[500px] w-full overflow-hidden sm:min-h-[380px] sm:max-h-[580px]">
                 {slides.map((slide, slideIndex) => {
                     const visible = slideIndex === index;
                     const backdropSrc = heroBackdropSrc(slide);
@@ -236,37 +310,44 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, effectiveMode, onO
                             ) : (
                                 <div className="h-full w-full bg-gradient-to-br from-zinc-800 to-zinc-950" />
                             )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
                             <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/45 via-[42%] to-transparent to-[72%]" />
                         </div>
                     );
                 })}
 
-                <div className="absolute inset-0 flex flex-col justify-between gap-2 p-3 sm:gap-3 sm:p-5 lg:p-6">
-                    <p className="player-home-hero-eyebrow shrink-0 text-[10px] font-black uppercase tracking-[0.22em] text-plex drop-shadow-[0_2px_8px_rgba(0,0,0,0.65)]">
-                        {eyebrow}
-                    </p>
-                    <div className="player-home-hero-copy min-h-0">
-                        <div className="max-w-2xl">
-                            <HeroTitle key={active.ratingKey} slide={active} />
-                            <p className="mt-1 text-xs font-semibold text-white/65 sm:text-sm">
-                                {[active.year, heroMediaKindLabel(active.type, t)]
-                                    .filter(Boolean)
-                                    .join(' · ')}
-                            </p>
-                            {active.summary ? (
-                                <p className="player-home-hero-summary mt-2 hidden max-w-xl text-xs leading-relaxed text-white/75 sm:line-clamp-2">
-                                    {active.summary}
-                                </p>
-                            ) : null}
-                            <div className="mt-2.5 flex flex-wrap items-center gap-2 sm:mt-3" data-tv-rail="1">
+                {tvShell ? (
+                    <button
+                        ref={heroBtnRef}
+                        type="button"
+                        data-tv-item="1"
+                        data-tv-home-hero="1"
+                        data-tv-key="home-hero"
+                        onClick={() => onOpenItem(toPlayerItem(active))}
+                        onFocus={() => setPaused(true)}
+                        onBlur={() => setPaused(false)}
+                        className="absolute inset-0 z-10 flex flex-col justify-between gap-3 p-5 text-left outline-none sm:p-6 lg:p-8"
+                        aria-label={active.title}
+                    >
+                        <p className="player-home-hero-eyebrow shrink-0 text-[10px] font-black uppercase tracking-[0.22em] text-plex drop-shadow-[0_2px_8px_rgba(0,0,0,0.65)]">
+                            {eyebrow}
+                        </p>
+                        <div className="player-home-hero-copy min-h-0">
+                            {copy}
+                            <div className="mt-4">{dots}</div>
+                        </div>
+                    </button>
+                ) : (
+                    <div className="absolute inset-0 flex flex-col justify-between gap-2 p-3 sm:gap-3 sm:p-5 lg:p-6">
+                        <p className="player-home-hero-eyebrow shrink-0 text-[10px] font-black uppercase tracking-[0.22em] text-plex drop-shadow-[0_2px_8px_rgba(0,0,0,0.65)]">
+                            {eyebrow}
+                        </p>
+                        <div className="player-home-hero-copy min-h-0">
+                            {copy}
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
                                 {active.canPlay !== false ? (
                                     <button
                                         type="button"
-                                        data-tv-item="1"
-                                        data-tv-action="1"
-                                        data-tv-play="1"
-                                        data-tv-key="home-hero-play"
                                         onClick={() => onPlay(toPlayerItem(active))}
                                         className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-plex px-4 text-sm font-bold text-white shadow-lg shadow-plex/20 transition-colors hover:bg-plex-hover"
                                     >
@@ -276,57 +357,40 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, effectiveMode, onO
                                 ) : null}
                                 <button
                                     type="button"
-                                    data-tv-item="1"
-                                    data-tv-action="1"
                                     onClick={() => onOpenItem(toPlayerItem(active))}
                                     className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 text-sm font-bold text-white transition-colors hover:border-plex/40 hover:bg-white/10"
                                 >
                                     {t('mediaPlayerPage.homeHeroOpen')}
                                 </button>
                             </div>
-                        </div>
-
-                        <div className="mt-2.5 flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-1.5">
-                                {slides.map((slide, slideIndex) => (
-                                    <button
-                                        key={slide.ratingKey}
-                                        type="button"
-                                        tabIndex={-1}
-                                        aria-label={`${slide.title}`}
-                                        aria-current={slideIndex === index ? 'true' : undefined}
-                                        onClick={() => setIndex(slideIndex)}
-                                        className={`h-1.5 rounded-full transition-all ${
-                                            slideIndex === index ? 'w-6 bg-plex' : 'w-1.5 bg-white/35 hover:bg-white/55'
-                                        }`}
-                                    />
-                                ))}
+                            <div className="mt-3 flex items-center justify-between gap-3">
+                                {dots}
+                                {slides.length > 1 ? (
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            type="button"
+                                            tabIndex={-1}
+                                            onClick={() => go(-1)}
+                                            className="rounded-full border border-white/15 bg-black/35 p-2 text-white/80 backdrop-blur hover:bg-black/55 hover:text-white"
+                                            aria-label={t('mediaPlayerPage.homeHeroPrev')}
+                                        >
+                                            <ChevronLeft className="h-4 w-4" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            tabIndex={-1}
+                                            onClick={() => go(1)}
+                                            className="rounded-full border border-white/15 bg-black/35 p-2 text-white/80 backdrop-blur hover:bg-black/55 hover:text-white"
+                                            aria-label={t('mediaPlayerPage.homeHeroNext')}
+                                        >
+                                            <ChevronRight className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                ) : null}
                             </div>
-                            {slides.length > 1 ? (
-                                <div className="flex items-center gap-1">
-                                    <button
-                                        type="button"
-                                        tabIndex={-1}
-                                        onClick={() => go(-1)}
-                                        className="rounded-full border border-white/15 bg-black/35 p-2 text-white/80 backdrop-blur hover:bg-black/55 hover:text-white"
-                                        aria-label={t('mediaPlayerPage.homeHeroPrev')}
-                                    >
-                                        <ChevronLeft className="h-4 w-4" />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        tabIndex={-1}
-                                        onClick={() => go(1)}
-                                        className="rounded-full border border-white/15 bg-black/35 p-2 text-white/80 backdrop-blur hover:bg-black/55 hover:text-white"
-                                        aria-label={t('mediaPlayerPage.homeHeroNext')}
-                                    >
-                                        <ChevronRight className="h-4 w-4" />
-                                    </button>
-                                </div>
-                            ) : null}
                         </div>
                     </div>
-                </div>
+                )}
             </div>
         </section>
     );

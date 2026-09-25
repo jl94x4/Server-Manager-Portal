@@ -184,6 +184,8 @@ export const restorePlayerHomeScrollWhenReady = () => {
     };
 };
 
+export const PLAYER_SEARCH_OPEN_EVENT = 'smp-player-search-open';
+
 export const requestPlayerSearchFocus = () => {
     if (typeof window === 'undefined') return;
     try {
@@ -191,6 +193,7 @@ export const requestPlayerSearchFocus = () => {
     } catch {
         /* ignore */
     }
+    window.dispatchEvent(new Event(PLAYER_SEARCH_OPEN_EVENT));
 };
 
 export const consumePlayerSearchFocus = () => {

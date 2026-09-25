@@ -23,7 +23,7 @@ import {
     PLAYER_SETTINGS_DRAFT_EVENT,
     PLAYER_SETTINGS_EVENT,
 } from './playerSettings';
-import { consumePlayerSearchFocus, isPlayerHomeCacheFresh, PLAYER_HOME_RESET_EVENT, PLAYER_SEARCH_INPUT_ID, readHeroSlidesCache, readPlayerHomeCache, writeHeroSlidesCache, writePlayerHomeCache } from './playerMemory';
+import { consumePlayerSearchFocus, isPlayerHomeCacheFresh, PLAYER_HOME_RESET_EVENT, PLAYER_SEARCH_INPUT_ID, PLAYER_SEARCH_OPEN_EVENT, readHeroSlidesCache, readPlayerHomeCache, writeHeroSlidesCache, writePlayerHomeCache } from './playerMemory';
 import { withShowPoster } from './playerUtils';
 import { usePlayerSettings } from './usePlayerSettings';
 import type { PlayerHome, PlayerItem, PlayerLibraryHub, PlayerPlayOptions, PlayerSection } from './types';
@@ -88,6 +88,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<PlayerItem[]>([]);
     const [searching, setSearching] = useState(false);
+    const [searchActive, setSearchActive] = useState(false);
     /** TV: focus can land on search without IME; Select/Enter arms editing and opens the keyboard. */
     const [searchArmed, setSearchArmed] = useState(false);
     const searchRef = useRef<HTMLInputElement>(null);
@@ -98,10 +99,16 @@ export const MediaPlayerHome: React.FC<Props> = ({
     const searchReadOnly = isTvShell && !searchArmed;
 
     useEffect(() => {
-        if (!consumePlayerSearchFocus()) return;
-        // Focus the field only — on TV keep it read-only so the soft keyboard stays down.
-        searchRef.current?.focus({ preventScroll: false });
-        if (!isTvShell) searchRef.current?.select();
+        const openSearch = () => {
+            setSearchActive(true);
+            window.setTimeout(() => {
+                searchRef.current?.focus({ preventScroll: false });
+                if (!isTvShell) searchRef.current?.select();
+            }, 0);
+        };
+        if (consumePlayerSearchFocus()) openSearch();
+        window.addEventListener(PLAYER_SEARCH_OPEN_EVENT, openSearch);
+        return () => window.removeEventListener(PLAYER_SEARCH_OPEN_EVENT, openSearch);
     }, [isTvShell]);
 
     useEffect(() => {
@@ -118,6 +125,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
             setResults([]);
             setSearching(false);
             setSearchArmed(false);
+            setSearchActive(false);
             searchRef.current?.blur();
         };
         window.addEventListener(PLAYER_HOME_RESET_EVENT, clearSearch);
@@ -483,7 +491,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
     if (loading && !home) {
         return (
             <div className="flex flex-col gap-6 pb-8" aria-busy="true" aria-label={t('mediaPlayerPage.navHome')}>
-                <div className="h-[220px] animate-pulse rounded-2xl bg-white/5 sm:h-[280px]" />
+                <div className="h-[300px] animate-pulse rounded-2xl bg-white/5 sm:h-[380px]" />
                 <DiscoverHomeRowSkeleton />
                 <DiscoverHomeRowSkeleton showViewAll />
                 <DiscoverHomeRowSkeleton />
@@ -494,7 +502,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
 
     return (
         <div className="tv-poster-rows flex flex-col gap-6 pb-8">
-            {!query.trim() && heroSlides.length ? (
+            {!searchActive && heroSlides.length ? (
                 <MediaPlayerHomeHero
                     items={heroSlides}
                     effectiveMode={heroEffectiveMode}
@@ -503,13 +511,13 @@ export const MediaPlayerHome: React.FC<Props> = ({
                 />
             ) : null}
             <h1 className="sr-only">{t('mediaPlayerPage.navHome')}</h1>
-            {!isTvShell && (query.trim() || !orderedLibraries.length || !onOpenLibrary) ? (
+            {!isTvShell && searchActive && (!orderedLibraries.length || !onOpenLibrary) ? (
                 <div className="flex justify-end">
                     <DiscoverGridSizeSelect value={gridSize} onChange={setGridSize} />
                 </div>
             ) : null}
 
-            {!query.trim() && orderedLibraries.length && onOpenLibrary && !isTvShell ? (
+            {!searchActive && orderedLibraries.length && onOpenLibrary && !isTvShell ? (
                 <section className="flex flex-col gap-2" aria-label={t('mediaPlayerPage.jumpToLibrary')}>
                     <div className="flex items-center justify-between gap-3">
                         <p className="min-w-0 text-[10px] font-bold uppercase tracking-[0.18em] text-muted">
@@ -537,6 +545,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
                 </section>
             ) : null}
 
+            {searchActive ? (
             <div className="relative" data-tv-rail={isTvShell ? '1' : undefined}>
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
                 <input
@@ -568,6 +577,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
                     className={discoveryTheme.searchInput}
                 />
             </div>
+            ) : null}
 
             {query.trim().length >= 2 ? (
                 <div className="flex flex-col gap-6">

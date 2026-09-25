@@ -286,7 +286,7 @@ const restoreTvFocusWhenReady = () => {
         return;
     }
     if (isPlayerHomePath() && !tvFocusByPath.get(currentPath())) {
-        focusTvHeroPlayWhenReady();
+        focusTvHeroWhenReady();
         return;
     }
     if (!tvFocusByPath.get(currentPath())) return;
@@ -473,7 +473,7 @@ export const focusTvContent = () => {
     if (restoreTvFocus()) return;
     if (isPlayerItemPath() && focusTvPlayButton()) return;
     if (isPlayerSettingsPath() && focusTvSettings()) return;
-    if (isPlayerHomePath() && focusTvHeroPlay()) return;
+    if (isPlayerHomePath() && focusTvHero()) return;
     const library = document.querySelector<HTMLElement>('[data-tv-library="1"]');
     if (library && hasLayout(library)) {
         const poster = Array.from(library.querySelectorAll<HTMLElement>(TV_POSTER_BTN)).find(hasLayout);
@@ -558,23 +558,21 @@ const focusTvPlayWhenReady = () => {
     window.setTimeout(tick, 40);
 };
 
-/** Home hero Play — default landing when the home page loads. */
-const focusTvHeroPlay = (): boolean => {
+/** Home lands on the whole hero — Left/Right cycle, Select opens. */
+const focusTvHero = (): boolean => {
     if (!isPlayerHomePath()) return false;
-    const hero = document.querySelector<HTMLElement>('.player-home-hero');
+    const hero = document.querySelector<HTMLElement>('[data-tv-home-hero="1"]')
+        || document.querySelector<HTMLElement>('.player-home-hero [data-tv-item="1"]');
     if (!hero || !hasLayout(hero)) return false;
-    const play = focusableTvItems(hero).find((el) => el.getAttribute('data-tv-play') === '1')
-        || focusableTvItems(hero)[0];
-    if (!play) return false;
-    focusItem(play, 'start');
+    focusItem(hero, 'start');
     return true;
 };
 
-const focusTvHeroPlayWhenReady = () => {
-    if (focusTvHeroPlay()) return;
+const focusTvHeroWhenReady = () => {
+    if (focusTvHero()) return;
     let attempts = 30;
     const tick = () => {
-        if (!isPlayerHomePath() || focusTvHeroPlay() || attempts-- <= 0) return;
+        if (!isPlayerHomePath() || focusTvHero() || attempts-- <= 0) return;
         window.setTimeout(tick, 40);
     };
     window.setTimeout(tick, 40);
@@ -776,6 +774,19 @@ export const useTvRemote = (enabled = true) => {
             }
 
             let target: HTMLElement | null = null;
+            if (!menuRoot && current.closest('[data-tv-home-hero="1"]')) {
+                if (dir === 'left' || dir === 'right') {
+                    current.dispatchEvent(new CustomEvent('smp-tv-hero-cycle', {
+                        bubbles: true,
+                        detail: { delta: dir === 'right' ? 1 : -1 },
+                    }));
+                    return;
+                }
+                if (dir === 'down') {
+                    const firstRail = visibleContentRails().find((rail) => !rail.closest('.player-home-hero'));
+                    target = firstRail ? focusableTvItems(firstRail)[0] || null : null;
+                }
+            }
             if (!menuRoot && dir === 'down' && current.closest('[data-tv-action-row="1"]')) {
                 const details = current.closest('[data-tv-details="1"]') || document;
                 target = Array.from(details.querySelectorAll<HTMLElement>(
@@ -794,6 +805,13 @@ export const useTvRemote = (enabled = true) => {
                 if (posterRail) target = findSpatialTarget(current, dir, posterRail);
             }
             if (!target) target = findSpatialTarget(current, dir, menuRoot || undefined);
+            if (!target && !menuRoot && dir === 'up' && isPlayerHomePath()) {
+                const hero = document.querySelector<HTMLElement>('[data-tv-home-hero="1"]');
+                if (hero && hasLayout(hero) && !current.closest('[data-tv-home-hero="1"]')) {
+                    focusItem(hero, 'start');
+                    return;
+                }
+            }
             if (!target && !menuRoot && dir === 'up') {
                 const top = pageTopFor(current);
                 if (top) {
@@ -849,7 +867,7 @@ export const useTvRemote = (enabled = true) => {
         // Do not sync on focusout — WebView activeElement is unreliable mid-blur and
         // was leaving data-tv-focused on the first poster of other rails.
         syncPosterFocusAttr();
-        if (isPlayerHomePath()) focusTvHeroPlayWhenReady();
+        if (isPlayerHomePath()) focusTvHeroWhenReady();
         else restoreTvFocusWhenReady();
         return () => {
             if (window.__SMP_HANDLE_BACK__ === handleTvBack) {
