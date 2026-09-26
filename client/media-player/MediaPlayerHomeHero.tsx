@@ -9,7 +9,8 @@ import {
 import { resolvePortalAssetUrl } from '../shared/basePath';
 import { useDiscoverI18n } from './host';
 import { PlayerClearLogo } from './PlayerClearLogo';
-import { plexBackdropUrl, plexLogoUrl } from './playerUtils';
+import { PlayerBackdropImage } from './PlayerBackdropImage';
+import { plexBackdropPreviewUrl, plexBackdropUrl, plexLogoUrl, prefetchPlayerImages } from './playerUtils';
 import type { PlayerItem, PlayerPlayOptions } from './types';
 
 export type HomeHeroSlide = {
@@ -49,10 +50,23 @@ const heroMediaKindLabel = (
 /** Capacitor <img> needs absolute portal URL + access_token (rail posters already do this). */
 const heroBackdropSrc = (slide: HomeHeroSlide): string => {
     if (slide.art) return plexBackdropUrl(slide.art);
-    if (slide.backdropUrl) return resolvePortalAssetUrl(slide.backdropUrl);
+    if (slide.backdropUrl) return plexBackdropUrl(slide.backdropUrl);
     if (slide.thumb) return plexBackdropUrl(slide.thumb);
-    if (slide.posterUrl) return resolvePortalAssetUrl(slide.posterUrl);
+    if (slide.posterUrl) return plexBackdropUrl(slide.posterUrl) || resolvePortalAssetUrl(slide.posterUrl);
     return '';
+};
+
+const heroBackdropPreviewSrc = (slide: HomeHeroSlide): string => {
+    if (slide.art) return plexBackdropPreviewUrl(slide.art);
+    if (slide.backdropUrl) return plexBackdropPreviewUrl(slide.backdropUrl);
+    if (slide.thumb) return plexBackdropPreviewUrl(slide.thumb);
+    return '';
+};
+
+const slideDistance = (index: number, other: number, total: number) => {
+    if (total <= 1) return 0;
+    const raw = Math.abs(index - other);
+    return Math.min(raw, total - raw);
 };
 
 const SLIDE_MS = 10000;
@@ -160,16 +174,20 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, effectiveMode, onO
     useEffect(() => {
         if (!slides.length) return undefined;
         let cancelled = false;
-        const urls = [
-            heroBackdropSrc(slides[index]),
-            heroBackdropSrc(slides[(index + 1) % slides.length]),
-            heroBackdropSrc(slides[(index + 2) % slides.length]),
-        ].filter((url): url is string => Boolean(url));
+        const previewUrls = slides
+            .filter((_, slideIndex) => slideDistance(index, slideIndex, slides.length) <= 2)
+            .map((slide) => heroBackdropPreviewSrc(slide) || heroBackdropSrc(slide))
+            .filter(Boolean);
+        const fullUrls = slides
+            .filter((_, slideIndex) => slideDistance(index, slideIndex, slides.length) === 0)
+            .map((slide) => heroBackdropSrc(slide))
+            .filter(Boolean);
 
-        prefetchImageFocalPoints(urls);
+        prefetchImageFocalPoints(previewUrls);
+        prefetchPlayerImages([...previewUrls, ...fullUrls], 4);
 
         const warm = async () => {
-            for (const url of urls) {
+            for (const url of previewUrls) {
                 if (cancelled) return;
                 const focal = await resolveImageFocalPoint(url);
                 if (cancelled) return;
@@ -290,21 +308,27 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, effectiveMode, onO
             <div className="player-home-hero-stage relative aspect-[21/8] min-h-[300px] max-h-[500px] w-full overflow-hidden sm:min-h-[380px] sm:max-h-[580px]">
                 {slides.map((slide, slideIndex) => {
                     const visible = slideIndex === index;
-                    const backdropSrc = heroBackdropSrc(slide);
-                    const focal = backdropSrc ? focalByUrl[backdropSrc] : undefined;
+                    const dist = slideDistance(index, slideIndex, slides.length);
+                    const loadPreview = dist <= 2;
+                    const loadFull = dist <= 1;
+                    const backdropSrc = loadFull ? heroBackdropSrc(slide) : '';
+                    const previewSrc = loadPreview ? heroBackdropPreviewSrc(slide) : '';
+                    const focal = focalByUrl[previewSrc] || focalByUrl[backdropSrc];
+                    const showArt = Boolean(backdropSrc || previewSrc);
                     return (
                         <div
                             key={slide.ratingKey}
                             className={`absolute inset-0 overflow-hidden transition-opacity duration-700 ease-out ${visible ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
                             aria-hidden={!visible}
                         >
-                            {backdropSrc ? (
+                            {showArt ? (
                                 <div className="absolute inset-0 overflow-hidden">
-                                    <img
-                                        src={backdropSrc}
-                                        alt=""
+                                    <PlayerBackdropImage
+                                        src={backdropSrc || previewSrc}
+                                        previewSrc={backdropSrc ? previewSrc : ''}
                                         className="h-full w-full object-cover"
                                         style={{ objectPosition: formatBackgroundPosition(focal) }}
+                                        fetchPriority={visible ? 'high' : 'low'}
                                     />
                                 </div>
                             ) : (

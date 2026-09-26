@@ -39,6 +39,7 @@ import {
     offsetMsFromSrc,
     playbackModeFromSrc,
     plexImageUrl,
+    plexLogoUrl,
     PLAYBACK_SPEEDS,
     audioStreamIdFromSrc,
     subtitleStreamIdFromSrc,
@@ -55,6 +56,7 @@ import {
     writeMiniPlayerWidth,
 } from './playerMemory';
 import type { PlayerItem, PlayerPlayOptions, PlayerPlaySession } from './types';
+import { PlayerClearLogo } from './PlayerClearLogo';
 import { isNativePlayerAvailable, openNativePlayer, updateNativePlayerSrc, type NativePlayerSessionPayload } from '../plex-client/nativePlayer';
 import { getSessionToken } from '../plex-client/config';
 
@@ -301,6 +303,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({
     const queuedNext = playNextQueue[0] || null;
     const upNextItem = queuedNext || nextItem;
     const fallbackUsedRef = useRef(false);
+    const nativeFileHlsFallbackRef = useRef(false);
     const clickTimerRef = useRef<number>(0);
     const lastTapRef = useRef<{ at: number; x: number } | null>(null);
     const hideTimerRef = useRef<number>(0);
@@ -316,6 +319,8 @@ export const MediaPlayerVideo: React.FC<Props> = ({
     subtitleStreamIdRef.current = subtitleStreamId;
     const [miniWidth, setMiniWidth] = useState(() => readMiniPlayerWidth());
     const [miniResizing, setMiniResizing] = useState(false);
+    const [chromeLogoFailed, setChromeLogoFailed] = useState(false);
+    const [chromeLogoReady, setChromeLogoReady] = useState(false);
     const miniDragRef = useRef<{
         pointerId: number;
         startX: number;
@@ -332,6 +337,8 @@ export const MediaPlayerVideo: React.FC<Props> = ({
     const versions = session.versions || [];
     const markers = session.markers || { intro: null, credits: null };
     const mediaIndex = String(session.mediaIndex || 0);
+    const chromeLogoUrl = plexLogoUrl(session.item.logo);
+    const showChromeLogo = Boolean(chromeLogoUrl) && !chromeLogoFailed && chromeLogoReady;
 
     useEffect(() => {
         onPlayItemRef.current = onPlayItem;
@@ -389,8 +396,30 @@ export const MediaPlayerVideo: React.FC<Props> = ({
         setBuffered([]);
         setControlsVisible(true);
         fallbackUsedRef.current = false;
+        nativeFileHlsFallbackRef.current = false;
         setNativeExclusive(isPlexNativePlayback());
     }, [session.sessionId]);
+
+    useEffect(() => {
+        setChromeLogoFailed(false);
+        setChromeLogoReady(false);
+        if (!chromeLogoUrl) {
+            setChromeLogoFailed(true);
+            return undefined;
+        }
+        let cancelled = false;
+        const img = new Image();
+        const finish = (ok: boolean) => {
+            if (cancelled) return;
+            if (ok && img.naturalWidth > 0) setChromeLogoReady(true);
+            else setChromeLogoFailed(true);
+        };
+        img.onload = () => finish(true);
+        img.onerror = () => finish(false);
+        img.src = chromeLogoUrl;
+        if (img.complete) finish(img.naturalWidth > 0);
+        return () => { cancelled = true; };
+    }, [chromeLogoUrl, session.item.ratingKey]);
 
     // Capacitor ExoPlayer: prefer native decode when the plugin is present.
     useEffect(() => {
@@ -419,6 +448,9 @@ export const MediaPlayerVideo: React.FC<Props> = ({
             };
         };
 
+        const logoSrc = plexLogoUrl(session.item.logo);
+        const logoAuthUrl = logoSrc ? absoluteWithAuth(logoSrc).url : '';
+
         const buildNativeSession = (item: PlayerItem | null, opts?: {
             qualityId?: string;
             audioStreamId?: string;
@@ -445,6 +477,8 @@ export const MediaPlayerVideo: React.FC<Props> = ({
             autoplayNext,
             autoSkipIntro,
             autoSkipCredits,
+            title: session.item.title,
+            logoUrl: logoAuthUrl,
         });
 
         (async () => {
@@ -475,6 +509,7 @@ export const MediaPlayerVideo: React.FC<Props> = ({
                 const result = await openNativePlayer({
                     url: auth.url,
                     title: session.item.title,
+                    logoUrl: logoAuthUrl,
                     offsetMs: session.offsetMs || 0,
                     headers: auth.headers,
                     speed: speedRef.current || 1,
@@ -570,7 +605,39 @@ export const MediaPlayerVideo: React.FC<Props> = ({
                     },
                     onError: (event) => {
                         if (cancelled || gen !== nativeOpenGen) return;
-                        setError(event.message || 'Native playback failed. Check your connection and try Play again.');
+                        const fail = () => {
+                            setError(event.message || 'Native playback failed. Check your connection and try Play again.');
+                        };
+                        const current = playbackSrcRef.current;
+                        if (nativeFileHlsFallbackRef.current || !isFilePlaybackSrc(current)) {
+                            fail();
+                            return;
+                        }
+                        nativeFileHlsFallbackRef.current = true;
+                        void (async () => {
+                            const offset = Math.max(0, Math.floor(currentMsRef.current || session.offsetMs || 0));
+                            const hlsSrc = buildPlaybackSrc(session.item.ratingKey, {
+                                sessionId: newPlaySessionId(),
+                                offsetMs: offset,
+                                qualityId: nativeSafeQualityId(qualityIdRef.current || session.qualityId),
+                                audioStreamId: audioStreamIdRef.current || session.audioStreamId,
+                                subtitleStreamId: subtitleStreamIdRef.current ?? session.subtitleStreamId ?? '',
+                                directFile: false,
+                                copy: session.canCopyOriginal !== false,
+                                mediaIndex: session.mediaIndex || 0,
+                            });
+                            playbackSrcRef.current = hlsSrc;
+                            setPlaybackSrc(hlsSrc);
+                            setPlaybackMode(playbackModeFromSrc(hlsSrc, qualityIdRef.current, session.canCopyOriginal));
+                            const nextAuth = absoluteWithAuth(hlsSrc);
+                            const ok = await updateNativePlayerSrc({
+                                url: nextAuth.url,
+                                headers: nextAuth.headers,
+                                offsetMs: offset,
+                                session: buildNativeSession(nextItemRef.current || upNextItem),
+                            });
+                            if (!ok && !cancelled && gen === nativeOpenGen) fail();
+                        })();
                     },
                 });
                 if (cancelled || gen !== nativeOpenGen) return;
@@ -1348,10 +1415,28 @@ export const MediaPlayerVideo: React.FC<Props> = ({
             ) : null}
             <div className={`absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-3 transition-opacity ${theater ? 'bg-gradient-to-b from-black/80 to-transparent p-4' : 'bg-black/80 py-2 pr-2 pl-9'} ${showBars ? 'opacity-100' : 'pointer-events-none opacity-0'}`}>
                 <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-white">{session.item.title}</p>
-                    {session.item.showTitle ? (
-                        <p className="truncate text-xs text-white/70">{session.item.showTitle}</p>
-                    ) : null}
+                    {showChromeLogo ? (
+                        <>
+                            {session.item.showTitle ? (
+                                <p className="truncate text-sm font-bold text-white">{session.item.title}</p>
+                            ) : (
+                                <span className="sr-only">{session.item.title}</span>
+                            )}
+                            <PlayerClearLogo
+                                src={chromeLogoUrl}
+                                alt={session.item.showTitle || session.item.title}
+                                className={`${theater ? 'h-10 sm:h-12' : 'h-7'} w-auto max-w-[min(100%,18rem)] object-contain object-left drop-shadow-[0_8px_18px_rgba(0,0,0,0.75)]`}
+                                onError={() => setChromeLogoFailed(true)}
+                            />
+                        </>
+                    ) : (
+                        <>
+                            <p className="truncate text-sm font-bold text-white">{session.item.title}</p>
+                            {session.item.showTitle ? (
+                                <p className="truncate text-xs text-white/70">{session.item.showTitle}</p>
+                            ) : null}
+                        </>
+                    )}
                     {theater ? (
                         <p className="mt-1 inline-flex max-w-full items-center truncate rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-white/80">
                             {[modeLabel, sourceRes, sourceCodec].filter(Boolean).join(' · ')}

@@ -7403,7 +7403,11 @@ export const DiscoverPosterCard: React.FC<{
         );
 
         return (
-            <div className={`flex flex-col gap-2 group outline-none ${className}`} style={{ color: 'inherit' }}>
+            <div
+                data-tv-poster-card="1"
+                className={`flex flex-col gap-2 group outline-none ${className}`}
+                style={{ color: 'inherit' }}
+            >
                 {posterWrapper}
                 {footer ?? defaultFooter}
             </div>

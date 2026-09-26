@@ -323,12 +323,27 @@
       width: 100% !important;
       max-width: none !important;
     }
-    /* Overview backdrop: taller + focal point clear of the left poster. */
-    html[data-tv="1"] .media-details-hero-backdrop {
-      height: 100vh !important;
+    /* Overview backdrop: full viewport width under the floating nav (no rounded card). */
+    html[data-tv="1"] .media-details-page .media-details-hero-backdrop {
+      --tv-details-surface: 38 41 48;
+      --tv-backdrop-fade-end: calc(58vh / var(--tv-zoom, 1));
+      --tv-backdrop-fade-span: calc(200px / var(--tv-zoom, 1));
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      width: auto !important;
+      height: calc(100vh / var(--tv-zoom, 1)) !important;
       max-height: none !important;
-      border-top-left-radius: 28px !important;
-      border-top-right-radius: 28px !important;
+      border-radius: 0 !important;
+      overflow: hidden !important;
+      z-index: 0 !important;
+      background-color: rgb(var(--tv-details-surface)) !important;
+    }
+    html[data-tv="1"] .media-details-hero-backdrop {
+      height: calc(100vh / var(--tv-zoom, 1)) !important;
+      max-height: none !important;
+      border-radius: 0 !important;
       overflow: hidden !important;
     }
     html[data-tv="1"] .media-details-hero-backdrop img {
@@ -349,74 +364,73 @@
       inset: 0;
       pointer-events: none;
       background:
-        linear-gradient(to right, rgb(var(--color-card) / 0.94) 0%, rgb(var(--color-card) / 0.42) 16%, transparent 38%),
-        linear-gradient(to bottom, rgb(0 0 0 / 0.42) 0%, transparent 22%, transparent 100%);
+        linear-gradient(to right, rgb(var(--tv-details-surface) / 0.94) 0%, rgb(var(--tv-details-surface) / 0.42) 16%, transparent 38%),
+        linear-gradient(to bottom, rgb(0 0 0 / 0.35) 0%, transparent 18%, transparent 100%);
     }
+    /* Single bottom wash into page surface — no extra scrim layers (they caused a hard line). */
     html[data-tv="1"] .media-details-hero-backdrop::after {
       content: "";
       position: absolute;
       z-index: 3;
       left: 0;
       right: 0;
-      top: calc(var(--tv-hero-fade, 52%) - 14%);
-      height: 34%;
+      top: 0;
+      bottom: 0;
       pointer-events: none;
       background: linear-gradient(
         to bottom,
-        transparent 0%,
-        rgb(var(--color-card) / 0.12) 28%,
-        rgb(var(--color-card) / 0.42) 58%,
-        rgb(var(--color-card) / 0.78) 82%,
-        rgb(var(--color-card)) 100%
+        transparent 0,
+        transparent calc(var(--tv-backdrop-fade-end, 58%) - var(--tv-backdrop-fade-span, 12%)),
+        rgb(var(--tv-details-surface) / 0.16) calc(var(--tv-backdrop-fade-end, 58%) - var(--tv-backdrop-fade-span, 12%) * 0.55),
+        rgb(var(--tv-details-surface) / 0.42) calc(var(--tv-backdrop-fade-end, 58%) - var(--tv-backdrop-fade-span, 12%) * 0.28),
+        rgb(var(--tv-details-surface) / 0.72) calc(var(--tv-backdrop-fade-end, 58%) - var(--tv-backdrop-fade-span, 12%) * 0.1),
+        rgb(var(--tv-details-surface) / 0.92) var(--tv-backdrop-fade-end, 58%),
+        rgb(var(--tv-details-surface)) calc(var(--tv-backdrop-fade-end, 58%) + var(--tv-backdrop-fade-span, 12%) * 0.2),
+        rgb(var(--tv-details-surface)) 100%
       );
-      filter: blur(calc(28px / var(--tv-zoom, 1)));
     }
-    html[data-tv="1"] .media-details-hero-scrim-bottom {
-      background: linear-gradient(
-        to bottom,
-        transparent 0%,
-        transparent calc(var(--tv-hero-fade, 52%) - 12%),
-        rgb(var(--color-card) / 0.1) calc(var(--tv-hero-fade, 52%) - 6%),
-        rgb(var(--color-card) / 0.28) calc(var(--tv-hero-fade, 52%) + 4%),
-        rgb(var(--color-card) / 0.52) calc(var(--tv-hero-fade, 52%) + 14%),
-        rgb(var(--color-card) / 0.78) calc(var(--tv-hero-fade, 52%) + 24%),
-        rgb(var(--color-card) / 0.94) calc(var(--tv-hero-fade, 52%) + 32%),
-        rgb(var(--color-card)) calc(var(--tv-hero-fade, 52%) + 38%)
-      ) !important;
-    }
+    html[data-tv="1"] .media-details-hero-scrim-bottom,
     html[data-tv="1"] .media-details-hero-scrim-left {
-      background: linear-gradient(
-        to right,
-        rgb(var(--color-card) / 0.88) 0%,
-        rgb(var(--color-card) / 0.45) 12%,
-        rgb(var(--color-card) / 0.12) 26%,
-        transparent 40%
-      ) !important;
-      -webkit-mask-image: linear-gradient(
-        to bottom,
-        #000 0%,
-        #000 78%,
-        transparent 100%
-      );
-      mask-image: linear-gradient(
-        to bottom,
-        #000 0%,
-        #000 78%,
-        transparent 100%
-      );
+      display: none !important;
     }
-    /* Full-bleed art to the top. Clip the card fill to the same curve so the
-       page background does not leave a square beside the rounded art. */
+    /* Slightly lighter than pure black — close to Did You Know / white/5 cards. */
     html[data-tv="1"] [data-tv-details="1"] {
-      overflow: hidden !important;
-      border-radius: 28px 28px 0 0 !important;
+      --tv-details-surface: 38 41 48;
+      --tv-backdrop-fade-end: calc(58vh / var(--tv-zoom, 1));
+      --tv-backdrop-fade-span: calc(200px / var(--tv-zoom, 1));
+      background-color: rgb(var(--tv-details-surface)) !important;
+      overflow: visible !important;
+      border-radius: 0 !important;
       border: none !important;
       box-shadow: none !important;
       outline: none !important;
     }
-    html[data-tv="1"] #media-player-scroll:has([data-tv-details="1"]) {
+    html[data-tv="1"] [data-tv-details="1"] .bg-card {
+      background-color: transparent !important;
+    }
+    html[data-tv="1"] #media-player-scroll:has([data-tv-details="1"]),
+    html[data-tv="1"] #media-player-scroll.player-scroll-details {
       padding-top: 0 !important;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
       scroll-padding-top: 0;
+      background-color: rgb(var(--tv-details-surface, 38 41 48)) !important;
+    }
+    html[data-tv="1"] [data-tv-details="1"] [data-tv-page-top="1"] {
+      scroll-margin-top: 0;
+    }
+    html[data-tv="1"] [data-tv-poster-grid="1"],
+    html[data-tv="1"] .upgrader-poster-grid {
+      /* Last row must be able to scroll fully above the overscan/bezel. */
+      padding-bottom: calc(420px / var(--tv-zoom, 1)) !important;
+    }
+    html[data-tv="1"] [data-tv-poster-card="1"] {
+      scroll-margin-top: calc(24px / var(--tv-zoom, 1));
+      scroll-margin-bottom: calc(96px / var(--tv-zoom, 1));
+    }
+    html[data-tv="1"] #media-player-scroll:has([data-tv-poster-grid="1"]),
+    html[data-tv="1"] #media-player-scroll:has(.upgrader-poster-grid) {
+      scroll-padding-bottom: calc(96px / var(--tv-zoom, 1));
     }
     /*
      * Desktop art band above the poster is ~150 device px (hero padding + Back).
@@ -432,6 +446,12 @@
     html[data-tv="1"] .media-details-hero-row {
       margin-top: 0 !important;
       align-items: flex-start !important;
+    }
+    html[data-tv="1"] .media-details-hero-poster .media-details-kicker-row,
+    html[data-tv="1"] .media-details-kicker,
+    html[data-tv="1"] .media-details-kicker > div {
+      justify-content: center !important;
+      text-align: center !important;
     }
     html[data-tv="1"] .media-details-panel {
       gap: 0.65rem !important;
@@ -548,9 +568,10 @@
       align-self: start !important;
     }
     html[data-tv="1"] .media-details-facts-aside {
-      min-width: 0;
-      width: auto !important;
-      max-width: none !important;
+      width: 26rem !important;
+      max-width: 100% !important;
+      min-width: 0 !important;
+      flex-shrink: 0 !important;
       align-self: flex-start !important;
       margin-left: 0 !important;
     }

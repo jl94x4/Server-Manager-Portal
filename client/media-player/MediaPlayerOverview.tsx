@@ -30,6 +30,10 @@ const isTvShell = () => {
 const creditPillClass = 'px-2.5 py-1 rounded-lg bg-white/5 border border-border text-sm text-text';
 const creditPillInteractiveClass = `${creditPillClass} hover:bg-plex/15 hover:border-plex/40 hover:text-plex transition-colors`;
 
+/** Prev/next episode + Did You Know — fixed width unless paired with service logos. */
+export const OVERVIEW_SPOTLIGHT_WIDTH_CLASS = 'w-[26rem] max-w-full shrink-0';
+export const OVERVIEW_SPOTLIGHT_CARD_SHELL_CLASS = 'min-h-[5.25rem]';
+
 const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div className="flex items-center gap-3 mb-3">
         <h3 className="text-xs font-black text-muted uppercase tracking-[0.2em]">{children}</h3>
@@ -238,7 +242,7 @@ export const OverviewSummary: React.FC<{ text: string }> = ({ text }) => {
 export const OverviewGenres: React.FC<{ genres: string[] }> = ({ genres }) => {
     if (!genres.length) return null;
     return (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap justify-center gap-2">
             {genres.map((genre) => (
                 <span
                     key={genre}
@@ -274,8 +278,10 @@ export const OverviewFactsSpotlight: React.FC<{
 }) => {
     const { t } = useDiscoverI18n();
     const { preferences } = useDiscoveryPreferences();
-    const { network } = useOverviewServiceLogos(item, preferences.discoverRegion || 'US');
-    const marks = network.filter((row) => row.logoPath);
+    const { studio, network, streaming } = useOverviewServiceLogos(item, preferences.discoverRegion || 'US');
+    const marks = [...studio, ...network, ...streaming].filter((row) => row.logoPath).filter((row, index, rows) => (
+        rows.findIndex((other) => other.key === row.key && other.name === row.name) === index
+    ));
     const showFact = Boolean(factMediaType) && Number.isFinite(factMediaId) && factMediaId > 0;
     const showNeighbors = Boolean((previous || next) && onOpenItem && onPlayNeighbor);
     if (!marks.length && !showFact && !showNeighbors) return null;
@@ -298,6 +304,7 @@ export const OverviewFactsSpotlight: React.FC<{
                 mediaType={factMediaType}
                 mediaId={factMediaId}
                 title={factTitle}
+                className={`${OVERVIEW_SPOTLIGHT_WIDTH_CLASS} ${OVERVIEW_SPOTLIGHT_CARD_SHELL_CLASS}`}
             />,
         );
     }
@@ -317,8 +324,8 @@ export const OverviewFactsSpotlight: React.FC<{
     return (
         <div
             className={hasLogoColumn
-                ? 'grid w-full grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(9.5rem,12rem)] sm:items-stretch'
-                : 'flex w-full flex-col gap-3'}
+                ? 'grid w-full max-w-full grid-cols-1 gap-3 sm:grid-cols-[26rem_minmax(9.5rem,12rem)] sm:items-stretch'
+                : `flex w-full flex-col items-start gap-3 ${OVERVIEW_SPOTLIGHT_WIDTH_CLASS}`}
             data-tv-rail="1"
             data-tv-row="1"
         >
@@ -334,7 +341,7 @@ export const OverviewFactsSpotlight: React.FC<{
                             <div className="hidden sm:block" />
                         )}
                         {mark ? (
-                            <div className="flex min-h-[5.25rem] items-center justify-center rounded-xl border border-border bg-white/5 px-4">
+                            <div className={`flex ${OVERVIEW_SPOTLIGHT_CARD_SHELL_CLASS} items-center justify-center rounded-xl border border-border bg-white/5 px-4`}>
                                 <StudioPill
                                     name={mark.name}
                                     logoPath={mark.logoPath}
@@ -472,7 +479,7 @@ export const OverviewFacts: React.FC<{
 
     const useCompactTwoCol = Boolean(aside || middle) || tvShell;
     const rowClass = middle && aside
-        ? 'flex flex-col gap-4 md:grid md:grid-cols-[auto_minmax(16rem,1fr)_minmax(18rem,26rem)] md:items-start md:gap-8 lg:gap-10'
+        ? 'flex flex-col gap-4 md:grid md:grid-cols-[auto_minmax(16rem,1fr)_26rem] md:items-start md:gap-8 lg:gap-10'
         : aside
             ? 'flex flex-col gap-4 md:flex-row md:items-start md:gap-8 lg:gap-10'
             : 'flex flex-col gap-4';
@@ -515,7 +522,7 @@ export const OverviewFacts: React.FC<{
                     </div>
                 ) : null}
                 {aside ? (
-                    <div className={`media-details-facts-aside flex min-w-0 w-full flex-col gap-4 md:self-start ${middle ? '' : 'md:min-w-[28rem] md:w-[min(100%,46rem)] md:max-w-[min(52rem,72%)] md:shrink'}`}>
+                    <div className={`media-details-facts-aside flex min-w-0 w-full max-w-full flex-col gap-4 md:w-[26rem] md:max-w-[26rem] md:shrink-0 md:self-start`}>
                         {aside}
                         {logosUnderAside ? (
                             <div className="flex flex-col gap-3">
@@ -576,7 +583,7 @@ const EpisodeNeighborCard: React.FC<{
     const { t } = useDiscoverI18n();
     return (
         <div
-            className="relative flex h-[5.25rem] w-full min-w-0 shrink-0 items-center gap-3 rounded-xl border border-border bg-white/5 px-2.5"
+            className={`relative flex ${OVERVIEW_SPOTLIGHT_CARD_SHELL_CLASS} min-w-0 items-center gap-3 rounded-xl border border-border bg-white/5 px-3 ${OVERVIEW_SPOTLIGHT_WIDTH_CLASS}`}
             data-tv-episode-neighbor="1"
         >
             <button
@@ -637,7 +644,7 @@ export const EpisodeNeighbors: React.FC<{
     const { t } = useDiscoverI18n();
     if (!previous && !next) return null;
     return (
-        <div className="flex w-full flex-col gap-3" data-tv-rail="1" data-tv-row="1">
+        <div className={`flex flex-col items-start gap-3 ${OVERVIEW_SPOTLIGHT_WIDTH_CLASS}`} data-tv-rail="1" data-tv-row="1">
             {previous ? (
                 <EpisodeNeighborCard
                     item={previous}

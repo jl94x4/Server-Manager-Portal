@@ -4,7 +4,7 @@ import { DiscoverPosterCard, useDiscoverI18n } from './host';
 import { prefetchMediaPlayerItem } from './api';
 import { PlayerItemMenu, type PlayerItemMenuHandle } from './PlayerItemMenu';
 import { watchedTickPositionClass } from './playerSettings';
-import { formatEpisodeCode, PLAYER_POSTER_QUALITY, progressPercent, toPosterCardItem } from './playerUtils';
+import { formatEpisodeCode, plexBackdropPreviewUrl, PLAYER_POSTER_QUALITY, prefetchPlayerImages, progressPercent, toPosterCardItem } from './playerUtils';
 import { usePlayerSettings } from './usePlayerSettings';
 import type { PlayerItem, PlayerPlayOptions } from './types';
 
@@ -27,6 +27,7 @@ type Props = {
     className?: string;
     /** Load this poster immediately. Later cards stay lazy so they don't clog the image queue. */
     imagePriority?: boolean;
+    loading?: 'lazy' | 'eager';
 };
 
 const LONG_PRESS_MS = 450;
@@ -50,6 +51,7 @@ export const PlayerPosterCard: React.FC<Props> = ({
     aspect,
     className,
     imagePriority = false,
+    loading: loadingProp,
 }) => {
     const { t } = useDiscoverI18n();
     const [settings] = usePlayerSettings();
@@ -119,9 +121,12 @@ export const PlayerPosterCard: React.FC<Props> = ({
             ref={rootRef}
             className="relative touch-manipulation select-none [-webkit-touch-callout:none]"
             onFocusCapture={() => {
-                if (isTvShell) return;
                 if (item?.ratingKey && item.type !== 'collection' && item.type !== 'playlist') {
                     prefetchMediaPlayerItem(item.ratingKey);
+                    if (item.art) {
+                        // Preview only — a 1920 backdrop here starves the rest of the rail.
+                        prefetchPlayerImages([plexBackdropPreviewUrl(item.art)], 1);
+                    }
                 }
             }}
             onPointerEnter={() => {
@@ -175,7 +180,7 @@ export const PlayerPosterCard: React.FC<Props> = ({
                 aspect={resolvedAspect}
                 posterWidth={resolvedAspect === '16/9' ? 426 : resolvedAspect === 'square' ? 300 : 300}
                 posterQuality={PLAYER_POSTER_QUALITY}
-                loading={imagePriority ? 'eager' : 'lazy'}
+                loading={loadingProp || (isTvShell || imagePriority ? 'eager' : 'lazy')}
                 fetchPriority={imagePriority ? 'high' : 'low'}
                 posterHeight={resolvedAspect === '16/9' ? 360 : undefined}
                 footer={item.type === 'episode' ? (

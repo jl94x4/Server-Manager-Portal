@@ -5,9 +5,10 @@ type Props = {
     src: string;
     alt: string;
     className?: string;
+    onError?: () => void;
 };
 
-export const PlayerClearLogo: React.FC<Props> = ({ src, alt, className }) => {
+export const PlayerClearLogo: React.FC<Props> = ({ src, alt, className, onError }) => {
     const [insets, setInsets] = useState(() => peekLogoInsets(src));
 
     useEffect(() => {
@@ -34,6 +35,7 @@ export const PlayerClearLogo: React.FC<Props> = ({ src, alt, className }) => {
             src={src}
             alt={alt}
             className={className}
+            onError={() => onError?.()}
             style={{
                 opacity: ready ? 1 : 0,
                 transform: shift ? `translate(-${(left * 100).toFixed(2)}%, -${(top * 100).toFixed(2)}%)` : undefined,

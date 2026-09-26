@@ -48,6 +48,7 @@ public class NativeMediaPlayerPlugin extends Plugin {
         Intent intent = new Intent(getContext(), PlayerActivity.class);
         intent.putExtra(PlayerActivity.EXTRA_URL, url.trim());
         intent.putExtra(PlayerActivity.EXTRA_TITLE, call.getString("title", ""));
+        intent.putExtra(PlayerActivity.EXTRA_LOGO_URL, call.getString("logoUrl", ""));
         Integer offset = call.getInt("offsetMs", 0);
         intent.putExtra(PlayerActivity.EXTRA_OFFSET_MS, offset == null ? 0 : offset);
 

@@ -521,63 +521,86 @@ html[data-theme="light"] .company-card .company-duotone-logo {
   filter: none;
 }
 
-/* Details hero: same full-page wash on web and TV. */
+/* Details hero: edge-to-edge under the floating nav (see .player-scroll-details).
+ * Same cinematic sampled-surface treatment as TV — art fills the viewport,
+ * fades into --tv-details-surface at the content fade-anchor. */
+.media-details-page {
+  --tv-details-surface: 38 41 48;
+  --tv-backdrop-fade-end: 58vh;
+  --tv-backdrop-fade-span: 200px;
+  --tv-backdrop-position: 58% 20%;
+  background-color: rgb(var(--tv-details-surface));
+}
+.media-details-page .media-details-hero-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: auto;
+  height: 100vh;
+  max-height: none;
+  z-index: 0;
+  background-color: rgb(var(--tv-details-surface));
+}
 .media-details-hero-backdrop {
   height: 100vh;
   max-height: none;
 }
 .media-details-hero-backdrop img {
-  object-position: 72% 35%;
+  object-fit: cover;
+  object-position: var(--tv-backdrop-position, 58% 20%);
   opacity: 1;
   filter: none;
 }
-.media-details-hero-scrim-bottom {
-  background: linear-gradient(
-    to top,
-    rgb(var(--color-card)) 0%,
-    rgb(var(--color-card) / 0.96) 10%,
-    rgb(var(--color-card) / 0.82) 22%,
-    rgb(var(--color-card) / 0.5) 34%,
-    transparent 48%
-  );
+@media (min-width: 768px) {
+  .media-details-page .media-details-hero-backdrop::before {
+    content: "";
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(to right, rgb(var(--tv-details-surface) / 0.94) 0%, rgb(var(--tv-details-surface) / 0.42) 16%, transparent 38%),
+      linear-gradient(to bottom, rgb(0 0 0 / 0.35) 0%, transparent 18%, transparent 100%);
+  }
+  .media-details-page .media-details-hero-backdrop::after {
+    content: "";
+    position: absolute;
+    z-index: 3;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(var(--tv-backdrop-fade-end, 58%) - var(--tv-backdrop-fade-span, 12%)),
+      rgb(var(--tv-details-surface) / 0.16) calc(var(--tv-backdrop-fade-end, 58%) - var(--tv-backdrop-fade-span, 12%) * 0.55),
+      rgb(var(--tv-details-surface) / 0.42) calc(var(--tv-backdrop-fade-end, 58%) - var(--tv-backdrop-fade-span, 12%) * 0.28),
+      rgb(var(--tv-details-surface) / 0.72) calc(var(--tv-backdrop-fade-end, 58%) - var(--tv-backdrop-fade-span, 12%) * 0.1),
+      rgb(var(--tv-details-surface) / 0.92) var(--tv-backdrop-fade-end, 58%),
+      rgb(var(--tv-details-surface)) calc(var(--tv-backdrop-fade-end, 58%) + var(--tv-backdrop-fade-span, 12%) * 0.2),
+      rgb(var(--tv-details-surface)) 100%
+    );
+  }
 }
+.media-details-hero-scrim-bottom,
 .media-details-hero-scrim-left {
-  background: linear-gradient(
-    to right,
-    rgb(var(--color-card) / 0.9) 0%,
-    rgb(var(--color-card) / 0.72) 26%,
-    rgb(var(--color-card) / 0.4) 52%,
-    transparent 72%
-  );
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 16%, #000 100%);
-  mask-image: linear-gradient(to bottom, transparent 0%, #000 16%, #000 100%);
+  display: none;
 }
 
-/* Web: leave room above the poster so the full-page art reads like TV. */
-html:not([data-tv="1"]) .media-details-hero-content {
-  padding-top: clamp(3.5rem, 6vh, 5.5rem);
+/* Sampled backdrop is dark; keep light-theme details readable like TV. */
+html[data-theme="light"] .media-details-page {
+  --color-text: 201 209 217;
+  --color-muted: 139 148 158;
+  --color-border: 48 54 61;
+  --color-card: 22 27 34;
 }
-html:not([data-tv="1"]) .media-details-hero-row {
-  margin-top: 2rem;
-}
-html:not([data-tv="1"]) .media-details-hero-scrim-bottom {
-  background: linear-gradient(
-    to top,
-    rgb(var(--color-card)) 0%,
-    rgb(var(--color-card) / 0.96) 8%,
-    rgb(var(--color-card) / 0.78) 20%,
-    rgb(var(--color-card) / 0.42) 36%,
-    transparent 52%
-  );
-}
-
-/* Media details: only in light mode, put overview/facts on an opaque panel
- * so dark ink stays readable over leftover hero art. Dark themes stay seamless. */
-html[data-theme="light"] .media-details-panel {
-  background-color: rgb(var(--color-card)) !important;
-  border: 1px solid rgb(var(--light-ink) / 0.14);
-  border-radius: 1rem;
-  padding: 1rem 1.25rem;
+html[data-theme="light"] .media-details-page .media-details-panel {
+  background-color: transparent !important;
+  border: none !important;
+  padding: 0 !important;
   box-shadow: none !important;
 }
 
@@ -1413,6 +1436,21 @@ html[data-tv="1"] [data-tv-poster-btn="1"][data-tv-focused="1"]:focus-visible > 
   transform: scale(1.042);
 }
 
+html[data-tv="1"] [data-tv-poster-grid="1"],
+html[data-tv="1"] .upgrader-poster-grid {
+  padding-bottom: calc(420px / var(--tv-zoom, 1));
+}
+
+html[data-tv="1"] [data-tv-poster-card="1"] {
+  scroll-margin-top: calc(24px / var(--tv-zoom, 1));
+  scroll-margin-bottom: calc(96px / var(--tv-zoom, 1));
+}
+
+html[data-tv="1"] #media-player-scroll:has([data-tv-poster-grid="1"]),
+html[data-tv="1"] #media-player-scroll:has(.upgrader-poster-grid) {
+  scroll-padding-bottom: calc(96px / var(--tv-zoom, 1));
+}
+
 @media (prefers-reduced-motion: reduce) {
   html[data-tv="1"] .player-rail-enter,
   html[data-tv="1"] .animate-fade-in,
@@ -1696,3 +1734,15 @@ input[type="search"]::-webkit-search-decoration {
   display: none;
 }
 
+/* Item overviews: content clears the floating nav; backdrop is full viewport width. */
+.player-scroll-details {
+  background-color: rgb(var(--tv-details-surface, var(--color-bg)));
+}
+.player-scroll-details .media-details-inset {
+  padding-left: max(12px, env(safe-area-inset-left, 0px)) !important;
+}
+@media (min-width: 768px) {
+  .player-scroll-details .media-details-inset {
+    padding-left: var(--player-nav-inset, 6.5rem) !important;
+  }
+}

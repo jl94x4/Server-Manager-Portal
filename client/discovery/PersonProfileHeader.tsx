@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, ChevronDown, Star } from 'lucide-react';
+import { Calendar, ChevronDown, MapPin, Star } from 'lucide-react';
 import { useDiscoverI18n } from './i18n';
-import { splitBiography } from './personCredits';
+import { formatPersonDate, personAgeYears, splitBiography } from './personCredits';
 
 export type PersonProfileHeaderPerson = {
     name?: string | null;
     biography?: string | null;
     birthday?: string | null;
+    deathday?: string | null;
     knownForDepartment?: string | null;
     placeOfBirth?: string | null;
     profilePath?: string | null;
@@ -25,21 +26,33 @@ const tmdbProfileUrl = (profilePath?: string | null) => {
     return `https://image.tmdb.org/t/p/h632${path.startsWith('/') ? path : `/${path}`}`;
 };
 
+const chipClass = 'flex items-center gap-1.5 md:gap-2 bg-white/10 px-2.5 py-1 md:px-4 md:py-2 rounded-full border border-white/5';
+
 export const PersonProfileHeader: React.FC<Props> = ({
     person,
     fallbackPhotoUrl = '',
     showBiography = true,
 }) => {
-    const { t } = useDiscoverI18n();
+    const { t, locale } = useDiscoverI18n();
     const [bioExpanded, setBioExpanded] = useState(false);
     const name = String(person?.name || '').trim() || t('navigation.person');
     const profilePath = person?.profilePath || (person as { profile_path?: string })?.profile_path;
     const knownForDepartment = person?.knownForDepartment || (person as { known_for_department?: string })?.known_for_department;
     const placeOfBirth = person?.placeOfBirth || (person as { place_of_birth?: string })?.place_of_birth;
+    const birthday = String(person?.birthday || '').trim();
+    const deathday = String(person?.deathday || (person as { death_day?: string })?.deathday || '').trim();
     const profileUrl = tmdbProfileUrl(profilePath) || String(fallbackPhotoUrl || '').trim();
-    const age = person?.birthday ? new Date().getFullYear() - new Date(person.birthday).getFullYear() : null;
+    const age = personAgeYears(birthday, deathday || null);
     const biography = String(person?.biography || '').trim() || t('person.noBiography', { name });
     const { first: bioFirst, rest: bioRest, hasMore: bioHasMore } = splitBiography(biography);
+    const bornText = birthday
+        ? `${t('person.born', { date: formatPersonDate(birthday, locale) })}${
+            age != null
+                ? ` (${deathday ? t('person.aged', { count: age }) : t('person.yearsOld', { count: age })})`
+                : ''
+        }`
+        : '';
+    const diedText = deathday ? t('person.died', { date: formatPersonDate(deathday, locale) }) : '';
 
     useEffect(() => {
         setBioExpanded(false);
@@ -68,18 +81,23 @@ export const PersonProfileHeader: React.FC<Props> = ({
 
                 <div className="flex flex-wrap gap-2 md:gap-4 text-[10px] md:text-sm font-bold text-muted uppercase tracking-widest">
                     {knownForDepartment ? (
-                        <span className="flex items-center gap-1.5 md:gap-2 bg-white/10 px-2.5 py-1 md:px-4 md:py-2 rounded-full border border-white/5">
+                        <span className={chipClass}>
                             <Star className="w-3.5 h-3.5 md:w-4 md:h-4 text-plex" /> {knownForDepartment}
                         </span>
                     ) : null}
-                    {person?.birthday ? (
-                        <span className="flex items-center gap-1.5 md:gap-2 bg-white/10 px-2.5 py-1 md:px-4 md:py-2 rounded-full border border-white/5">
-                            <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4 text-plex" /> {person.birthday} {age ? `(${t('person.yearsOld', { count: age })})` : ''}
+                    {bornText ? (
+                        <span className={chipClass}>
+                            <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4 text-plex" /> {bornText}
+                        </span>
+                    ) : null}
+                    {diedText ? (
+                        <span className={chipClass}>
+                            <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4 text-plex" /> {diedText}
                         </span>
                     ) : null}
                     {placeOfBirth ? (
-                        <span className="flex items-center gap-1.5 md:gap-2 bg-white/10 px-2.5 py-1 md:px-4 md:py-2 rounded-full border border-white/5">
-                            {placeOfBirth}
+                        <span className={chipClass}>
+                            <MapPin className="w-3.5 h-3.5 md:w-4 md:h-4 text-plex" /> {placeOfBirth}
                         </span>
                     ) : null}
                 </div>

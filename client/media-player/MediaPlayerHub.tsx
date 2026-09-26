@@ -9,34 +9,53 @@ import {
     useDiscoverGridSize,
     useDiscoverI18n,
 } from './host';
-import { fetchMediaPlayerCollection, setMediaPlayerWatched } from './api';
+import { fetchMediaPlayerHub, setMediaPlayerWatched } from './api';
 import { PlayerPosterCard } from './PlayerPosterCard';
+import { PlayerTvStatusPanel } from './PlayerTvStatusPanel';
 import type { PlayerItem, PlayerPlayOptions } from './types';
 
 type Props = {
-    ratingKey: string;
-    sectionKey?: string;
+    path: string;
+    title?: string;
+    identifier?: string;
     onBack: () => void;
     onOpenItem: (item: PlayerItem) => void;
     onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
 };
 
-export const MediaPlayerCollection: React.FC<Props> = ({ ratingKey, sectionKey = '', onBack, onOpenItem, onPlay }) => {
+const isTvShell = () => {
+    try {
+        return document.documentElement?.dataset?.tv === '1'
+            || window.__PLEX_CLIENT__?.isTv === true;
+    } catch {
+        return false;
+    }
+};
+
+export const MediaPlayerHub: React.FC<Props> = ({
+    path,
+    title: titleHint = '',
+    identifier = '',
+    onBack,
+    onOpenItem,
+    onPlay,
+}) => {
     const { t } = useDiscoverI18n();
     const [gridSize, setGridSize] = useDiscoverGridSize();
-    const [title, setTitle] = useState(t('mediaPlayerPage.collections'));
+    const [title, setTitle] = useState(titleHint || t('common.viewMore'));
     const [items, setItems] = useState<PlayerItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const tvShell = isTvShell();
 
     useEffect(() => {
         let cancelled = false;
         setLoading(true);
-        fetchMediaPlayerCollection(ratingKey, sectionKey || undefined)
+        fetchMediaPlayerHub(path, { title: titleHint, identifier })
             .then((data) => {
                 if (cancelled) return;
-                setTitle(data.item?.title || t('mediaPlayerPage.collections'));
-                setItems(data.children || []);
+                setTitle(data.title || titleHint || t('common.viewMore'));
+                setItems(data.items || []);
                 setError(null);
             })
             .catch((err) => {
@@ -47,7 +66,7 @@ export const MediaPlayerCollection: React.FC<Props> = ({ ratingKey, sectionKey =
                 if (!cancelled) setLoading(false);
             });
         return () => { cancelled = true; };
-    }, [ratingKey, sectionKey, t]);
+    }, [path, titleHint, identifier, t]);
 
     const toggleWatched = async (item: PlayerItem) => {
         const next = !item.watched;
@@ -63,48 +82,73 @@ export const MediaPlayerCollection: React.FC<Props> = ({ ratingKey, sectionKey =
         }
     };
 
+    if (tvShell && error) {
+        return (
+            <PlayerTvStatusPanel
+                title={error}
+                onRetry={() => {
+                    setError(null);
+                    setLoading(true);
+                    fetchMediaPlayerHub(path, { title: titleHint, identifier })
+                        .then((data) => {
+                            setTitle(data.title || titleHint || t('common.viewMore'));
+                            setItems(data.items || []);
+                            setError(null);
+                        })
+                        .catch((err) => setError(String(err?.message || t('mediaPlayerPage.loadError'))))
+                        .finally(() => setLoading(false));
+                }}
+                onBack={onBack}
+            />
+        );
+    }
+
     return (
         <div className="flex flex-col gap-5 pb-8">
             <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
-                    <button
-                        type="button"
-                        onClick={onBack}
-                        className="mb-2 inline-flex items-center gap-2 text-sm font-bold text-muted hover:text-text"
-                    >
-                        <ArrowLeft className="h-4 w-4" />
-                        {t('mediaPlayerPage.back')}
-                    </button>
-                    <p className={discoveryTheme.personalEyebrow}>{t('mediaPlayerPage.collections')}</p>
+                    {!tvShell ? (
+                        <button
+                            type="button"
+                            onClick={onBack}
+                            className="mb-2 inline-flex items-center gap-2 text-sm font-bold text-muted hover:text-text"
+                        >
+                            <ArrowLeft className="h-4 w-4" />
+                            {t('mediaPlayerPage.back')}
+                        </button>
+                    ) : null}
                     <h1 className={discoveryTheme.heading}>{title}</h1>
                 </div>
-                <DiscoverGridSizeSelect value={gridSize} onChange={setGridSize} />
+                {!tvShell ? (
+                    <DiscoverGridSizeSelect value={gridSize} onChange={setGridSize} />
+                ) : null}
             </div>
 
             {loading ? (
-                    <PosterGridSkeleton
-                        className={upgraderPosterGridClass(gridSize)}
-                        style={upgraderPosterGridStyle(gridSize)}
-                    />
+                <PosterGridSkeleton
+                    className={upgraderPosterGridClass(gridSize)}
+                    style={upgraderPosterGridStyle(gridSize)}
+                />
             ) : error ? (
                 <div className={discoveryTheme.emptyState}>
                     <p className={discoveryTheme.emptyTitle}>{error}</p>
                 </div>
             ) : !items.length ? (
                 <div className={discoveryTheme.emptyState}>
-                    <p className={discoveryTheme.emptyTitle}>{t('mediaPlayerPage.emptyCollection')}</p>
+                    <p className={discoveryTheme.emptyTitle}>{t('mediaPlayerPage.emptyLibrary')}</p>
                 </div>
             ) : (
                 <div
                     className={upgraderPosterGridClass(gridSize)}
                     style={upgraderPosterGridStyle(gridSize)}
-                    data-tv-rail="1"
-                    data-tv-poster-rail="1"
+                    data-tv-rail={tvShell ? '1' : undefined}
+                    data-tv-poster-rail={tvShell ? '1' : undefined}
                 >
-                    {items.map((item) => (
+                    {items.map((item, index) => (
                         <PlayerPosterCard
                             key={item.ratingKey}
                             item={item}
+                            imagePriority={index < 12}
                             onOpenItem={onOpenItem}
                             onPlay={onPlay}
                             onToggleWatched={toggleWatched}

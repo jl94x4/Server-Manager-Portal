@@ -115,3 +115,38 @@ export const splitBiography = (bio = '') => {
         hasMore: true,
     };
 };
+
+const personDateParts = (raw) => {
+    const match = String(raw || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!match) return null;
+    return { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) };
+};
+
+export const formatPersonDate = (raw, locale = 'en') => {
+    const parts = personDateParts(raw);
+    if (!parts) return String(raw || '').trim();
+    const date = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
+    if (Number.isNaN(date.getTime())) return String(raw || '').trim();
+    try {
+        return new Intl.DateTimeFormat(locale || 'en', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            timeZone: 'UTC',
+        }).format(date);
+    } catch {
+        return String(raw || '').trim();
+    }
+};
+
+export const personAgeYears = (birthday, until = null) => {
+    const birth = personDateParts(birthday);
+    if (!birth) return null;
+    const end = personDateParts(until) || (() => {
+        const now = new Date();
+        return { year: now.getUTCFullYear(), month: now.getUTCMonth() + 1, day: now.getUTCDate() };
+    })();
+    let age = end.year - birth.year;
+    if (end.month < birth.month || (end.month === birth.month && end.day < birth.day)) age -= 1;
+    return age >= 0 ? age : null;
+};

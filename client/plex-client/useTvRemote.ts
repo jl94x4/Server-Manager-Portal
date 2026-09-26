@@ -167,29 +167,91 @@ const focusedRow = (el: HTMLElement) => {
     return el;
 };
 
+let pinTopRaf = 0;
+const pinTopTimers: ReturnType<typeof window.setTimeout>[] = [];
+
+const clearPinTopFollowup = () => {
+    if (pinTopRaf) {
+        window.cancelAnimationFrame(pinTopRaf);
+        pinTopRaf = 0;
+    }
+    while (pinTopTimers.length) {
+        window.clearTimeout(pinTopTimers.pop());
+    }
+};
+
+const firstDetailsRowItem = (details: ParentNode) => (
+    Array.from(details.querySelectorAll<HTMLElement>('[data-tv-episode-neighbor-btn="1"]')).find(hasLayout)
+    || Array.from(details.querySelectorAll<HTMLElement>(
+        '[data-tv-season-poster-btn="1"], [data-tv-episode-btn="1"]'
+    )).find(hasLayout)
+    || Array.from(details.querySelectorAll<HTMLElement>('[data-tv-cast="1"]')).find(hasLayout)
+    || null
+);
+
+const detailsPlayButton = (details: ParentNode) => {
+    const items = focusableTvItems(details);
+    return items.find((el) => el.getAttribute('data-tv-play') === '1')
+        || items.find((el) => Boolean(el.closest('[data-tv-action-row="1"]')))
+        || null;
+};
+
+const sameDetailsEntryRow = (current: HTMLElement, firstBelow: HTMLElement) => {
+    if (current === firstBelow || current.contains(firstBelow) || firstBelow.contains(current)) return true;
+    const currentRow = current.closest<HTMLElement>('[data-tv-row="1"], [data-tv-episode-neighbor="1"]');
+    return Boolean(currentRow && currentRow.contains(firstBelow));
+};
+
+const applyPinTvDetailsTop = (): boolean => {
+    const scroller = document.getElementById(PLAYER_SCROLL_ID);
+    const details = scroller?.querySelector<HTMLElement>('[data-tv-details="1"]');
+    const marker = details?.querySelector<HTMLElement>('[data-tv-page-top="1"]') || details || null;
+    if (!scroller || !marker || !details) return true;
+
+    const focused = document.activeElement as HTMLElement | null;
+    const focusedItem = focused?.closest?.<HTMLElement>(TV_ITEM);
+    if (focusedItem && details.contains(focusedItem) && !isHeaderControl(focusedItem)) {
+        return true;
+    }
+
+    const zoom = Math.max(0.01, readDocumentZoom());
+    const gap = () => marker.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+
+    scroller.scrollTop = 0;
+    try {
+        details.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'auto' });
+    } catch {
+        try { marker.scrollIntoView(true); } catch { /* ignore */ }
+    }
+
+    let delta = gap();
+    if (Math.abs(delta) >= 2) {
+        scroller.scrollTop = Math.max(0, scroller.scrollTop + delta / zoom);
+        try {
+            marker.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'auto' });
+        } catch {
+            /* ignore */
+        }
+    }
+    return Math.abs(gap()) < 2;
+};
+
 /**
  * CSS zoom ignores scrollTop and makes one scrollIntoView miss.
  * Repeat until the details sentinel sits on the scrollport’s top edge
  * so the poster/title are not shoved under the bezel.
  */
 export const pinTvDetailsTop = () => {
-    const scroller = document.getElementById(PLAYER_SCROLL_ID);
-    const marker = scroller?.querySelector<HTMLElement>('[data-tv-details="1"] [data-tv-page-top="1"]');
-    if (!scroller || !marker) return;
-    const deltaOf = () => marker.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
-    for (let i = 0; i < 6; i += 1) {
-        const delta = deltaOf();
-        if (Math.abs(delta) < 2) return;
-        try {
-            marker.scrollIntoView({
-                block: delta < 0 ? 'nearest' : 'start',
-                inline: 'nearest',
-                behavior: 'auto',
-            });
-        } catch {
-            try { marker.scrollIntoView(true); } catch { /* ignore */ }
-        }
-    }
+    clearPinTopFollowup();
+    if (applyPinTvDetailsTop()) return;
+    pinTopRaf = window.requestAnimationFrame(() => {
+        if (applyPinTvDetailsTop()) return;
+        pinTopRaf = window.requestAnimationFrame(() => {
+            applyPinTvDetailsTop();
+        });
+        pinTopTimers.push(window.setTimeout(applyPinTvDetailsTop, 48));
+        pinTopTimers.push(window.setTimeout(applyPinTvDetailsTop, 140));
+    });
 };
 
 /** CSS zoom on TV makes element.scrollTop a no-op. Native scrollIntoView is what actually moves the page. */
@@ -235,6 +297,7 @@ const focusItem = (el: HTMLElement, block: ScrollLogicalPosition = 'nearest', di
     if (isHeaderControl(el)) {
         if (el.closest('[data-tv-details="1"]')) {
             pinTvDetailsTop();
+            window.requestAnimationFrame(pinTvDetailsTop);
             return;
         }
         const top = pageTopFor(el);
@@ -257,6 +320,18 @@ const focusItem = (el: HTMLElement, block: ScrollLogicalPosition = 'nearest', di
         }
     }
     const details = Boolean(el.closest('[data-tv-details="1"]'));
+    const posterGrid = el.closest<HTMLElement>('[data-tv-poster-grid="1"], .upgrader-poster-grid');
+    const posterCard = el.closest<HTMLElement>('[data-tv-poster-card="1"]')
+        || (el.getAttribute('data-tv-poster-btn') === '1' ? el.parentElement : null);
+    // Wrapping poster grids (actor, library, hub): keep the whole card — art + title —
+    // in the safe area. Centering the last row otherwise clips it on the bezel.
+    if (posterGrid && posterCard) {
+        const cardBox = posterCard.getBoundingClientRect();
+        const port = document.getElementById(PLAYER_SCROLL_ID)?.getBoundingClientRect();
+        const clippedBottom = Boolean(port && cardBox.bottom > port.bottom - 12);
+        scrollEl(posterCard, clippedBottom ? 'end' : 'nearest');
+        return;
+    }
     // Title pages have a tall hero. Centering the seasons/episodes/cast row
     // chops the poster to a sliver. Park the row at the bottom instead.
     if (dir === 'up' || dir === 'down') {
@@ -928,16 +1003,18 @@ export const useTvRemote = (enabled = true) => {
             }
             if (!menuRoot && dir === 'down' && current.closest('[data-tv-action-row="1"]')) {
                 const details = current.closest('[data-tv-details="1"]') || document;
-                target = Array.from(details.querySelectorAll<HTMLElement>(
-                    '[data-tv-episode-neighbor-btn="1"]'
-                )).find(hasLayout)
-                    || Array.from(details.querySelectorAll<HTMLElement>(
-                        '[data-tv-season-poster-btn="1"], [data-tv-episode-btn="1"]'
-                    )).find(hasLayout)
-                    || Array.from(details.querySelectorAll<HTMLElement>(
-                        '[data-tv-cast="1"]'
-                    )).find(hasLayout)
-                    || null;
+                target = firstDetailsRowItem(details);
+            }
+            if (!menuRoot && !target && dir === 'up' && current.closest('[data-tv-details="1"]')) {
+                const details = current.closest('[data-tv-details="1"]') || document;
+                if (current.getAttribute('data-tv-cast') === '1') {
+                    target = detailsPlayButton(details);
+                } else {
+                    const firstBelow = firstDetailsRowItem(details);
+                    if (firstBelow && sameDetailsEntryRow(current, firstBelow)) {
+                        target = detailsPlayButton(details);
+                    }
+                }
             }
             if (!target && !menuRoot && (dir === 'left' || dir === 'right')) {
                 const posterRail = current.closest<HTMLElement>('[data-tv-poster-rail="1"]');

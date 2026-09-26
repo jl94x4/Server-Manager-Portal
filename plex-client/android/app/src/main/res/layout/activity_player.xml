@@ -51,19 +51,38 @@
         android:paddingEnd="20dp"
         android:paddingBottom="28dp">
 
-        <TextView
-            android:id="@+id/player_title"
+        <FrameLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:ellipsize="end"
-            android:letterSpacing="0.01"
-            android:maxLines="2"
-            android:shadowColor="#80000000"
-            android:shadowRadius="6"
-            android:textColor="@color/player_text_primary"
-            android:textSize="22sp"
-            android:textStyle="bold" />
+            android:minHeight="64dp">
+
+            <ImageView
+                android:id="@+id/player_logo"
+                android:layout_width="wrap_content"
+                android:layout_height="64dp"
+                android:layout_gravity="center_vertical|start"
+                android:adjustViewBounds="true"
+                android:contentDescription="@null"
+                android:focusable="false"
+                android:maxWidth="520dp"
+                android:scaleType="fitStart"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/player_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical|start"
+                android:ellipsize="end"
+                android:letterSpacing="0.01"
+                android:maxLines="2"
+                android:shadowColor="#80000000"
+                android:shadowRadius="6"
+                android:textColor="@color/player_text_primary"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+        </FrameLayout>
 
         <ImageButton
             android:id="@+id/player_close"

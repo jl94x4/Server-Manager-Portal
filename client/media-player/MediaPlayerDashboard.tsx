@@ -10,6 +10,7 @@ import { fetchMediaPlayerLibraries, fetchMediaPlayerMe, startMediaPlayerPlayback
 import { MediaPlayerHome } from './MediaPlayerHome';
 import { MediaPlayerLibrary } from './MediaPlayerLibrary';
 import { MediaPlayerCollection } from './MediaPlayerCollection';
+import { MediaPlayerHub } from './MediaPlayerHub';
 import { MediaPlayerPlaylist } from './MediaPlayerPlaylist';
 import { MediaPlayerDetails } from './MediaPlayerDetails';
 import { MediaPlayerPerson } from './MediaPlayerPerson';
@@ -37,7 +38,7 @@ import {
     writePlayerScrollTop,
     usePlayerNetworkStatus,
 } from './playerMemory';
-import type { PlayerItem, PlayerPlayOptions, PlayerPlaySession, PlayerSection } from './types';
+import type { PlayerItem, PlayerLibraryHub, PlayerPlayOptions, PlayerPlaySession, PlayerSection } from './types';
 
 type PlayerPersonRef = { id: string; name: string; thumb?: string | null };
 type LibraryTab = 'home' | 'browse' | 'collections';
@@ -47,6 +48,7 @@ type PlayerView =
     | { kind: 'library'; sectionKey: string; tab: LibraryTab }
     | { kind: 'collection'; sectionKey: string; ratingKey: string }
     | { kind: 'playlist'; ratingKey: string }
+    | { kind: 'hub'; path: string; title: string; identifier?: string }
     | { kind: 'item'; ratingKey: string }
     | { kind: 'person'; actorId: string; name?: string; thumb?: string | null }
     | { kind: 'studio'; studioKey: string; name?: string; sectionKey?: string; mediaType?: 'movie' | 'show' }
@@ -78,6 +80,17 @@ const readPlayerView = (): PlayerView => {
     }
     if (parts[1] === 'playlist' && parts[2]) {
         return { kind: 'playlist', ratingKey: parts[2] };
+    }
+    if (parts[1] === 'hub') {
+        const path = String(params.get('path') || '').trim();
+        if (path.startsWith('/library/') || path.startsWith('/hubs/')) {
+            return {
+                kind: 'hub',
+                path,
+                title: params.get('title') || '',
+                identifier: params.get('id') || '',
+            };
+        }
     }
     if (parts[1] === 'settings') return { kind: 'settings' };
     if (parts[1] === 'item' && parts[2]) return { kind: 'item', ratingKey: parts[2] };
@@ -115,6 +128,8 @@ const viewScreenMotionKey = (view: PlayerView): string => {
             return `collection:${view.ratingKey}`;
         case 'playlist':
             return `playlist:${view.ratingKey}`;
+        case 'hub':
+            return `hub:${view.path}`;
         case 'item':
             return `item:${view.ratingKey}`;
         case 'person':
@@ -227,6 +242,7 @@ export const MediaPlayerDashboard: React.FC = () => {
         : view.kind === 'library' ? `library:${view.sectionKey}:${view.tab}`
         : view.kind === 'collection' ? `collection:${view.sectionKey}:${view.ratingKey}`
         : view.kind === 'playlist' ? `playlist:${view.ratingKey}`
+        : view.kind === 'hub' ? `hub:${view.path}`
         : view.kind
     );
 
@@ -325,6 +341,30 @@ export const MediaPlayerDashboard: React.FC = () => {
         if (!item?.ratingKey) return;
         navigate(`${PLAYER_APP_BASE}/library/${encodeURIComponent(sectionKey)}/collection/${encodeURIComponent(item.ratingKey)}`);
     }, [navigate]);
+
+    const openHub = useCallback((hub: Pick<PlayerLibraryHub, 'title' | 'identifier' | 'hubKey' | 'collectionRatingKey' | 'playlistRatingKey'>) => {
+        if (hub.collectionRatingKey) {
+            openItem({
+                ratingKey: hub.collectionRatingKey,
+                title: hub.title,
+                type: 'collection',
+            });
+            return;
+        }
+        if (hub.playlistRatingKey) {
+            openItem({
+                ratingKey: hub.playlistRatingKey,
+                title: hub.title,
+                type: 'playlist',
+            });
+            return;
+        }
+        const path = String(hub.hubKey || '').trim();
+        if (!path || (!path.startsWith('/library/') && !path.startsWith('/hubs/'))) return;
+        const qs = new URLSearchParams({ path, title: hub.title || '' });
+        if (hub.identifier) qs.set('id', hub.identifier);
+        navigate(`${PLAYER_APP_BASE}/hub?${qs.toString()}`);
+    }, [navigate, openItem]);
 
     const openPerson = useCallback((person: PlayerPersonRef) => {
         const actorId = String(person?.id || person?.name || '').trim();
@@ -454,6 +494,10 @@ export const MediaPlayerDashboard: React.FC = () => {
                 : 'other';
     const activeLibraryKey = view.kind === 'library' || view.kind === 'collection' ? view.sectionKey : undefined;
     const networkOnline = usePlayerNetworkStatus();
+    const isItemView = view.kind === 'item';
+    const navContentInset = tvShell
+        ? (navExpanded ? '18.5rem' : '6.75rem')
+        : (navExpanded ? '18.25rem' : '6.5rem');
 
     return (
         <div className="relative flex h-full min-h-0 w-full flex-col">
@@ -472,15 +516,20 @@ export const MediaPlayerDashboard: React.FC = () => {
             />
             <div
                 id={PLAYER_SCROLL_ID}
-                className={`min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-clip px-4 py-4 md:py-6 md:pr-6 ${
+                className={`min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-clip ${
                     tvShell ? 'hide-scrollbar' : 'custom-scrollbar'
                 } ${
-                    navExpanded
-                        ? (tvShell ? 'pl-[18.5rem]' : 'md:pl-[18.25rem]')
-                        : (tvShell ? 'pl-[6.75rem]' : 'md:pl-[6.5rem]')
+                    isItemView
+                        ? 'player-scroll-details px-0 py-0'
+                        : `px-4 py-4 md:py-6 md:pr-6 ${
+                            navExpanded
+                                ? (tvShell ? 'pl-[18.5rem]' : 'md:pl-[18.25rem]')
+                                : (tvShell ? 'pl-[6.75rem]' : 'md:pl-[6.5rem]')
+                        }`
                 } ${playSession ? 'pb-36' : ''}`}
+                style={isItemView ? { '--player-nav-inset': navContentInset } as React.CSSProperties : undefined}
             >
-                <div className="mx-auto flex w-full max-w-[2400px] flex-col gap-4">
+                <div className={`mx-auto flex w-full flex-col ${isItemView ? 'max-w-none gap-0' : 'max-w-[2400px] gap-4'}`}>
             {keepHome ? (
                 <div className={view.kind === 'home' ? '' : 'hidden'} hidden={view.kind !== 'home'}>
                     <MediaPlayerHome
@@ -488,6 +537,7 @@ export const MediaPlayerDashboard: React.FC = () => {
                         onOpenItem={openItem}
                         onPlay={playItem}
                         onOpenLibrary={openLibrary}
+                        onOpenHub={openHub}
                         onPlayNext={enqueuePlayNext}
                         onToast={notify}
                         isAdmin={isAdmin}
@@ -509,6 +559,7 @@ export const MediaPlayerDashboard: React.FC = () => {
                     onOpenItem={openItem}
                     onOpenLibrary={openLibrary}
                     onOpenCollection={openCollection}
+                    onOpenHub={openHub}
                     onChangeTab={(tab) => navigate(libraryPath(view.sectionKey, tab))}
                     onPlay={playItem}
                     onPlayNext={enqueuePlayNext}
@@ -538,6 +589,18 @@ export const MediaPlayerDashboard: React.FC = () => {
                 <MediaPlayerPlaylist
                     ratingKey={view.ratingKey}
                     onBack={goHome}
+                    onOpenItem={openItem}
+                    onPlay={playItem}
+                />
+                </div>
+            ) : null}
+            {view.kind === 'hub' ? (
+                <div key={viewScreenMotionKey(view)} className={screenEnterClass(tvShell)}>
+                <MediaPlayerHub
+                    path={view.path}
+                    title={view.title}
+                    identifier={view.identifier}
+                    onBack={goBack}
                     onOpenItem={openItem}
                     onPlay={playItem}
                 />

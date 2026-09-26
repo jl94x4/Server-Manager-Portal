@@ -1,8 +1,18 @@
 import React, { useEffect } from 'react';
-import { Carousel, DiscoverSectionHeader, discoverRowCardWidthClass, posterGridCardWidthStyle, posterGridScaleRem } from './host';
+import { Carousel, DiscoverSectionHeader, discoverRowCardWidthClass, posterGridCardWidthStyle, posterGridScaleRem, useDiscoverI18n } from './host';
 import { PlayerPosterCard } from './PlayerPosterCard';
+import { PlayerViewMoreCard } from './PlayerViewMoreCard';
 import { playerCardImageUrl, prefetchPlayerImages } from './playerUtils';
 import type { PlayerItem, PlayerPlayOptions } from './types';
+
+const isTvShell = () => {
+    try {
+        return document.documentElement?.dataset?.tv === '1'
+            || window.__PLEX_CLIENT__?.isTv === true;
+    } catch {
+        return false;
+    }
+};
 
 export const PlayerRail: React.FC<{
     title: string;
@@ -46,16 +56,21 @@ export const PlayerRail: React.FC<{
     viewAllLabel,
     staggerIndex = 0,
 }) => {
+    const { t } = useDiscoverI18n();
+    const tvShell = isTvShell();
+    const moreLabel = t('common.viewMore');
+    const eagerCount = tvShell ? 16 : (staggerIndex === 0 ? 8 : 4);
     useEffect(() => {
-        const urls = items.slice(0, 8).map((item) => {
+        if (tvShell) return;
+        const urls = items.slice(eagerCount, eagerCount + 8).map((item) => {
             const cardAspect = aspect
                 || item.cardAspect
                 || (item.type === 'artist' || item.type === 'album' ? 'square' : null)
                 || (item.type === 'episode' ? '16/9' : '2/3');
             return playerCardImageUrl(item.thumb, cardAspect || '2/3');
         });
-        prefetchPlayerImages(urls, staggerIndex === 0 ? 8 : 4);
-    }, [aspect, items, staggerIndex]);
+        prefetchPlayerImages(urls, 8);
+    }, [aspect, eagerCount, items, staggerIndex, tvShell]);
 
     if (!items.length) return null;
     return (
@@ -64,7 +79,11 @@ export const PlayerRail: React.FC<{
             className="player-rail-enter flex min-w-0 max-w-full flex-col gap-2"
             style={{ animationDelay: `${Math.min(Math.max(staggerIndex, 0), 12) * 55}ms` }}
         >
-            <DiscoverSectionHeader title={title} onViewAll={onViewAll} viewAllLabel={viewAllLabel} />
+            <DiscoverSectionHeader
+                title={title}
+                onViewAll={tvShell ? undefined : onViewAll}
+                viewAllLabel={tvShell ? undefined : viewAllLabel}
+            />
             <Carousel posterRow>
                 {items.map((item, idx) => {
                     const cardAspect = aspect
@@ -83,7 +102,7 @@ export const PlayerRail: React.FC<{
                             <PlayerPosterCard
                                 item={item}
                                 aspect={cardAspect}
-                                imagePriority={idx < (staggerIndex === 0 ? 8 : 4)}
+                                imagePriority={idx < eagerCount}
                                 showProgress={showProgress}
                                 showRemoveFromContinueWatching={showRemoveFromContinueWatching}
                                 isAdmin={isAdmin}
@@ -100,6 +119,21 @@ export const PlayerRail: React.FC<{
                         </div>
                     );
                 })}
+                {tvShell && onViewAll ? (
+                    <div
+                        className={`${aspect === '16/9' ? '' : discoverRowCardWidthClass(density)} relative z-0 flex-shrink-0 snap-start`}
+                        style={aspect === '16/9'
+                            ? { width: `${posterGridScaleRem(density) * 1.85}rem` }
+                            : posterGridCardWidthStyle(density)}
+                    >
+                        <PlayerViewMoreCard
+                            label={moreLabel.startsWith('common.') ? 'View More' : moreLabel}
+                            title={title}
+                            aspect={aspect === 'square' || aspect === '16/9' ? aspect : '2/3'}
+                            onClick={onViewAll}
+                        />
+                    </div>
+                ) : null}
             </Carousel>
         </div>
     );

@@ -7,6 +7,8 @@ import {
     pickTmdbPersonMatch,
     splitBiography,
     splitPersonCredits,
+    formatPersonDate,
+    personAgeYears,
 } from './personCredits.js';
 
 test('dedupePersonCredits keeps unique titles, prefers posters, and sorts newest first', () => {
@@ -68,4 +70,11 @@ test('splitBiography keeps the first paragraph until Read more', () => {
     assert.equal(split.hasMore, true);
     assert.equal(split.rest.includes('Second'), true);
     assert.equal(splitBiography('Just one line.').hasMore, false);
+});
+
+test('formatPersonDate and personAgeYears handle birth and death', () => {
+    assert.equal(formatPersonDate('1971-02-11', 'en-GB'), '11 Feb 1971');
+    assert.equal(personAgeYears('1971-02-11', '2025-02-11'), 54);
+    assert.equal(personAgeYears('1971-02-11', '2025-02-10'), 53);
+    assert.equal(personAgeYears('not-a-date'), null);
 });

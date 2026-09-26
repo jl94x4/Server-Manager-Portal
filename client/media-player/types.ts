@@ -164,12 +164,14 @@ export type PlayerVersion = {
 export type PlayerPersonPage = {
     person: { id: string; name: string; thumb?: string | null };
     items: PlayerItem[];
+    profile?: PlayerPersonProfile | null;
 };
 
 export type PlayerPersonProfile = {
     name?: string | null;
     biography?: string | null;
     birthday?: string | null;
+    deathday?: string | null;
     knownForDepartment?: string | null;
     placeOfBirth?: string | null;
     profilePath?: string | null;
@@ -204,6 +206,7 @@ export type PlayerLibraryHub = {
     title: string;
     identifier: string;
     items: PlayerItem[];
+    hubKey?: string | null;
     collectionRatingKey?: string | null;
     playlistRatingKey?: string | null;
 };

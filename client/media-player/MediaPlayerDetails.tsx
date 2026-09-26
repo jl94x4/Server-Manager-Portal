@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Calendar, Check, ChevronDown, Clock, Eye, EyeOff, Film, Info, ListPlus, Loader2, Play, Star, Users } from 'lucide-react';
+import { ArrowLeft, Calendar, Check, Clock, Eye, EyeOff, Film, Info, ListPlus, Loader2, Play, Star, Users } from 'lucide-react';
 import {
     Carousel,
     DiscoveryFactWidget,
@@ -11,7 +11,16 @@ import {
 } from './host';
 import { addMediaPlayerPlaylistItem, createMediaPlayerPlaylist, fetchMediaPlayerItem, fetchMediaPlayerItemMore, fetchMediaPlayerNeighbors, fetchMediaPlayerPlaylists, setMediaPlayerWatched } from './api';
 import { MediaPlayerThemeTune } from './MediaPlayerThemeTune';
-import { OverviewFacts, OverviewFactsSpotlight, OverviewGenres, OverviewLinks, OverviewSummary } from './MediaPlayerOverview';
+import {
+    OVERVIEW_SPOTLIGHT_CARD_SHELL_CLASS,
+    OVERVIEW_SPOTLIGHT_WIDTH_CLASS,
+    OverviewFacts,
+    OverviewFactsSpotlight,
+    OverviewGenres,
+    OverviewLinks,
+    OverviewSummary,
+} from './MediaPlayerOverview';
+import { PlayerBackdropImage } from './PlayerBackdropImage';
 import { PlayerClearLogo } from './PlayerClearLogo';
 import { PlayerFileInfo } from './PlayerFileInfo';
 import { PlayerItemMenu } from './PlayerItemMenu';
@@ -29,15 +38,43 @@ import {
     formatPlayerResolution,
     isPlayerTrailer,
     plexImageUrl,
+    plexBackdropPreviewUrl,
     plexBackdropUrl,
     plexLogoUrl,
     progressPercent,
     titleCaseProfile,
 } from './playerUtils';
 import { pinTvDetailsTop } from '../plex-client/useTvRemote';
-import { formatTvDetailsBackdropPosition, resolveImageFocalPoint } from '../shared/imageFocalPoint';
+import { readDocumentZoom } from '../shared/ui';
+import { PLAYER_SCROLL_ID } from './paths';
+import {
+    DEFAULT_BACKDROP_SURFACE_RGB,
+    formatTvDetailsBackdropPosition,
+    resolveImageFocalPoint,
+    sampleBackdropSurfaceColor,
+} from '../shared/imageFocalPoint';
 import { writePlayerScrollTop, readPlayerItemCache, takePlayerItemSeed, writePlayerItemCache } from './playerMemory';
 import type { PlayerItem, PlayerLibraryHub, PlayerMediaPartInfo, PlayerPlayOptions, PlayerRatings, PlayerVersion } from './types';
+
+const applyTvDetailsSurface = (rgb: string) => {
+    const root = document.querySelector<HTMLElement>('[data-tv-details="1"]');
+    root?.style.setProperty('--tv-details-surface', rgb);
+    root?.querySelector<HTMLElement>('.media-details-hero-backdrop')
+        ?.style.setProperty('--tv-details-surface', rgb);
+    const scroll = document.getElementById(PLAYER_SCROLL_ID);
+    scroll?.style.setProperty('--tv-details-surface', rgb);
+    if (scroll) scroll.style.backgroundColor = `rgb(${rgb})`;
+};
+
+const clearTvDetailsSurface = () => {
+    const root = document.querySelector<HTMLElement>('[data-tv-details="1"]');
+    root?.style.removeProperty('--tv-details-surface');
+    root?.querySelector<HTMLElement>('.media-details-hero-backdrop')
+        ?.style.removeProperty('--tv-details-surface');
+    const scroll = document.getElementById(PLAYER_SCROLL_ID);
+    scroll?.style.removeProperty('--tv-details-surface');
+    if (scroll) scroll.style.backgroundColor = '';
+};
 
 type Props = {
     ratingKey: string;
@@ -182,7 +219,6 @@ export const MediaPlayerDetails: React.FC<Props> = ({
     const [backdropReady, setBackdropReady] = useState(false);
     const [logoFailed, setLogoFailed] = useState(false);
     const [logoReady, setLogoReady] = useState(false);
-    const [mediaInfoExpanded, setMediaInfoExpanded] = useState(true);
     const [mediaIndex, setMediaIndex] = useState(0);
     const [audioStreamId, setAudioStreamId] = useState('');
     const [subtitleStreamId, setSubtitleStreamId] = useState('');
@@ -453,18 +489,17 @@ export const MediaPlayerDetails: React.FC<Props> = ({
     }, [item?.ratingKey, item?.thumb, item?.art]);
 
     useLayoutEffect(() => {
-        if (!isTvShell) return undefined;
         const place = () => {
-            pinTvDetailsTop();
+            if (isTvShell) pinTvDetailsTop();
             const root = document.querySelector<HTMLElement>('[data-tv-details="1"]');
             const anchor = root?.querySelector<HTMLElement>('[data-tv-fade-anchor="1"]');
             const backdrop = root?.querySelector<HTMLElement>('.media-details-hero-backdrop');
             if (!root || !anchor || !backdrop) return;
-            const box = backdrop.getBoundingClientRect();
-            if (box.height < 8) return;
-            const pct = ((anchor.getBoundingClientRect().top - box.top) / box.height) * 100;
-            const clamped = Math.max(38, Math.min(64, pct));
-            root.style.setProperty('--tv-hero-fade', `${clamped.toFixed(1)}%`);
+            const zoom = readDocumentZoom();
+            const fadePx = Math.max(0, Math.round(anchor.getBoundingClientRect().top / zoom));
+            const fade = `${fadePx}px`;
+            root.style.setProperty('--tv-backdrop-fade-end', fade);
+            backdrop.style.setProperty('--tv-backdrop-fade-end', fade);
         };
         place();
         const frame = window.requestAnimationFrame(place);
@@ -472,12 +507,14 @@ export const MediaPlayerDetails: React.FC<Props> = ({
         const content = document.querySelector('[data-tv-details="1"] .media-details-hero-content');
         const observer = content ? new ResizeObserver(() => place()) : null;
         if (content) observer.observe(content);
+        window.addEventListener('resize', place);
         return () => {
             window.cancelAnimationFrame(frame);
             window.clearTimeout(timer);
             observer?.disconnect();
+            window.removeEventListener('resize', place);
         };
-    }, [isTvShell, item?.ratingKey, item?.summary, item?.title]);
+    }, [isTvShell, item?.ratingKey, item?.summary, item?.title, backdropReady]);
 
     useEffect(() => {
         if (!isTvShell || !item?.canPlay) return undefined;
@@ -497,19 +534,31 @@ export const MediaPlayerDetails: React.FC<Props> = ({
     }, [isTvShell, item?.ratingKey, item?.canPlay]);
 
     useEffect(() => {
-        if (!isTvShell || !item?.ratingKey) return undefined;
+        if (!item?.ratingKey) return undefined;
+        const previewUrl = plexBackdropPreviewUrl(item.art || item.thumb);
         const url = plexBackdropUrl(item.art || item.thumb);
-        if (!url) return undefined;
+        if (!url && !previewUrl) return undefined;
         let cancelled = false;
         const root = document.querySelector<HTMLElement>('[data-tv-details="1"]');
         root?.style.setProperty('--tv-backdrop-position', '58% 20%');
-        void resolveImageFocalPoint(url).then((focal) => {
+        applyTvDetailsSurface(DEFAULT_BACKDROP_SURFACE_RGB);
+        const sampleUrl = previewUrl || url;
+        void resolveImageFocalPoint(sampleUrl).then((focal) => {
             if (cancelled) return;
             document.querySelector<HTMLElement>('[data-tv-details="1"]')
                 ?.style.setProperty('--tv-backdrop-position', formatTvDetailsBackdropPosition(focal));
         });
-        return () => { cancelled = true; };
-    }, [isTvShell, item?.ratingKey, item?.art, item?.thumb]);
+        void sampleBackdropSurfaceColor(sampleUrl).then((rgb) => {
+            if (!cancelled && rgb) applyTvDetailsSurface(rgb);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [item?.ratingKey, item?.art, item?.thumb]);
+
+    useEffect(() => () => {
+        clearTvDetailsSurface();
+    }, []);
 
     if (loading && !hasDetailsHero(item)) {
         return <DetailsHeroSkeleton label={t('mediaPlayerPage.loading')} />;
@@ -547,6 +596,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
         { quality: 70 },
     );
     const backdropUrl = plexBackdropUrl(item.art || item.thumb);
+    const backdropPreviewUrl = plexBackdropPreviewUrl(item.art || item.thumb);
     const logoUrl = plexLogoUrl(item.logo);
     const showLogo = Boolean(logoUrl) && !logoFailed && logoReady;
     const showMissingPoster = !loading && (!posterUrl || posterFailed);
@@ -558,7 +608,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
         : (item.viewOffsetMs && item.viewOffsetMs > 15000
             ? t('mediaPlayerPage.resume')
             : t('mediaPlayerPage.play'));
-    const genres = item.genres || [];
+    const genres = (item.genres || []).slice(0, 4);
     const episodeCode = formatEpisodeCode(item);
     const watchedLeaves = Number(item.viewedLeafCount || 0);
     const totalLeaves = Number(item.leafCount || 0);
@@ -670,8 +720,8 @@ export const MediaPlayerDetails: React.FC<Props> = ({
         episodeSwipeRef.current = null;
     };
 
-    const typeAndGenres = genres.length ? (
-        <div className="media-details-kicker flex flex-wrap items-center gap-x-3 gap-y-2">
+    const typeAndGenres = item.type !== 'episode' && genres.length ? (
+        <div className="media-details-kicker flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
             <OverviewGenres genres={genres} />
         </div>
     ) : null;
@@ -756,12 +806,8 @@ export const MediaPlayerDetails: React.FC<Props> = ({
         <div
             key={ratingKey}
             data-tv-details="1"
-            className={`relative page-bleed-x md:w-full flex flex-col min-h-screen bg-card pb-24 md:pb-16 ${
-                isTvShell ? '' : 'animate-fade-in'
-            } ${
-                isTvShell
-                    ? 'rounded-none overflow-visible border-0 shadow-none'
-                    : 'rounded-none md:rounded-2xl lg:rounded-3xl overflow-x-hidden border-0 md:border border-white/5 shadow-2xl'
+            className={`media-details-page relative page-bleed-x w-full flex flex-col min-h-screen pb-24 md:pb-16 border-0 shadow-none rounded-none ${
+                isTvShell ? 'overflow-x-clip overflow-y-visible' : 'overflow-x-hidden animate-fade-in'
             }`}
             onTouchStart={onEpisodeSwipeStart}
             onTouchEnd={onEpisodeSwipeEnd}
@@ -771,15 +817,12 @@ export const MediaPlayerDetails: React.FC<Props> = ({
             <div className="relative isolate">
                 <div className="media-details-hero-backdrop absolute inset-x-0 top-0 overflow-hidden pointer-events-none" aria-hidden>
                     {backdropUrl && !backdropFailed ? (
-                        <img
+                        <PlayerBackdropImage
                             key={backdropUrl}
                             src={backdropUrl}
-                            alt=""
-                            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ease-out ${
-                                backdropReady ? 'opacity-100' : 'opacity-0'
-                            }`}
+                            previewSrc={backdropPreviewUrl}
+                            className="absolute inset-0 w-full h-full object-cover"
                             fetchPriority="high"
-                            decoding="async"
                             onLoad={() => setBackdropReady(true)}
                             onError={() => setBackdropFailed(true)}
                         />
@@ -787,18 +830,14 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                         <div className="absolute inset-0 bg-black" />
                     )}
                     <div className="media-details-hero-scrim-mobile absolute inset-0 bg-gradient-to-b from-black/50 via-card/65 via-[55%] to-card md:hidden" />
-                    <div className="media-details-hero-scrim-bottom absolute inset-0 hidden md:block" />
-                    <div className="media-details-hero-scrim-left absolute inset-0 hidden md:block" />
                 </div>
 
-                <div className={`media-details-hero-content relative z-10 w-full max-w-[2400px] mx-auto page-x sm:px-8 xl:px-12 pt-2 sm:pt-3 ${
-                    isTvShell ? 'md:pt-2' : 'md:pt-10 lg:pt-14'
-                } ${children.length ? 'pb-5' : 'pb-8'}`}>
+                <div className={`media-details-hero-content media-details-inset relative z-10 w-full max-w-none mx-0 pr-6 xl:pr-10 pt-2 sm:pt-3 md:pt-[150px] ${children.length ? 'pb-5' : 'pb-8'}`}>
                     {!isTvShell ? (
                         <button
                             type="button"
                             onClick={onBack}
-                            className="light-on-media mb-3 md:mb-5 inline-flex items-center gap-2 text-white/90 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-full backdrop-blur-md border border-white/10 hover:border-white/20 hover:bg-black/65"
+                            className="light-on-media mb-3 md:mb-0 md:absolute md:top-4 z-20 inline-flex items-center gap-2 text-white/90 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-full backdrop-blur-md border border-white/10 hover:border-white/20 hover:bg-black/65"
                         >
                             <ArrowLeft className="w-5 h-5" />
                             <span className="font-bold text-sm">{t('mediaPlayerPage.back')}</span>
@@ -807,7 +846,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                         <div className="media-details-tv-top-spacer mb-3" aria-hidden />
                     )}
 
-                    {isTvShell && (item.type === 'episode' || item.type === 'season') ? (
+                    {item.type === 'episode' || item.type === 'season' ? (
                         <div className="mb-3 flex flex-wrap items-center gap-2" data-tv-rail="1">
                             {item.type === 'episode' && item.grandparentRatingKey ? (
                                 <button
@@ -849,13 +888,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                         </div>
                     ) : null}
 
-                    {typeAndGenres ? (
-                        <div className={`media-details-kicker-row light-on-media ${isTvShell ? 'mb-4' : 'mb-4 md:mb-6'}`}>
-                            {typeAndGenres}
-                        </div>
-                    ) : null}
-
-                    <div className={`media-details-hero-row flex flex-col items-start md:flex-row gap-5 md:gap-6 lg:gap-10 ${isTvShell ? '' : 'md:mt-2'}`}>
+                    <div className="media-details-hero-row flex flex-col items-start md:flex-row gap-5 md:gap-6 lg:gap-10">
                         <div className={`media-details-hero-poster w-full flex-shrink-0 flex flex-col gap-3 ${item.type === 'episode' ? 'md:w-[28.8rem] lg:w-[33.6rem]' : 'md:w-[19.2rem] lg:w-[21.6rem]'}`}>
                             <div className={`flex flex-row md:flex-col gap-4 ${item.type === 'episode' ? 'items-start' : 'items-stretch'}`}>
                                 <div
@@ -915,13 +948,19 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                                     {titleBlock}
                                 </div>
                             </div>
+                            {typeAndGenres ? (
+                                <div className="media-details-kicker-row light-on-media flex w-full justify-center">
+                                    {typeAndGenres}
+                                </div>
+                            ) : null}
                         </div>
 
                         <div className="flex-1 min-w-0 flex flex-col gap-4 pb-2">
                             <div className="light-on-media hidden md:flex flex-col items-start gap-2.5">
                                 {titleBlock}
                             </div>
-                            <div className="media-details-panel flex w-full min-w-0 flex-col gap-5" data-tv-fade-anchor="1">
+                            <div className="pointer-events-none h-0 w-full shrink-0" data-tv-fade-anchor="1" aria-hidden />
+                            <div className="media-details-panel flex w-full min-w-0 flex-col gap-5">
                                 {item.summary ? (
                                     <OverviewSummary text={item.summary} />
                                 ) : loading ? (
@@ -1121,6 +1160,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                                                 mediaType={factMediaType}
                                                 mediaId={factMediaId}
                                                 title={factTitle}
+                                                className={`${OVERVIEW_SPOTLIGHT_WIDTH_CLASS} ${OVERVIEW_SPOTLIGHT_CARD_SHELL_CLASS}`}
                                             />
                                         ) : null
                                     }
@@ -1128,34 +1168,17 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                                 <OverviewLinks item={item} />
                                 {streamRows.length ? (
                                     <div className="flex flex-col gap-3" data-no-episode-swipe="1">
-                                        {isTvShell ? (
-                                            <h3 className="text-xs font-black text-muted uppercase tracking-[0.2em]">
-                                                {t('mediaPlayerPage.mediaInfo')}
-                                            </h3>
-                                        ) : (
-                                            <button
-                                                type="button"
-                                                onClick={() => setMediaInfoExpanded((open) => !open)}
-                                                className="flex w-full items-center gap-3 pr-4 text-left"
-                                                aria-expanded={mediaInfoExpanded}
-                                            >
-                                                <h3 className="text-xs font-black text-muted uppercase tracking-[0.2em]">
-                                                    {t('mediaPlayerPage.mediaInfo')}
-                                                </h3>
-                                                <ChevronDown className={`h-4 w-4 shrink-0 text-muted transition-transform ${mediaInfoExpanded ? 'rotate-180' : ''}`} />
-                                                <div className="h-px min-w-0 flex-1 bg-gradient-to-r from-border to-transparent" />
-                                            </button>
-                                        )}
-                                        {isTvShell || mediaInfoExpanded ? (
-                                            <div className="grid max-w-3xl grid-cols-[auto_1fr] gap-x-6 gap-y-1.5">
-                                                {streamRows.map((row, index) => (
-                                                    <React.Fragment key={`${row.label}-${index}`}>
-                                                        <span className="pt-0.5 text-xs font-black uppercase tracking-wider text-muted">{row.label}</span>
-                                                        <span className="text-left text-sm font-semibold text-text">{row.value}</span>
-                                                    </React.Fragment>
-                                                ))}
-                                            </div>
-                                        ) : null}
+                                        <h3 className="text-xs font-black text-muted uppercase tracking-[0.2em]">
+                                            {t('mediaPlayerPage.mediaInfo')}
+                                        </h3>
+                                        <div className="grid max-w-3xl grid-cols-[auto_1fr] gap-x-6 gap-y-1.5">
+                                            {streamRows.map((row, index) => (
+                                                <React.Fragment key={`${row.label}-${index}`}>
+                                                    <span className="pt-0.5 text-xs font-black uppercase tracking-wider text-muted">{row.label}</span>
+                                                    <span className="text-left text-sm font-semibold text-text">{row.value}</span>
+                                                </React.Fragment>
+                                            ))}
+                                        </div>
                                     </div>
                                 ) : null}
                                 </>
@@ -1351,34 +1374,17 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                             }
                             underDetails={streamRows.length ? (
                                 <div className="flex flex-col gap-3" data-no-episode-swipe="1">
-                                    {isTvShell ? (
-                                        <h3 className="text-xs font-black text-muted uppercase tracking-[0.2em]">
-                                            {t('mediaPlayerPage.mediaInfo')}
-                                        </h3>
-                                    ) : (
-                                        <button
-                                            type="button"
-                                            onClick={() => setMediaInfoExpanded((open) => !open)}
-                                            className="flex w-full items-center gap-3 pr-4 text-left"
-                                            aria-expanded={mediaInfoExpanded}
-                                        >
-                                            <h3 className="text-xs font-black text-muted uppercase tracking-[0.2em]">
-                                                {t('mediaPlayerPage.mediaInfo')}
-                                            </h3>
-                                            <ChevronDown className={`h-4 w-4 shrink-0 text-muted transition-transform ${mediaInfoExpanded ? 'rotate-180' : ''}`} />
-                                            <div className="h-px min-w-0 flex-1 bg-gradient-to-r from-border to-transparent" />
-                                        </button>
-                                    )}
-                                    {isTvShell || mediaInfoExpanded ? (
-                                        <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5">
-                                            {streamRows.map((row, index) => (
-                                                <React.Fragment key={`${row.label}-${index}`}>
-                                                    <span className="pt-0.5 text-xs font-black uppercase tracking-wider text-muted">{row.label}</span>
-                                                    <span className="text-left text-sm font-semibold text-text">{row.value}</span>
-                                                </React.Fragment>
-                                            ))}
-                                        </div>
-                                    ) : null}
+                                    <h3 className="text-xs font-black text-muted uppercase tracking-[0.2em]">
+                                        {t('mediaPlayerPage.mediaInfo')}
+                                    </h3>
+                                    <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5">
+                                        {streamRows.map((row, index) => (
+                                            <React.Fragment key={`${row.label}-${index}`}>
+                                                <span className="pt-0.5 text-xs font-black uppercase tracking-wider text-muted">{row.label}</span>
+                                                <span className="text-left text-sm font-semibold text-text">{row.value}</span>
+                                            </React.Fragment>
+                                        ))}
+                                    </div>
                                 </div>
                             ) : null}
                         />
@@ -1522,7 +1528,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                 </div>
             </div>
 
-            <div className="relative z-10 w-full max-w-[2400px] mx-auto page-x sm:px-8 xl:px-12 mt-2 md:mt-4 flex flex-col gap-8 md:gap-10 bg-card">
+            <div className="media-details-inset relative z-10 w-full mt-2 md:mt-4 flex flex-col gap-8 md:gap-10 bg-transparent max-w-none mx-0 pr-6 xl:pr-10">
 
                 {item.guestStars?.length ? (
                     <section className="border-t border-border pt-8" data-tv-rail="1" data-tv-row="1">

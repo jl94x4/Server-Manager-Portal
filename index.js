@@ -9350,7 +9350,10 @@ const fetchPlexPosterBuffer = async (config, thumbPath, width, height, { minSize
             response = null;
         }
         if (!response?.ok) {
+            const status = Number(response?.status) || 0;
             if (response) discardFetchBody(response);
+            // 4xx will not start working on a second transcode — try the next strategy.
+            if (status >= 400 && status < 500) return null;
             try {
                 response = await factory();
             } catch {

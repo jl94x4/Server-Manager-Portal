@@ -6,6 +6,8 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -18,6 +20,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.SeekBar;
@@ -45,6 +48,8 @@ import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
+import androidx.media3.extractor.DefaultExtractorsFactory;
+import androidx.media3.extractor.mkv.MatroskaExtractor;
 import androidx.media3.ui.PlayerView;
 
 import com.getcapacitor.JSObject;
@@ -52,12 +57,19 @@ import com.getcapacitor.JSObject;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @UnstableApi
 public class PlayerActivity extends AppCompatActivity {
@@ -67,6 +79,7 @@ public class PlayerActivity extends AppCompatActivity {
 
     public static final String EXTRA_URL = "url";
     public static final String EXTRA_TITLE = "title";
+    public static final String EXTRA_LOGO_URL = "logoUrl";
     public static final String EXTRA_OFFSET_MS = "offsetMs";
     public static final String EXTRA_HEADERS_JSON = "headersJson";
     public static final String EXTRA_SESSION_JSON = "sessionJson";
@@ -92,6 +105,7 @@ public class PlayerActivity extends AppCompatActivity {
     private TextView timeView;
     private TextView speedLabel;
     private TextView titleView;
+    private ImageView logoView;
     private TextView upNextLabel;
     private ImageButton playPauseBtn;
     private Button skipIntroBtn;
@@ -108,6 +122,7 @@ public class PlayerActivity extends AppCompatActivity {
 
     private boolean playbackEnded;
     private boolean playbackError;
+    private int streamFallbackStage;
     private boolean finishing;
     private boolean seekingUi;
     private boolean chromeVisible = true;
@@ -135,6 +150,12 @@ public class PlayerActivity extends AppCompatActivity {
     private String nextTitle = "";
     private String ratingKey = "";
     private String showKey = "";
+    private String titleText = "";
+    private String logoUrl = "";
+    private String pendingLogoUrl = "";
+    private String loadedLogoUrl = "";
+    private int logoLoadGeneration;
+    private final ExecutorService logoExecutor = Executors.newSingleThreadExecutor();
 
     private final List<OptionItem> qualities = new ArrayList<>();
     private final List<OptionItem> audioTracks = new ArrayList<>();
@@ -191,6 +212,9 @@ public class PlayerActivity extends AppCompatActivity {
             Intent intent = getIntent();
             currentUrl = intent.getStringExtra(EXTRA_URL);
             String title = intent.getStringExtra(EXTRA_TITLE);
+            titleText = title == null ? "" : title.trim();
+            String extraLogo = intent.getStringExtra(EXTRA_LOGO_URL);
+            logoUrl = extraLogo == null ? "" : extraLogo.trim();
             pendingSeekMs = Math.max(0, intent.getIntExtra(EXTRA_OFFSET_MS, 0));
             headersJson = intent.getStringExtra(EXTRA_HEADERS_JSON);
             playbackSpeed = intent.getFloatExtra(EXTRA_SPEED, 1f);
@@ -200,30 +224,34 @@ public class PlayerActivity extends AppCompatActivity {
             applySessionJson(intent.getStringExtra(EXTRA_SESSION_JSON));
             restoreAvPrefs();
 
-            if (title != null && !title.trim().isEmpty()) {
-                titleView.setText(title.trim());
-            }
-
             if (currentUrl == null || currentUrl.trim().isEmpty()) {
                 Log.e(TAG, "Missing playback url");
                 finishWithResult(false, false);
                 return;
             }
             currentUrl = currentUrl.trim();
+            applyTitleChrome();
 
             Map<String, String> headers = headersWithCookies(currentUrl, parseHeaders(headersJson));
+            headers.put("Accept-Encoding", "identity");
 
             httpFactory = new DefaultHttpDataSource.Factory()
                 .setUserAgent(USER_AGENT)
                 .setAllowCrossProtocolRedirects(true)
-                .setConnectTimeoutMs(30_000)
-                .setReadTimeoutMs(30_000)
+                .setConnectTimeoutMs(8_000)
+                .setReadTimeoutMs(15_000)
                 .setDefaultRequestProperties(headers);
 
+            // Start as soon as a GOP is in RAM. MKV remuxes used to stall until
+            // ExoPlayer fetched the cue index at EOF through the portal.
             DefaultLoadControl loadControl = new DefaultLoadControl.Builder()
-                .setBufferDurationsMs(20_000, 120_000, 1_500, 5_000)
-                .setTargetBufferBytes(64 * 1024 * 1024)
+                .setBufferDurationsMs(1_500, 30_000, 250, 500)
+                .setTargetBufferBytes(4 * 1024 * 1024)
+                .setPrioritizeTimeOverSizeThresholds(true)
                 .build();
+
+            DefaultExtractorsFactory extractorsFactory = new DefaultExtractorsFactory()
+                .setMatroskaExtractorFlags(MatroskaExtractor.FLAG_DISABLE_SEEK_FOR_CUES);
 
             DefaultRenderersFactory renderersFactory = new DefaultRenderersFactory(this)
                 .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
@@ -235,7 +263,7 @@ public class PlayerActivity extends AppCompatActivity {
                 .build();
 
             player = new ExoPlayer.Builder(this, renderersFactory)
-                .setMediaSourceFactory(new DefaultMediaSourceFactory(httpFactory))
+                .setMediaSourceFactory(new DefaultMediaSourceFactory(httpFactory, extractorsFactory))
                 .setLoadControl(loadControl)
                 .setAudioAttributes(audioAttributes, false)
                 .setWakeMode(C.WAKE_MODE_NETWORK)
@@ -277,6 +305,7 @@ public class PlayerActivity extends AppCompatActivity {
         bufferingView = findViewById(R.id.player_buffering);
         errorView = findViewById(R.id.player_error);
         titleView = findViewById(R.id.player_title);
+        logoView = findViewById(R.id.player_logo);
         seekBar = findViewById(R.id.player_seek);
         timeView = findViewById(R.id.player_time);
         speedLabel = findViewById(R.id.player_speed_label);
@@ -407,8 +436,9 @@ public class PlayerActivity extends AppCompatActivity {
 
             @Override
             public void onPlayerError(PlaybackException error) {
-                playbackError = true;
                 Log.e(TAG, "ExoPlayer error " + error.getErrorCodeName(), error);
+                if (tryStreamFallback(error)) return;
+                playbackError = true;
                 String message = "Playback error: " + error.getErrorCodeName();
                 toast(message);
                 showError(message);
@@ -433,6 +463,13 @@ public class PlayerActivity extends AppCompatActivity {
             if (root.has("autoplayNext")) autoplayNext = root.optBoolean("autoplayNext", autoplayNext);
             if (root.has("autoSkipIntro")) autoSkipIntro = root.optBoolean("autoSkipIntro", autoSkipIntro);
             if (root.has("autoSkipCredits")) autoSkipCredits = root.optBoolean("autoSkipCredits", autoSkipCredits);
+            if (root.has("title")) {
+                String nextTitleText = root.optString("title", "").trim();
+                if (!nextTitleText.isEmpty()) titleText = nextTitleText;
+            }
+            if (root.has("logoUrl")) {
+                logoUrl = root.optString("logoUrl", "").trim();
+            }
 
             JSONObject markers = root.optJSONObject("markers");
             if (markers != null) {
@@ -464,9 +501,169 @@ public class PlayerActivity extends AppCompatActivity {
             runOnUiThread(() -> {
                 updateActionVisibility();
                 updateChipLabels();
+                applyTitleChrome();
             });
         } catch (Exception e) {
             Log.w(TAG, "Failed to parse sessionJson", e);
+        }
+    }
+
+    private void applyTitleChrome() {
+        if (titleView != null) {
+            titleView.setText(titleText == null ? "" : titleText);
+        }
+        if (logoView == null) return;
+        String url = logoUrl == null ? "" : logoUrl.trim();
+        if (url.isEmpty()) {
+            logoLoadGeneration += 1;
+            pendingLogoUrl = "";
+            loadedLogoUrl = "";
+            showTitleText();
+            return;
+        }
+        if (url.equals(loadedLogoUrl) && logoView.getVisibility() == View.VISIBLE) {
+            logoView.setContentDescription(titleText);
+            return;
+        }
+        if (url.equals(pendingLogoUrl)) return;
+        pendingLogoUrl = url;
+        showTitleText();
+        final int gen = ++logoLoadGeneration;
+        final String fetchUrl = url;
+        final Map<String, String> imageHeaders = headersForImageUrl(fetchUrl);
+        try {
+            logoExecutor.execute(() -> {
+                Bitmap bitmap = downloadLogoBitmap(fetchUrl, imageHeaders);
+                if (bitmap != null) bitmap = trimTransparent(bitmap);
+                final Bitmap ready = bitmap;
+                mainHandler.post(() -> {
+                    if (gen != logoLoadGeneration || isFinishing()) return;
+                    if (ready == null || ready.getWidth() < 8 || ready.getHeight() < 8) {
+                        pendingLogoUrl = "";
+                        loadedLogoUrl = "";
+                        showTitleText();
+                        return;
+                    }
+                    logoView.setImageBitmap(ready);
+                    logoView.setContentDescription(titleText);
+                    logoView.setVisibility(View.VISIBLE);
+                    if (titleView != null) titleView.setVisibility(View.GONE);
+                    loadedLogoUrl = fetchUrl;
+                    pendingLogoUrl = fetchUrl;
+                });
+            });
+        } catch (Exception e) {
+            Log.w(TAG, "Clear logo load skipped", e);
+            pendingLogoUrl = "";
+            showTitleText();
+        }
+    }
+
+    private void showTitleText() {
+        if (logoView != null) {
+            logoView.setVisibility(View.GONE);
+            logoView.setImageDrawable(null);
+        }
+        if (titleView != null) titleView.setVisibility(View.VISIBLE);
+    }
+
+    private Bitmap downloadLogoBitmap(String url, Map<String, String> headers) {
+        HttpURLConnection conn = null;
+        try {
+            URL parsed = new URL(url);
+            conn = (HttpURLConnection) parsed.openConnection();
+            conn.setConnectTimeout(8_000);
+            conn.setReadTimeout(12_000);
+            conn.setInstanceFollowRedirects(true);
+            conn.setRequestMethod("GET");
+            if (headers != null) {
+                for (Map.Entry<String, String> entry : headers.entrySet()) {
+                    if (entry.getKey() != null && entry.getValue() != null) {
+                        conn.setRequestProperty(entry.getKey(), entry.getValue());
+                    }
+                }
+            }
+            if (conn.getRequestProperty("Accept") == null) {
+                conn.setRequestProperty("Accept", "image/*,*/*;q=0.8");
+            }
+            int code = conn.getResponseCode();
+            if (code < 200 || code >= 300) return null;
+            try (InputStream in = conn.getInputStream();
+                 ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = in.read(buf)) != -1) {
+                    out.write(buf, 0, n);
+                    if (out.size() > 4_000_000) return null;
+                }
+                byte[] data = out.toByteArray();
+                if (data.length < 32) return null;
+                BitmapFactory.Options opts = new BitmapFactory.Options();
+                opts.inPreferredConfig = Bitmap.Config.ARGB_8888;
+                return BitmapFactory.decodeByteArray(data, 0, data.length, opts);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Clear logo download failed", e);
+            return null;
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
+    }
+
+    private Map<String, String> headersForImageUrl(String url) {
+        Map<String, String> headers = headersWithCookies(url, parseHeaders(headersJson));
+        try {
+            URI video = new URI(currentUrl);
+            URI image = new URI(url);
+            String videoHost = video.getHost();
+            String imageHost = image.getHost();
+            if (videoHost != null && imageHost != null && videoHost.equalsIgnoreCase(imageHost)) {
+                return headers;
+            }
+        } catch (Exception ignored) {
+            /* fall through */
+        }
+        Map<String, String> slim = new HashMap<>();
+        slim.put("User-Agent", USER_AGENT);
+        slim.put("Accept", "image/*,*/*;q=0.8");
+        return slim;
+    }
+
+    private static Bitmap trimTransparent(Bitmap src) {
+        if (src == null || !src.hasAlpha()) return src;
+        int width = src.getWidth();
+        int height = src.getHeight();
+        if (width <= 2 || height <= 2) return src;
+        int[] pixels = new int[width * height];
+        src.getPixels(pixels, 0, width, 0, 0, width, height);
+        int left = width;
+        int top = height;
+        int right = -1;
+        int bottom = -1;
+        for (int y = 0; y < height; y++) {
+            int row = y * width;
+            for (int x = 0; x < width; x++) {
+                int alpha = (pixels[row + x] >>> 24) & 0xFF;
+                if (alpha <= 20) continue;
+                if (x < left) left = x;
+                if (x > right) right = x;
+                if (y < top) top = y;
+                if (y > bottom) bottom = y;
+            }
+        }
+        if (right < left || bottom < top) return src;
+        int pad = 2;
+        left = Math.max(0, left - pad);
+        top = Math.max(0, top - pad);
+        right = Math.min(width - 1, right + pad);
+        bottom = Math.min(height - 1, bottom + pad);
+        int cropW = right - left + 1;
+        int cropH = bottom - top + 1;
+        if (cropW >= width - 1 && cropH >= height - 1) return src;
+        try {
+            return Bitmap.createBitmap(src, left, top, cropW, cropH);
+        } catch (Exception ignored) {
+            return src;
         }
     }
 
@@ -548,6 +745,8 @@ public class PlayerActivity extends AppCompatActivity {
         pendingSeekMs = Math.max(0, offsetMs);
         skippedIntro = false;
         skippedCredits = false;
+        playbackError = false;
+        hideError();
         player.setMediaItem(buildMediaItem(currentUrl));
         player.prepare();
         player.setPlayWhenReady(true);
@@ -863,6 +1062,9 @@ public class PlayerActivity extends AppCompatActivity {
         if (!headers.containsKey("User-Agent")) {
             headers.put("User-Agent", USER_AGENT);
         }
+        if (!headers.containsKey("Accept-Encoding")) {
+            headers.put("Accept-Encoding", "identity");
+        }
         try {
             String cookie = CookieManager.getInstance().getCookie(url);
             if (cookie != null && !cookie.isEmpty()) {
@@ -911,6 +1113,74 @@ public class PlayerActivity extends AppCompatActivity {
             builder.setMimeType(MimeTypes.APPLICATION_M3U8);
         }
         return builder.build();
+    }
+
+    /**
+     * ExoPlayer reports ERROR_CODE_IO_BAD_HTTP_STATUS when the portal returns JSON
+     * (409 Direct Play refused, 502 transcode). Switch file→HLS, then Original→1080p.
+     */
+    private boolean tryStreamFallback(PlaybackException error) {
+        int code = error.errorCode;
+        boolean io = code == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS
+            || code == PlaybackException.ERROR_CODE_IO_UNSPECIFIED
+            || code == PlaybackException.ERROR_CODE_IO_INVALID_HTTP_CONTENT_TYPE
+            || code == PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED
+            || code == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED;
+        if (!io || currentUrl == null || currentUrl.isEmpty()) return false;
+        String next = null;
+        if (currentUrl.contains("/file/") && streamFallbackStage < 1) {
+            streamFallbackStage = 1;
+            next = fileUrlToHls(currentUrl);
+        } else if ((currentUrl.contains("/hls/") || currentUrl.contains(".m3u8")) && streamFallbackStage < 2) {
+            streamFallbackStage = 2;
+            next = withHlsQuality(currentUrl, "1080-12");
+        }
+        if (next == null || next.equals(currentUrl)) return false;
+        Log.w(TAG, "Stream fallback → " + summarizeUrl(next));
+        long offset = pendingSeekMs;
+        if (player != null) {
+            offset = Math.max(offset, player.getCurrentPosition());
+        }
+        applyUpdateSrc(next, headersJson, offset);
+        return true;
+    }
+
+    static String fileUrlToHls(String url) {
+        String next = url.replaceFirst("/file/(\\d+)", "/hls/$1/master.m3u8");
+        if (next.equals(url)) return url;
+        Uri uri = Uri.parse(next);
+        Uri.Builder builder = uri.buildUpon().clearQuery();
+        for (String key : uri.getQueryParameterNames()) {
+            if ("hevc".equals(key) || "ac3".equals(key) || "client".equals(key)
+                || "textSubs".equals(key) || "download".equals(key)) {
+                continue;
+            }
+            String value = uri.getQueryParameter(key);
+            if (value != null) builder.appendQueryParameter(key, value);
+        }
+        if (uri.getQueryParameter("quality") == null) {
+            builder.appendQueryParameter("quality", "original");
+        }
+        return builder.build().toString();
+    }
+
+    static String withHlsQuality(String url, String qualityId) {
+        Uri uri = Uri.parse(url);
+        Uri.Builder builder = uri.buildUpon().clearQuery();
+        boolean wroteQuality = false;
+        for (String key : uri.getQueryParameterNames()) {
+            if ("quality".equals(key)) {
+                builder.appendQueryParameter("quality", qualityId);
+                wroteQuality = true;
+                continue;
+            }
+            String value = uri.getQueryParameter(key);
+            if (value != null) builder.appendQueryParameter(key, value);
+        }
+        if (!wroteQuality) builder.appendQueryParameter("quality", qualityId);
+        String next = builder.build().toString();
+        if (qualityId.equals(uri.getQueryParameter("quality"))) return url;
+        return next;
     }
 
     private static String summarizeUrl(String url) {
@@ -1083,6 +1353,14 @@ public class PlayerActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         PlayerBridge.get().detachActivity(this);
+        logoLoadGeneration += 1;
+        pendingLogoUrl = "";
+        loadedLogoUrl = "";
+        try {
+            logoExecutor.shutdownNow();
+        } catch (Throwable ignored) {
+            /* ignore */
+        }
         mainHandler.removeCallbacksAndMessages(null);
         if (player != null) {
             try {

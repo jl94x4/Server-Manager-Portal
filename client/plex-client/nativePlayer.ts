@@ -27,11 +27,14 @@ export type NativePlayerSessionPayload = {
     autoplayNext?: boolean;
     autoSkipIntro?: boolean;
     autoSkipCredits?: boolean;
+    title?: string;
+    logoUrl?: string;
 };
 
 export type NativePlayerOpenOptions = {
     url: string;
     title?: string;
+    logoUrl?: string;
     offsetMs?: number;
     headers?: Record<string, string>;
     speed?: number;
@@ -137,6 +140,7 @@ export const installNativeMediaPlayerBridge = () => {
                 const result = await CapNativeMediaPlayer.open({
                     url: opts.url,
                     title: opts.title,
+                    logoUrl: opts.logoUrl || '',
                     offsetMs: opts.offsetMs || 0,
                     headers: opts.headers,
                     speed: opts.speed ?? 1,

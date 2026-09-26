@@ -12,7 +12,7 @@ import {
 } from './host';
 import { fetchPlayerPersonBundle, setMediaPlayerWatched } from './api';
 import { writePlayerScrollTop } from './playerMemory';
-import { plexImageUrl } from './playerUtils';
+import { plexImageUrl, playerCardImageUrl, prefetchPlayerImages } from './playerUtils';
 import { PlayerPosterCard } from './PlayerPosterCard';
 import type { PlayerItem, PlayerPersonProfile, PlayerPlayOptions } from './types';
 
@@ -78,6 +78,10 @@ export const MediaPlayerPerson: React.FC<Props> = ({ actorId, name, thumb, onBac
         return () => { cancelled = true; };
     }, [actorId, name, t, thumb]);
 
+    useEffect(() => {
+        prefetchPlayerImages(items.slice(0, 12).map((item) => playerCardImageUrl(item.thumb)), 12);
+    }, [items]);
+
     const toggleWatched = async (item: PlayerItem) => {
         const next = !item.watched;
         setItems((prev) => prev.map((row) => (
@@ -126,7 +130,7 @@ export const MediaPlayerPerson: React.FC<Props> = ({ actorId, name, thumb, onBac
                     <PersonProfileHeader
                         person={headerPerson}
                         fallbackPhotoUrl={photoUrl}
-                        showBiography={!!profile}
+                        showBiography
                     />
                 )}
             </div>
@@ -162,14 +166,17 @@ export const MediaPlayerPerson: React.FC<Props> = ({ actorId, name, thumb, onBac
                         className={upgraderPosterGridClass(gridSize)}
                         style={upgraderPosterGridStyle(gridSize)}
                         data-tv-rail="1"
+                        data-tv-poster-grid="1"
                     >
-                        {items.map((item) => (
+                        {items.map((item, index) => (
                             <PlayerPosterCard
                                 key={item.ratingKey}
                                 item={item}
                                 onOpenItem={onOpenItem}
                                 onPlay={onPlay}
                                 onToggleWatched={toggleWatched}
+                                imagePriority={index < 8}
+                                loading={index < 12 ? 'eager' : 'lazy'}
                             />
                         ))}
                     </div>

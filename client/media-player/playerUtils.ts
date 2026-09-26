@@ -48,14 +48,56 @@ export const playerCardImageUrl = (thumb?: string | null, aspect: '2/3' | 'squar
 
 export const plexLogoUrl = (path?: string | null) => plexImageUrl(path, 640, 240, { fit: 'contain', quality: 70 });
 
-/** Match /api/plex/image caps so overview and home heroes stay sharp on TV. */
-export const PLAYER_BACKDROP_WIDTH = 3840;
-export const PLAYER_BACKDROP_HEIGHT = 2160;
-export const PLAYER_BACKDROP_QUALITY = 90;
+/**
+ * TV layout is 1920 CSS px (4K zooms down to that). Plex art is almost always
+ * 1920×1080, and upscale=0 means a 4K request adds bytes/decode time with no extra detail.
+ */
+export const PLAYER_BACKDROP_WIDTH = 1920;
+export const PLAYER_BACKDROP_HEIGHT = 1080;
+export const PLAYER_BACKDROP_QUALITY = 85;
+export const PLAYER_BACKDROP_PREVIEW_WIDTH = 640;
+export const PLAYER_BACKDROP_PREVIEW_HEIGHT = 360;
+export const PLAYER_BACKDROP_PREVIEW_QUALITY = 40;
+
+const tmdbBackdropSize = (url: string, size: 'w300' | 'w1280') => (
+    url.replace(/\/\/image\.tmdb\.org\/t\/p\/(?:original|w\d+)/, `//image.tmdb.org/t/p/${size}`)
+);
+
+const withPlexImageSize = (url: string, width: number, height: number, quality: number) => {
+    const resolved = resolvePortalAssetUrl(url);
+    if (!resolved.includes('/api/plex/image')) return tmdbBackdropSize(resolved, quality <= 50 ? 'w300' : 'w1280');
+    const hashAt = resolved.indexOf('#');
+    const withoutHash = hashAt >= 0 ? resolved.slice(0, hashAt) : resolved;
+    const qAt = withoutHash.indexOf('?');
+    const base = qAt >= 0 ? withoutHash.slice(0, qAt) : withoutHash;
+    const params = new URLSearchParams(qAt >= 0 ? withoutHash.slice(qAt + 1) : '');
+    params.set('width', String(width));
+    params.set('height', String(height));
+    params.set('quality', String(quality));
+    return portalUrl(`${base}?${params.toString()}`);
+};
 
 export const plexBackdropUrl = (path?: string | null) => {
     if (!path) return '';
+    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/api/')) {
+        return withPlexImageSize(path, PLAYER_BACKDROP_WIDTH, PLAYER_BACKDROP_HEIGHT, PLAYER_BACKDROP_QUALITY);
+    }
     return plexImageUrl(path, PLAYER_BACKDROP_WIDTH, PLAYER_BACKDROP_HEIGHT, { quality: PLAYER_BACKDROP_QUALITY });
+};
+
+export const plexBackdropPreviewUrl = (path?: string | null) => {
+    if (!path) return '';
+    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/api/')) {
+        return withPlexImageSize(
+            path,
+            PLAYER_BACKDROP_PREVIEW_WIDTH,
+            PLAYER_BACKDROP_PREVIEW_HEIGHT,
+            PLAYER_BACKDROP_PREVIEW_QUALITY,
+        );
+    }
+    return plexImageUrl(path, PLAYER_BACKDROP_PREVIEW_WIDTH, PLAYER_BACKDROP_PREVIEW_HEIGHT, {
+        quality: PLAYER_BACKDROP_PREVIEW_QUALITY,
+    });
 };
 
 export const plexThemeUrl = (ratingKey?: string | null) => {
@@ -300,7 +342,10 @@ export const toPosterCardItem = (item: PlayerItem) => {
     const thumb = (preferShowPoster ? showThumb : '') || item.thumb || leafThumb || undefined;
     const remoteThumb = /^https?:\/\//i.test(String(thumb || ''));
     // Episode stills are title cards. Never use them as a poster fallback.
-    const posterFallbackUrl = !showKey && !remoteThumb && item.ratingKey && thumb && thumb !== leafThumb
+    const movieLeafFallback = item.type !== 'episode' && item.type !== 'season'
+        && leafThumb
+        && (remoteThumb || (thumb && thumb !== leafThumb));
+    const posterFallbackUrl = movieLeafFallback
         ? `/api/plex/image?path=${encodeURIComponent(leafThumb)}&width=${PLAYER_POSTER_WIDTH}&height=${PLAYER_POSTER_HEIGHT}&quality=${PLAYER_POSTER_QUALITY}`
         : undefined;
     return {
@@ -467,21 +512,45 @@ export const buildNativePlaybackSrc = (
     const mediaIndex = opts?.mediaIndex ?? session.mediaIndex ?? 0;
     const offsetMs = opts?.offsetMs ?? session.offsetMs ?? 0;
     const sessionId = opts?.sessionId ?? session.sessionId;
-    const directFile = nativeDirectPlayEligible(session, {
+    const eligible = nativeDirectPlayEligible(session, {
         qualityId,
         audioStreamId,
         subtitleStreamId,
     });
-    if (directFile && isFilePlaybackSrc(session.src)) {
-        return session.src;
+    const mode = String(session.playbackMode || '').trim();
+    const src = String(session.src || '').trim();
+    const streamUpdates: Record<string, string | number | null | undefined> = {
+        session: sessionId,
+        offset: offsetMs > 0 ? Math.floor(offsetMs) : undefined,
+        mediaIndex: mediaIndex > 0 ? mediaIndex : undefined,
+        quality: qualityId && qualityId !== 'original' ? qualityId : undefined,
+        audioStreamID: String(audioStreamId || '').replace(/\D/g, '') || undefined,
+        subtitleStreamID: String(subtitleStreamId || '').replace(/\D/g, '') || undefined,
+    };
+
+    // Never rewrite an HLS playlist as /file/ — Plex answers 409 JSON and
+    // ExoPlayer reports ERROR_CODE_IO_BAD_HTTP_STATUS.
+    if (isHlsPlaybackSrc(src)) {
+        return withPlayerStreamQuery(src, streamUpdates);
     }
+    if (isFilePlaybackSrc(src) && eligible && mode !== 'transcode') {
+        return withPlayerStreamQuery(src, {
+            ...streamUpdates,
+            client: 'android',
+            hevc: '1',
+            ac3: '1',
+            textSubs: '1',
+            subtitleStreamID: undefined,
+        });
+    }
+
     return buildPlaybackSrc(ratingKey, {
         sessionId,
         offsetMs,
         qualityId,
         audioStreamId,
         subtitleStreamId,
-        directFile,
+        directFile: false,
         copy: true,
         mediaIndex,
     });

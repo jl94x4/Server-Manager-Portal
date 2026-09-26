@@ -38,6 +38,7 @@ type Props = {
     onOpenItem: (item: PlayerItem) => void;
     onOpenLibrary: (section: PlayerSection, tab?: LibraryTab) => void;
     onOpenCollection: (sectionKey: string, item: PlayerItem) => void;
+    onOpenHub?: (hub: PlayerLibraryHub) => void;
     onChangeTab: (tab: LibraryTab) => void;
     onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
     onPlayNext?: (item: PlayerItem) => void;
@@ -125,6 +126,7 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
     onOpenItem,
     onOpenLibrary,
     onOpenCollection,
+    onOpenHub,
     onChangeTab,
     onPlay,
     onPlayNext,
@@ -645,6 +647,10 @@ export const MediaPlayerLibrary: React.FC<Props> = ({
                                 showProgress={isCw}
                                 showRemoveFromContinueWatching={isCw}
                                 aspect={isCw ? continueWatchingAspect : (/recent/i.test(`${hub.identifier || ''} ${hub.title || ''}`) ? '2/3' : undefined)}
+                                onViewAll={(hub.collectionRatingKey || hub.playlistRatingKey || hub.hubKey) && onOpenHub
+                                    ? () => onOpenHub(hub)
+                                    : undefined}
+                                viewAllLabel={t('common.viewAll')}
                                 {...menuProps}
                             />
                             );

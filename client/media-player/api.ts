@@ -3,7 +3,7 @@ import { portalUrl } from '../shared/basePath';
 import { pickTmdbPersonMatch } from '../discovery/personCredits';
 import { PLAYER_API_ROOT } from './paths';
 import { readPlayerItemCache, writePlayerItemCache, writePlayerHomeCache, isPlayerHomeCacheFresh, readPlayerHomeCache, writeHeroSlidesCache, writePlayerLibrariesCache } from './playerMemory';
-import { browserPlaybackCaps } from './playerUtils';
+import { browserPlaybackCaps, plexBackdropPreviewUrl, plexBackdropUrl, prefetchPlayerImages } from './playerUtils';
 import type {
     PlayerHome,
     PlayerItem,
@@ -18,6 +18,22 @@ import type {
     PlayerProfile,
     PlayerSection,
 } from './types';
+
+const prefetchItemBackdrop = (item?: { art?: string | null } | null) => {
+    const art = item?.art;
+    if (!art) return;
+    prefetchPlayerImages([plexBackdropPreviewUrl(art), plexBackdropUrl(art)], 2);
+};
+
+const prefetchHeroBackdrops = (items?: Array<{ art?: string | null } | null>) => {
+    const list = (items || []).filter((item) => item?.art).slice(0, 3);
+    const urls: string[] = [];
+    list.forEach((item, index) => {
+        urls.push(plexBackdropPreviewUrl(item.art));
+        if (index === 0) urls.push(plexBackdropUrl(item.art));
+    });
+    prefetchPlayerImages(urls, 4);
+};
 
 let meInflight: Promise<PlayerProfile> | null = null;
 let meCache: PlayerProfile | null = null;
@@ -61,7 +77,10 @@ export const prefetchMediaPlayerHome = () => {
     void fetchMediaPlayerHomeHero()
         .then((data) => {
             const items = data?.enabled && Array.isArray(data.items) ? data.items : [];
-            if (items.length) writeHeroSlidesCache(items);
+            if (items.length) {
+                writeHeroSlidesCache(items);
+                prefetchHeroBackdrops(items);
+            }
         })
         .catch(() => undefined);
 };
@@ -90,7 +109,11 @@ export type MediaPlayerHomeHeroPayload = {
 };
 
 export const fetchMediaPlayerHomeHero = () => (
-    apiFetch(`${PLAYER_API_ROOT}/home-hero`) as Promise<MediaPlayerHomeHeroPayload>
+    (apiFetch(`${PLAYER_API_ROOT}/home-hero`) as Promise<MediaPlayerHomeHeroPayload>)
+        .then((data) => {
+            if (data?.enabled && Array.isArray(data.items)) prefetchHeroBackdrops(data.items);
+            return data;
+        })
 );
 
 export const fetchMediaPlayerHomeHeroRefresh = () => (
@@ -179,6 +202,13 @@ export const fetchMediaPlayerCollections = (sectionKey: string) => (
 export const fetchMediaPlayerCollection = (ratingKey: string, sectionKey?: string) => {
     const qs = sectionKey ? `?section=${encodeURIComponent(sectionKey)}` : '';
     return apiFetch(`${PLAYER_API_ROOT}/collection/${encodeURIComponent(ratingKey)}${qs}`) as Promise<PlayerItemPage>;
+};
+
+export const fetchMediaPlayerHub = (path: string, opts: { title?: string; identifier?: string } = {}) => {
+    const qs = new URLSearchParams({ path });
+    if (opts.title) qs.set('title', opts.title);
+    if (opts.identifier) qs.set('identifier', opts.identifier);
+    return apiFetch(`${PLAYER_API_ROOT}/hub?${qs.toString()}`) as Promise<{ title: string; items: PlayerItem[] }>;
 };
 
 let playlistsInflight: Promise<{ items: PlayerItem[] }> | null = null;
@@ -311,6 +341,7 @@ export const fetchMediaPlayerItem = (ratingKey: string, opts: { core?: boolean }
                 related: data.related?.length ? data.related : (prev?.related || []),
                 onDeck: data.onDeck !== undefined ? data.onDeck : (prev?.onDeck ?? null),
             });
+            prefetchItemBackdrop(data.item);
             return data;
         })
         .finally(() => {
@@ -324,7 +355,11 @@ export const fetchMediaPlayerItem = (ratingKey: string, opts: { core?: boolean }
 export const prefetchMediaPlayerItem = (ratingKey: string) => {
     const key = String(ratingKey || '').trim();
     if (!key || !/^\d+$/.test(key)) return;
-    if (readPlayerItemCache(key)) return;
+    const cached = readPlayerItemCache(key);
+    if (cached?.item) {
+        prefetchItemBackdrop(cached.item);
+        return;
+    }
     if (itemInflight.has(`${key}|1`) || itemInflight.has(`${key}|0`)) return;
     void fetchMediaPlayerItem(key, { core: true }).catch(() => undefined);
 };
@@ -379,6 +414,13 @@ export const fetchPlayerPersonBundle = async (
     const data = await fetchMediaPlayerPerson(actorId, queryName);
     const items = data.items || [];
     const resolvedName = String(data.person?.name || queryName).trim();
+    if (data.profile?.name || data.profile?.biography || data.profile?.birthday || data.profile?.placeOfBirth) {
+        return {
+            person: { name: resolvedName, thumb: thumb || data.person?.thumb || null },
+            items,
+            profile: data.profile,
+        };
+    }
     let rows = await searchDiscoveryPeople(queryName);
     if (resolvedName && resolvedName.toLowerCase() !== queryName.toLowerCase()) {
         const extra = await searchDiscoveryPeople(resolvedName);

@@ -62,7 +62,10 @@ export const DiscoveryFactWidget: React.FC<{
     mediaType: 'movie' | 'tv';
     mediaId: number;
     title?: string;
-}> = ({ mediaType, mediaId, title }) => {
+    className?: string;
+}> = ({ mediaType, mediaId, title, className = '' }) => {
+    const shellClass = `rounded-xl border border-plex/20 bg-plex/5 flex gap-3 ${className || 'w-full'}`.trim();
+    const filledShellClass = `rounded-xl border border-plex/25 bg-gradient-to-br from-plex/10 via-plex/5 to-transparent flex gap-3 ${className || 'w-full'}`.trim();
     const { t } = useDiscoverI18n();
     const [facts, setFacts] = useState<string[]>([]);
     const [index, setIndex] = useState(0);
@@ -117,7 +120,7 @@ export const DiscoveryFactWidget: React.FC<{
 
     if (loading) {
         return (
-            <div className="rounded-xl border border-plex/20 bg-plex/5 p-3 sm:p-4 flex items-center gap-3 animate-pulse w-full">
+            <div className={`${shellClass} p-3 sm:p-4 items-center animate-pulse`}>
                 <div className="w-9 h-9 rounded-lg bg-plex/10 flex-shrink-0" />
                 <div className="flex-1 space-y-2">
                     <div className="h-3 w-24 bg-white/10 rounded" />
@@ -130,7 +133,7 @@ export const DiscoveryFactWidget: React.FC<{
 
     if (!facts.length) {
         return (
-            <div className="rounded-xl border border-plex/25 bg-gradient-to-br from-plex/10 via-plex/5 to-transparent p-3 sm:p-4 flex gap-3 w-full">
+            <div className={`${filledShellClass} p-3 sm:p-4`}>
                 <div className="w-9 h-9 rounded-lg bg-plex/15 border border-plex/20 flex items-center justify-center flex-shrink-0">
                     <Lightbulb className="w-4 h-4 text-plex" />
                 </div>
@@ -145,7 +148,7 @@ export const DiscoveryFactWidget: React.FC<{
     const current = facts[index] || facts[0];
 
     return (
-        <div className="rounded-xl border border-plex/25 bg-gradient-to-br from-plex/10 via-plex/5 to-transparent p-3 sm:p-4 flex gap-3 w-full">
+        <div className={`${filledShellClass} p-3 sm:p-4`}>
             <div className="w-9 h-9 rounded-lg bg-plex/15 border border-plex/20 flex items-center justify-center flex-shrink-0">
                 <Lightbulb className="w-4 h-4 text-plex" />
             </div>

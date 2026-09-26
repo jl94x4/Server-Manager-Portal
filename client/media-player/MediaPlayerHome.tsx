@@ -35,6 +35,7 @@ type Props = {
     onOpenItem: (item: PlayerItem) => void;
     onPlay: (item: PlayerItem, opts?: PlayerPlayOptions) => void;
     onOpenLibrary?: (section: PlayerSection) => void;
+    onOpenHub?: (hub: PlayerLibraryHub) => void;
     onPlayNext?: (item: PlayerItem) => void;
     onToast?: (message: string, type?: 'success' | 'error' | 'info') => void;
     isAdmin?: boolean;
@@ -70,6 +71,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
     onOpenItem,
     onPlay,
     onOpenLibrary,
+    onOpenHub,
     onPlayNext,
     onToast,
     isAdmin = false,
@@ -270,6 +272,8 @@ export const MediaPlayerHome: React.FC<Props> = ({
                     id: `recent:${library.key}`,
                     title: t('mediaPlayerPage.recentlyAddedIn', { name: library.title }),
                     items: (row?.items || []).map(withShowPoster),
+                    hubKey: `/library/sections/${library.key}/recentlyAdded`,
+                    identifier: 'recentlyAdded',
                 };
             }).filter((row) => row.items.length);
         }
@@ -424,6 +428,7 @@ export const MediaPlayerHome: React.FC<Props> = ({
     const hasPlexContentHubs = plexHubs.some((hub) => !isContinueWatchingHub(hub));
     const homeSections = !home ? [] : hasPlexContentHubs ? plexHubs.map((hub, hubIndex) => {
         const viewAllKey = hub.collectionRatingKey || hub.playlistRatingKey;
+        const canViewAll = Boolean(viewAllKey || hub.hubKey);
         const isCw = isContinueWatchingHub(hub);
         return (
             <PlayerRail
@@ -438,12 +443,12 @@ export const MediaPlayerHome: React.FC<Props> = ({
                 showProgress={isCw}
                 showRemoveFromContinueWatching={isCw}
                 aspect={isCw ? continueWatchingAspect : (/recent/i.test(`${hub.identifier || ''} ${hub.title || ''}`) ? '2/3' : undefined)}
-                onViewAll={viewAllKey ? () => onOpenItem({
+                onViewAll={canViewAll && onOpenHub ? () => onOpenHub(hub) : (viewAllKey ? () => onOpenItem({
                     ratingKey: viewAllKey,
                     title: hub.title,
                     type: hub.collectionRatingKey ? 'collection' : 'playlist',
-                }) : undefined}
-                viewAllLabel={viewAllKey ? t('common.viewAll') : undefined}
+                } as PlayerItem) : undefined)}
+                viewAllLabel={canViewAll ? t('common.viewAll') : undefined}
                 {...railMenuProps}
             />
         );
@@ -465,6 +470,13 @@ export const MediaPlayerHome: React.FC<Props> = ({
                     showProgress
                     showRemoveFromContinueWatching
                     aspect={continueWatchingAspect}
+                    onViewAll={onOpenHub ? () => onOpenHub({
+                        title: t('mediaPlayerPage.continueWatching'),
+                        identifier: 'home.continueWatching',
+                        items: home.continueWatching,
+                        hubKey: '/library/onDeck',
+                    }) : undefined}
+                    viewAllLabel={t('common.viewAll')}
                     {...railMenuProps}
                 />
             ) : null;
@@ -496,6 +508,13 @@ export const MediaPlayerHome: React.FC<Props> = ({
                         onPlay={onPlay}
                         onToggleWatched={toggleWatched}
                         aspect="2/3"
+                        onViewAll={row.hubKey && onOpenHub ? () => onOpenHub({
+                            title: row.title,
+                            identifier: row.identifier || 'recentlyAdded',
+                            items: row.items,
+                            hubKey: row.hubKey,
+                        }) : undefined}
+                        viewAllLabel={row.hubKey ? t('common.viewAll') : undefined}
                         {...railMenuProps}
                     />
                 ))}
@@ -516,9 +535,9 @@ export const MediaPlayerHome: React.FC<Props> = ({
             <div className="flex flex-col gap-6 pb-8" aria-busy="true" aria-label={t('mediaPlayerPage.navHome')}>
                 <div className="h-[300px] animate-pulse rounded-2xl bg-white/5 sm:h-[380px]" />
                 <DiscoverHomeRowSkeleton />
-                <DiscoverHomeRowSkeleton showViewAll />
+                <DiscoverHomeRowSkeleton showViewAll={!isTvShell} />
                 <DiscoverHomeRowSkeleton />
-                <DiscoverHomeRowSkeleton showViewAll />
+                <DiscoverHomeRowSkeleton showViewAll={!isTvShell} />
             </div>
         );
     }

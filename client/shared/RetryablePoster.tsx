@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { NoPosterPlaceholder } from './NoPosterPlaceholder';
 
-const MAX_RETRIES = 3;
+const MAX_RETRIES = 4;
 
 const withRetryParam = (url: string, attempt: number) => {
     if (!url || attempt <= 0) return url;
@@ -32,14 +32,12 @@ export const RetryablePoster: React.FC<Props> = ({
     const [useFallback, setUseFallback] = useState(false);
     const [failed, setFailed] = useState(!src && !fallbackSrc);
     const [displaySrc, setDisplaySrc] = useState(src || fallbackSrc);
-    const [ready, setReady] = useState(false);
 
     useEffect(() => {
         setAttempt(0);
         setUseFallback(false);
         setFailed(!src && !fallbackSrc);
         setDisplaySrc(src || fallbackSrc);
-        setReady(false);
     }, [src, fallbackSrc]);
 
     if (failed || (!src && !fallbackSrc)) {
@@ -55,11 +53,8 @@ export const RetryablePoster: React.FC<Props> = ({
             alt={alt}
             loading={loading}
             {...(fetchPriority ? { fetchPriority } : {})}
-            decoding="async"
-            className={`${className} ${ready ? 'opacity-100' : 'opacity-0'} transition-opacity duration-75`}
-            onLoad={() => setReady(true)}
+            className={className}
             onError={() => {
-                setReady(false);
                 if (!useFallback && fallbackSrc && fallbackSrc !== src) {
                     setUseFallback(true);
                     setAttempt(0);
@@ -68,7 +63,7 @@ export const RetryablePoster: React.FC<Props> = ({
                 }
                 if (attempt < MAX_RETRIES) {
                     const next = attempt + 1;
-                    window.setTimeout(() => setAttempt(next), 180 * next);
+                    window.setTimeout(() => setAttempt(next), 280 * next);
                     return;
                 }
                 setFailed(true);
