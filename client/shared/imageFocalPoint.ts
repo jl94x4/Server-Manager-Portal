@@ -112,6 +112,13 @@ export const formatTvDetailsBackdropPosition = (focal: FocalPoint = DEFAULT_FOCA
     return `${x}% ${y}%`;
 };
 
+/** Web title pages: same column bias, but sit the art a little higher. */
+export const formatWebDetailsBackdropPosition = (focal: FocalPoint = DEFAULT_FOCAL) => {
+    const x = focal.x < 44 ? clamp(focal.x + 14, 52, 88) : clamp(focal.x + 3, 40, 88);
+    const y = clamp(focal.y - 10, 4, 20);
+    return `${x}% ${y}%`;
+};
+
 /**
  * Resolve a background-position focal point for an image URL.
  * Uses FaceDetector when available; otherwise biases toward the upper third
