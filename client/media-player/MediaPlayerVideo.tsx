@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-    ChevronsLeft,
-    ChevronsRight,
     Loader2,
     Maximize,
     Minimize,
@@ -46,6 +44,7 @@ import {
 } from './playerUtils';
 import { fetchMediaPlayerNeighbors, reportMediaPlayerTimeline, stopMediaPlayerTranscode } from './api';
 import { PlayerSeekBar } from './PlayerSeekBar';
+import { PlayerSkipBackIcon, PlayerSkipForwardIcon } from './PlayerSkipIcons';
 import {
     clampMiniPlayerWidth,
     DEFAULT_MINI_PLAYER_WIDTH,
@@ -1634,20 +1633,18 @@ export const MediaPlayerVideo: React.FC<Props> = ({
                                 <button
                                     type="button"
                                     onClick={() => seekBy(videoRef.current, -10)}
-                                    className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1.5 text-white hover:bg-white/20"
+                                    className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
                                     aria-label={t('mediaPlayerPage.skipBack')}
                                 >
-                                    <ChevronsLeft className="h-4 w-4" />
-                                    10
+                                    <PlayerSkipBackIcon className="h-6 w-6" />
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => seekBy(videoRef.current, 10)}
-                                    className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1.5 text-white hover:bg-white/20"
+                                    className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
                                     aria-label={t('mediaPlayerPage.skipForward')}
                                 >
-                                    10
-                                    <ChevronsRight className="h-4 w-4" />
+                                    <PlayerSkipForwardIcon className="h-6 w-6" />
                                 </button>
                                 {upNextItem ? (
                                     <button
