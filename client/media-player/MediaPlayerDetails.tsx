@@ -52,6 +52,7 @@ import {
     formatTvDetailsBackdropPosition,
     resolveImageFocalPoint,
     sampleBackdropSurfaceColor,
+    samplePosterSurfaceColor,
 } from '../shared/imageFocalPoint';
 import { writePlayerScrollTop, readPlayerItemCache, takePlayerItemSeed, writePlayerItemCache } from './playerMemory';
 import type { PlayerItem, PlayerLibraryHub, PlayerMediaPartInfo, PlayerPlayOptions, PlayerRatings, PlayerVersion } from './types';
@@ -536,22 +537,34 @@ export const MediaPlayerDetails: React.FC<Props> = ({
 
     useEffect(() => {
         if (!item?.ratingKey) return undefined;
+        const posterSampleUrl = plexImageUrl(item.thumb, 160, 240, { quality: 40 });
         const previewUrl = plexBackdropPreviewUrl(item.art || item.thumb);
         const url = plexBackdropUrl(item.art || item.thumb);
-        if (!url && !previewUrl) return undefined;
+        if (!posterSampleUrl && !url && !previewUrl) return undefined;
         let cancelled = false;
         const root = document.querySelector<HTMLElement>('[data-tv-details="1"]');
         root?.style.setProperty('--tv-backdrop-position', '58% 20%');
         applyTvDetailsSurface(DEFAULT_BACKDROP_SURFACE_RGB);
-        const sampleUrl = previewUrl || url;
-        void resolveImageFocalPoint(sampleUrl).then((focal) => {
-            if (cancelled) return;
-            document.querySelector<HTMLElement>('[data-tv-details="1"]')
-                ?.style.setProperty('--tv-backdrop-position', formatTvDetailsBackdropPosition(focal));
-        });
-        void sampleBackdropSurfaceColor(sampleUrl).then((rgb) => {
-            if (!cancelled && rgb) applyTvDetailsSurface(rgb);
-        });
+        const artUrl = previewUrl || url;
+        if (artUrl) {
+            void resolveImageFocalPoint(artUrl).then((focal) => {
+                if (cancelled) return;
+                document.querySelector<HTMLElement>('[data-tv-details="1"]')
+                    ?.style.setProperty('--tv-backdrop-position', formatTvDetailsBackdropPosition(focal));
+            });
+        }
+        const sampleSurface = async () => {
+            if (posterSampleUrl) {
+                const fromPoster = await samplePosterSurfaceColor(posterSampleUrl);
+                if (!cancelled && fromPoster) {
+                    applyTvDetailsSurface(fromPoster);
+                    return;
+                }
+            }
+            const fromArt = await sampleBackdropSurfaceColor(artUrl || posterSampleUrl);
+            if (!cancelled && fromArt) applyTvDetailsSurface(fromArt);
+        };
+        void sampleSurface();
         return () => {
             cancelled = true;
         };
@@ -896,15 +909,15 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                     }`}>
                         <div className={`media-details-hero-poster w-full flex-shrink-0 flex flex-col gap-3 ${
                             item.type === 'episode'
-                                ? (isTvShell ? 'md:w-[28.8rem] lg:w-[33.6rem]' : 'md:w-[24rem] lg:w-[28rem]')
-                                : (isTvShell ? 'md:w-[19.2rem] lg:w-[21.6rem]' : 'md:w-[16.5rem] lg:w-[19rem]')
+                                ? (isTvShell ? 'md:w-[28.8rem] lg:w-[33.6rem]' : 'md:w-[26rem] lg:w-[30rem]')
+                                : (isTvShell ? 'md:w-[19.2rem] lg:w-[21.6rem]' : 'md:w-[18rem] lg:w-[21rem]')
                         }`}>
                             <div className={`flex flex-row md:flex-col gap-4 ${item.type === 'episode' ? 'items-start' : 'items-stretch'}`}>
                                 <div
                                     className={
                                         item.type === 'episode'
-                                            ? `group relative aspect-video w-[min(70%,17.4rem)] sm:w-full ${isTvShell ? 'sm:max-w-[21.6rem]' : 'sm:max-w-[20rem]'} md:max-w-none flex-shrink-0 overflow-hidden rounded-2xl border border-white/15 bg-black/50 shadow-[0_20px_60px_rgba(0,0,0,0.55)] ring-1 ring-white/10 outline-none`
-                                            : `group relative aspect-[2/3] w-[50%] max-w-[14.4rem] ${isTvShell ? 'sm:max-w-[16.8rem]' : 'sm:max-w-[16.5rem]'} md:w-full md:max-w-none flex-shrink-0 overflow-hidden rounded-2xl border border-white/15 bg-black/50 shadow-[0_20px_60px_rgba(0,0,0,0.55)] ring-1 ring-white/10 outline-none`
+                                            ? `group relative aspect-video w-[min(70%,17.4rem)] sm:w-full ${isTvShell ? 'sm:max-w-[21.6rem]' : 'sm:max-w-[22rem]'} md:max-w-none flex-shrink-0 overflow-hidden rounded-2xl border border-white/15 bg-black/50 shadow-[0_20px_60px_rgba(0,0,0,0.55)] ring-1 ring-white/10 outline-none`
+                                            : `group relative aspect-[2/3] w-[50%] max-w-[14.4rem] ${isTvShell ? 'sm:max-w-[16.8rem]' : 'sm:max-w-[18rem]'} md:w-full md:max-w-none flex-shrink-0 overflow-hidden rounded-2xl border border-white/15 bg-black/50 shadow-[0_20px_60px_rgba(0,0,0,0.55)] ring-1 ring-white/10 outline-none`
                                     }
                                 >
                                     <div data-tv-poster="1" className="pointer-events-none absolute inset-0 z-[5] rounded-[inherit]" aria-hidden />

@@ -164,8 +164,64 @@ export const DEFAULT_BACKDROP_SURFACE_RGB = '38 41 48';
 
 const DEFAULT_SURFACE = { r: 38, g: 41, b: 48 };
 const luma = (r: number, g: number, b: number) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
+const clampByte = (value: number) => Math.min(255, Math.max(0, value));
 /** Keep overview chrome in the dark range — never a light/white page (Toy Story). */
-const MAX_SURFACE_LUMA = 78;
+const MAX_SURFACE_LUMA = 82;
+const TARGET_POSTER_SURFACE_LUMA = 54;
+
+/**
+ * Dominant poster colour as a dark page surface: weight chromatic pixels,
+ * skip near-black/white, then darken while keeping hue (no mix toward gray).
+ */
+export const posterSurfaceFromRgba = (data: Uint8ClampedArray | Uint8Array): string | null => {
+    let rSum = 0;
+    let gSum = 0;
+    let bSum = 0;
+    let wSum = 0;
+    for (let i = 0; i < data.length; i += 4) {
+        if (data[i + 3] < 20) continue;
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const y = luma(r, g, b);
+        if (y < 14 || y > 212) continue;
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const chroma = max - min;
+        if (chroma < 10 && y < 48) continue;
+        const sat = max === 0 ? 0 : chroma / max;
+        const weight = 0.4 + sat * 2 + chroma / 160;
+        rSum += r * weight;
+        gSum += g * weight;
+        bSum += b * weight;
+        wSum += weight;
+    }
+    if (wSum < 1) return null;
+
+    let r = rSum / wSum;
+    let g = gSum / wSum;
+    let b = bSum / wSum;
+    const avg = (r + g + b) / 3;
+    r = clampByte(avg + (r - avg) * 1.38);
+    g = clampByte(avg + (g - avg) * 1.38);
+    b = clampByte(avg + (b - avg) * 1.38);
+
+    const y = luma(r, g, b);
+    if (y > TARGET_POSTER_SURFACE_LUMA && y > 0) {
+        const scale = TARGET_POSTER_SURFACE_LUMA / y;
+        r *= scale;
+        g *= scale;
+        b *= scale;
+    }
+    const y2 = luma(r, g, b);
+    if (y2 > MAX_SURFACE_LUMA && y2 > 0) {
+        const scale = MAX_SURFACE_LUMA / y2;
+        r *= scale;
+        g *= scale;
+        b *= scale;
+    }
+    return [Math.round(r), Math.round(g), Math.round(b)].join(' ');
+};
 
 /**
  * Average darker pixels along the bottom band of a backdrop so the page surface can match the art.
@@ -237,6 +293,36 @@ export const sampleBackdropSurfaceColor = async (url: string): Promise<string | 
             Math.round(g * 0.92 + DEFAULT_SURFACE.g * 0.08),
             Math.round(b * 0.92 + DEFAULT_SURFACE.b * 0.08),
         ].join(' ');
+        surfaceCache.set(key, rgb);
+        return rgb;
+    } catch {
+        return null;
+    }
+};
+
+/** Sample a poster (or any still) for the details page surface colour. */
+export const samplePosterSurfaceColor = async (url: string): Promise<string | null> => {
+    const key = `poster:${String(url || '').trim()}`;
+    if (key === 'poster:') return null;
+    const cached = surfaceCache.get(key);
+    if (cached) return cached;
+
+    try {
+        const img = await loadImage(url);
+        const sw = img.naturalWidth || img.width;
+        const sh = img.naturalHeight || img.height;
+        if (!sw || !sh) return null;
+
+        const canvas = document.createElement('canvas');
+        const tw = 32;
+        const th = 48;
+        canvas.width = tw;
+        canvas.height = th;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return null;
+        ctx.drawImage(img, 0, 0, tw, th);
+        const rgb = posterSurfaceFromRgba(ctx.getImageData(0, 0, tw, th).data);
+        if (!rgb) return null;
         surfaceCache.set(key, rgb);
         return rgb;
     } catch {
