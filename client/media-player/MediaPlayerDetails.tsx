@@ -270,7 +270,6 @@ export const MediaPlayerDetails: React.FC<Props> = ({
         setBackdropReady(false);
         setLogoFailed(false);
         setLogoReady(false);
-        setMediaInfoExpanded(true);
         setMediaIndex(0);
         setAudioStreamId('');
         setSubtitleStreamId('');
