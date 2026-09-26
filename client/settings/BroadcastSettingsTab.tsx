@@ -35,12 +35,35 @@ export const BroadcastSettingsTab: React.FC<{
     const [isSending, setIsSending] = useState(false);
     const [isPreviewMode, setIsPreviewMode] = useState(false);
     const [isSendingTest, setIsSendingTest] = useState(false);
+    const [previewHtml, setPreviewHtml] = useState('');
 
     useEffect(() => {
         if (!isPicked && selectedUserIds.length === 0) return;
         setCustomSelectedUserIds(idsWithEmail(users, selectedUserIds));
         setRecipientFilter('custom');
     }, [isPicked, selectedUserIds, users]);
+
+    useEffect(() => {
+        if (!isPreviewMode || !body.trim()) {
+            setPreviewHtml('');
+            return;
+        }
+        let cancelled = false;
+        const timer = setTimeout(() => {
+            apiFetch('/api/users/broadcast/preview', {
+                method: 'POST',
+                body: JSON.stringify({ subject, body }),
+            }).then((res) => {
+                if (!cancelled) setPreviewHtml(res?.html || body);
+            }).catch(() => {
+                if (!cancelled) setPreviewHtml(body);
+            });
+        }, 250);
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
+    }, [isPreviewMode, subject, body]);
 
     const recipientCount = useMemo(() => {
         const now = Date.now();
@@ -194,8 +217,8 @@ export const BroadcastSettingsTab: React.FC<{
                     <iframe
                         title={t('settings.broadcast.preview')}
                         sandbox=""
-                        srcDoc={body}
-                        className="w-full h-[300px] rounded-lg bg-white border border-border"
+                        srcDoc={previewHtml || body}
+                        className="w-full h-[560px] rounded-lg bg-white border border-border"
                     />
                 ) : (
                     <textarea

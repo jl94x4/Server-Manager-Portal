@@ -1924,6 +1924,7 @@ import {
     buildAccessExpiredEmail,
     buildAccessAdjustedEmail,
     buildInviteEmail,
+    buildCustomUserEmail,
     buildAnnouncementEmail,
     buildWelcomeEmail,
     buildAutomatedEmailPreview,
@@ -4263,6 +4264,31 @@ const resolveBroadcastTargets = (users, recipientFilter, selectedUserIds) => {
     });
 };
 
+const renderBroadcastEmail = ({ config, serverName, user, subject, body, hasLogo }) => {
+    const personalizedSubject = personalizeBroadcastField(subject, user);
+    const personalizedBody = sanitizeBroadcastHtml(personalizeBroadcastField(body, user, { html: true }));
+    const { html } = buildCustomUserEmail({
+        config,
+        serverName,
+        bodyHtml: personalizedBody,
+        hasLogo,
+    });
+    return { subject: personalizedSubject, html };
+};
+
+const inlineEmailCidImages = (html, attachments = []) => {
+    let output = String(html || '');
+    for (const attachment of attachments || []) {
+        if (!attachment?.cid || !attachment?.content) continue;
+        const ext = String(attachment.filename || '').split('.').pop()?.toLowerCase();
+        const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+        const dataUrl = `data:${mime};base64,${Buffer.from(attachment.content).toString('base64')}`;
+        const cid = String(attachment.cid).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        output = output.replace(new RegExp(`cid:${cid}`, 'g'), dataUrl);
+    }
+    return output;
+};
+
 // --- API Routes ---
 
 app.post('/api/users/broadcast', requireAdmin, async (req, res) => {
@@ -4281,6 +4307,8 @@ app.post('/api/users/broadcast', requireAdmin, async (req, res) => {
 
         (async () => {
             const config = await loadFile(CONFIG_PATH, null);
+            const serverName = await resolveEmailServerName(config);
+            const hasLogo = (await getEmailLogoAttachments(config)).length > 0;
 
             // Create a single pooled connection to avoid rate limits
             const bulkTransporter = nodemailer.createTransport({
@@ -4298,9 +4326,8 @@ app.post('/api/users/broadcast', requireAdmin, async (req, res) => {
 
             for (const user of targetUsers) {
                 try {
-                    const personalizedSubject = personalizeBroadcastField(subject, user);
-                    const personalizedBody = sanitizeBroadcastHtml(personalizeBroadcastField(body, user, { html: true }));
-                    await sendEmail(config, user.email, personalizedSubject, personalizedBody, bulkTransporter);
+                    const mail = renderBroadcastEmail({ config, serverName, user, subject, body, hasLogo });
+                    await sendEmail(config, user.email, mail.subject, mail.html, bulkTransporter);
                     // Add a tiny throttle so it doesn't look like a burst attack
                     await new Promise(resolve => setTimeout(resolve, 2000));
                 } catch (e) {
@@ -4332,16 +4359,47 @@ app.post('/api/users/broadcast/test', requireAdmin, async (req, res) => {
         }
 
         log(`Sending test broadcast email to ${adminEmail}...`);
-        await sendEmail(
+        const serverName = await resolveEmailServerName(config);
+        const hasLogo = (await getEmailLogoAttachments(config)).length > 0;
+        const mail = renderBroadcastEmail({
             config,
-            adminEmail,
-            personalizeBroadcastField(subject, req.user),
-            sanitizeBroadcastHtml(personalizeBroadcastField(body, req.user, { html: true })),
-        );
+            serverName,
+            user: req.user,
+            subject,
+            body,
+            hasLogo,
+        });
+        await sendEmail(config, adminEmail, mail.subject, mail.html);
         res.json({ message: `Test email sent successfully to ${adminEmail}` });
     } catch (error) {
         log(`Error sending test broadcast: ${error.message}`);
         res.status(500).json({ error: `Failed to send test broadcast: ${error.message}` });
+    }
+});
+
+app.post('/api/users/broadcast/preview', requireAdmin, async (req, res) => {
+    const { subject, body } = req.body || {};
+    if (!body) return res.status(400).json({ error: 'Body is required.' });
+
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        const serverName = await resolveEmailServerName(config);
+        const logoAttachments = await getEmailLogoAttachments(config);
+        const mail = renderBroadcastEmail({
+            config,
+            serverName,
+            user: req.user,
+            subject: subject || '',
+            body,
+            hasLogo: logoAttachments.length > 0,
+        });
+        return res.json({
+            subject: mail.subject,
+            html: inlineEmailCidImages(mail.html, logoAttachments),
+        });
+    } catch (error) {
+        log(`Error rendering broadcast preview: ${error.message}`);
+        return res.status(500).json({ error: 'Failed to render email preview' });
     }
 });
 
