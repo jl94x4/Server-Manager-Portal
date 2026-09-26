@@ -892,19 +892,19 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                     ) : null}
 
                     <div className={`media-details-hero-row flex flex-col items-start md:flex-row ${
-                        isTvShell ? 'gap-5 md:gap-6 lg:gap-10' : 'gap-4 md:gap-5 lg:gap-6'
+                        isTvShell ? 'gap-5 md:gap-6 lg:gap-10' : 'gap-4 md:gap-5 lg:gap-8'
                     }`}>
                         <div className={`media-details-hero-poster w-full flex-shrink-0 flex flex-col gap-3 ${
                             item.type === 'episode'
-                                ? (isTvShell ? 'md:w-[28.8rem] lg:w-[33.6rem]' : 'md:w-[18rem] lg:w-[20rem]')
-                                : (isTvShell ? 'md:w-[19.2rem] lg:w-[21.6rem]' : 'md:w-[12.5rem] lg:w-[14rem]')
+                                ? (isTvShell ? 'md:w-[28.8rem] lg:w-[33.6rem]' : 'md:w-[24rem] lg:w-[28rem]')
+                                : (isTvShell ? 'md:w-[19.2rem] lg:w-[21.6rem]' : 'md:w-[16.5rem] lg:w-[19rem]')
                         }`}>
                             <div className={`flex flex-row md:flex-col gap-4 ${item.type === 'episode' ? 'items-start' : 'items-stretch'}`}>
                                 <div
                                     className={
                                         item.type === 'episode'
-                                            ? `group relative aspect-video w-[min(70%,17.4rem)] sm:w-full ${isTvShell ? 'sm:max-w-[21.6rem]' : 'sm:max-w-[18rem]'} md:max-w-none flex-shrink-0 overflow-hidden rounded-2xl border border-white/15 bg-black/50 shadow-[0_20px_60px_rgba(0,0,0,0.55)] ring-1 ring-white/10 outline-none`
-                                            : `group relative aspect-[2/3] w-[50%] max-w-[14.4rem] ${isTvShell ? 'sm:max-w-[16.8rem]' : 'sm:max-w-[12.5rem]'} md:w-full md:max-w-none flex-shrink-0 overflow-hidden rounded-2xl border border-white/15 bg-black/50 shadow-[0_20px_60px_rgba(0,0,0,0.55)] ring-1 ring-white/10 outline-none`
+                                            ? `group relative aspect-video w-[min(70%,17.4rem)] sm:w-full ${isTvShell ? 'sm:max-w-[21.6rem]' : 'sm:max-w-[20rem]'} md:max-w-none flex-shrink-0 overflow-hidden rounded-2xl border border-white/15 bg-black/50 shadow-[0_20px_60px_rgba(0,0,0,0.55)] ring-1 ring-white/10 outline-none`
+                                            : `group relative aspect-[2/3] w-[50%] max-w-[14.4rem] ${isTvShell ? 'sm:max-w-[16.8rem]' : 'sm:max-w-[16.5rem]'} md:w-full md:max-w-none flex-shrink-0 overflow-hidden rounded-2xl border border-white/15 bg-black/50 shadow-[0_20px_60px_rgba(0,0,0,0.55)] ring-1 ring-white/10 outline-none`
                                     }
                                 >
                                     <div data-tv-poster="1" className="pointer-events-none absolute inset-0 z-[5] rounded-[inherit]" aria-hidden />
