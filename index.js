@@ -4,6 +4,7 @@ import express from 'express';
 import fs from 'fs/promises';
 import path from 'path';
 import fetch, { Blob, FormData } from 'node-fetch';
+import { qbitLogin } from './lib/download-clients/qbittorrentAuth.js';
 import { randomUUID, randomBytes, createHash, createCipheriv, createDecipheriv, timingSafeEqual } from 'crypto';
 import nodemailer from 'nodemailer';
 import cookieParser from 'cookie-parser';
@@ -24505,36 +24506,28 @@ const normalizeTorrentItem = (client, raw = {}) => {
     return { ...item, source: classifyDownloadSource(item), sourceReason: 'client_metadata' };
 };
 
-const fetchQbitTorrents = async (client) => {
+const qbitSession = async (client) => {
     const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
-    const loginRes = await fetchWithTimeout(`${base}/api/v2/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ username: client.username || '', password: client.password || '' }).toString(),
-    }, 12000);
-    if (!loginRes.ok) throw new Error(`login HTTP ${loginRes.status}`);
-    const cookie = loginRes.headers.get('set-cookie') || '';
+    const session = await qbitLogin({
+        fetchImpl: fetchWithTimeout,
+        baseUrl: base,
+        username: client.username || '',
+        password: client.password || '',
+    });
+    return { base, ...session };
+};
+
+const fetchQbitTorrents = async (client) => {
+    const { base, headers } = await qbitSession(client);
     const torrentsRes = await fetchWithTimeout(`${base}/api/v2/torrents/info`, {
-        headers: { Cookie: cookie, Accept: 'application/json' },
+        headers: { ...headers, Accept: 'application/json' },
     }, 12000);
     if (!torrentsRes.ok) throw new Error(`torrents HTTP ${torrentsRes.status}`);
     return (await torrentsRes.json()).map((entry) => normalizeTorrentItem(client, entry));
 };
 
-const qbitCookie = async (client) => {
-    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
-    const loginRes = await fetchWithTimeout(`${base}/api/v2/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ username: client.username || '', password: client.password || '' }).toString(),
-    }, 12000);
-    if (!loginRes.ok) throw new Error(`login HTTP ${loginRes.status}`);
-    return loginRes.headers.get('set-cookie') || '';
-};
-
 const controlQbitTorrent = async (client, action, id) => {
-    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
-    const cookie = await qbitCookie(client);
+    const { base, headers } = await qbitSession(client);
     const endpoints = action === 'pause'
         ? ['pause', 'stop']
         : action === 'resume'
@@ -24547,7 +24540,7 @@ const controlQbitTorrent = async (client, action, id) => {
     for (const endpoint of endpoints) {
         const response = await fetchWithTimeout(`${base}/api/v2/torrents/${endpoint}`, {
             method: 'POST',
-            headers: { Cookie: cookie, 'Content-Type': 'application/x-www-form-urlencoded' },
+            headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' },
             body: body.toString(),
         }, 12000);
         if (response.ok) return;
@@ -24618,8 +24611,7 @@ const fetchArrDownloadCategoryOptions = async (config = {}) => {
 };
 
 const addQbitTorrentDownload = async (client, { url = '', fileBuffer = null, filename = 'upload.torrent', category = '' } = {}) => {
-    const base = resolveIntegrationUrlForFetch(client.url).replace(/\/+$/, '');
-    const cookie = await qbitCookie(client);
+    const { base, headers } = await qbitSession(client);
     const form = new FormData();
     const normalizedCategory = normalizeDownloadCategory(category);
     if (url) {
@@ -24632,7 +24624,7 @@ const addQbitTorrentDownload = async (client, { url = '', fileBuffer = null, fil
     if (normalizedCategory) form.append('category', normalizedCategory);
     const response = await fetchWithTimeout(`${base}/api/v2/torrents/add`, {
         method: 'POST',
-        headers: { Cookie: cookie },
+        headers,
         body: form,
     }, 12000);
     if (!response.ok) throw new Error(`qBittorrent add HTTP ${response.status}`);
