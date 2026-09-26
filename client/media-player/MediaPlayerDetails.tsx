@@ -496,9 +496,10 @@ export const MediaPlayerDetails: React.FC<Props> = ({
             const backdrop = root?.querySelector<HTMLElement>('.media-details-hero-backdrop');
             if (!root || !anchor || !backdrop) return;
             const zoom = readDocumentZoom();
+            const extra = isTvShell ? 0 : 96;
             const fadePx = Math.max(0, Math.round(
                 (anchor.getBoundingClientRect().top - backdrop.getBoundingClientRect().top) / zoom,
-            ));
+            ) + extra);
             const fade = `${fadePx}px`;
             root.style.setProperty('--tv-backdrop-fade-end', fade);
             backdrop.style.setProperty('--tv-backdrop-fade-end', fade);
@@ -516,7 +517,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
             observer?.disconnect();
             window.removeEventListener('resize', place);
         };
-    }, [isTvShell, item?.ratingKey, item?.summary, item?.title, backdropReady]);
+    }, [isTvShell, item?.ratingKey, item?.summary, item?.title, backdropReady, posterReady]);
 
     useEffect(() => {
         if (!isTvShell || !item?.canPlay) return undefined;
@@ -847,13 +848,13 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                 </div>
 
                 <div className={`media-details-hero-content media-details-inset relative z-10 w-full max-w-none mx-0 pr-6 xl:pr-10 pt-2 sm:pt-3 ${
-                    isTvShell ? 'md:pt-[150px]' : 'md:pt-16 lg:pt-20'
+                    isTvShell ? 'md:pt-[150px]' : 'md:pt-28 lg:pt-36'
                 } ${children.length ? 'pb-5' : 'pb-8'}`}>
                     {!isTvShell ? (
                         <button
                             type="button"
                             onClick={onBack}
-                            className="light-on-media mb-3 md:mb-0 md:absolute md:top-4 z-20 inline-flex items-center gap-2 text-white/90 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-full backdrop-blur-md border border-white/10 hover:border-white/20 hover:bg-black/65"
+                            className="light-on-media mb-3 md:mb-0 md:absolute md:top-8 lg:top-10 z-20 inline-flex items-center gap-2 text-white/90 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-full backdrop-blur-md border border-white/10 hover:border-white/20 hover:bg-black/65"
                         >
                             <ArrowLeft className="w-5 h-5" />
                             <span className="font-bold text-sm">{t('mediaPlayerPage.back')}</span>
@@ -965,6 +966,9 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                                             />
                                         </div>
                                     ) : null}
+                                    {!isTvShell ? (
+                                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-0" data-tv-fade-anchor="1" aria-hidden />
+                                    ) : null}
                                 </div>
                                 <div className="light-on-media flex-1 min-w-0 flex flex-col items-start justify-end gap-2 md:hidden">
                                     {titleBlock}
@@ -981,7 +985,9 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                             <div className="light-on-media hidden md:flex flex-col items-start gap-2.5">
                                 {titleBlock}
                             </div>
-                            <div className="pointer-events-none h-0 w-full shrink-0" data-tv-fade-anchor="1" aria-hidden />
+                            {isTvShell ? (
+                                <div className="pointer-events-none h-0 w-full shrink-0" data-tv-fade-anchor="1" aria-hidden />
+                            ) : null}
                             <div className="media-details-panel flex w-full min-w-0 flex-col gap-5">
                                 {item.summary ? (
                                     <OverviewSummary text={item.summary} />

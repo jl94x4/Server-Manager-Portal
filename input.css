@@ -533,6 +533,11 @@ html[data-theme="light"] .company-card .company-duotone-logo {
 .media-details-hero {
   position: relative;
 }
+@media (min-width: 768px) {
+  html:not([data-tv="1"]) .media-details-hero {
+    min-height: min(72vh, 46rem);
+  }
+}
 .media-details-page .media-details-hero-backdrop {
   position: absolute;
   inset: 0;
