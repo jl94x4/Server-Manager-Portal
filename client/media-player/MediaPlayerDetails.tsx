@@ -495,7 +495,9 @@ export const MediaPlayerDetails: React.FC<Props> = ({
             const backdrop = root?.querySelector<HTMLElement>('.media-details-hero-backdrop');
             if (!root || !anchor || !backdrop) return;
             const zoom = readDocumentZoom();
-            const fadePx = Math.max(0, Math.round(anchor.getBoundingClientRect().top / zoom));
+            const fadePx = Math.max(0, Math.round(
+                (anchor.getBoundingClientRect().top - backdrop.getBoundingClientRect().top) / zoom,
+            ));
             const fade = `${fadePx}px`;
             root.style.setProperty('--tv-backdrop-fade-end', fade);
             backdrop.style.setProperty('--tv-backdrop-fade-end', fade);
@@ -813,8 +815,8 @@ export const MediaPlayerDetails: React.FC<Props> = ({
             onTouchCancel={onEpisodeSwipeCancel}
         >
             <div data-tv-page-top="1" className="h-0 w-full" aria-hidden />
-            <div className="relative isolate">
-                <div className="media-details-hero-backdrop absolute inset-x-0 top-0 overflow-hidden pointer-events-none" aria-hidden>
+            <div className="media-details-hero relative isolate">
+                <div className="media-details-hero-backdrop absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
                     {backdropUrl && !backdropFailed ? (
                         <PlayerBackdropImage
                             key={backdropUrl}

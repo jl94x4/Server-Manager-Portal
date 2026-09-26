@@ -521,29 +521,28 @@ html[data-theme="light"] .company-card .company-duotone-logo {
   filter: none;
 }
 
-/* Details hero: edge-to-edge under the floating nav (see .player-scroll-details).
- * Same cinematic sampled-surface treatment as TV — art fills the viewport,
- * fades into --tv-details-surface at the content fade-anchor. */
+/* Details hero: art is part of the page so it scrolls away with the poster/facts.
+ * TV keeps a viewport-fixed band via plex-client/index.html. */
 .media-details-page {
   --tv-details-surface: 38 41 48;
-  --tv-backdrop-fade-end: 58vh;
+  --tv-backdrop-fade-end: 58%;
   --tv-backdrop-fade-span: 200px;
   --tv-backdrop-position: 58% 20%;
   background-color: rgb(var(--tv-details-surface));
 }
+.media-details-hero {
+  position: relative;
+}
 .media-details-page .media-details-hero-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  position: absolute;
+  inset: 0;
   width: auto;
-  height: 100vh;
+  height: auto;
   max-height: none;
   z-index: 0;
   background-color: rgb(var(--tv-details-surface));
 }
 .media-details-hero-backdrop {
-  height: 100vh;
   max-height: none;
 }
 .media-details-hero-backdrop img {
