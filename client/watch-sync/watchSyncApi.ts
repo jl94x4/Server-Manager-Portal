@@ -47,6 +47,16 @@ export type WatchSyncStatus = {
     lastRunAt: string;
     scheduleEnabled: boolean;
     intervalHours: number;
+    cache?: WatchSyncCache;
+};
+
+export type WatchSyncCache = {
+    movies: number;
+    episodes: number;
+    shows: number;
+    watchlist: number;
+    entries: number;
+    updatedAt: string;
 };
 
 export type WatchSyncLibrary = { id: string; title: string; type: string };
@@ -81,5 +91,7 @@ export const fetchWatchSyncLibraries = () => apiFetch('/api/watch-sync/libraries
 export const startWatchSync = () => apiFetch('/api/watch-sync/sync', { method: 'POST' });
 
 export const cancelWatchSync = () => apiFetch('/api/watch-sync/cancel', { method: 'POST' });
+
+export const clearWatchSyncCache = () => apiFetch('/api/watch-sync/cache/clear', { method: 'POST' }) as Promise<{ cache: WatchSyncCache }>;
 
 export const testWatchSync = () => apiFetch('/api/watch-sync/test', { method: 'POST' }) as Promise<{ ok: boolean; username?: string; plex?: string }>;

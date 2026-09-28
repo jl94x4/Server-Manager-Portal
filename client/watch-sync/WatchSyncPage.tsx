@@ -10,6 +10,7 @@ import {
 } from '../shared/dashboard/DashboardChrome';
 import {
     cancelWatchSync,
+    clearWatchSyncCache,
     disconnectWatchSync,
     fetchWatchSyncConfig,
     fetchWatchSyncLibraries,
@@ -334,6 +335,38 @@ export const WatchSyncPage: React.FC = () => {
                     )}
                     <button type="button" disabled={saving} onClick={() => persist({ libraryIds: config.libraryIds })} className="mt-4 px-3 py-2 rounded-xl border border-border font-bold text-sm disabled:opacity-50">
                         Save libraries
+                    </button>
+                </DashboardPanel>
+
+                <DashboardPanel
+                    title="Local cache"
+                    subtitle="Finished batches are stored on this server. A later sync skips watches, collection adds, and watchlist adds that are already recorded, even if that run was cut off."
+                >
+                    <p className="text-sm">
+                        {status?.cache?.entries
+                            ? `${status.cache.entries.toLocaleString()} titles cached${status.cache.updatedAt ? ` · ${new Date(status.cache.updatedAt).toLocaleString()}` : ''}`
+                            : 'No cache yet. The next sync writes one as it goes.'}
+                    </p>
+                    {!!status?.cache?.entries && (
+                        <p className="text-xs text-muted mt-2">
+                            {status.cache.movies.toLocaleString()} movies · {status.cache.episodes.toLocaleString()} episodes · {status.cache.shows.toLocaleString()} shows
+                        </p>
+                    )}
+                    <button
+                        type="button"
+                        disabled={!!status?.running || !status?.cache?.entries}
+                        onClick={async () => {
+                            try {
+                                await clearWatchSyncCache();
+                                toast('Local cache cleared. The next sync compares Plex and Trakt from scratch.', 'info');
+                                refreshStatus();
+                            } catch (error: any) {
+                                toast(error?.message || 'Could not clear the cache', 'error');
+                            }
+                        }}
+                        className="mt-4 px-3 py-2 rounded-xl border border-border font-bold text-sm disabled:opacity-50"
+                    >
+                        Clear cache
                     </button>
                 </DashboardPanel>
 
