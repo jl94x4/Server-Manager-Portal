@@ -29,6 +29,7 @@ import {
     Image as ImageIcon,
     Trophy,
     Film,
+    Clapperboard,
     Bookmark,
     ExternalLink,
     BarChart3,
@@ -273,6 +274,7 @@ const SETTINGS_TAB_ICONS: Record<string, React.ComponentType<{ className?: strin
     'poster-sets': ImageIcon,
     overlays: Layers,
     editions: Film,
+    'watch-sync': Clapperboard,
     achievements: Trophy,
     analytics: BarChart3,
     system: Settings,
@@ -367,6 +369,7 @@ const SETTINGS_TAB_TRANSLATION_KEYS: Record<string, string> = {
     'poster-sets': 'settings.navigation.tabs.posterSets',
     overlays: 'settings.navigation.tabs.overlays',
     editions: 'settings.navigation.tabs.editions',
+    'watch-sync': 'settings.navigation.tabs.watchSync',
     system: 'settings.navigation.tabs.system',
     logs: 'settings.navigation.tabs.logs',
 };
@@ -709,6 +712,7 @@ export const SettingsDashboard: React.FC = () => {
     const [posterSetsEnabled, setPosterSetsEnabled] = useState(false);
     const [overlaysEnabled, setOverlaysEnabled] = useState(false);
     const [editionsEnabled, setEditionsEnabled] = useState(false);
+    const [watchSyncEnabled, setWatchSyncEnabled] = useState(false);
     const [achievementsEnabled, setAchievementsEnabled] = useState(false);
     const [supportTicketsEnabled, setSupportTicketsEnabled] = useState(true);
     const [chatEnabled, setChatEnabled] = useState(false);
@@ -1680,6 +1684,9 @@ export const SettingsDashboard: React.FC = () => {
             if (initialSettings.editionsEnabled !== undefined) {
                 setEditionsEnabled(!!initialSettings.editionsEnabled);
             }
+            if (initialSettings.watchSyncEnabled !== undefined) {
+                setWatchSyncEnabled(!!initialSettings.watchSyncEnabled);
+            }
             if (initialSettings.achievementsEnabled !== undefined) {
                 setAchievementsEnabled(!!initialSettings.achievementsEnabled);
             }
@@ -2367,6 +2374,7 @@ export const SettingsDashboard: React.FC = () => {
             posterSetsEnabled,
             overlaysEnabled,
             editionsEnabled,
+            watchSyncEnabled,
             achievementsEnabled,
             supportTicketsEnabled,
             chatEnabled,
@@ -4246,6 +4254,7 @@ export const SettingsDashboard: React.FC = () => {
                                         posterSets: posterSetsEnabled,
                                         overlays: overlaysEnabled,
                                         editions: editionsEnabled,
+                                        watchSync: watchSyncEnabled,
                                         achievements: achievementsEnabled,
                                         support: supportTicketsEnabled,
                                         chat: chatEnabled,
@@ -5612,6 +5621,34 @@ export const SettingsDashboard: React.FC = () => {
                                 )}
                                 <p className="text-xs text-muted mt-3">
                                     Requires the Editions Python worker (`editions/cli.py`). Prefer a backup before processing your whole library.
+                                </p>
+                            </section>
+                        </div>
+                    )}
+                    {activeTab === 'watch-sync' && (
+                        <div className="mb-8 animate-fade-in space-y-6">
+                            <h3 className="text-xl font-bold text-plex mb-4 border-b border-border pb-2">Watch Sync</h3>
+                            <section id={getSettingsSectionElementId('watch-sync')} className="space-y-3 scroll-mt-24">
+                                <SettingsToggleRow
+                                    title="Enable Watch Sync"
+                                    hint={<SettingHint>Admin section for syncing watched status, ratings, collections, and watchlists between Plex and Trakt. Trakt API credentials and sync options live on the Watch Sync page. Plex uses the Media Player server URL and token.</SettingHint>}
+                                    checked={watchSyncEnabled}
+                                    onChange={setWatchSyncEnabled}
+                                />
+                                <p className={`text-xs mt-2 font-semibold ${watchSyncEnabled ? 'text-green-300' : 'text-yellow-300'}`}>
+                                    Current status: {watchSyncEnabled ? 'ON' : 'OFF'}
+                                </p>
+                                {watchSyncEnabled && (
+                                    <button
+                                        type="button"
+                                        className="mt-3 px-4 py-2 rounded-md font-bold transition-all bg-plex text-background hover:bg-plex-hover"
+                                        onClick={() => window.location.assign(portalUrl('/watch-sync'))}
+                                    >
+                                        Open Watch Sync
+                                    </button>
+                                )}
+                                <p className="text-xs text-muted mt-3">
+                                    Plex only. Create a Trakt API application, then connect the account inside Watch Sync.
                                 </p>
                             </section>
                         </div>

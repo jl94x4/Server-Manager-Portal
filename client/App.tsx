@@ -39,6 +39,7 @@ const MediaAutomationDashboard = lazy(() => import('./media-automation/MediaAuto
 const PosterSetsDashboard = lazy(() => import('./poster-sets/PosterSetsDashboard').then(m => ({ default: m.PosterSetsDashboard })));
 const OverlaysDashboard = lazy(() => import('./overlays/OverlaysDashboard').then(m => ({ default: m.OverlaysDashboard })));
 const EditionsDashboard = lazy(() => import('./editions/EditionsDashboard').then(m => ({ default: m.EditionsDashboard })));
+const WatchSyncPage = lazy(() => import('./watch-sync/WatchSyncPage').then(m => ({ default: m.WatchSyncPage })));
 const AchievementsDashboard = lazy(() => import('./achievements/AchievementsDashboard').then(m => ({ default: m.AchievementsDashboard })));
 const SupportInbox = lazy(() => import('./support/SupportInbox').then(m => ({ default: m.SupportInbox })));
 const ChatRoom = lazy(() => import('./chat/ChatRoom').then(m => ({ default: m.ChatRoom })));
@@ -162,7 +163,7 @@ export const MainApp: React.FC = () => {
         closeConfirm();
     };
 
-    const [currentRoute, setCurrentRoute] = useState<'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'achievements' | 'support' | 'chat' | 'downloads' | 'mediastack' | 'maintenance' | 'upgrader' | 'collexions' | 'spotify-sync' | 'scanner' | 'media-automation' | 'poster-sets' | 'overlays' | 'editions' | 'requests' | 'discovery' | 'media-player' | 'about' | 'preferences' | 'profile' | 'invite' | 'onboarding' | 'external' | 'loading'>('loading');
+    const [currentRoute, setCurrentRoute] = useState<'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'achievements' | 'support' | 'chat' | 'downloads' | 'mediastack' | 'maintenance' | 'upgrader' | 'collexions' | 'spotify-sync' | 'scanner' | 'media-automation' | 'poster-sets' | 'overlays' | 'editions' | 'watch-sync' | 'requests' | 'discovery' | 'media-player' | 'about' | 'preferences' | 'profile' | 'invite' | 'onboarding' | 'external' | 'loading'>('loading');
     const [profilePath, setProfilePath] = useState(() => (
         typeof window !== 'undefined' ? stripBasePath(window.location.pathname) : '/profile'
     ));
@@ -369,7 +370,7 @@ export const MainApp: React.FC = () => {
         setShowWhatsNew(false);
     }, [publicConfig?.appVersion]);
 
-    const setRoute = useCallback((route: 'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'achievements' | 'support' | 'chat' | 'downloads' | 'mediastack' | 'maintenance' | 'upgrader' | 'collexions' | 'spotify-sync' | 'scanner' | 'media-automation' | 'poster-sets' | 'overlays' | 'editions' | 'requests' | 'discovery' | 'media-player' | 'about' | 'preferences' | 'profile' | 'invite' | 'onboarding' | 'external' | 'loading', options?: { hash?: string; reviewId?: number; path?: string }) => {
+    const setRoute = useCallback((route: 'login' | 'admin' | 'user' | 'users' | 'status' | 'dashboard' | 'settings' | 'logs' | 'analytics' | 'achievements' | 'support' | 'chat' | 'downloads' | 'mediastack' | 'maintenance' | 'upgrader' | 'collexions' | 'spotify-sync' | 'scanner' | 'media-automation' | 'poster-sets' | 'overlays' | 'editions' | 'watch-sync' | 'requests' | 'discovery' | 'media-player' | 'about' | 'preferences' | 'profile' | 'invite' | 'onboarding' | 'external' | 'loading', options?: { hash?: string; reviewId?: number; path?: string }) => {
         const session = sessionInfoRef.current;
         if (session?.needsOnboarding && !session?.session?.isAdmin && route !== 'login' && route !== 'loading' && route !== 'invite' && route !== 'onboarding') {
             route = 'onboarding';
@@ -420,6 +421,7 @@ export const MainApp: React.FC = () => {
             if (route === 'poster-sets') path = '/poster-sets';
             if (route === 'overlays') path = '/overlays';
             if (route === 'editions') path = '/editions';
+            if (route === 'watch-sync') path = '/watch-sync';
             if (route === 'requests') {
                 // Legacy route: Review Queue now lives under Discover & Request.
                 setCurrentRoute('discovery');
@@ -623,6 +625,11 @@ export const MainApp: React.FC = () => {
             }
             else if (path.startsWith('/editions') && data.session.isAdmin && data.navFeatures?.editions) setCurrentRoute('editions');
             else if (path.startsWith('/editions')) {
+                window.history.replaceState({}, '', portalUrl('/portal'));
+                setCurrentRoute('user');
+            }
+            else if (path.startsWith('/watch-sync') && data.session.isAdmin && data.navFeatures?.watchSync) setCurrentRoute('watch-sync');
+            else if (path.startsWith('/watch-sync')) {
                 window.history.replaceState({}, '', portalUrl('/portal'));
                 setCurrentRoute('user');
             }
@@ -1006,6 +1013,13 @@ export const MainApp: React.FC = () => {
             return (
                 <Suspense fallback={<Loader isLoading={true} isCinematic={!!publicConfig?.useCinematicLoading} />}>
                     <EditionsDashboard />
+                </Suspense>
+            );
+        }
+        if (currentRoute === 'watch-sync' && isAdmin && sessionInfo?.navFeatures?.watchSync) {
+            return (
+                <Suspense fallback={<Loader isLoading={true} isCinematic={!!publicConfig?.useCinematicLoading} />}>
+                    <WatchSyncPage />
                 </Suspense>
             );
         }

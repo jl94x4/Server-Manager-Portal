@@ -22,7 +22,7 @@ const SETTINGS_INDEX_TAB_KEYS: Record<string, string> = {
     cleanup: 'settings.navigation.tabs.cleanup', cleaner: 'settings.navigation.tabs.cleaner', tasks: 'settings.navigation.tabs.tasks', upgrader: 'settings.navigation.tabs.upgrader',
     collexions: 'settings.navigation.tabs.collexions', 'spotify-sync': 'settings.navigation.tabs.spotifySync', scanner: 'settings.navigation.tabs.scanner',
     'media-automation': 'settings.navigation.tabs.mediaAutomation', 'poster-sets': 'settings.navigation.tabs.posterSets', overlays: 'settings.navigation.tabs.overlays',
-    editions: 'settings.navigation.tabs.editions', system: 'settings.navigation.tabs.system', logs: 'settings.navigation.tabs.logs',
+    editions: 'settings.navigation.tabs.editions', 'watch-sync': 'settings.navigation.tabs.watchSync', system: 'settings.navigation.tabs.system', logs: 'settings.navigation.tabs.logs',
 };
 export const SettingsSearchPanel: React.FC<{
     onSelect: (entry: SettingsIndexEntry) => void;

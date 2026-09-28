@@ -9,6 +9,7 @@ export type NavFeatureFlags = {
     posterSets?: boolean;
     overlays?: boolean;
     editions?: boolean;
+    watchSync?: boolean;
     achievements?: boolean;
     /** Achievements XP/badge leaderboard (requires achievements). Default true when achievements on. */
     achievementsLeaderboard?: boolean;
@@ -40,6 +41,7 @@ export const DEFAULT_NAV_ORDER = [
     'poster-sets',
     'overlays',
     'editions',
+    'watch-sync',
     'mediastack',
     'status',
     // After the usual primary/secondary slots so stock mobile bars stay uncrowded.
@@ -77,6 +79,7 @@ export const NAV_ITEM_LABELS: Record<string, string> = {
     'poster-sets': 'Poster Sets',
     overlays: 'Overlays',
     editions: 'Editions',
+    'watch-sync': 'Watch Sync',
     mediastack: 'Calendar',
     requests: 'Requests',
     status: 'Status',
@@ -99,6 +102,7 @@ const ADMIN_ONLY_NAV_KEYS = new Set([
     'poster-sets',
     'overlays',
     'editions',
+    'watch-sync',
     'requests',
     'maintenance',
     'settings',
@@ -419,6 +423,7 @@ export const filterNavOrder = (
     const posterSetsEnabled = !!features.posterSets;
     const overlaysEnabled = !!features.overlays;
     const editionsEnabled = !!features.editions;
+    const watchSyncEnabled = !!features.watchSync;
     const achievementsEnabled = !!features.achievements;
     const supportEnabled = features.support !== false;
     const chatEnabled = !!features.chat;
@@ -454,7 +459,7 @@ export const filterNavOrder = (
         // Review queue now lives as a Discover & Request tab — never show a standalone nav item.
         if (key === 'requests') return false;
         if (hidden.has(key) && !alwaysVisible.has(key)) return false;
-        if ((key === 'users' || key === 'settings' || key === 'maintenance' || key === 'upgrader' || key === 'collexions' || key === 'spotify-sync' || key === 'scanner' || key === 'media-automation' || key === 'poster-sets' || key === 'overlays' || key === 'editions') && !options.isAdmin) return false;
+        if ((key === 'users' || key === 'settings' || key === 'maintenance' || key === 'upgrader' || key === 'collexions' || key === 'spotify-sync' || key === 'scanner' || key === 'media-automation' || key === 'poster-sets' || key === 'overlays' || key === 'editions' || key === 'watch-sync') && !options.isAdmin) return false;
         if (key === 'downloads' && !options.isAdmin && features.downloads === false) return false;
         if (key === 'maintenance' && !maintenanceEnabled) return false;
         if (key === 'upgrader' && !upgraderEnabled) return false;
@@ -465,6 +470,7 @@ export const filterNavOrder = (
         if (key === 'poster-sets' && !posterSetsEnabled) return false;
         if (key === 'overlays' && !overlaysEnabled) return false;
         if (key === 'editions' && !editionsEnabled) return false;
+        if (key === 'watch-sync' && !watchSyncEnabled) return false;
         if (key === 'achievements' && !achievementsEnabled) return false;
         if (key === 'support' && !supportEnabled) return false;
         if (key === 'chat' && !chatEnabled) return false;

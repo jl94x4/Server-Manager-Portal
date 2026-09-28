@@ -25,6 +25,7 @@ type NavFeatureStatus = {
     posterSets?: boolean;
     overlays?: boolean;
     editions?: boolean;
+    watchSync?: boolean;
     achievements?: boolean;
     support?: boolean;
     chat?: boolean;
@@ -58,6 +59,7 @@ const FEATURE_OFF_SECTIONS: Record<string, string> = {
     'poster-sets': 'settings.navigation.tabs.posterSets',
     overlays: 'settings.navigation.tabs.overlays',
     editions: 'settings.navigation.tabs.editions',
+    'watch-sync': 'settings.navigation.tabs.watchSync',
     achievements: 'settings.navigation.tabs.achievements',
     support: 'settings.navigation.tabs.system',
     chat: 'settings.navigation.tabs.system',
@@ -71,6 +73,7 @@ const NAV_ITEM_TRANSLATION_KEYS: Record<string, string> = {
     users: 'navigation.users', downloads: 'navigation.downloads', upgrader: 'navigation.upgrader',
     collexions: 'navigation.collexions', scanner: 'navigation.scanner', 'media-automation': 'navigation.mediaAutomation',
     'poster-sets': 'navigation.posterSets', overlays: 'navigation.overlays', editions: 'navigation.editions',
+    'watch-sync': 'navigation.watchSync',
     mediastack: 'navigation.calendar', status: 'navigation.status',
     maintenance: 'navigation.cleaner', about: 'navigation.about', preferences: 'navigation.preferences',
     settings: 'navigation.settings', logs: 'navigation.logs', logout: 'navigation.logout',
@@ -287,6 +290,7 @@ const NavOrderColumn: React.FC<ColumnProps> = ({
                         if (key === 'poster-sets' && featureStatus?.posterSets === false) sectionKey = FEATURE_OFF_SECTIONS['poster-sets'];
                         if (key === 'overlays' && featureStatus?.overlays === false) sectionKey = FEATURE_OFF_SECTIONS.overlays;
                         if (key === 'editions' && featureStatus?.editions === false) sectionKey = FEATURE_OFF_SECTIONS.editions;
+                        if (key === 'watch-sync' && featureStatus?.watchSync === false) sectionKey = FEATURE_OFF_SECTIONS['watch-sync'];
                         if (key === 'achievements' && featureStatus?.achievements === false) sectionKey = FEATURE_OFF_SECTIONS.achievements;
                         if (key === 'support' && featureStatus?.support === false) sectionKey = FEATURE_OFF_SECTIONS.support;
                         if (key === 'chat' && !featureStatus?.chat) sectionKey = FEATURE_OFF_SECTIONS.chat;

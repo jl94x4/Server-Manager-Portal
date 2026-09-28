@@ -30,6 +30,7 @@ export const DEFAULT_NAV_ITEM_ICONS: Record<string, string> = {
     'poster-sets': 'Image',
     overlays: 'Layers',
     editions: 'Film',
+    'watch-sync': 'Clapperboard',
     requests: 'ClipboardList',
     request: 'Sparkles',
     'media-player': 'PlayCircle',

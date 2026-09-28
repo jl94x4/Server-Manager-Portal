@@ -95,6 +95,9 @@ import { applyTpdbCacheBrowse } from './lib/poster-sets/tpdbCacheBrowse.js';
 import { createOverlaysRouter } from './lib/overlays/index.js';
 import { createEditionsRouter } from './lib/editions/index.js';
 import { startEditionsScheduler, runEditionsScheduledJob } from './lib/editions/scheduler.js';
+import { createWatchSyncRouter } from './lib/watch-sync/index.js';
+import { startWatchSyncScheduler } from './lib/watch-sync/scheduler.js';
+import { startWatchSyncJob } from './lib/watch-sync/runtime.js';
 import { startOverlaysScheduler, startOverlaysBundleScheduler, runOverlaysScheduledJob } from './lib/overlays/scheduler.js';
 import { registerAchievementsRoutes } from './lib/achievements/http.js';
 import { registerProfileRoutes } from './lib/profile/http.js';
@@ -6240,6 +6243,12 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
             else navOrder.splice(Math.max(0, navOrder.length - 2), 0, 'spotify-sync');
         }
     }
+    if (!navOrder.includes('watch-sync')) {
+        const editionsIdx = navOrder.indexOf('editions');
+        const anchor = editionsIdx >= 0 ? editionsIdx : navOrder.indexOf('overlays');
+        if (anchor >= 0) navOrder.splice(anchor + 1, 0, 'watch-sync');
+        else navOrder.splice(Math.max(0, navOrder.length - 2), 0, 'watch-sync');
+    }
     try {
         if (isJellyfinPortal && config?.jellyfinUrl && config?.jellyfinApiKey) {
             if (String(config.serverName || '').trim()) {
@@ -6305,6 +6314,7 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
         posterSets: !!config.posterSetsEnabled,
         overlays: !!config.overlaysEnabled,
         editions: !!config.editionsEnabled && isPlexMediaServer,
+        watchSync: !!config.watchSyncEnabled && isPlexMediaServer,
         achievements: !!config.achievementsEnabled,
         achievementsLeaderboard: !!config.achievementsEnabled && config.achievementsLeaderboardEnabled !== false,
         support: config.supportTicketsEnabled !== false,
@@ -6808,6 +6818,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 posterSetsEnabled: !!config.posterSetsEnabled,
                 overlaysEnabled: !!config.overlaysEnabled,
                 editionsEnabled: !!config.editionsEnabled,
+                watchSyncEnabled: !!config.watchSyncEnabled,
                 achievementsEnabled: !!config.achievementsEnabled,
                 supportTicketsEnabled: config.supportTicketsEnabled !== false,
                 chatEnabled: !!config.chatEnabled,
@@ -7019,6 +7030,7 @@ app.get('/api/config', requireAdmin, async (req, res) => {
                 posterSetsEnabled: false,
                 overlaysEnabled: false,
                 editionsEnabled: false,
+                watchSyncEnabled: false,
                 achievementsEnabled: false,
                 supportTicketsEnabled: true,
                 chatEnabled: false,
@@ -7121,7 +7133,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         inactiveCleanupEnabled, inactiveCleanupDays,
         primaryColor, customLogoUrl, customLoginLogoUrl, loginLogoCircleFrame, customFaviconUrl, customBadgeUrl, brandingTheme, sidebarIdentityPosition, pwaIconSource, backgroundImageUrl, useScrollRevealAnimations, useCinematicLoading, useBrandedSkeleton, useTrendingSlideshow, trendingSlideshowInterval, tmdbApiKey, referralEnabled, referralTrialDays, referralRewardDays, announcement, expiredPortalTitle, expiredPortalMessage, navOrder, navHiddenKeys, memberNavOrder, memberNavHiddenKeys, customNavTabs, navItemIcons, customNavDisplay, arrOpenInPortalEmbed, homeCustomModules, hideStreamUsers, defaultLibraryIds, use24HourClock, allowTemporaryAccess, showPosterQualityBadges, mediaPlayerHomeHeroEnabled, mediaPlayerHomeHeroMode, mediaPlayerHomeHeroSeasonalInWindowOnly, mediaPlayerContinueWatchingSeasonPoster, showDashboardWatchingBadge, dashboardWatchingBadgePollSeconds,
         showPublicStatusMonitor, showPublicLibraryStats,
-        autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, upgraderEnabled, collexionsEnabled, spotifyToPlexEnabled, scannerEnabled, scannerHomeWidgetEnabled, scannerWebhooksVisible, scannerManualPathVisible, scanner, mediaAutomationEnabled, mediaAutomationHomeWidgetEnabled, mediaAutomation, posterSetsEnabled, overlaysEnabled, editionsEnabled, achievementsEnabled, supportTicketsEnabled, chatEnabled, chatMentionNotifyInApp, achievementsLeaderboardEnabled, achievementsHomeWidgetEnabled, achievementsShowOnProfile, achievementsXpWeights, achievementsDisabledBadgeIds, achievementsMinPercentComplete, achievementsSeasons, requestAvailableNotifyEnabled, requestAvailableNotifyEmail, requestAvailableNotifyInApp, requestAvailableNotifyWebPush, requestAvailableNotifyDiscord, requestAvailableDiscordWebhookUrl, requestNotReleasedNotifyEnabled, requestNotReleasedNotifyEmail, requestNotReleasedNotifyInApp, requestNotReleasedNotifyWebPush, notifyReleaseDatePreference, scannerNotifyDeleted, scannerNotifyUpgrade, scannerNotifyImport, scannerNotifyGrab, scannerNotifyUpdate, scannerNotifyInteraction, notificationTemplates, emailTemplates, ntfyEnabled, ntfyServerUrl, ntfyTopic, ntfyToken, ntfyPriority, ntfyEvents, webhookEnabled, webhookUrl, webhookHeadersJson, webhookEvents, webPushEnabled, watchHistorySource, collexionsAutostart, collexionsInternalUrl, collexionsServiceKey, spotifyToPlexInternalUrl, spotifyToPlexClientId, spotifyToPlexClientSecret, spotifyToPlexEncryptionKey, spotifyToPlexHomeWidgetEnabled, spotifyToPlexScheduleMode, spotifyToPlexScheduledSyncEnabled, spotifyToPlexScheduledSyncIntervalHours, upgraderDefaultPreset, upgraderMinSizeGB, upgraderAutomationEnabled, upgraderProfileMap, upgraderMaxActionsPerHour, upgraderDefaultSort, upgraderDrawerPosition, dashboardLayout,
+        autoBackupEnabled, autoBackupIntervalDays, autoBackupRetentionCount, maintenanceExperimentalEnabled, upgraderEnabled, collexionsEnabled, spotifyToPlexEnabled, scannerEnabled, scannerHomeWidgetEnabled, scannerWebhooksVisible, scannerManualPathVisible, scanner, mediaAutomationEnabled, mediaAutomationHomeWidgetEnabled, mediaAutomation, posterSetsEnabled, overlaysEnabled, editionsEnabled, watchSyncEnabled, achievementsEnabled, supportTicketsEnabled, chatEnabled, chatMentionNotifyInApp, achievementsLeaderboardEnabled, achievementsHomeWidgetEnabled, achievementsShowOnProfile, achievementsXpWeights, achievementsDisabledBadgeIds, achievementsMinPercentComplete, achievementsSeasons, requestAvailableNotifyEnabled, requestAvailableNotifyEmail, requestAvailableNotifyInApp, requestAvailableNotifyWebPush, requestAvailableNotifyDiscord, requestAvailableDiscordWebhookUrl, requestNotReleasedNotifyEnabled, requestNotReleasedNotifyEmail, requestNotReleasedNotifyInApp, requestNotReleasedNotifyWebPush, notifyReleaseDatePreference, scannerNotifyDeleted, scannerNotifyUpgrade, scannerNotifyImport, scannerNotifyGrab, scannerNotifyUpdate, scannerNotifyInteraction, notificationTemplates, emailTemplates, ntfyEnabled, ntfyServerUrl, ntfyTopic, ntfyToken, ntfyPriority, ntfyEvents, webhookEnabled, webhookUrl, webhookHeadersJson, webhookEvents, webPushEnabled, watchHistorySource, collexionsAutostart, collexionsInternalUrl, collexionsServiceKey, spotifyToPlexInternalUrl, spotifyToPlexClientId, spotifyToPlexClientSecret, spotifyToPlexEncryptionKey, spotifyToPlexHomeWidgetEnabled, spotifyToPlexScheduleMode, spotifyToPlexScheduledSyncEnabled, spotifyToPlexScheduledSyncIntervalHours, upgraderDefaultPreset, upgraderMinSizeGB, upgraderAutomationEnabled, upgraderProfileMap, upgraderMaxActionsPerHour, upgraderDefaultSort, upgraderDrawerPosition, dashboardLayout,
         showUsernamesInAnalytics, useTrendingSlideshowOnLogin, downloadsVisibleToMembers
     } = req.body;
 
@@ -7382,7 +7394,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         ? navOrder
         : existingConfig.navOrder || ['home', 'discover', 'request', 'analytics', 'users', 'downloads', 'upgrader', 'collexions', 'mediastack', 'requests', 'status', 'maintenance', 'about', 'settings', 'logout'];
     const resolvedMemberNavOrder = (() => {
-        const ADMIN_ONLY = new Set(['users', 'upgrader', 'collexions', 'spotify-sync', 'scanner', 'media-automation', 'poster-sets', 'requests', 'maintenance', 'settings', 'logs']);
+        const ADMIN_ONLY = new Set(['users', 'upgrader', 'collexions', 'spotify-sync', 'scanner', 'media-automation', 'poster-sets', 'overlays', 'editions', 'watch-sync', 'requests', 'maintenance', 'settings', 'logs']);
         const adminOnlyCustom = new Set(
             normalizedCustomNavTabs.filter((tab) => tab.adminOnly).map((tab) => `custom:${tab.id}`),
         );
@@ -7569,7 +7581,7 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         memberNavOrder: pruneNavOrderCustomKeys(resolvedMemberNavOrder, normalizedCustomNavTabs),
         memberNavHiddenKeys: (() => {
             const ALWAYS = new Set(['home', 'logout']);
-            const ADMIN_ONLY = new Set(['users', 'upgrader', 'collexions', 'spotify-sync', 'scanner', 'media-automation', 'poster-sets', 'requests', 'maintenance', 'settings', 'logs']);
+            const ADMIN_ONLY = new Set(['users', 'upgrader', 'collexions', 'spotify-sync', 'scanner', 'media-automation', 'poster-sets', 'overlays', 'editions', 'watch-sync', 'requests', 'maintenance', 'settings', 'logs']);
             const incoming = Array.isArray(memberNavHiddenKeys) ? memberNavHiddenKeys : existingConfig.memberNavHiddenKeys;
             if (!Array.isArray(incoming)) return [];
             const seen = new Set();
@@ -7659,6 +7671,9 @@ app.post('/api/config', setupRateLimit, async (req, res) => {
         editionsEnabled: editionsEnabled !== undefined
             ? !!editionsEnabled
             : !!existingConfig.editionsEnabled,
+        watchSyncEnabled: watchSyncEnabled !== undefined
+            ? !!watchSyncEnabled
+            : !!existingConfig.watchSyncEnabled,
         achievementsEnabled: achievementsEnabled !== undefined
             ? !!achievementsEnabled
             : !!existingConfig.achievementsEnabled,
@@ -15285,6 +15300,21 @@ app.post('/api/tasks/run/:taskId', requireAdmin, async (req, res) => {
                         });
                         break;
                     }
+                    case 'watchSync': {
+                        const cfg = await loadFile(CONFIG_PATH, {});
+                        if (!cfg.watchSyncEnabled) {
+                            throw new Error('Watch Sync is disabled. Enable it in Settings → Watch Sync first.');
+                        }
+                        await startWatchSyncJob({
+                            loadPortalConfig: async () => loadFile(CONFIG_PATH, {}),
+                            resolvePlex: resolveWatchSyncPlex,
+                            markTaskStart,
+                            markTaskEnd,
+                            systemJob: systemJobs.watchSync,
+                            log,
+                        }, 'schedule');
+                        break;
+                    }
                     default:
                         markTaskEnd(task, new Error('Invalid system task'));
                 }
@@ -22900,6 +22930,16 @@ const systemJobs = {
         id: 'editionsProcess',
         name: 'Editions: Process',
         description: 'Full library Edition restamp (highest resolution). Runs on the Editions schedule (default every 6 hours).',
+        lastRun: null,
+        nextRun: null,
+        running: false,
+        lastDurationMs: null,
+        lastError: null,
+    },
+    watchSync: {
+        id: 'watchSync',
+        name: 'Watch Sync',
+        description: 'Sync Plex and Trakt watched status, ratings, collection, and watchlists.',
         lastRun: null,
         nextRun: null,
         running: false,
@@ -30591,6 +30631,48 @@ app.use('/api/editions', createEditionsRouter({
     systemJob: systemJobs.editionsProcess,
 }));
 
+const resolveWatchSyncPlex = async () => {
+    const config = await loadFile(CONFIG_PATH, {});
+    if (String(config.mediaServerType || 'plex').toLowerCase() !== 'plex') {
+        throw Object.assign(new Error('Watch Sync supports Plex only.'), { status: 400 });
+    }
+    const base_url = resolveConfiguredPlexServerUrl(config);
+    const token = normalizePlexToken(config.plexToken);
+    if (!base_url || !token || token === SECRET_MASK) {
+        throw Object.assign(new Error('Configure Plex server URL and token under Settings → Media Player first.'), { status: 400 });
+    }
+    return {
+        base_url: base_url.endsWith('/') ? base_url.slice(0, -1) : base_url,
+        token,
+    };
+};
+
+const requireWatchSync = async (req, res, next) => {
+    try {
+        const config = await loadFile(CONFIG_PATH, {});
+        if (!config.watchSyncEnabled) {
+            return res.status(403).json({ error: 'Watch Sync is disabled. Enable it in Settings first.' });
+        }
+        if (String(config.mediaServerType || 'plex').toLowerCase() !== 'plex') {
+            return res.status(403).json({ error: 'Watch Sync is Plex-only.' });
+        }
+        return next();
+    } catch {
+        return res.status(500).json({ error: 'Failed to check Watch Sync feature flag.' });
+    }
+};
+
+app.use('/api/watch-sync', createWatchSyncRouter({
+    Router: express.Router,
+    requireAdmin,
+    requireWatchSync,
+    resolvePlex: resolveWatchSyncPlex,
+    markTaskStart,
+    markTaskEnd,
+    systemJob: systemJobs.watchSync,
+    log,
+}));
+
 const findMediaAutomationLibraryForPath = async (candidate) => {
     const absolute = path.resolve(String(candidate || ''));
     const libraries = await mediaAutomationService.libraries.list();
@@ -33816,6 +33898,19 @@ app.listen(PORT, BIND_HOST, async () => {
         log('[editions] Full-run scheduler started');
     } catch (error) {
         log(`[editions] Scheduler startup failed: ${error.message}`);
+    }
+    try {
+        startWatchSyncScheduler({
+            loadPortalConfig: async () => loadFile(CONFIG_PATH, {}),
+            resolvePlex: resolveWatchSyncPlex,
+            markTaskStart,
+            markTaskEnd,
+            systemJob: systemJobs.watchSync,
+            log,
+        });
+        log('[watch-sync] Scheduler started');
+    } catch (error) {
+        log(`[watch-sync] Scheduler startup failed: ${error.message}`);
     }
     // Never block portal boot on Media Automation (watcher/scans can hang on big mounts).
     void mediaAutomationService.start()

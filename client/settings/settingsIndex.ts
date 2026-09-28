@@ -107,6 +107,7 @@ export const SETTINGS_INDEX: SettingsIndexEntry[] = [
     { id: 'poster-sets', tabId: 'poster-sets', label: 'Poster Sets', group: 'Automation', keywords: ['poster', 'sets', 'mediux', 'theposterdb', 'artwork', 'plex posters', 'title cards'] },
     { id: 'overlays', tabId: 'overlays', label: 'Overlays', group: 'Automation', keywords: ['overlays', 'new season', 'banner', 'layer', 'poster overlay', 'season overlay'] },
     { id: 'editions', tabId: 'editions', label: 'Editions', group: 'Automation', keywords: ['editions', 'edition manager', 'plex edition', 'cut', 'remux', 'hdr', 'audio codec', 'webhook'] },
+    { id: 'watch-sync', tabId: 'watch-sync', label: 'Watch Sync', group: 'Automation', keywords: ['watch sync', 'trakt', 'watched', 'ratings', 'watchlist', 'collection', 'scrobble', 'history'] },
     { id: 'system', tabId: 'system', label: 'System', group: 'Automation', keywords: ['system', 'diagnostics', 'backup'] },
     { id: 'system/support-tickets', tabId: 'system', sectionId: 'support-tickets', label: 'Support tickets', labelKey: 'settings.search.entries.supportTickets', group: 'Automation', keywords: ['support', 'tickets', 'inbox', 'messaging', 'help', 'contact admin'] },
     { id: 'system/health', tabId: 'system', sectionId: 'health', label: 'Health Dashboard', labelKey: 'settings.search.entries.healthDashboard', group: 'Automation', keywords: ['health', 'score', 'alerts', 'integrations'] },
