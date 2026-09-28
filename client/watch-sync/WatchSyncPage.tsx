@@ -36,6 +36,7 @@ const emptyConfig = (): WatchSyncConfig => ({
     libraryIds: [],
     scheduleEnabled: false,
     intervalHours: 12,
+    liveWatchEnabled: true,
     lastRunAt: '',
     lastRun: null,
 });
@@ -93,10 +94,9 @@ export const WatchSyncPage: React.FC = () => {
     }, [refreshStatus, toast]);
 
     useEffect(() => {
-        if (!status?.running && !device) return undefined;
-        const timer = window.setInterval(() => { void refreshStatus(); }, 4000);
+        const timer = window.setInterval(() => { void refreshStatus(); }, status?.running ? 4000 : 8000);
         return () => window.clearInterval(timer);
-    }, [status?.running, device, refreshStatus]);
+    }, [status?.running, refreshStatus]);
 
     const persist = async (patch: Record<string, unknown>) => {
         setSaving(true);
@@ -287,6 +287,20 @@ export const WatchSyncPage: React.FC = () => {
 
                 <DashboardPanel title="What to sync" subtitle="Watches are added, not removed. A rating that already exists on both sides is left alone until one side changes.">
                     <div className="space-y-2">
+                        <SettingsToggleRow
+                            title="Live scrobble while playing"
+                            checked={config.liveWatchEnabled}
+                            onChange={(checked) => setConfig((prev) => ({ ...prev, liveWatchEnabled: checked }))}
+                        />
+                        <p className="text-xs text-muted">
+                            While the Plex account on the server token is playing, progress is sent to Trakt. Reaching 80% marks it watched. Other server members are not scrobbled.
+                        </p>
+                        {status?.live?.current && (
+                            <p className="text-sm text-muted">
+                                {status.live.current.action}: {status.live.current.title} ({Math.round(status.live.current.progress)}%)
+                            </p>
+                        )}
+                        {status?.live?.error && <p className="text-sm text-red-300">{status.live.error}</p>}
                         <SettingsToggleRow title="Plex → Trakt watched" checked={config.plexToTrakt.watched} onChange={(checked) => setConfig((prev) => ({ ...prev, plexToTrakt: { ...prev.plexToTrakt, watched: checked } }))} />
                         <SettingsToggleRow title="Trakt → Plex watched" checked={config.traktToPlex.watched} onChange={(checked) => setConfig((prev) => ({ ...prev, traktToPlex: { ...prev.traktToPlex, watched: checked } }))} />
                         <SettingsToggleRow title="Plex → Trakt ratings" checked={config.plexToTrakt.ratings} onChange={(checked) => setConfig((prev) => ({ ...prev, plexToTrakt: { ...prev.plexToTrakt, ratings: checked } }))} />

@@ -97,6 +97,7 @@ import { createEditionsRouter } from './lib/editions/index.js';
 import { startEditionsScheduler, runEditionsScheduledJob } from './lib/editions/scheduler.js';
 import { createWatchSyncRouter } from './lib/watch-sync/index.js';
 import { startWatchSyncScheduler } from './lib/watch-sync/scheduler.js';
+import { startLiveWatch } from './lib/watch-sync/watcher.js';
 import { startWatchSyncJob } from './lib/watch-sync/runtime.js';
 import { startOverlaysScheduler, startOverlaysBundleScheduler, runOverlaysScheduledJob } from './lib/overlays/scheduler.js';
 import { registerAchievementsRoutes } from './lib/achievements/http.js';
@@ -33909,6 +33910,12 @@ app.listen(PORT, BIND_HOST, async () => {
             log,
         });
         log('[watch-sync] Scheduler started');
+        startLiveWatch({
+            loadPortalConfig: async () => loadFile(CONFIG_PATH, {}),
+            resolvePlex: resolveWatchSyncPlex,
+            log,
+        });
+        log('[watch-sync] Live scrobble watcher started');
     } catch (error) {
         log(`[watch-sync] Scheduler startup failed: ${error.message}`);
     }

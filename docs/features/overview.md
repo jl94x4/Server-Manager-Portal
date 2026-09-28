@@ -16,7 +16,7 @@ Server Portal combines user onboarding, access management, analytics, requests, 
 | ColleXions | Admin Plex collection automation (bundled worker) |
 | Scanner | Admin library refresh from ARR webhooks / manual paths |
 | Spotify Sync | Admin Plex playlist sync from Spotify (bundled worker, BETA) |
-| Watch Sync | Admin two-way Plex and Trakt watched, ratings, collection, and watchlist sync |
+| Watch Sync | Admin two-way Plex and Trakt watched, ratings, collection, and watchlist sync, plus live scrobble while the server account is playing |
 | Upgrader | Library quality upgrades via Sonarr / Radarr |
 | Media Automation | Native FFmpeg jobs from manual or Sonarr/Radarr/Lidarr webhooks |
 | Cleaner | Library maintenance rules and candidates |

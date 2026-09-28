@@ -27,6 +27,7 @@ export type WatchSyncConfig = {
     libraryIds: string[];
     scheduleEnabled: boolean;
     intervalHours: number;
+    liveWatchEnabled: boolean;
     lastRunAt: string;
     lastRun: {
         at: string;
@@ -48,6 +49,11 @@ export type WatchSyncStatus = {
     scheduleEnabled: boolean;
     intervalHours: number;
     cache?: WatchSyncCache;
+    live?: {
+        enabled: boolean;
+        error: string;
+        current: { title: string; progress: number; action: string } | null;
+    };
 };
 
 export type WatchSyncCache = {

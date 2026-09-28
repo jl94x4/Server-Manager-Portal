@@ -57,7 +57,7 @@ Once set up, users sign in with Plex OAuth or Jellyfin / Emby authentication (Qu
 | **Editions** | Admin | Plex edition tagging from file names and TRaSH-style paths |
 | **Scanner** | Admin | Autoscan-style library refresh from ARR webhooks |
 | **Spotify Sync** | Admin (Plex, BETA) | Sync Spotify playlists and albums into Plex playlists |
-| **Watch Sync** | Admin (Plex) | Sync watched status, ratings, collections, and watchlists with Trakt |
+| **Watch Sync** | Admin (Plex) | Sync watched status, ratings, collections, and watchlists with Trakt, and scrobble while the server account is playing |
 | **Upgrader** | Admin | Find and upgrade non-HEVC / low-quality library titles |
 | **Media Automation** | Admin | Native FFmpeg jobs (CPU, NVENC, QSV, VAAPI) |
 | **Cleaner** | Admin | Missing / empty media maintenance |
