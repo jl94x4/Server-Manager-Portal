@@ -4,8 +4,8 @@ services:
       context: .
       args:
         GIT_SHA: ${GIT_SHA:-local}
-    image: server-manager-portal:latest
-    container_name: server-manager-portal
+    image: streampilot:latest
+    container_name: streampilot
     restart: unless-stopped
     ports:
       - "${PORT:-2121}:2121"

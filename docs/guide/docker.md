@@ -8,10 +8,10 @@ Images are published to GitHub Container Registry:
 
 | Tag | When updated | Image |
 | --- | --- | --- |
-| `latest` | Every push to `main` and every release tag `v*` | `ghcr.io/jl94x4/server-manager-portal:latest` |
-| `beta` | Every push to `beta` | `ghcr.io/jl94x4/server-manager-portal:beta` |
-| `testing` | Every push to `testing` | `ghcr.io/jl94x4/server-manager-portal:testing` |
-| `1.4.0` / `v1.4.0` | Matching GitHub release | `ghcr.io/jl94x4/server-manager-portal:1.4.0` |
+| `latest` | Every push to `main` and every release tag `v*` | `ghcr.io/jl94x4/streampilot:latest` |
+| `beta` | Every push to `beta` | `ghcr.io/jl94x4/streampilot:beta` |
+| `testing` | Every push to `testing` | `ghcr.io/jl94x4/streampilot:testing` |
+| `1.4.0` / `v1.4.0` | Matching GitHub release | `ghcr.io/jl94x4/streampilot:1.4.0` |
 
 Pin a version in Unraid or Docker Compose by replacing `:latest` with `:1.4.0` (or `:v1.4.0`).
 
@@ -19,14 +19,14 @@ Run the latest image:
 
 ```bash
 docker run -d \
-  --name server-manager-portal \
+  --name streampilot \
   -p 2121:2121 \
   -e JWT_SECRET="your-secret-at-least-32-chars" \
   -e FORCE_SECURE_COOKIES=true \
   -e PUBLIC_BASE_URL=https://portal.example.com \
   -v "$(pwd)/config:/app/config" \
   -v "$(pwd)/backup:/app/backup" \
-  ghcr.io/jl94x4/server-manager-portal:latest
+  ghcr.io/jl94x4/streampilot:latest
 ```
 
 ## Docker Compose
@@ -136,10 +136,10 @@ Full product notes: [ColleXions](/features/collexions).
 
 StreamPilot includes an Unraid template at `unraid/server-manager-portal.xml`.
 
-The template uses `ghcr.io/jl94x4/server-manager-portal:latest` and stores app data under `/mnt/user/appdata/server-manager-portal/` by default. It includes a writable Media Automation work path; the optional media path is empty until configured.
+The template uses `ghcr.io/jl94x4/streampilot:latest` and stores app data under `/mnt/user/appdata/server-manager-portal/` by default. It includes a writable Media Automation work path; the optional media path is empty until configured.
 
 For Intel/AMD, add `/dev/dri` as a device (the entrypoint attaches those device GIDs for `PUID`). For NVIDIA, use the NVIDIA Container Toolkit/runtime. Do not enable privileged mode.
 
 On Unraid, the template includes optional Media Root / TV / Movies / Music path fields plus Intel `/dev/dri` and NVIDIA variables. For NVENC: install the Nvidia Driver plugin, set `NVIDIA_VISIBLE_DEVICES`, and add `--runtime=nvidia` to Extra Parameters. Verify path mappings and permissions before enabling any replacement action. Use `:nightly` while testing Media Automation.
 
-Unraid template `Registry` must point at the package page (`https://github.com/jl94x4/StreamPilot/pkgs/container/server-manager-portal`), not bare `https://ghcr.io`, or Docker update status can show **not available**.
+Unraid template `Registry` must point at the package page (`https://github.com/jl94x4/StreamPilot/pkgs/container/streampilot`), not bare `https://ghcr.io`, or Docker update status can show **not available**. Existing containers still on `ghcr.io/jl94x4/server-manager-portal` keep receiving the same tags until that repository is changed.

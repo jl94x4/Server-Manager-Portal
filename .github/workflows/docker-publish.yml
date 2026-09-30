@@ -17,7 +17,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  IMAGE_NAME: ghcr.io/jl94x4/server-manager-portal
+  IMAGE_NAME: ghcr.io/jl94x4/streampilot
+  # Same tags, so existing Unraid/Compose installs keep updating until their repository is changed.
+  IMAGE_NAME_LEGACY: ghcr.io/jl94x4/server-manager-portal
 
 jobs:
   publish:
@@ -76,6 +78,7 @@ jobs:
         run: |
           set -euo pipefail
           IMAGE="${IMAGE_NAME}"
+          LEGACY="${IMAGE_NAME_LEGACY}"
           SHA_SHORT="${GITHUB_SHA:0:7}"
           TAGS=("${IMAGE}:sha-${SHA_SHORT}")
 
@@ -101,6 +104,14 @@ jobs:
               fi
               ;;
           esac
+
+          if [[ -n "${LEGACY}" ]]; then
+            LEGACY_TAGS=()
+            for tag in "${TAGS[@]}"; do
+              LEGACY_TAGS+=("${LEGACY}:${tag##*:}")
+            done
+            TAGS+=("${LEGACY_TAGS[@]}")
+          fi
 
           {
             echo "tags<<EOF"
@@ -175,6 +186,13 @@ jobs:
           subject-digest: ${{ steps.digest.outputs.digest }}
           push-to-registry: true
 
+      - name: Attest build provenance (legacy image name)
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.IMAGE_NAME_LEGACY }}
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          push-to-registry: true
+
       # Pin by commit SHA (avoid mutable version tags after the 2026 trivy-action compromise).
       - name: Setup Trivy
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
@@ -193,6 +211,14 @@ jobs:
         uses: actions/attest@v4
         with:
           subject-name: ${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          sbom-path: sbom.cdx.json
+          push-to-registry: true
+
+      - name: Attest SBOM (legacy image name)
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.IMAGE_NAME_LEGACY }}
           subject-digest: ${{ steps.digest.outputs.digest }}
           sbom-path: sbom.cdx.json
           push-to-registry: true

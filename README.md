@@ -15,7 +15,7 @@ Built with Node.js · Express · React · Tailwind CSS
 [![Plex](https://img.shields.io/badge/Plex-Media%20Server-orange.svg)](https://www.plex.tv/)
 [![Jellyfin](https://img.shields.io/badge/Jellyfin-Media%20Server-00A4DC.svg)](https://jellyfin.org/)
 [![Emby](https://img.shields.io/badge/Emby-Media%20Server-52B54B.svg)](https://emby.media/)
-[![Docker Image Size](https://ghcr-badge.egpl.dev/jl94x4/server-manager-portal/size?label=docker%20image%20size&color=blue)](https://github.com/jl94x4/StreamPilot/pkgs/container/server-manager-portal)
+[![Docker Image Size](https://ghcr-badge.egpl.dev/jl94x4/streampilot/size?label=docker%20image%20size&color=blue)](https://github.com/jl94x4/StreamPilot/pkgs/container/streampilot)
 [![GitHub Stars](https://img.shields.io/github/stars/jl94x4/StreamPilot.svg?style=flat&logo=github&color=gold)](https://github.com/jl94x4/StreamPilot/stargazers)
 [![GitHub Forks](https://img.shields.io/github/forks/jl94x4/StreamPilot.svg?style=flat&logo=github)](https://github.com/jl94x4/StreamPilot/network/members)
 [![GitHub Issues](https://img.shields.io/github/issues/jl94x4/StreamPilot.svg?style=flat&logo=github&color=red)](https://github.com/jl94x4/StreamPilot/issues)
@@ -584,25 +584,27 @@ Official images are published automatically on every push to `main`, `beta`, `te
 
 | Tag | When updated | Image |
 |---|---|---|
-| `latest` | Every push to `main` and every release tag `v*` | `ghcr.io/jl94x4/server-manager-portal:latest` |
-| `beta` | Every push to `beta` | `ghcr.io/jl94x4/server-manager-portal:beta` |
-| `nightly` | Every push to `nightly` (cutting-edge; may change daily) | `ghcr.io/jl94x4/server-manager-portal:nightly` |
-| `testing` | Every push to `testing` | `ghcr.io/jl94x4/server-manager-portal:testing` |
-| `1.8.0` / `v1.8.0` | Matching GitHub release | `ghcr.io/jl94x4/server-manager-portal:1.8.0` |
+| `latest` | Every push to `main` and every release tag `v*` | `ghcr.io/jl94x4/streampilot:latest` |
+| `beta` | Every push to `beta` | `ghcr.io/jl94x4/streampilot:beta` |
+| `nightly` | Every push to `nightly` (cutting-edge; may change daily) | `ghcr.io/jl94x4/streampilot:nightly` |
+| `testing` | Every push to `testing` | `ghcr.io/jl94x4/streampilot:testing` |
+| `1.8.0` / `v1.8.0` | Matching GitHub release | `ghcr.io/jl94x4/streampilot:1.8.0` |
+
+The same tags are also published as `ghcr.io/jl94x4/server-manager-portal` so existing containers keep updating until their repository is changed to `ghcr.io/jl94x4/streampilot`.
 
 Pull and run without building locally:
 
 ```bash
-docker pull ghcr.io/jl94x4/server-manager-portal:latest
+docker pull ghcr.io/jl94x4/streampilot:latest
 docker run -d \
-  --name server-manager-portal \
+  --name streampilot \
   -p 2121:2121 \
   -e JWT_SECRET="your-secret-at-least-32-chars" \
   -e FORCE_SECURE_COOKIES=true \
   -e PUBLIC_BASE_URL=https://portal.example.com \
   -v "$(pwd)/config:/app/config" \
   -v "$(pwd)/backup:/app/backup" \
-  ghcr.io/jl94x4/server-manager-portal:latest
+  ghcr.io/jl94x4/streampilot:latest
 ```
 
 Use the `beta` tag to test upcoming features before they land on `latest`. Use `nightly` for the latest unreleased work. Use `testing` for experimental branch builds.
@@ -671,16 +673,16 @@ Worker data persists under `./config/collexions/`, `./config/overlays/`, `./conf
 ### Build the image manually
 
 ```bash
-docker build -t server-manager-portal .
+docker build -t streampilot .
 docker run -d \
-  --name server-manager-portal \
+  --name streampilot \
   -p 2121:2121 \
   -e JWT_SECRET="your-secret-at-least-32-chars" \
   -e FORCE_SECURE_COOKIES=true \
   -e PUBLIC_BASE_URL=https://portal.example.com \
   -v "$(pwd)/config:/app/config" \
   -v "$(pwd)/backup:/app/backup" \
-  server-manager-portal
+  streampilot
 ```
 
 ### Reverse proxy (Nginx / Caddy / Traefik)
@@ -748,7 +750,7 @@ If you prefer to install the template manually on Unraid 6+:
 5. Set **JWT Secret** and adjust appdata paths (defaults: `/mnt/user/appdata/server-manager-portal/`)
 6. Apply and open the WebUI
 
-The template uses `ghcr.io/jl94x4/server-manager-portal:latest` by default. Other tags: `:beta`, `:nightly`, or a pinned version such as `:1.8.0`.
+The template uses `ghcr.io/jl94x4/streampilot:latest` by default. Other tags: `:beta`, `:nightly`, or a pinned version such as `:1.8.0`.
 
 #### Media Automation paths and GPU (Unraid)
 
@@ -775,7 +777,7 @@ To enable Media Automation on an existing install:
    - Enable **Advanced View** and append `--runtime=nvidia` to **Extra Parameters**, for example:
 
      ```text
-     --restart=unless-stopped --hostname=server-manager-portal --runtime=nvidia
+     --restart=unless-stopped --hostname=streampilot --runtime=nvidia
      ```
 5. Apply the container, enable Media Automation in **Settings**, and run **Test worker** before using copy/replace modes.
 
