@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://i.postimg.cc/RVszKQZk/logo.png" alt="StreamPilot Logo" width="240" height="240" />
+<img src="static/logo.png" alt="StreamPilot Logo" width="240" height="240" />
 
 # StreamPilot
 
