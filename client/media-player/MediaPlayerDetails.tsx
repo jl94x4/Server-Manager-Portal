@@ -499,9 +499,13 @@ export const MediaPlayerDetails: React.FC<Props> = ({
             const zoom = readDocumentZoom();
             // Web: solid colour begins at the logo’s lower edge so the description sits on the sample.
             const extra = isTvShell ? 0 : -28;
-            const fadePx = Math.max(0, Math.round(
+            const backdropHeight = backdrop.getBoundingClientRect().height / zoom;
+            let fadePx = Math.max(0, Math.round(
                 (anchor.getBoundingClientRect().top - backdrop.getBoundingClientRect().top) / zoom,
             ) + extra);
+            if (!isTvShell && backdropHeight > 0) {
+                fadePx = Math.min(fadePx, Math.round(backdropHeight * 0.92));
+            }
             const fade = `${fadePx}px`;
             root.style.setProperty('--tv-backdrop-fade-end', fade);
             backdrop.style.setProperty('--tv-backdrop-fade-end', fade);
@@ -546,7 +550,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
         if (!posterSampleUrl && !url && !previewUrl) return undefined;
         let cancelled = false;
         const root = document.querySelector<HTMLElement>('[data-tv-details="1"]');
-        root?.style.setProperty('--tv-backdrop-position', isTvShell ? '58% 20%' : '58% 10%');
+        root?.style.setProperty('--tv-backdrop-position', isTvShell ? '58% 20%' : '62% 38%');
         applyTvDetailsSurface(DEFAULT_BACKDROP_SURFACE_RGB);
         const artUrl = previewUrl || url;
         if (artUrl) {
@@ -861,7 +865,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                 </div>
 
                 <div className={`media-details-hero-content media-details-inset relative z-10 w-full max-w-none mx-0 pr-6 xl:pr-10 pt-2 sm:pt-3 ${
-                    isTvShell ? 'md:pt-[150px]' : 'md:pt-[22vh] lg:pt-[30vh] xl:pt-[34vh]'
+                    isTvShell ? 'md:pt-[150px]' : 'md:pt-[16vh] lg:pt-[22vh] xl:pt-[24vh]'
                 } ${children.length ? 'pb-5' : 'pb-8'}`}>
                     {!isTvShell ? (
                         <button

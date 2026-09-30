@@ -112,10 +112,10 @@ export const formatTvDetailsBackdropPosition = (focal: FocalPoint = DEFAULT_FOCA
     return `${x}% ${y}%`;
 };
 
-/** Web title pages: same column bias, but sit the art a little higher. */
+/** Web title pages: keep eyes in the backdrop band, to the right of the poster. */
 export const formatWebDetailsBackdropPosition = (focal: FocalPoint = DEFAULT_FOCAL) => {
-    const x = focal.x < 44 ? clamp(focal.x + 14, 52, 88) : clamp(focal.x + 3, 40, 88);
-    const y = clamp(focal.y - 10, 4, 20);
+    const x = focal.x < 44 ? clamp(focal.x + 14, 48, 78) : clamp(focal.x, 42, 78);
+    const y = clamp(focal.y + 10, 32, 48);
     return `${x}% ${y}%`;
 };
 
