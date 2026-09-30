@@ -2,13 +2,24 @@ name: Publish Docker image
 
 on:
   push:
-    branches: [main, beta, testing]
+    branches: [main, beta, testing, nightly]
     tags: ['v*']
   workflow_dispatch:
 
 permissions:
   contents: read
   packages: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: publish-docker-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE_NAME: ghcr.io/jl94x4/streampilot
+  # Same tags, so existing Unraid/Compose installs keep updating until their repository is changed.
+  IMAGE_NAME_LEGACY: ghcr.io/jl94x4/server-manager-portal
 
 jobs:
   publish:
@@ -66,7 +77,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          IMAGE="ghcr.io/jl94x4/server-manager-portal"
+          IMAGE="${IMAGE_NAME}"
+          LEGACY="${IMAGE_NAME_LEGACY}"
           SHA_SHORT="${GITHUB_SHA:0:7}"
           TAGS=("${IMAGE}:sha-${SHA_SHORT}")
 
@@ -80,6 +92,9 @@ jobs:
             refs/heads/testing)
               TAGS+=("${IMAGE}:testing")
               ;;
+            refs/heads/nightly)
+              TAGS+=("${IMAGE}:nightly")
+              ;;
             refs/tags/v*)
               VERSION="${GITHUB_REF#refs/tags/}"
               TAGS+=("${IMAGE}:${VERSION}" "${IMAGE}:latest")
@@ -90,6 +105,14 @@ jobs:
               ;;
           esac
 
+          if [[ -n "${LEGACY}" ]]; then
+            LEGACY_TAGS=()
+            for tag in "${TAGS[@]}"; do
+              LEGACY_TAGS+=("${LEGACY}:${tag##*:}")
+            done
+            TAGS+=("${LEGACY_TAGS[@]}")
+          fi
+
           {
             echo "tags<<EOF"
             printf '%s\n' "${TAGS[@]}"
@@ -99,13 +122,20 @@ jobs:
           echo "Image tags:"
           printf '  - %s\n' "${TAGS[@]}"
 
+      # Docker Hub base pulls (node:*) occasionally time out on GitHub runners.
+      # Retry once before failing the job.
+      #
+      # BuildKit OCI provenance/SBOM attestations stay off on the image push:
+      # GHCR has historically returned "unknown blob" for those indexes, and
+      # Unraid update checks need Docker Schema 2 (oci-mediatypes=false).
+      # Provenance + SBOM are attached afterwards via GitHub artifact attestations.
       - name: Build and push
+        id: build
+        continue-on-error: true
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          # GHCR often fails with "unknown blob" when BuildKit attaches
-          # OCI provenance/SBOM attestations to the pushed index.
           provenance: false
           sbom: false
           tags: ${{ steps.meta.outputs.tags }}
@@ -116,3 +146,125 @@ jobs:
             GIT_SHA=${{ github.sha }}
             GITHUB_REF=${{ github.ref }}
             PACKAGE_VERSION_FLOOR=${{ steps.ver.outputs.floor }}
+
+      - name: Retry build and push
+        id: retry
+        if: steps.build.outcome == 'failure'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          provenance: false
+          sbom: false
+          tags: ${{ steps.meta.outputs.tags }}
+          outputs: type=image,push=true,oci-mediatypes=false
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+            GITHUB_REF=${{ github.ref }}
+            PACKAGE_VERSION_FLOOR=${{ steps.ver.outputs.floor }}
+
+      - name: Resolve image digest
+        id: digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          DIGEST="${{ steps.build.outputs.digest }}"
+          if [[ -z "${DIGEST}" ]]; then
+            DIGEST="${{ steps.retry.outputs.digest }}"
+          fi
+          if [[ -z "${DIGEST}" ]]; then
+            echo "No image digest from build/retry" >&2
+            exit 1
+          fi
+          echo "digest=${DIGEST}" >> "${GITHUB_OUTPUT}"
+          echo "Resolved digest ${DIGEST}"
+
+      - name: Attest build provenance
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest build provenance (legacy image name)
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.IMAGE_NAME_LEGACY }}
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          push-to-registry: true
+
+      # Pin by commit SHA (avoid mutable version tags after the 2026 trivy-action compromise).
+      - name: Setup Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          cache: true
+          version: latest
+
+      - name: Generate SBOM
+        run: >
+          trivy image
+          --format cyclonedx
+          --output sbom.cdx.json
+          "${IMAGE_NAME}@${{ steps.digest.outputs.digest }}"
+
+      - name: Attest SBOM
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          sbom-path: sbom.cdx.json
+          push-to-registry: true
+
+      - name: Attest SBOM (legacy image name)
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.IMAGE_NAME_LEGACY }}
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          sbom-path: sbom.cdx.json
+          push-to-registry: true
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-sbom-${{ github.sha }}
+          path: sbom.cdx.json
+          if-no-files-found: error
+          retention-days: 30
+
+      # Advisory only on publish: node/Debian base images often carry unfixed OS CVEs.
+      # Blocking CRITICAL/HIGH lives in security-audit.yml (fs + npm/pip). Do not fail
+      # GHCR/Unraid publishes after a successful push — and don't use continue-on-error
+      # (that still paints a red “error” annotation on an otherwise green run).
+      - name: Scan published image (CRITICAL/HIGH, advisory)
+        id: image_scan
+        run: |
+          set -uo pipefail
+          set +e
+          trivy image \
+            --scanners vuln \
+            --severity CRITICAL,HIGH \
+            --ignore-unfixed \
+            --exit-code 1 \
+            --format table \
+            --output trivy-image.txt \
+            "${IMAGE_NAME}@${{ steps.digest.outputs.digest }}"
+          code=$?
+          set -e
+          if [[ -f trivy-image.txt ]]; then
+            cat trivy-image.txt
+          fi
+          if [[ "${code}" -ne 0 ]]; then
+            echo "::warning::Trivy found CRITICAL/HIGH findings on the published image (advisory only; base image CVEs do not fail docker-publish)."
+          else
+            echo "Trivy image scan clean for CRITICAL/HIGH (ignore-unfixed)."
+          fi
+          exit 0
+
+      - name: Upload Trivy image report
+        if: always() && steps.image_scan.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-image-${{ github.sha }}
+          path: trivy-image.txt
+          if-no-files-found: ignore
+          retention-days: 14
