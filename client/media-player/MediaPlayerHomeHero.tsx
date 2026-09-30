@@ -305,7 +305,7 @@ export const MediaPlayerHomeHero: React.FC<Props> = ({ items, effectiveMode, onO
             aria-roledescription="carousel"
             aria-label={eyebrow}
         >
-            <div className="player-home-hero-stage relative aspect-[21/8] min-h-[300px] max-h-[500px] w-full overflow-hidden sm:min-h-[380px] sm:max-h-[580px]">
+            <div className="player-home-hero-stage relative aspect-[21/8] min-h-[260px] max-h-[420px] w-full overflow-hidden sm:min-h-[320px] sm:max-h-[460px]">
                 {slides.map((slide, slideIndex) => {
                     const visible = slideIndex === index;
                     const dist = slideDistance(index, slideIndex, slides.length);
