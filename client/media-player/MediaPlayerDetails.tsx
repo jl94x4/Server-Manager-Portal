@@ -980,7 +980,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                                         </div>
                                     ) : null}
                                 </div>
-                                <div className="light-on-media media-details-title-wash flex-1 min-w-0 flex flex-col items-start justify-end gap-2 md:hidden">
+                                <div className="light-on-media flex-1 min-w-0 flex flex-col items-start justify-end gap-2 md:hidden">
                                     {titleBlock}
                                 </div>
                             </div>
@@ -992,11 +992,11 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                         </div>
 
                         <div className="flex-1 min-w-0 flex flex-col gap-4 pb-2">
-                            <div className="light-on-media media-details-title-wash hidden md:flex flex-col items-start gap-2.5">
+                            <div className="light-on-media hidden md:flex flex-col items-start gap-2.5">
                                 {titleBlock}
                             </div>
                             <div className="pointer-events-none h-0 w-full shrink-0" data-tv-fade-anchor="1" aria-hidden />
-                            <div className="media-details-panel media-details-copy flex w-full min-w-0 flex-col gap-5">
+                            <div className="media-details-panel flex w-full min-w-0 flex-col gap-5">
                                 {item.summary ? (
                                     <OverviewSummary text={item.summary} />
                                 ) : loading ? (

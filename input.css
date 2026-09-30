@@ -623,43 +623,6 @@ html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop::after 
     rgb(var(--tv-details-surface)) 100%
   );
 }
-html:not([data-tv="1"]) .media-details-page .media-details-title-wash {
-  position: relative;
-  isolation: isolate;
-}
-html:not([data-tv="1"]) .media-details-page .media-details-title-wash::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  pointer-events: none;
-  left: -2.75rem;
-  right: -22%;
-  top: -3.25rem;
-  bottom: -1.5rem;
-  background:
-    radial-gradient(ellipse 92% 80% at 16% 48%, rgb(var(--tv-details-surface) / 0.55), transparent 70%),
-    linear-gradient(to bottom, transparent 0%, rgb(var(--tv-details-surface) / 0.28) 55%, rgb(var(--tv-details-surface) / 0.72) 100%);
-}
-html:not([data-tv="1"]) .media-details-page .media-details-copy {
-  position: relative;
-  isolation: isolate;
-}
-html:not([data-tv="1"]) .media-details-page .media-details-copy::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  pointer-events: none;
-  left: -1.5rem;
-  right: -10%;
-  top: -1.5rem;
-  bottom: -1rem;
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    rgb(var(--tv-details-surface) / 0.72) 18%,
-    rgb(var(--tv-details-surface)) 40%
-  );
-}
 .media-details-hero-scrim-bottom,
 .media-details-hero-scrim-left {
   display: none;
