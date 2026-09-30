@@ -861,7 +861,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                 </div>
 
                 <div className={`media-details-hero-content media-details-inset relative z-10 w-full max-w-none mx-0 pr-6 xl:pr-10 pt-2 sm:pt-3 ${
-                    isTvShell ? 'md:pt-[150px]' : 'md:pt-40 lg:pt-52'
+                    isTvShell ? 'md:pt-[150px]' : 'md:pt-[22vh] lg:pt-[30vh] xl:pt-[34vh]'
                 } ${children.length ? 'pb-5' : 'pb-8'}`}>
                     {!isTvShell ? (
                         <button
