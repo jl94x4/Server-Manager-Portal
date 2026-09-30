@@ -497,7 +497,8 @@ export const MediaPlayerDetails: React.FC<Props> = ({
             const backdrop = root?.querySelector<HTMLElement>('.media-details-hero-backdrop');
             if (!root || !anchor || !backdrop) return;
             const zoom = readDocumentZoom();
-            const extra = isTvShell ? 0 : 24;
+            // Web: solid colour begins at the logo’s lower edge so the description sits on the sample.
+            const extra = isTvShell ? 0 : -28;
             const fadePx = Math.max(0, Math.round(
                 (anchor.getBoundingClientRect().top - backdrop.getBoundingClientRect().top) / zoom,
             ) + extra);
@@ -559,6 +560,14 @@ export const MediaPlayerDetails: React.FC<Props> = ({
             });
         }
         const sampleSurface = async () => {
+            // Web matches the art’s bottom edge. TV keeps the poster sample, which already looks right there.
+            if (!isTvShell && artUrl) {
+                const fromArt = await sampleBackdropSurfaceColor(artUrl);
+                if (!cancelled && fromArt) {
+                    applyTvDetailsSurface(fromArt);
+                    return;
+                }
+            }
             if (posterSampleUrl) {
                 const fromPoster = await samplePosterSurfaceColor(posterSampleUrl);
                 if (!cancelled && fromPoster) {
@@ -848,7 +857,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                     ) : (
                         <div className="absolute inset-0 bg-black" />
                     )}
-                    <div className="media-details-hero-scrim-mobile absolute inset-0 bg-gradient-to-b from-black/50 via-card/65 via-[55%] to-card md:hidden" />
+                    <div className="media-details-hero-scrim-mobile absolute inset-0 md:hidden" />
                 </div>
 
                 <div className={`media-details-hero-content media-details-inset relative z-10 w-full max-w-none mx-0 pr-6 xl:pr-10 pt-2 sm:pt-3 ${
@@ -970,11 +979,8 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                                             />
                                         </div>
                                     ) : null}
-                                    {!isTvShell ? (
-                                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-0" data-tv-fade-anchor="1" aria-hidden />
-                                    ) : null}
                                 </div>
-                                <div className="light-on-media flex-1 min-w-0 flex flex-col items-start justify-end gap-2 md:hidden">
+                                <div className="light-on-media media-details-title-wash flex-1 min-w-0 flex flex-col items-start justify-end gap-2 md:hidden">
                                     {titleBlock}
                                 </div>
                             </div>
@@ -986,13 +992,11 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                         </div>
 
                         <div className="flex-1 min-w-0 flex flex-col gap-4 pb-2">
-                            <div className="light-on-media hidden md:flex flex-col items-start gap-2.5">
+                            <div className="light-on-media media-details-title-wash hidden md:flex flex-col items-start gap-2.5">
                                 {titleBlock}
                             </div>
-                            {isTvShell ? (
-                                <div className="pointer-events-none h-0 w-full shrink-0" data-tv-fade-anchor="1" aria-hidden />
-                            ) : null}
-                            <div className="media-details-panel flex w-full min-w-0 flex-col gap-5">
+                            <div className="pointer-events-none h-0 w-full shrink-0" data-tv-fade-anchor="1" aria-hidden />
+                            <div className="media-details-panel media-details-copy flex w-full min-w-0 flex-col gap-5">
                                 {item.summary ? (
                                     <OverviewSummary text={item.summary} />
                                 ) : loading ? (
