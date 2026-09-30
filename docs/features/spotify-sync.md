@@ -1,6 +1,6 @@
 # Spotify Sync
 
-**Spotify Sync** is a native portal page that drives the [spotify-to-plex](https://github.com/jjdenhertog/spotify-to-plex) worker. The worker stays in the portal image; the UI is Server Manager Portal chrome (not an iframe of the upstream app).
+**Spotify Sync** is a native portal page that drives the [spotify-to-plex](https://github.com/jjdenhertog/spotify-to-plex) worker. The worker stays in the portal image; the UI is StreamPilot chrome (not an iframe of the upstream app).
 
 ## Bundled vs external
 

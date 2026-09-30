@@ -305,7 +305,7 @@ export const MediaPlayerDashboard: React.FC = () => {
     }, []);
 
     const navigate = useCallback((path: string) => {
-        // Stay on the Capacitor/WebView origin. portalUrl() is absolute to the SMP host
+        // Stay on the Capacitor/WebView origin. portalUrl() is absolute to the StreamPilot host
         // and breaks history.pushState (cross-origin) so poster clicks never open overview.
         window.history.pushState({}, '', path);
         setView(readPlayerView());

@@ -12,7 +12,7 @@ declare global {
 
 export const LOGO_PATH = '/static/logo.png';
 
-/** Official brand marks for auth buttons (not the portal SMP logo). */
+/** Official brand marks for auth buttons (not the portal StreamPilot logo). */
 export const PLEX_ICON_URL = 'https://cdn.jsdelivr.net/gh/selfhst/icons/svg/plex.svg';
 export const JELLYFIN_ICON_URL = 'https://cdn.jsdelivr.net/gh/selfhst/icons/svg/jellyfin.svg';
 export const EMBY_ICON_URL = 'https://cdn.jsdelivr.net/gh/selfhst/icons/svg/emby.svg';

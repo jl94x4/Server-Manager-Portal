@@ -202,7 +202,7 @@ type DeepPartial<T> = {
 
 Object.assign(ja, { about: {
     eyebrow: 'プロジェクトについて',
-    description: 'Server Portal Manager は、セルフホスト型メディアサーバーのためのメディア管理センターです。Plex、Emby、Jellyfin とともに、ユーザーアクセス、リクエスト、ライブアクティビティ、分析、ダッシュボード、メンテナンスを一元管理できます。',
+    description: 'StreamPilot は、セルフホスト型メディアサーバーのためのメディア管理センターです。Plex、Emby、Jellyfin とともに、ユーザーアクセス、リクエスト、ライブアクティビティ、分析、ダッシュボード、メンテナンスを一元管理できます。',
     currentMode: '現在のモード', version: 'バージョン', development: '開発版', centralPlace: 'ひとつの管理場所',
     features: {
         access: { title: 'アクセスとユーザー', description: 'サーバーツールを切り替えることなく、招待、有効期限、取り消し、プロフィール、管理者のなりすましを管理できます。' },

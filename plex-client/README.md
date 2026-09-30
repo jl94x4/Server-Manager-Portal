@@ -1,12 +1,12 @@
-# SMP Media Player (Play Store)
+# StreamPilot (Play Store)
 
-Android / Android TV app that anyone can install and point at **their own** [Server Manager Portal](https://github.com/) install. The APK is not locked to one host.
+Android / Android TV app that anyone can install and point at **their own** [StreamPilot](https://github.com/) install. The APK is not locked to one host.
 
 ## Product model
 
 | Concern | Behavior |
 |--------|----------|
-| Portal | User enters their SMP URL on first launch (saved locally) |
+| Portal | User enters their StreamPilot URL on first launch (saved locally) |
 | Auth | Plex PIN via that portal → Bearer session token |
 | Playback | Portal `/api/media-player/*` + native ExoPlayer when available |
 | Switch server | “Use a different portal” clears URL + session |
@@ -16,7 +16,7 @@ Do **not** bake `PLEX_CLIENT_PORTAL_URL` into Play Store binaries. That env var 
 ## Package identity
 
 - Application ID: `com.servermanagerportal.mediaplayer` (change before first Play upload if you prefer your publisher domain)
-- Store listing name: **SMP Media Player** (or your brand)
+- Store listing name: **StreamPilot** (or your brand)
 - One APK: phone + Android TV (`LEANBACK_LAUNCHER`)
 
 ## Build web assets

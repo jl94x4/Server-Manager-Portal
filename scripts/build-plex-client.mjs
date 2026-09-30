@@ -16,7 +16,7 @@ const outDir = path.join(root, 'plex-client', 'dist');
 fs.mkdirSync(outDir, { recursive: true });
 
 const portalUrl = String(process.env.PLEX_CLIENT_PORTAL_URL || '').replace(/\/+$/, '');
-// Play Store builds must ship with an empty portalBaseUrl so each user enters their SMP host.
+// Play Store builds must ship with an empty portalBaseUrl so each user enters their StreamPilot host.
 const injectPortal = process.env.PLEX_CLIENT_STORE_BUILD === '1' ? '' : portalUrl;
 
 const html = fs.readFileSync(path.join(root, 'plex-client', 'index.html'), 'utf8');
@@ -68,4 +68,4 @@ await esbuild.build({
 
 console.log(`plex-client built → ${outDir}`);
 if (injectPortal) console.log(`portalBaseUrl = ${injectPortal} (dev/sideload only)`);
-else console.log('portalBaseUrl empty — Play Store / multi-tenant: user enters their SMP URL');
+else console.log('portalBaseUrl empty — Play Store / multi-tenant: user enters their StreamPilot URL');

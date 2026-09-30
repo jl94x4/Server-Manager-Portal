@@ -2065,7 +2065,7 @@ const createDefaultStatusConfig = (config = {}) => {
     };
 
     const publicDomain = resolvePublicBaseUrlFromConfig(config);
-    if (publicDomain) addService('portal', 'Server Portal', `${publicDomain}/api/health`, 'core', 'Portal API health', { visibleToUsers: true });
+    if (publicDomain) addService('portal', 'StreamPilot', `${publicDomain}/api/health`, 'core', 'Portal API health', { visibleToUsers: true });
 
     const mediaServerType = String(config.mediaServerType || 'plex').toLowerCase();
     if (mediaServerType !== 'plex') {
@@ -2599,7 +2599,7 @@ const sendGotifyAlert = async (config, title, message, priority = undefined) => 
                 'X-Gotify-Key': config.gotifyToken,
             },
             body: JSON.stringify({
-                title: String(title || 'Server Manager Portal'),
+                title: String(title || 'StreamPilot'),
                 message: String(message || ''),
                 priority: alertPriority,
             }),
@@ -2880,10 +2880,10 @@ const plexClientHeaders = (token = '', extra = {}) => ({
     Accept: 'application/json',
     ...(token ? { 'X-Plex-Token': String(token) } : {}),
     'X-Plex-Client-Identifier': CLIENT_ID,
-    'X-Plex-Product': 'Server Manager Portal',
+    'X-Plex-Product': 'StreamPilot',
     'X-Plex-Device': 'Server',
-    'X-Plex-Device-Name': 'Server Manager Portal',
-    'X-Plex-Platform': 'Server Manager Portal',
+    'X-Plex-Device-Name': 'StreamPilot',
+    'X-Plex-Platform': 'StreamPilot',
     'X-Plex-Platform-Version': String(appVersion || '1'),
     'X-Plex-Provides': 'controller',
     ...extra,
@@ -2929,7 +2929,7 @@ const apiFetch = (url, token, options = {}) => {
 
 const jellyfinAuthorizationHeader = (token = '') => {
     const parts = [
-        'MediaBrowser Client="Server Manager Portal"',
+        'MediaBrowser Client="StreamPilot"',
         'Device="Web"',
         `DeviceId="${CLIENT_ID}"`,
         `Version="${appVersion}"`,
@@ -4536,7 +4536,7 @@ app.post('/api/auth/plex/login', authRateLimit, async (req, res) => {
         const response = await fetch(pinEndpoint, {
             method: 'POST',
             headers: plexClientHeaders('', {
-                'X-Plex-Product': 'Server Manager Portal',
+                'X-Plex-Product': 'StreamPilot',
             }),
         });
         if (!response.ok) throw new Error('Failed to generate Plex PIN');
@@ -6161,7 +6161,7 @@ app.post('/api/admin/notifications/test', requireAdmin, async (req, res) => {
                         media_type: 'movie',
                         status: 'Test',
                         portal_url: resolvePublicBaseUrlFromConfig(config) || href,
-                        server_name: config.serverName || 'Server Portal',
+                        server_name: config.serverName || 'StreamPilot',
                     },
                     log,
                 }));
@@ -8248,7 +8248,7 @@ const EMPTY_RELEASE_NOTES = {
     date: null,
     title: "What's new",
     sections: [],
-    changelogUrl: 'https://github.com/jl94x4/Server-Manager-Portal/blob/main/CHANGELOG.md',
+    changelogUrl: 'https://github.com/jl94x4/StreamPilot/blob/main/CHANGELOG.md',
 };
 
 app.get('/api/release-notes', async (req, res) => {
@@ -8480,7 +8480,7 @@ app.post('/api/config/test-gotify', requireAdminOrInitialSetup, async (req, res)
                 gotifyToken: effectiveGotifyToken,
                 gotifyPriority: Math.max(0, Math.min(10, Number(gotifyPriority ?? 5) || 0)),
             },
-            'Server Manager Portal test',
+            'StreamPilot test',
             'Gotify alerts are connected and ready.',
         );
         res.json({ message: 'Gotify test alert sent successfully!' });
@@ -10292,7 +10292,7 @@ const generateNewsletterHtml = async (config, options = {}) => {
                         <!-- Header -->
                         <tr>
                             <td align="center" style="padding: 40px 30px; background-color: #0b0f19; border-bottom: 1px solid #1f2937;">
-                                ${hasNewsletterLogo ? '<img src="cid:logo" alt="Server Portal" style="max-width: 280px; height: auto; display: block; margin: 0 auto 10px auto;" />' : ''}
+                                ${hasNewsletterLogo ? '<img src="cid:logo" alt="StreamPilot" style="max-width: 280px; height: auto; display: block; margin: 0 auto 10px auto;" />' : ''}
                                 <p style="color: #9ca3af; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; margin: 0;">Here is what's happening on the server</p>
                             </td>
                         </tr>
@@ -14565,7 +14565,7 @@ app.post('/api/setup/import-seerr', setupRateLimit, async (req, res) => {
                     headers: {
                         Accept: 'application/json',
                         'X-Plex-Token': plexToken,
-                        'X-Plex-Product': 'Server Manager Portal',
+                        'X-Plex-Product': 'StreamPilot',
                         'X-Plex-Client-Identifier': CLIENT_ID,
                     },
                 }, 10000).then((r) => (r.ok ? r.json() : null)).catch(() => null);
@@ -16461,7 +16461,7 @@ async function getAdminProfile(config) {
         return { thumb: null, serverName };
     }
 
-    if (!config || !config.plexToken) return { thumb: null, serverName: 'Server Portal' };
+    if (!config || !config.plexToken) return { thumb: null, serverName: 'StreamPilot' };
 
     if (cachedAdminProfile && Date.now() - lastAdminProfileFetch < 3600000) {
         return cachedAdminProfile;
@@ -16470,7 +16470,7 @@ async function getAdminProfile(config) {
     try {
         const userRes = await fetch('https://plex.tv/api/v2/user', { headers: plexClientHeaders(config.plexToken) }).then(r => r.json());
 
-        let serverName = 'Server Portal';
+        let serverName = 'StreamPilot';
         const uri = await getPlexConnectionUri(config);
         if (uri) {
             const serverRes = await fetch(`${uri}/?X-Plex-Token=${config.plexToken}`, { headers: plexClientHeaders(config.plexToken) }).then(r => r.json()).catch(() => null);
@@ -16483,7 +16483,7 @@ async function getAdminProfile(config) {
         lastAdminProfileFetch = Date.now();
         return cachedAdminProfile;
     } catch (e) {
-        return { thumb: null, serverName: 'Server Portal' };
+        return { thumb: null, serverName: 'StreamPilot' };
     }
 }
 
@@ -16857,7 +16857,7 @@ app.get('/api/public/info', publicReadRateLimit, async (req, res) => {
                 customLoginLogoUrl: String(config.customLoginLogoUrl || '').trim(),
                 loginLogoCircleFrame: config.loginLogoCircleFrame !== false,
                 customFaviconUrl: String(config.customFaviconUrl || '').trim(),
-                serverName: 'Server Portal',
+                serverName: 'StreamPilot',
                 isConfigured,
                 mediaServerType: config.mediaServerType || 'plex',
                 requestUrl,
@@ -16865,7 +16865,7 @@ app.get('/api/public/info', publicReadRateLimit, async (req, res) => {
                 contactEmail: config.contactEmail || '',
             });
         } catch {
-            res.json({ thumb: null, customLogoUrl: '', customLoginLogoUrl: '', customFaviconUrl: '', serverName: 'Server Portal', isConfigured: false, mediaServerType: 'plex', requestUrl: 'https://yourdomain.com' });
+            res.json({ thumb: null, customLogoUrl: '', customLoginLogoUrl: '', customFaviconUrl: '', serverName: 'StreamPilot', isConfigured: false, mediaServerType: 'plex', requestUrl: 'https://yourdomain.com' });
         }
     }
 });
@@ -21998,7 +21998,7 @@ if (BASE_PATH) {
 const buildPwaManifest = async () => {
     const config = await loadFile(CONFIG_PATH, {});
     const profile = await getAdminProfile(config);
-    const serverName = profile.serverName || 'Server Portal';
+    const serverName = profile.serverName || 'StreamPilot';
     // App home is /portal when BASE_PATH is empty — matches login redirect + client router.
     const startUrl = BASE_PATH ? `${BASE_PATH}/` : '/portal';
     const scope = BASE_PATH ? `${BASE_PATH}/` : '/';
@@ -22212,7 +22212,7 @@ const buildSocialMetaTags = async (req) => {
     const baseUrl = getRequestBaseUrl(req, config);
     const pathOnly = stripBasePathFromUrl(String(req.originalUrl || '/').split('?')[0] || '/');
     const pageUrl = `${baseUrl}${stripBasePathFromUrl(req.originalUrl || '/')}`;
-    const serverName = profile.serverName || 'Server Portal';
+    const serverName = profile.serverName || 'StreamPilot';
     const mediaServerType = String(config.mediaServerType || 'plex').toLowerCase();
     const mediaLabel = mediaServerType === 'jellyfin' ? 'Jellyfin' : mediaServerType === 'emby' ? 'Emby' : 'Plex';
     const requestAppType = config.requestAppType === 'overseerr' ? 'seerr' : (config.requestAppType || 'none');
@@ -23715,11 +23715,11 @@ async function performSingleProbe(service) {
                         return '';
                     }
                 })()),
-                'User-Agent': 'Server Manager Portal',
+                'User-Agent': 'StreamPilot',
                 'Cache-Control': 'no-cache',
                 Connection: 'close',
             }
-            : { 'User-Agent': 'Server Manager Portal', 'Cache-Control': 'no-cache', Connection: 'close' };
+            : { 'User-Agent': 'StreamPilot', 'Cache-Control': 'no-cache', Connection: 'close' };
 
         const request = lib.get(targetUrl, {
             headers: probeHeaders,
@@ -33563,7 +33563,7 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, BIND_HOST, async () => {
-    log(`--- Server Manager Portal Service starting on http://${BIND_HOST}:${PORT} ---`);
+    log(`--- StreamPilot Service starting on http://${BIND_HOST}:${PORT} ---`);
     log(`Runtime: CONFIG_DIR=${CONFIG_DIR}, FORCE_SECURE_COOKIES=${FORCE_SECURE_COOKIES}, BASE_PATH=${BASE_PATH || '/'}, appVersion=${appVersion}`);
     if (!arePortalFrontendAssetsReady()) {
         log('CRITICAL: Frontend build assets missing (static/tailwind.css and/or static/index.js). Pull the latest Docker image or run npm run build before serving the UI.');
@@ -33629,11 +33629,11 @@ app.listen(PORT, BIND_HOST, async () => {
     process.env.CLIENT_ID = CLIENT_ID;
     process.env.PLEX_CLIENT_IDENTIFIER = CLIENT_ID;
     process.env.PLEXAPI_HEADER_IDENTIFIER = CLIENT_ID;
-    process.env.PLEXAPI_HEADER_PRODUCT = 'Server Manager Portal';
+    process.env.PLEXAPI_HEADER_PRODUCT = 'StreamPilot';
     process.env.PLEXAPI_HEADER_DEVICE = 'Server';
-    process.env.PLEXAPI_HEADER_DEVICE_NAME = 'Server Manager Portal';
-    process.env.PLEXAPI_HEADER_PLATFORM = 'Server Manager Portal';
-    log(`Plex client identity: product=Server Manager Portal clientId=${String(CLIENT_ID).slice(0, 8)}…`);
+    process.env.PLEXAPI_HEADER_DEVICE_NAME = 'StreamPilot';
+    process.env.PLEXAPI_HEADER_PLATFORM = 'StreamPilot';
+    log(`Plex client identity: product=StreamPilot clientId=${String(CLIENT_ID).slice(0, 8)}…`);
     await syncAdminPlexIdFromConfigToken(config, { persist: true });
     const runStartupBrandingSync = async (label = 'startup') => {
         try {
@@ -33691,7 +33691,7 @@ app.listen(PORT, BIND_HOST, async () => {
                     }
                 }
                 // Never fold "not due yet" into autostart=false — that left pinning
-                // Stopped after every SMP/container update until someone clicked Start.
+                // Stopped after every StreamPilot/container update until someone clicked Start.
                 if (!autostartRun) {
                     log('[collexions] boot: pinning loop stays stopped (not running before restart)');
                 } else if (decision.action === 'skip') {

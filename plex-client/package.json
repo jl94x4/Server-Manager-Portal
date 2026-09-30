@@ -2,7 +2,7 @@
   "name": "smp-media-player",
   "private": true,
   "version": "0.1.0",
-  "description": "Play Store Media Player for any Server Manager Portal install",
+  "description": "Play Store Media Player for any StreamPilot install",
   "scripts": {
     "build": "node ../scripts/build-plex-client.mjs",
     "sync": "npx cap sync android",

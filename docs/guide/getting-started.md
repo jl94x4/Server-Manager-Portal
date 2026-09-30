@@ -11,8 +11,8 @@
 Clone the repository and install dependencies:
 
 ```bash
-git clone https://github.com/jl94x4/Server-Manager-Portal.git
-cd Server-Manager-Portal
+git clone https://github.com/jl94x4/StreamPilot.git
+cd StreamPilot
 npm install
 ```
 

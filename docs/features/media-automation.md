@@ -15,7 +15,7 @@ The dashboard includes Overview metrics (with a global dry-run banner when Safe 
 
 ### Quick start (Unraid)
 
-1. Map paths on the **Server Manager Portal** container (not Unmanic): e.g. host media → `/media`, completed → `/completed`, quarantine → `/quarantine`.
+1. Map paths on the **StreamPilot** container (not Unmanic): e.g. host media → `/media`, completed → `/completed`, quarantine → `/quarantine`.
 2. Settings → Media Automation → enable, leave Safe fallback on **Dry run**, Save.
 3. Media Automation → Libraries → New library using **container** paths (Browse): root `/media` or `/media/movies`, output `/completed`, quarantine `/quarantine`.
 4. Add or pick a pipeline preset → Preview / Queue dry-run → Scan now.

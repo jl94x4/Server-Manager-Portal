@@ -761,7 +761,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                             <div className="w-12 h-12 rounded-2xl bg-plex/15 border border-plex/30 flex items-center justify-center mb-4 shadow-[0_0_30px_rgba(229,160,13,0.2)]">
                                 <Settings className="w-6 h-6 text-plex" />
                             </div>
-                            <h1 className="text-xl font-black text-text tracking-tight leading-tight">Server Manager Portal</h1>
+                            <h1 className="text-xl font-black text-text tracking-tight leading-tight">StreamPilot</h1>
                             <p className="text-[11px] font-bold text-muted uppercase tracking-[0.2em] mt-2">Initial Setup</p>
                         </div>
 
@@ -1641,7 +1641,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
                                     className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-muted hover:text-text hover:bg-white/5 border border-transparent hover:border-white/10 transition-all disabled:opacity-30 disabled:pointer-events-none">
                                     <ChevronLeft className="w-4 h-4" /> Back
                                 </button>
-                                <a href="https://jl94x4.github.io/Server-Manager-Portal/" target="_blank" rel="noreferrer" className="hidden sm:flex items-center gap-2 px-4 py-3 rounded-xl font-bold text-sm text-muted hover:text-text hover:bg-white/5 border border-transparent transition-all">
+                                <a href="https://jl94x4.github.io/StreamPilot/" target="_blank" rel="noreferrer" className="hidden sm:flex items-center gap-2 px-4 py-3 rounded-xl font-bold text-sm text-muted hover:text-text hover:bg-white/5 border border-transparent transition-all">
                                     <BookOpen className="w-4 h-4" /> Docs
                                 </a>
                             </div>

@@ -1,6 +1,6 @@
 # Overlays (New Season + New Episode)
 
-Phase 1–3 of SMP Overlays — New Season on **show posters**, New Episode on **season posters + episode thumbs**, presets/uploads, preview gallery, and binge grouping.
+Phase 1–3 of StreamPilot Overlays — New Season on **show posters**, New Episode on **season posters + episode thumbs**, presets/uploads, preview gallery, and binge grouping.
 
 ## UI layout
 

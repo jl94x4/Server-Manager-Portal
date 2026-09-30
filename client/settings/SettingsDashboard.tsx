@@ -2982,7 +2982,7 @@ export const SettingsDashboard: React.FC = () => {
                                 <div className="flex flex-col md:flex-row gap-4 mb-4 md:items-center">
                                     <div className="flex-[2]">
                                         <label htmlFor="smtpFrom">Sender Address (From)</label>
-                                        <input className="w-full appearance-none p-3 rounded-lg border border-border bg-background text-[16px] leading-5 text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="smtpFrom" type="text" value={smtpFrom} onChange={e => setSmtpFrom(e.target.value)} placeholder="Server Manager Portal <noreply@yourdomain.com>" />
+                                        <input className="w-full appearance-none p-3 rounded-lg border border-border bg-background text-[16px] leading-5 text-text outline-none focus:border-plex focus:ring-1 focus:ring-plex transition-all" id="smtpFrom" type="text" value={smtpFrom} onChange={e => setSmtpFrom(e.target.value)} placeholder="StreamPilot <noreply@yourdomain.com>" />
                                     </div>
                                     <div className="flex-1">
                                         <SettingsToggleRow
@@ -3577,7 +3577,7 @@ export const SettingsDashboard: React.FC = () => {
                                 />
                                 <SettingsToggleRow
                                     title="Notify when Tautulli API fails"
-                                    description="Alert admins (bell / push / ntfy) when SMP cannot reach Tautulli or the API returns an error. Cooldown 30 minutes. Each admin can mute this under Preferences."
+                                    description="Alert admins (bell / push / ntfy) when StreamPilot cannot reach Tautulli or the API returns an error. Cooldown 30 minutes. Each admin can mute this under Preferences."
                                     checked={notifyTautulliApiFailed}
                                     onChange={setNotifyTautulliApiFailed}
                                     className="mb-6"
@@ -3828,7 +3828,7 @@ export const SettingsDashboard: React.FC = () => {
                             <div id={getSettingsSectionElementId('request-form')} className="scroll-mt-24 space-y-3">
                                 <h4 className="text-sm font-bold text-text uppercase tracking-wider">Request form</h4>
                                 <p className="text-xs text-muted max-w-2xl">
-                                    These apply to Discover &amp; Request in SMP for both Portal and Seerr engines.
+                                    These apply to Discover &amp; Request in StreamPilot for both Portal and Seerr engines.
                                     Turn them off to skip destination, quality profile, root folder/library, and tags on every confirmation.
                                 </p>
                                 <SettingsToggleRow
@@ -4006,7 +4006,7 @@ export const SettingsDashboard: React.FC = () => {
                                     <h4 className="font-bold text-text">Seerr / Overseerr rules</h4>
                                     <p className="text-sm text-muted">
                                         Quotas, auto-approve, override rules, and watchlist sync are managed in your request app.
-                                        The Request form toggles above still control whether SMP shows destination, quality profile, library/root folder, and tags.
+                                        The Request form toggles above still control whether StreamPilot shows destination, quality profile, library/root folder, and tags.
                                     </p>
                                     <div className="flex flex-wrap gap-2">
                                         <a
@@ -6204,7 +6204,7 @@ export const SettingsDashboard: React.FC = () => {
                     )}
                         </div>
                         <StickySaveBar>
-                            <a href="https://jl94x4.github.io/Server-Manager-Portal/" target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] px-3.5 py-2.5 text-sm font-bold text-text transition-colors hover:bg-white/10">
+                            <a href="https://jl94x4.github.io/StreamPilot/" target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] px-3.5 py-2.5 text-sm font-bold text-text transition-colors hover:bg-white/10">
                                 <BookOpen className="h-4 w-4" /> Docs
                             </a>
                             <button

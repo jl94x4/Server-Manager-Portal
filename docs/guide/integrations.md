@@ -1,6 +1,6 @@
 # Integrations
 
-Server Portal can run with Plex, Jellyfin, or Emby-style media stacks and can connect to the companion apps that normally sit around a home media server.
+StreamPilot can run with Plex, Jellyfin, or Emby-style media stacks and can connect to the companion apps that normally sit around a home media server.
 
 Most integrations are configured in **Settings → Media Stack**. Branding, alerts, status checks, and home layout options live in their matching Settings sections.
 

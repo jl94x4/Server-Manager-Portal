@@ -203,7 +203,7 @@ type DeepPartial<T> = {
 
 Object.assign(it, { about: {
     eyebrow: 'Informazioni sul progetto',
-    description: 'Server Portal Manager è la centrale di controllo per un server multimediale self-hosted: un unico punto per accesso utenti, richieste, attività in tempo reale, analisi, dashboard e manutenzione con Plex, Emby e Jellyfin.',
+    description: 'StreamPilot è la centrale di controllo per un server multimediale self-hosted: un unico punto per accesso utenti, richieste, attività in tempo reale, analisi, dashboard e manutenzione con Plex, Emby e Jellyfin.',
     currentMode: 'Modalità attuale', version: 'Versione', development: 'Sviluppo', centralPlace: 'Un punto centrale',
     features: {
         access: { title: 'Accesso e utenti', description: 'Gestisci inviti, scadenze, revoche, profili e impersonificazione amministratore senza passare da uno strumento server all’altro.' },

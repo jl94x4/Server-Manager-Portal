@@ -1,6 +1,6 @@
 # Localization Guide
 
-This guide explains how to contribute UI translations to Server Manager Portal.
+This guide explains how to contribute UI translations to StreamPilot.
 
 It applies to French, German, Spanish, Portuguese (Brazil), Italian, Japanese, Polish, Dutch, Russian, and future locales. Keep translation changes focused, reviewable, and aligned with the project's current localization architecture.
 

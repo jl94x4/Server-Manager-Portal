@@ -1,19 +1,19 @@
 <?xml version="1.0"?>
 <Container version="2">
-  <Name>Server-Manager-Portal</Name>
+  <Name>StreamPilot</Name>
   <Repository>ghcr.io/jl94x4/server-manager-portal:latest</Repository>
-  <Registry>https://github.com/jl94x4/Server-Manager-Portal/pkgs/container/server-manager-portal</Registry>
+  <Registry>https://github.com/jl94x4/StreamPilot/pkgs/container/server-manager-portal</Registry>
   <Network>bridge</Network>
   <MyIP/>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
-  <Support>https://github.com/jl94x4/Server-Manager-Portal/issues</Support>
-  <Project>https://github.com/jl94x4/Server-Manager-Portal</Project>
+  <Support>https://github.com/jl94x4/StreamPilot/issues</Support>
+  <Project>https://github.com/jl94x4/StreamPilot</Project>
   <Overview>A self-hosted Plex server management portal with user onboarding, access expiry, analytics, status monitoring, and admin tools.&#xD;&#xA;&#xD;&#xA;After install, open the WebUI and sign in with your Plex admin account, then configure Plex token and SMTP in Settings.&#xD;&#xA;&#xD;&#xA;Optional Collexions: enable in Settings → Collexions (worker is bundled in this image — no second container). Data is stored under the Config Directory at collexions/.&#xD;&#xA;&#xD;&#xA;Native Media Automation (System tab / Intel iGPU util): change Repository to ghcr.io/jl94x4/server-manager-portal:nightly and Force Update (Restart alone keeps the old image). Stock template :latest does not include Media Automation nightly fixes or intel_gpu_top.&#xD;&#xA;&#xD;&#xA;Map media library paths below so the container can see the same files as Sonarr/Radarr/Lidarr (container paths must match ARR paths, or use Scanner/Media Automation rewrites). CPU mode needs no GPU.&#xD;&#xA;&#xD;&#xA;Intel/AMD GPU: set Host Path for "GPU Devices (Intel/AMD)" to /dev/dri. Live Intel util also needs host perf access (sysctl kernel.perf_event_paranoid=0 or ≤2).&#xD;&#xA;NVIDIA GPU: install the Unraid Nvidia Driver plugin, set NVIDIA_VISIBLE_DEVICES to your GPU UUID (or all), keep NVIDIA_DRIVER_CAPABILITIES=all, and add --runtime=nvidia to Extra Parameters (Advanced View). Do not enable Privileged.&#xD;&#xA;&#xD;&#xA;Tags: :latest (main), :beta, :nightly, or pin e.g. :1.8.0.&#xD;&#xA;&#xD;&#xA;The container entrypoint automatically fixes appdata folder permissions on startup.</Overview>
   <Category>MediaServer:Other</Category>
   <WebUI>http://[IP]:[PORT:2121]/portal</WebUI>
-  <TemplateURL>https://raw.githubusercontent.com/jl94x4/Server-Manager-Portal/main/unraid/server-manager-portal.xml</TemplateURL>
-  <Icon>https://raw.githubusercontent.com/jl94x4/Server-Manager-Portal/main/static/logo.png</Icon>
+  <TemplateURL>https://raw.githubusercontent.com/jl94x4/StreamPilot/main/unraid/server-manager-portal.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/jl94x4/StreamPilot/main/static/logo.png</Icon>
   <ExtraParams>--restart=unless-stopped --hostname=server-manager-portal</ExtraParams>
   <Config Name="WebUI Port" Target="2121" Default="2121" Mode="tcp" Description="Portal web interface port." Type="Port" Display="always" Required="true" Mask="false">2121</Config>
   <Config Name="Config Directory" Target="/app/config" Default="/mnt/user/appdata/server-manager-portal/config" Mode="rw" Description="Persistent JSON data (users, settings, caches, logs). Container path: /app/config" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/server-manager-portal/config</Config>

@@ -1,30 +1,30 @@
 <div align="center">
 
-<img src="static/logo.png" alt="Server Portal Logo" width="240" height="240" />
+<img src="static/logo.png" alt="StreamPilot Logo" width="240" height="240" />
 
-# Server Portal
+# StreamPilot
 
 **A premium, fully-automated management and analytics portal for Plex, Jellyfin, and Emby media servers.**
 
 Built with Node.js · Express · React · Tailwind CSS
 
-[![View Documentation](https://img.shields.io/badge/View_Documentation-e5a00d?style=for-the-badge)](https://jl94x4.github.io/Server-Manager-Portal/)
+[![View Documentation](https://img.shields.io/badge/View_Documentation-e5a00d?style=for-the-badge)](https://jl94x4.github.io/StreamPilot/)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B-green.svg)](https://nodejs.org/)
 [![Plex](https://img.shields.io/badge/Plex-Media%20Server-orange.svg)](https://www.plex.tv/)
 [![Jellyfin](https://img.shields.io/badge/Jellyfin-Media%20Server-00A4DC.svg)](https://jellyfin.org/)
 [![Emby](https://img.shields.io/badge/Emby-Media%20Server-52B54B.svg)](https://emby.media/)
-[![Docker Image Size](https://ghcr-badge.egpl.dev/jl94x4/server-manager-portal/size?label=docker%20image%20size&color=blue)](https://github.com/jl94x4/Server-Manager-Portal/pkgs/container/server-manager-portal)
-[![GitHub Stars](https://img.shields.io/github/stars/jl94x4/Server-Manager-Portal.svg?style=flat&logo=github&color=gold)](https://github.com/jl94x4/Server-Manager-Portal/stargazers)
-[![GitHub Forks](https://img.shields.io/github/forks/jl94x4/Server-Manager-Portal.svg?style=flat&logo=github)](https://github.com/jl94x4/Server-Manager-Portal/network/members)
-[![GitHub Issues](https://img.shields.io/github/issues/jl94x4/Server-Manager-Portal.svg?style=flat&logo=github&color=red)](https://github.com/jl94x4/Server-Manager-Portal/issues)
+[![Docker Image Size](https://ghcr-badge.egpl.dev/jl94x4/server-manager-portal/size?label=docker%20image%20size&color=blue)](https://github.com/jl94x4/StreamPilot/pkgs/container/server-manager-portal)
+[![GitHub Stars](https://img.shields.io/github/stars/jl94x4/StreamPilot.svg?style=flat&logo=github&color=gold)](https://github.com/jl94x4/StreamPilot/stargazers)
+[![GitHub Forks](https://img.shields.io/github/forks/jl94x4/StreamPilot.svg?style=flat&logo=github)](https://github.com/jl94x4/StreamPilot/network/members)
+[![GitHub Issues](https://img.shields.io/github/issues/jl94x4/StreamPilot.svg?style=flat&logo=github&color=red)](https://github.com/jl94x4/StreamPilot/issues)
 
 </div>
 
 ---
 
-Server Portal is a self-hosted web application that turns your Plex, Jellyfin, or Emby server into a fully managed streaming service. It covers user onboarding and access expiry, personal analytics and wrap-ups, a Seerr-style Discover & Request browser, live sessions, ARR calendars and downloads, plus admin tools for collections, poster overlays, Spotify playlist sync, library scans, quality upgrades, and native FFmpeg jobs — all from one polished, mobile-first dashboard.
+StreamPilot is a self-hosted web application that turns your Plex, Jellyfin, or Emby server into a fully managed streaming service. It covers user onboarding and access expiry, personal analytics and wrap-ups, a Seerr-style Discover & Request browser, live sessions, ARR calendars and downloads, plus admin tools for collections, poster overlays, Spotify playlist sync, library scans, quality upgrades, and native FFmpeg jobs — all from one polished, mobile-first dashboard.
 
 Once set up, users sign in with Plex OAuth or Jellyfin / Emby authentication (Quick Connect where supported) to see their own portal, activity, requests, and achievements.
 
@@ -65,13 +65,13 @@ Once set up, users sign in with Plex OAuth or Jellyfin / Emby authentication (Qu
 
 Feature pages appear in the sidebar when enabled under **Settings**. Admins can reorder or hide nav items for themselves and for members.
 
-Step-by-step guides live in the [documentation site](https://jl94x4.github.io/Server-Manager-Portal/) and under [`docs/features/`](docs/features/overview.md).
+Step-by-step guides live in the [documentation site](https://jl94x4.github.io/StreamPilot/) and under [`docs/features/`](docs/features/overview.md).
 
 ---
 
 ### Integration List
 
-Server Portal can connect to the apps that usually surround a Plex, Jellyfin, or Emby-style media stack.
+StreamPilot can connect to the apps that usually surround a Plex, Jellyfin, or Emby-style media stack.
 
 | Category | Integrations | What they power |
 |---|---|---|
@@ -533,8 +533,8 @@ The UI can be switched per user from the language menu. Catalogs currently inclu
 
 **1. Clone the repository**
 ```bash
-git clone https://github.com/jl94x4/Server-Manager-Portal.git
-cd Server-Manager-Portal
+git clone https://github.com/jl94x4/StreamPilot.git
+cd StreamPilot
 ```
 
 **2. Install dependencies**
@@ -576,7 +576,7 @@ Plex mode keeps the original Plex OAuth and Tautulli flow. Jellyfin mode uses yo
 
 ## Docker Deployment
 
-The recommended way to run Server Portal in production is Docker with a persistent volume for `config/`.
+The recommended way to run StreamPilot in production is Docker with a persistent volume for `config/`.
 
 ### Pre-built images (GHCR)
 
@@ -612,8 +612,8 @@ Use the `beta` tag to test upcoming features before they land on `latest`. Use `
 **1. Clone and configure**
 
 ```bash
-git clone https://github.com/jl94x4/Server-Manager-Portal.git
-cd Server-Manager-Portal
+git clone https://github.com/jl94x4/StreamPilot.git
+cd StreamPilot
 cp .env.example .env
 ```
 
@@ -727,12 +727,12 @@ The proxy must forward requests **with** the `/portal` prefix intact (do not str
 
 ### Unraid
 
-Server Manager Portal is available in the **Unraid Community Applications (CA) store**!
+StreamPilot is available in the **Unraid Community Applications (CA) store**!
 
 #### Install via Community Applications (Recommended)
 
 1. Open the **Apps** tab in your Unraid dashboard
-2. Search for **"Server Manager Portal"**
+2. Search for **"StreamPilot"**
 3. Click **Install**
 4. Set your **JWT Secret** and adjust appdata paths if needed (default: `/mnt/user/appdata/server-manager-portal/`)
 5. Click **Apply** and open the WebUI — you're done! 🎉
@@ -744,7 +744,7 @@ If you prefer to install the template manually on Unraid 6+:
 1. Download the template file: [`unraid/server-manager-portal.xml`](unraid/server-manager-portal.xml)
 2. Rename the file with a `my-` prefix, e.g. `my-server-manager-portal.xml`
 3. Upload it to your Unraid server at: `/boot/config/plugins/dockerMan/templates-user/`
-4. Go to **Docker** → **Add Container** and select **Server-Manager-Portal** from the **User Templates** dropdown
+4. Go to **Docker** → **Add Container** and select **StreamPilot** from the **User Templates** dropdown
 5. Set **JWT Secret** and adjust appdata paths (defaults: `/mnt/user/appdata/server-manager-portal/`)
 6. Apply and open the WebUI
 
@@ -861,7 +861,7 @@ The **Settings → System** diagnostics page uses the same media-aware task list
 ## Project Structure
 
 ```
-Server-Manager-Portal/
+StreamPilot/
 ├── index.js            # Backend: Express API, Plex/Jellyfin integrations, auth, email, background jobs
 ├── index.tsx           # Frontend entry point
 ├── client/             # React application source

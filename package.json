@@ -1,5 +1,5 @@
 {
-  "name": "server-manager-portal",
+  "name": "streampilot",
   "version": "1.8.0",
   "description": "A web application to automatically manage Plex user access based on expiry dates.",
   "main": "index.js",

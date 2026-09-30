@@ -41,7 +41,7 @@ export const buildEncodeProfilePack = (options?: {
     return {
         version: PROFILE_PACK_VERSION,
         exportedAt: new Date().toISOString(),
-        name: options?.name || 'Server Manager Portal encode profiles',
+        name: options?.name || 'StreamPilot encode profiles',
         presets,
     };
 };

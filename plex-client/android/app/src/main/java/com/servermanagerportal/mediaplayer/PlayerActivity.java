@@ -74,7 +74,7 @@ import java.util.concurrent.Executors;
 @UnstableApi
 public class PlayerActivity extends AppCompatActivity {
     private static final String TAG = "SmpPlayerActivity";
-    private static final String USER_AGENT = "SMP-MediaPlayer/1.0 (Android TV; ExoPlayer)";
+    private static final String USER_AGENT = "StreamPilot-MediaPlayer/1.0 (Android TV; ExoPlayer)";
     private static final String PREFS = "smp_player_prefs";
 
     public static final String EXTRA_URL = "url";

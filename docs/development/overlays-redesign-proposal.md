@@ -1,6 +1,6 @@
 # Overlays UX Redesign Proposal
 
-*Server Portal — Overlays section. Prepared from a read-through of `client/overlays/` (OverlaysDashboard.tsx, PlacementEditor.tsx, OverlayJobCard.tsx, api.ts) and the `overlays/` worker backend, August 2026.*
+*StreamPilot — Overlays section. Prepared from a read-through of `client/overlays/` (OverlaysDashboard.tsx, PlacementEditor.tsx, OverlayJobCard.tsx, api.ts) and the `overlays/` worker backend, August 2026.*
 
 ## Why it feels overwhelming
 

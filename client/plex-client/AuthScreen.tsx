@@ -92,7 +92,7 @@ export const PlexClientBootSplash: React.FC = () => (
         <AuthAtmosphere />
         <div className="relative z-10 flex flex-col items-center gap-5">
             <AuthMark pulse />
-            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-plex/90">SMP Media Player</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-plex/90">StreamPilot</p>
         </div>
     </div>
 );
@@ -191,7 +191,7 @@ export const PlexClientAuthScreen: React.FC<Props> = ({ onAuthenticated }) => {
         try {
             const diagnostics = await apiFetch('/api/auth/diagnostics').catch(() => null);
             if (!diagnostics || diagnostics.configured === undefined) {
-                throw new Error('Could not reach a Server Manager Portal at that URL. Check the address and that the portal is online.');
+                throw new Error('Could not reach StreamPilot at that URL. Check the address and that the portal is online.');
             }
         } catch (err: any) {
             setError(err?.message || 'Portal not reachable');
@@ -215,10 +215,10 @@ export const PlexClientAuthScreen: React.FC<Props> = ({ onAuthenticated }) => {
                 clientId: String(data.clientIdentifier || data.clientId || ''),
             };
             if (!session.pinId || !session.oauthState) {
-                throw new Error('Portal did not return a PIN session (update SMP if this persists).');
+                throw new Error('Portal did not return a PIN session (update StreamPilot if this persists).');
             }
             if (session.code.length > 6) {
-                throw new Error('Portal returned a long auth code. Update SMP to a build that supports linkCode PINs.');
+                throw new Error('Portal returned a long auth code. Update StreamPilot to a build that supports linkCode PINs.');
             }
             setPin(session);
 
@@ -317,7 +317,7 @@ export const PlexClientAuthScreen: React.FC<Props> = ({ onAuthenticated }) => {
         ? 'Choose a Plex Home profile to continue.'
         : stage === 'pin'
             ? 'On any phone or computer, open plex.tv/link and enter the code below.'
-            : 'Connect once to your Server Manager Portal, then sign in with Plex.';
+            : 'Connect once to your StreamPilot, then sign in with Plex.';
 
     return (
         <div className="relative min-h-screen overflow-hidden bg-[#07080c] text-zinc-100" data-tv-auth="1">
@@ -327,7 +327,7 @@ export const PlexClientAuthScreen: React.FC<Props> = ({ onAuthenticated }) => {
                     <div className={`smp-auth-copy mb-8 space-y-5 ${isTv ? 'smp-tv-screen-enter' : ''}`}>
                         <AuthMark />
                         <div className="space-y-3">
-                            <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-plex">SMP Media Player</p>
+                            <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-plex">StreamPilot</p>
                             <h1 className="text-4xl font-black tracking-tight text-white sm:text-5xl">
                                 {title}
                             </h1>
@@ -368,7 +368,7 @@ export const PlexClientAuthScreen: React.FC<Props> = ({ onAuthenticated }) => {
                                         disabled={busy}
                                     />
                                     <span className="block text-xs leading-relaxed text-zinc-500">
-                                        The address you open in a browser for Server Manager Portal.
+                                        The address you open in a browser for StreamPilot.
                                     </span>
                                 </label>
                                 <button

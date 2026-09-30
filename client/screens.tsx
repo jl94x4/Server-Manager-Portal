@@ -5412,10 +5412,10 @@ const ABOUT_CONTRIBUTORS = [
 ];
 
 const ABOUT_LINKS = [
-    { id: 'documentation', href: 'https://jl94x4.github.io/Server-Manager-Portal/' },
-    { id: 'githubRepository', href: 'https://github.com/jl94x4/Server-Manager-Portal' },
-    { id: 'featureOverview', href: 'https://jl94x4.github.io/Server-Manager-Portal/features/overview.html' },
-    { id: 'gettingStarted', href: 'https://jl94x4.github.io/Server-Manager-Portal/guide/getting-started.html' },
+    { id: 'documentation', href: 'https://jl94x4.github.io/StreamPilot/' },
+    { id: 'githubRepository', href: 'https://github.com/jl94x4/StreamPilot' },
+    { id: 'featureOverview', href: 'https://jl94x4.github.io/StreamPilot/features/overview.html' },
+    { id: 'gettingStarted', href: 'https://jl94x4.github.io/StreamPilot/guide/getting-started.html' },
 ];
 
 export const AboutDashboard: React.FC<{ appVersion?: string; mediaServerType?: string }> = ({ appVersion, mediaServerType = 'plex' }) => {
@@ -5438,7 +5438,7 @@ export const AboutDashboard: React.FC<{ appVersion?: string; mediaServerType?: s
                                 </span>
                                 <div>
                                     <p className="text-xs uppercase tracking-[0.22em] text-muted font-bold">{t('about.eyebrow')}</p>
-                                    <h1 className="text-3xl sm:text-4xl font-black text-text tracking-tight">Server Portal Manager</h1>
+                                    <h1 className="text-3xl sm:text-4xl font-black text-text tracking-tight">StreamPilot</h1>
                                 </div>
                             </div>
                             <p className="text-base sm:text-lg text-muted max-w-3xl leading-relaxed">
@@ -6677,7 +6677,7 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, p
     const [homeSelectBusy, setHomeSelectBusy] = useState(false);
     const [homeSelectRememberUserId, setHomeSelectRememberUserId] = useState<string | null>(null);
     const quickConnectPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-    const [publicInfo, setPublicInfo] = useState<{ thumb: string | null, customLogoUrl?: string | null, serverName: string, isConfigured: boolean | null, mediaServerType?: string }>({ thumb: null, customLogoUrl: null, serverName: 'Server Portal', isConfigured: null, mediaServerType: 'plex' });
+    const [publicInfo, setPublicInfo] = useState<{ thumb: string | null, customLogoUrl?: string | null, serverName: string, isConfigured: boolean | null, mediaServerType?: string }>({ thumb: null, customLogoUrl: null, serverName: 'StreamPilot', isConfigured: null, mediaServerType: 'plex' });
     const [publicInfoLoading, setPublicInfoLoading] = useState(true);
     const [publicInfoLoadFailed, setPublicInfoLoadFailed] = useState(false);
 
@@ -6689,7 +6689,7 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, p
                 setPublicInfo({
                     thumb: data.thumb || null,
                     customLogoUrl: data.customLogoUrl || null,
-                    serverName: data.serverName || 'Server Portal',
+                    serverName: data.serverName || 'StreamPilot',
                     isConfigured: data.isConfigured !== false,
                     mediaServerType: data.mediaServerType || 'plex'
                 });
@@ -8816,7 +8816,7 @@ export const UserDashboard: React.FC<{
                 <ShareWrapUpModal
                     analytics={analytics}
                     days={analyticsDays}
-                    serverName={sessionInfo?.serverName || 'Server Portal'}
+                    serverName={sessionInfo?.serverName || 'StreamPilot'}
                     username={sessionInfo?.session?.username || user?.username}
                     onClose={() => setShareWrapUpOpen(false)}
                     onToast={(message, type) => setToast({ id: Date.now(), message, type })}

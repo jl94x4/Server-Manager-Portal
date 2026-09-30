@@ -1,6 +1,6 @@
 /**
  * Portal-backed Media Player app (Capacitor) runtime config.
- * Play Store build: every user enters their own SMP portal URL. Never assume a single host.
+ * Play Store build: every user enters their own StreamPilot portal URL. Never assume a single host.
  */
 
 declare global {
@@ -25,10 +25,10 @@ export const TV_LAYOUT_WIDTH = 1920;
 
 const trimSlash = (value: string) => String(value || '').replace(/\/+$/, '');
 
-/** Normalize user-entered portal URL (Play Store: any SMP host). */
+/** Normalize user-entered portal URL (Play Store: any StreamPilot host). */
 export const normalizePortalBaseUrl = (raw: string): { ok: true; url: string } | { ok: false; error: string } => {
     let value = String(raw || '').trim();
-    if (!value) return { ok: false, error: 'Enter your Server Manager Portal URL' };
+    if (!value) return { ok: false, error: 'Enter your StreamPilot URL' };
     if (!/^https?:\/\//i.test(value)) value = `https://${value}`;
     let parsed: URL;
     try {

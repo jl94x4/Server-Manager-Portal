@@ -1112,7 +1112,7 @@ export const en = {
         mediaJobCompletedAlertsHint: 'Opt-in alerts when a Media Automation job completes (can be noisy)',
         toggleMediaJobCompletedAria: 'Toggle Media Automation completion alerts',
         tautulliApiFailedAlerts: 'Tautulli API failures',
-        tautulliApiFailedAlertsHint: 'Bell and push when SMP cannot reach Tautulli or the API returns an error (30 min cooldown)',
+        tautulliApiFailedAlertsHint: 'Bell and push when StreamPilot cannot reach Tautulli or the API returns an error (30 min cooldown)',
         toggleTautulliApiFailedAria: 'Toggle Tautulli API failure alerts',
         supportTicketAlerts: 'New support tickets',
         supportTicketAlertsHint: 'Bell, push, ntfy, webhook, and Gotify when a member opens a support ticket',
@@ -3091,7 +3091,7 @@ export const en = {
     },
     about: {
         eyebrow: 'About the project',
-        description: 'Server Portal Manager is the Media Control Station for a self-hosted media server: one central pane of glass for user access, request workflows, live activity, analytics, dashboards, and maintenance across Plex, Emby, and Jellyfin.',
+        description: 'StreamPilot is the Media Control Station for a self-hosted media server: one central pane of glass for user access, request workflows, live activity, analytics, dashboards, and maintenance across Plex, Emby, and Jellyfin.',
         currentMode: 'Current mode', version: 'Version', development: 'Development', centralPlace: 'One Central Place',
         features: {
             access: { title: 'Access & users', description: 'Manage invites, expiry, revokes, profiles, and admin impersonation without jumping between server tools.' },

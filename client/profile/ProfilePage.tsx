@@ -1286,7 +1286,7 @@ export const ProfilePage: React.FC<Props> = ({
                 <ShareWrapUpModal
                     analytics={wrapAnalytics}
                     days="all"
-                    serverName={sessionInfo?.serverName || 'Server Portal'}
+                    serverName={sessionInfo?.serverName || 'StreamPilot'}
                     username={identity.username || sessionInfo?.session?.username}
                     onClose={() => setShareWrapUpOpen(false)}
                     onToast={(message, type) => setToasts((prev) => pushToast(prev, message, type))}

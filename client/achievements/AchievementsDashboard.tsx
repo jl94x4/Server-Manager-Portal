@@ -1398,7 +1398,7 @@ export const AchievementsDashboard: React.FC<{
                             ...data,
                             username: sessionInfo?.session?.username || sessionInfo?.account?.username || data?.username,
                         }}
-                        serverName={sessionInfo?.serverName || 'Server Portal'}
+                        serverName={sessionInfo?.serverName || 'StreamPilot'}
                         rank={myRank}
                         onClose={() => setShareOpen(false)}
                         onToast={(message, type) => setToasts((prev) => pushToast(prev, message, type))}

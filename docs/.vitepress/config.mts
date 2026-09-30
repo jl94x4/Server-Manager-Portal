@@ -3,8 +3,8 @@ import { defineConfig } from 'vitepress';
 const base = process.env.VITEPRESS_BASE || '/';
 
 export default defineConfig({
-  title: 'Server Portal',
-  description: 'Documentation for Server Manager Portal.',
+  title: 'StreamPilot',
+  description: 'Documentation for StreamPilot.',
   base,
   cleanUrls: true,
   lastUpdated: true,
@@ -13,7 +13,7 @@ export default defineConfig({
   ],
   themeConfig: {
     logo: `${base}logo.png`,
-    siteTitle: 'Server Portal Docs',
+    siteTitle: 'StreamPilot Docs',
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'Features', link: '/features/overview' },
@@ -63,7 +63,7 @@ export default defineConfig({
       },
     ],
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/jl94x4/Server-Manager-Portal' },
+      { icon: 'github', link: 'https://github.com/jl94x4/StreamPilot' },
     ],
     search: {
       provider: 'local',
