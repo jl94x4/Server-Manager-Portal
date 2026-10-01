@@ -913,7 +913,7 @@ def fetch_source_items(source_type, source_id, config):
                 api_key = config.get('mdblist_api_key')
                 if api_key:
                     parts = [p for p in source_id.strip().split('/') if p]
-                    if 'mdblist.com' in source_id.lower() and 'lists' in parts:
+                    if _is_mdblist_url(source_id) and 'lists' in parts:
                         lists_idx = parts.index('lists')
                         username = parts[lists_idx + 1]
                         list_slug = parts[lists_idx + 2] if len(parts) > lists_idx + 2 else ""
@@ -1091,7 +1091,7 @@ def _match_external_to_plex(library, external_items, tmdb_cache=None):
             try:
                 results = library.search(title=title, libtype=libtype) if title else []
             except Exception as e:
-                logging.debug(f"Search failed for '{title}': {e}")
+                logging.debug("Plex title search failed for an external list item", exc_info=True)
                 results = []
             if tmdb_id and results:
                 for r in results[:20]:
@@ -1184,7 +1184,8 @@ def _delete_plex_collection(library_name, title):
         log_action(f"Deleted collection '{title}' from '{library_name}'.")
         return True, None, removed_jobs
     except Exception as e:
-        return False, str(e), []
+        logging.exception(f"Failed to delete collection '{title}' from '{library_name}'")
+        return False, "Failed to delete collection", []
 
 
 def _create_plex_collection(library, title, matched_items, sort_order='custom', label='Collexions'):
@@ -1496,7 +1497,7 @@ def create_collection_from_source(library_name, title, source_type, source_id=''
         try:
             items = fetch_source_items(source_type, source_id, config) or []
         except Exception as e:
-            fetch_error = str(e)
+            fetch_error = "Failed to fetch source items"
             logging.error(f"Failed to fetch upstream source items: {e}")
     elif source_type and items:
         try:
@@ -1582,7 +1583,7 @@ def create_collection_from_source(library_name, title, source_type, source_id=''
         }
     except Exception as e:
         logging.error(f"create_collection_from_source error: {e}", exc_info=True)
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": "Failed to create collection"}
 
 
 def run_sync_job(job_id=None):
@@ -1784,6 +1785,27 @@ def is_script_already_running():
         pass
     return False
 
+def _is_mdblist_url(value):
+    """True when value's host is mdblist.com (or a subdomain), not merely containing the string."""
+    from urllib.parse import urlparse
+    raw = str(value or '').strip()
+    if '://' not in raw:
+        raw = 'https://' + raw
+    host = (urlparse(raw).hostname or '').lower()
+    return host == 'mdblist.com' or host.endswith('.mdblist.com')
+
+
+def _describe_request_error(exc):
+    """Map a connection exception to a fixed, client-safe message (no exception text)."""
+    if isinstance(exc, requests.exceptions.SSLError):
+        return 'SSL verification failed'
+    if isinstance(exc, requests.exceptions.Timeout):
+        return 'connection timed out'
+    if isinstance(exc, requests.exceptions.ConnectionError):
+        return 'connection refused or host unreachable'
+    return 'request failed'
+
+
 def _check_plex_quick(config, timeout=3):
     """Lightweight Plex reachability check (identity endpoint)."""
     url = str(config.get('plex_url') or '').rstrip('/')
@@ -1801,7 +1823,8 @@ def _check_plex_quick(config, timeout=3):
             return True, None
         return False, f'Plex returned HTTP {resp.status_code}'
     except Exception as e:
-        return False, str(e)[:200]
+        logging.warning(f"Plex quick check failed: {e}")
+        return False, _describe_request_error(e)
 
 
 @app.route('/api/health')
@@ -2051,7 +2074,8 @@ def get_logs():
                     headers={'Cache-Control': 'no-store, no-cache, must-revalidate'},
                 )
         except Exception as e:
-            return f"Error reading log file: {e}"
+            logging.exception("Error reading log file")
+            return "Error reading log file."
     return "No logs found. Run the script to generate logs."
 
 @app.route('/api/logs/clear', methods=['POST'])
@@ -2064,7 +2088,8 @@ def clear_logs():
             return jsonify({"success": True})
         return jsonify({"error": "Log file not found"}), 404
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logging.exception("Failed to clear logs")
+        return jsonify({"error": "Failed to clear logs"}), 500
 
 @app.route('/api/config', methods=['GET', 'POST'])
 @require_auth
@@ -2156,7 +2181,8 @@ def validate_config_endpoint():
                     else:
                         errors.append(f'Library "{lib}" was not found on this Plex server.')
         except Exception as e:
-            errors.append(f'Cannot connect to Plex with these credentials: {e}')
+            logging.warning(f"Plex validation connection failed: {e}")
+            errors.append(f'Cannot connect to Plex with these credentials: {_describe_request_error(e)}')
 
     # Dedupe while preserving order
     def _uniq(items):
@@ -2276,7 +2302,8 @@ def history_endpoint():
                 json.dump(data, f, indent=4)
             return jsonify({"success": True})
         except Exception as e:
-            return jsonify({"error": str(e)}), 500
+            logging.exception("Failed to save history")
+            return jsonify({"error": "Failed to save history"}), 500
     
     # Auto-sync from logs before returning GET
     sync_logs_to_history()
@@ -2301,7 +2328,8 @@ def history_endpoint():
                 "unique_count": unique_count
             })
         except Exception as e:
-            return jsonify({"events": [], "total_count": 0, "unique_count": 0, "error": str(e)})
+            logging.exception("Failed to read history")
+            return jsonify({"events": [], "total_count": 0, "unique_count": 0, "error": "Failed to read history"})
     return jsonify({"events": [], "total_count": 0, "unique_count": 0})
 
 def start_background_process():
@@ -2346,7 +2374,7 @@ def start_background_process():
         return True, process.pid
     except Exception as e:
         logging.error(f"Failed to start background process: {e}")
-        return False, str(e)
+        return False, "Failed to start background process"
 
 @app.route('/api/run', methods=['POST'])
 @require_auth
@@ -2590,7 +2618,8 @@ def bulk_pin_collections():
                 log_action(f"Unpinned '{title}' successfully.")
             results.append({"title": title, "library": library_name, "ok": True})
         except Exception as e:
-            results.append({"title": title, "library": library_name, "ok": False, "error": str(e)})
+            logging.exception(f"Failed to unpin '{title}'")
+            results.append({"title": title, "library": library_name, "ok": False, "error": "Failed to unpin collection"})
 
     GALLERY_CACHE['data'] = None
     GALLERY_CACHE['timestamp'] = 0
@@ -2634,7 +2663,7 @@ def plex_libraries():
         return jsonify(libraries)
     except Exception as e:
         logging.error(f"Failed to fetch Plex libraries: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Failed to fetch Plex libraries"}), 500
 
 
 def _hub_to_dict(hub):
@@ -2678,7 +2707,7 @@ def list_managed_hubs():
         })
     except Exception as e:
         logging.error(f"list_managed_hubs error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Failed to list managed hubs'}), 500
 
 
 @app.route('/api/hubs/move', methods=['POST'])
@@ -2713,7 +2742,7 @@ def move_managed_hub():
         return jsonify({'success': True, 'hubs': hubs})
     except Exception as e:
         logging.error(f"move_managed_hub error: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Failed to move hub'}), 500
 
 
 @app.route('/api/hubs/visibility', methods=['POST'])
@@ -2755,7 +2784,7 @@ def update_managed_hub_visibility():
         return jsonify({'success': True, 'hub': _hub_to_dict(refreshed)})
     except Exception as e:
         logging.error(f"update_managed_hub_visibility error: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Failed to update hub visibility'}), 500
 
 
 @app.route('/api/trending', methods=['GET'])
@@ -2951,7 +2980,8 @@ def pin_collection():
         SUMMARY_CACHE['timestamp'] = 0
         return jsonify({"success": True})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        logging.exception("Failed to pin collection")
+        return jsonify({"success": False, "error": "Failed to pin collection"}), 500
 
 @app.route('/api/jobs', methods=['GET'])
 @require_auth
@@ -2971,7 +3001,8 @@ def run_job_now():
         run_sync_job(job_id)
         return jsonify({"success": True})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        logging.exception("Failed to run sync job")
+        return jsonify({"success": False, "error": "Failed to run sync job"}), 500
 
 @app.route('/api/jobs/delete', methods=['POST'])
 @require_auth
@@ -3022,7 +3053,8 @@ def unpin_collection():
         SUMMARY_CACHE['timestamp'] = 0
         return jsonify({"success": True})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        logging.exception("Failed to unpin collection")
+        return jsonify({"success": False, "error": "Failed to unpin collection"}), 500
 
 
 @app.route('/api/collections/delete', methods=['POST'])
@@ -3113,7 +3145,7 @@ def fix_collection_art():
         return jsonify({"success": True, "ok_count": ok_count, "results": results})
     except Exception as e:
         logging.error(f"fix_collection_art error: {e}", exc_info=True)
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": "Failed to fix collection artwork"}), 500
 
 
 @app.route('/api/stop', methods=['POST'])
@@ -3197,7 +3229,7 @@ def create_custom_collection():
         return jsonify({"success": True, "art_set": bool(art_set)})
     except Exception as e:
         logging.error(f"Error creating collection: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": "Failed to create collection"}), 500
 
 @app.route('/api/search/local')
 @require_auth
@@ -3601,7 +3633,7 @@ def franchise_search():
         return jsonify(results)
     except Exception as e:
         logging.error(f"Franchise search error: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Franchise search failed'}), 500
 
 
 @app.route('/api/templates/create', methods=['POST'])
@@ -3773,7 +3805,7 @@ def search_trakt_lists():
         return jsonify(results)
     except Exception as e:
         logging.error(f"Trakt list search error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Trakt list search failed'}), 500
 
 
 @app.route('/api/trakt/list')
@@ -3799,7 +3831,7 @@ def get_trakt_list():
         return jsonify(items)
     except Exception as e:
         logging.error(f"Trakt list error: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Trakt list fetch failed"}), 500
 
 @app.route('/api/mdblist/list')
 @require_auth
@@ -3818,7 +3850,7 @@ def get_mdblist():
         parts = [p for p in url.strip().split('/') if p]
         
         # Make sure it's a valid mdblist.com URL
-        if 'mdblist.com' not in url.lower():
+        if not _is_mdblist_url(url):
             return jsonify({"error": "Not a valid MDBList URL. Must be from mdblist.com"}), 400
             
         # Expecting at least 4 parts: ['https:', 'mdblist.com', 'lists', 'username']
@@ -3844,7 +3876,7 @@ def get_mdblist():
             
     except Exception as e:
         logging.error(f"MDBList fetch error: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "MDBList fetch failed"}), 500
 
 
 
@@ -3964,9 +3996,11 @@ if os.path.isdir(DIST_DIR):
     @app.route('/<path:path>')
     def serve_spa(path):
         # Let Flask serve actual static assets (JS, CSS, images)
-        full_path = os.path.join(DIST_DIR, path)
-        if path and os.path.isfile(full_path):
-            return send_from_directory(DIST_DIR, path)
+        # Resolve and confine to DIST_DIR so "../" segments can't escape it.
+        dist_root = os.path.realpath(DIST_DIR)
+        full_path = os.path.realpath(os.path.join(dist_root, path))
+        if path and full_path.startswith(dist_root + os.sep) and os.path.isfile(full_path):
+            return send_from_directory(dist_root, os.path.relpath(full_path, dist_root))
         # For everything else (client-side routes) return index.html
         return send_from_directory(DIST_DIR, 'index.html')
 
@@ -3984,4 +4018,6 @@ if __name__ == "__main__":
             f.write("Log file created.\n")
 
     # IMPORTANT: use_reloader=False prevents the server from restarting when files change
-    app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False)
+    # Debug mode exposes the Werkzeug debugger (remote code execution); opt-in only.
+    debug_mode = os.environ.get('FLASK_DEBUG', '').strip().lower() in ('1', 'true', 'yes')
+    app.run(host="0.0.0.0", port=5000, debug=debug_mode, use_reloader=False)
