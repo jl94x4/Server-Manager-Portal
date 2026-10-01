@@ -13,7 +13,6 @@ import { addMediaPlayerPlaylistItem, createMediaPlayerPlaylist, fetchMediaPlayer
 import { MediaPlayerThemeTune } from './MediaPlayerThemeTune';
 import {
     OVERVIEW_SPOTLIGHT_CARD_SHELL_CLASS,
-    OVERVIEW_SPOTLIGHT_WIDTH_CLASS,
     OverviewFacts,
     OverviewFactsSpotlight,
     OverviewGenres,
@@ -1214,7 +1213,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                                                 mediaType={factMediaType}
                                                 mediaId={factMediaId}
                                                 title={factTitle}
-                                                className={`${OVERVIEW_SPOTLIGHT_WIDTH_CLASS} ${OVERVIEW_SPOTLIGHT_CARD_SHELL_CLASS}`}
+                                                className={`w-full ${OVERVIEW_SPOTLIGHT_CARD_SHELL_CLASS}`}
                                             />
                                         ) : null
                                     }

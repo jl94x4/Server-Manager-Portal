@@ -16,7 +16,7 @@ import { usePlayerSettings } from './usePlayerSettings';
 
 type PersonHandler = (person: { id: string; name: string; thumb?: string | null }) => void;
 type StudioHandler = (studio: { key: string; name: string; sectionKey?: string; mediaType?: 'movie' | 'show' }) => void;
-type NetworkLogo = { name: string; logoPath: string; key: string };
+type NetworkLogo = { name: string; logoPath: string; key: string; wordmark?: boolean };
 
 const isTvShell = () => {
     try {
@@ -71,13 +71,16 @@ const StudioPill: React.FC<{
     logoPath?: string | null;
     size?: 'md' | 'sm' | 'lg' | 'toolbar' | 'hero';
     showPlate?: boolean;
+    /** Original PNG. Dark wordmarks still flip to white; color marks stay color. */
+    brandColor?: boolean;
+    wordmark?: boolean;
     onClick?: () => void;
-}> = ({ name, logoPath, size = 'md', showPlate = true, onClick }) => {
+}> = ({ name, logoPath, size = 'md', showPlate = true, brandColor = false, wordmark = true, onClick }) => {
     const [failed, setFailed] = useState(false);
     const showLogo = Boolean(logoPath) && !failed;
     if (!showLogo) return null;
 
-    const preserveColor = shouldPreserveColorLogo(String(logoPath), name);
+    const preserveColor = brandColor || shouldPreserveColorLogo(String(logoPath), name);
     // Fixed plate height so wordmarks and square marks sit on one baseline.
     const plateClass = size === 'hero'
         ? 'inline-flex items-center justify-start'
@@ -88,7 +91,11 @@ const StudioPill: React.FC<{
                 : size === 'sm'
                     ? 'inline-flex h-8 items-center justify-center rounded-lg px-2.5'
                     : 'inline-flex h-9 items-center justify-center rounded-lg px-3';
-    const logoClass = size === 'hero'
+    const logoClass = brandColor
+        ? (wordmark
+            ? 'h-12 sm:h-14 max-w-[15rem] w-auto object-contain object-left'
+            : 'h-11 w-11 object-contain')
+        : size === 'hero'
         ? 'h-12 sm:h-14 lg:h-[4.25rem] max-w-[16rem] sm:max-w-[20rem] w-auto object-contain object-left drop-shadow-[0_10px_24px_rgba(0,0,0,0.45)]'
         : size === 'toolbar'
             ? 'h-5 max-w-[4.5rem] w-auto object-contain opacity-95'
@@ -97,7 +104,9 @@ const StudioPill: React.FC<{
                 : size === 'sm'
                     ? 'h-5 max-w-[110px] sm:max-w-[130px] w-auto object-contain opacity-95'
                     : 'h-5 sm:h-6 max-w-[130px] sm:max-w-[150px] w-auto object-contain opacity-95';
-    const className = size === 'hero'
+    const className = brandColor
+        ? 'inline-flex h-14 items-center justify-center bg-transparent p-0'
+        : size === 'hero'
         ? `${plateClass} border-0 bg-transparent p-0`
         : size === 'toolbar'
             ? `${plateClass} border border-white/15 bg-white/5 hover:border-plex/40 hover:bg-white/10 transition-colors`
@@ -110,7 +119,7 @@ const StudioPill: React.FC<{
         <DiscoveryLogo
             logoPath={String(logoPath)}
             alt={name}
-            width={300}
+            width={brandColor ? 780 : 300}
             duotone={!preserveColor}
             onError={() => setFailed(true)}
             className={logoClass}
@@ -144,7 +153,8 @@ const NetworkLogoRow: React.FC<{
     searchAllTypes?: boolean;
     size?: 'md' | 'sm' | 'lg' | 'toolbar' | 'hero';
     showPlate?: boolean;
-}> = ({ networks, onOpenStudio, sectionKey, mediaType, searchAllTypes = false, size = 'md', showPlate = true }) => {
+    brandColor?: boolean;
+}> = ({ networks, onOpenStudio, sectionKey, mediaType, searchAllTypes = false, size = 'md', showPlate = true, brandColor = false }) => {
     const interactive = Boolean(onOpenStudio) && !isTvShell();
     return (
     <div className="flex flex-wrap gap-2 items-stretch">
@@ -155,6 +165,8 @@ const NetworkLogoRow: React.FC<{
                 logoPath={row.logoPath}
                 size={size}
                 showPlate={showPlate}
+                brandColor={brandColor}
+                wordmark={row.wordmark !== false}
                 onClick={interactive ? () => onOpenStudio!({
                     // Prefer the display name — TMDB catalog ids do not match Plex tag ids.
                     key: row.name || row.key,
@@ -401,7 +413,7 @@ export const OverviewFacts: React.FC<{
     const serviceSections = [
         studio.length ? { label: t('media.studio'), networks: studio, size: 'sm' as const, searchAllTypes: false } : null,
         network.length && item.type !== 'episode' ? { label: t('mediaPlayerPage.network'), networks: network, size: 'sm' as const, searchAllTypes: false } : null,
-        streaming.length ? { label: t('mediaPlayerPage.streaming'), networks: streaming, size: 'sm' as const, searchAllTypes: true } : null,
+        streaming.length ? { label: t('mediaPlayerPage.streaming'), networks: streaming, size: 'sm' as const, searchAllTypes: true, brandColor: !tvShell } : null,
     ].filter(Boolean) as Array<{ label: string; networks: NetworkLogo[]; size: 'sm' | 'md' | 'lg'; searchAllTypes: boolean }>;
     const leadCredit = (people?: PlayerPersonCredit[]) => {
         const first = (people || []).find((person) => String(person?.name || '').trim());
@@ -446,7 +458,7 @@ export const OverviewFacts: React.FC<{
         </div>
     );
 
-    const renderServiceSection = (section: { label: string; networks: NetworkLogo[]; size: 'sm' | 'md' | 'lg'; searchAllTypes: boolean }) => (
+    const renderServiceSection = (section: { label: string; networks: NetworkLogo[]; size: 'sm' | 'md' | 'lg'; searchAllTypes: boolean; brandColor?: boolean }) => (
         <div key={section.label} className="flex flex-col gap-1 min-w-0">
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted">{section.label}</span>
             <NetworkLogoRow
@@ -456,7 +468,8 @@ export const OverviewFacts: React.FC<{
                 mediaType={item.type === 'movie' ? 'movie' : 'show'}
                 searchAllTypes={section.searchAllTypes}
                 size={section.size}
-                showPlate={settings.serviceLogoPlates}
+                showPlate={section.brandColor ? false : settings.serviceLogoPlates}
+                brandColor={section.brandColor}
             />
         </div>
     );
@@ -478,8 +491,11 @@ export const OverviewFacts: React.FC<{
     };
 
     const useCompactTwoCol = Boolean(aside || middle) || tvShell;
+    const asideWidthClass = tvShell
+        ? 'md:w-[26rem] md:max-w-[26rem]'
+        : 'md:w-[36rem] md:max-w-[44rem] lg:w-[44rem]';
     const rowClass = middle && aside
-        ? 'flex flex-col gap-4 md:grid md:grid-cols-[auto_minmax(16rem,1fr)_26rem] md:items-start md:gap-8 lg:gap-10'
+        ? `flex flex-col gap-4 md:grid md:items-start md:gap-8 lg:gap-10 ${tvShell ? 'md:grid-cols-[auto_minmax(16rem,1fr)_26rem]' : 'md:grid-cols-[auto_minmax(16rem,1fr)_minmax(26rem,44rem)]'}`
         : aside
             ? 'flex flex-col gap-4 md:flex-row md:items-start md:gap-8 lg:gap-10'
             : 'flex flex-col gap-4';
@@ -522,7 +538,7 @@ export const OverviewFacts: React.FC<{
                     </div>
                 ) : null}
                 {aside ? (
-                    <div className={`media-details-facts-aside flex min-w-0 w-full max-w-full flex-col gap-4 md:w-[26rem] md:max-w-[26rem] md:shrink-0 md:self-start`}>
+                    <div className={`media-details-facts-aside flex min-w-0 w-full max-w-full flex-col gap-4 md:shrink-0 md:self-start ${asideWidthClass}`}>
                         {aside}
                         {logosUnderAside ? (
                             <div className="flex flex-col gap-3">

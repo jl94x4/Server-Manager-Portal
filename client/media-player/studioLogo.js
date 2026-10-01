@@ -247,7 +247,8 @@ export const splitOverviewServiceLogos = ({
             catalog?.logoPath || row?.logoPath || '',
             catalog?.name || row?.key || row?.name,
         );
-        if (next) streaming.push(next);
+        // Catalog hits are wide wordmarks. Provider-only art is a square app badge.
+        if (next) streaming.push({ ...next, wordmark: Boolean(catalog?.logoPath) });
     }
 
     for (const row of Array.isArray(tmdbNetworks) ? tmdbNetworks : []) {
