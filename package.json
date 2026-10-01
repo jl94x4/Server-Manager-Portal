@@ -20,7 +20,7 @@
     "compression": "^1.8.2",
     "cookie-parser": "^1.4.7",
     "esbuild": "^0.28.2",
-    "express": "^4.19.2",
+    "express": "^5.2.1",
     "html2canvas": "^1.4.1",
     "jpeg-js": "^0.4.4",
     "jsonwebtoken": "^9.0.3",
