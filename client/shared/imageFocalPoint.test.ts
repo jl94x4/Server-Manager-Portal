@@ -37,8 +37,8 @@ assert.equal(formatBackgroundPosition({ x: 40, y: 18 }), '40% 18%');
 assert.equal(formatBackgroundPosition(), '50% 22%');
 assert.equal(formatTvDetailsBackdropPosition({ x: 30, y: 18 }), '52% 18%');
 assert.equal(formatTvDetailsBackdropPosition({ x: 60, y: 22 }), '63% 22%');
-assert.equal(formatWebDetailsBackdropPosition({ x: 30, y: 18 }), '48% 32%');
-assert.equal(formatWebDetailsBackdropPosition({ x: 60, y: 22 }), '60% 32%');
+assert.equal(formatWebDetailsBackdropPosition({ x: 30, y: 18 }), '46% 44%');
+assert.equal(formatWebDetailsBackdropPosition({ x: 60, y: 22 }), '54% 45%');
 
 {
     const fire = new Uint8Array(32);

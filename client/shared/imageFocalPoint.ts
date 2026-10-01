@@ -112,10 +112,10 @@ export const formatTvDetailsBackdropPosition = (focal: FocalPoint = DEFAULT_FOCA
     return `${x}% ${y}%`;
 };
 
-/** Web title pages: keep eyes in the backdrop band, to the right of the poster. */
+/** Web title pages: show the widescreen frame. A short cover-crop on the face turns stills into head shots. */
 export const formatWebDetailsBackdropPosition = (focal: FocalPoint = DEFAULT_FOCAL) => {
-    const x = focal.x < 44 ? clamp(focal.x + 14, 48, 78) : clamp(focal.x, 42, 78);
-    const y = clamp(focal.y + 10, 32, 48);
+    const x = clamp(focal.x, 46, 54);
+    const y = clamp(44 + Math.round((focal.y - 18) * 0.15), 42, 50);
     return `${x}% ${y}%`;
 };
 

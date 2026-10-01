@@ -584,7 +584,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
             const fromArt = await sampleBackdropSurfaceColor(artUrl || posterSampleUrl);
             if (!cancelled && fromArt) applyTvDetailsSurface(fromArt);
         };
-        const fallback = isTvShell ? '58% 20%' : '62% 38%';
+        const fallback = isTvShell ? '58% 20%' : '50% 46%';
         const timer = window.setTimeout(() => frameArt(fallback), 280);
         if (artUrl) {
             void resolveImageFocalPoint(artUrl).then((focal) => {

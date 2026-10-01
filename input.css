@@ -535,13 +535,21 @@ html[data-theme="light"] .company-card .company-duotone-logo {
 }
 @media (min-width: 768px) {
   html:not([data-tv="1"]) .media-details-hero {
-    min-height: min(72vh, 46rem);
+    min-height: min(56.25vw, 72vh, 46rem);
   }
+  /* Match a 16:9 frame so cover does not zoom a still into a close-up. */
   html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop {
+    top: 0;
+    right: 0;
+    left: 0;
     bottom: auto;
-    height: min(68vh, 44rem);
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    max-height: min(70vh, 46rem);
   }
   html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop img {
+    object-position: center 46%;
     transition: none;
   }
   html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop:not(.is-framed) img {
