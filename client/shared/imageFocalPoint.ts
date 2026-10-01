@@ -169,7 +169,6 @@ const surfaceCache = new Map<string, string>();
 /** Space-separated R G B for CSS `rgb(var(--token))` (e.g. `38 41 48`). */
 export const DEFAULT_BACKDROP_SURFACE_RGB = '38 41 48';
 
-const DEFAULT_SURFACE = { r: 38, g: 41, b: 48 };
 const luma = (r: number, g: number, b: number) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
 const clampByte = (value: number) => Math.min(255, Math.max(0, value));
 /** Keep overview chrome in the dark range — never a light/white page (Toy Story). */
@@ -230,76 +229,94 @@ export const posterSurfaceFromRgba = (data: Uint8ClampedArray | Uint8Array): str
     return [Math.round(r), Math.round(g), Math.round(b)].join(' ');
 };
 
+const parsePositionPercent = (position = '50% 50%') => {
+    const [xRaw, yRaw] = String(position).trim().split(/\s+/);
+    const read = (raw: string | undefined, fallback: number) => {
+        const value = parseFloat(String(raw ?? ''));
+        return Number.isFinite(value) ? value / 100 : fallback;
+    };
+    return { x: read(xRaw, 0.5), y: read(yRaw, 0.5) };
+};
+
+const surfaceFromAverage = (r: number, g: number, b: number) => {
+    const y = luma(r, g, b);
+    if (y > MAX_SURFACE_LUMA && y > 0) {
+        const scale = MAX_SURFACE_LUMA / y;
+        r *= scale;
+        g *= scale;
+        b *= scale;
+    }
+    return [Math.round(r), Math.round(g), Math.round(b)].join(' ');
+};
+
 /**
- * Average darker pixels along the bottom band of a backdrop so the page surface can match the art.
- * Light pixels are ignored; the result is clamped so the page never goes pale.
+ * Average the bottom edge of a backdrop so the page surface matches the art.
+ * Pass the on-screen frame to sample the pixels actually at the bottom of the crop.
  * Returns null when CORS or canvas read fails.
  */
-export const sampleBackdropSurfaceColor = async (url: string): Promise<string | null> => {
-    const key = String(url || '').trim();
-    if (!key) return null;
+export const sampleBackdropSurfaceColor = async (
+    url: string,
+    frame?: { width: number; height: number; position?: string },
+): Promise<string | null> => {
+    const key = [
+        String(url || '').trim(),
+        frame ? `${Math.round(frame.width)}x${Math.round(frame.height)}` : 'file-edge',
+        frame?.position || '',
+    ].join('|');
+    if (key.startsWith('|')) return null;
     const cached = surfaceCache.get(key);
     if (cached) return cached;
 
     try {
-        const img = await loadImage(key);
+        const img = await loadImage(key.split('|')[0]);
         const sw = img.naturalWidth || img.width;
         const sh = img.naturalHeight || img.height;
         if (!sw || !sh) return null;
 
+        let sx = 0;
+        let sWidth = sw;
+        let sHeight = Math.max(2, Math.min(18, Math.round(sh * 0.025)));
+        let sy = sh - sHeight;
+        if (frame && frame.width > 2 && frame.height > 2) {
+            const pos = parsePositionPercent(frame.position);
+            const scale = Math.max(frame.width / sw, frame.height / sh);
+            const renderedW = sw * scale;
+            const renderedH = sh * scale;
+            const offsetX = (frame.width - renderedW) * pos.x;
+            const offsetY = (frame.height - renderedH) * pos.y;
+            const viewLeft = Math.max(0, Math.min(sw - 1, -offsetX / scale));
+            const viewTop = Math.max(0, Math.min(sh - 1, -offsetY / scale));
+            const viewWidth = Math.max(1, Math.min(sw - viewLeft, frame.width / scale));
+            const viewHeight = Math.max(1, Math.min(sh - viewTop, frame.height / scale));
+            sHeight = Math.max(2, Math.min(16, viewHeight * 0.04));
+            sx = viewLeft;
+            sWidth = viewWidth;
+            sy = Math.max(0, Math.min(sh - sHeight, viewTop + viewHeight - sHeight));
+        }
+
         const canvas = document.createElement('canvas');
-        const tw = 64;
-        const th = 36;
+        const tw = 96;
+        const th = 8;
         canvas.width = tw;
         canvas.height = th;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         if (!ctx) return null;
-
-        const bandTop = Math.floor(sh * 0.78);
-        const bandHeight = Math.max(1, sh - bandTop);
-        ctx.drawImage(img, 0, bandTop, sw, bandHeight, 0, 0, tw, th);
+        ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, tw, th);
 
         const { data } = ctx.getImageData(0, 0, tw, th);
-        const pixels: Array<{ r: number; g: number; b: number; y: number }> = [];
-        for (let i = 0; i < data.length; i += 4) {
-            if (data[i + 3] < 20) continue;
-            const r = data[i];
-            const g = data[i + 1];
-            const b = data[i + 2];
-            pixels.push({ r, g, b, y: luma(r, g, b) });
-        }
-        if (!pixels.length) return null;
-
-        const dark = pixels.filter((p) => p.y <= 125);
-        const pool = dark.length >= Math.max(8, pixels.length * 0.08)
-            ? dark
-            : pixels.sort((a, b) => a.y - b.y).slice(0, Math.max(1, Math.floor(pixels.length * 0.35)));
-
         let r = 0;
         let g = 0;
         let b = 0;
-        for (const p of pool) {
-            r += p.r;
-            g += p.g;
-            b += p.b;
+        let count = 0;
+        for (let i = 0; i < data.length; i += 4) {
+            if (data[i + 3] < 20) continue;
+            r += data[i];
+            g += data[i + 1];
+            b += data[i + 2];
+            count += 1;
         }
-        r /= pool.length;
-        g /= pool.length;
-        b /= pool.length;
-
-        const y = luma(r, g, b);
-        if (y > MAX_SURFACE_LUMA && y > 0) {
-            const scale = MAX_SURFACE_LUMA / y;
-            r *= scale;
-            g *= scale;
-            b *= scale;
-        }
-
-        const rgb = [
-            Math.round(r * 0.92 + DEFAULT_SURFACE.r * 0.08),
-            Math.round(g * 0.92 + DEFAULT_SURFACE.g * 0.08),
-            Math.round(b * 0.92 + DEFAULT_SURFACE.b * 0.08),
-        ].join(' ');
+        if (!count) return null;
+        const rgb = surfaceFromAverage(r / count, g / count, b / count);
         surfaceCache.set(key, rgb);
         return rgb;
     } catch {

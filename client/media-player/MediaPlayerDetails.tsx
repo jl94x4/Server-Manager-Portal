@@ -549,30 +549,33 @@ export const MediaPlayerDetails: React.FC<Props> = ({
         const url = plexBackdropUrl(item.art || item.thumb);
         if (!posterSampleUrl && !url && !previewUrl) return undefined;
         let cancelled = false;
+        let framed = false;
         const root = document.querySelector<HTMLElement>('[data-tv-details="1"]');
-        root?.style.setProperty('--tv-backdrop-position', isTvShell ? '58% 20%' : '62% 38%');
         applyTvDetailsSurface(DEFAULT_BACKDROP_SURFACE_RGB);
-        const artUrl = previewUrl || url;
-        if (artUrl) {
-            void resolveImageFocalPoint(artUrl).then((focal) => {
-                if (cancelled) return;
-                document.querySelector<HTMLElement>('[data-tv-details="1"]')
-                    ?.style.setProperty(
-                        '--tv-backdrop-position',
-                        isTvShell ? formatTvDetailsBackdropPosition(focal) : formatWebDetailsBackdropPosition(focal),
-                    );
-            });
-        }
-        const sampleSurface = async () => {
-            // Web matches the art’s bottom edge. TV keeps the poster sample, which already looks right there.
-            if (!isTvShell && artUrl) {
-                const fromArt = await sampleBackdropSurfaceColor(artUrl);
-                if (!cancelled && fromArt) {
-                    applyTvDetailsSurface(fromArt);
+        const artUrl = url || previewUrl;
+        const frameArt = (position: string) => {
+            if (cancelled || framed) return;
+            framed = true;
+            const node = document.querySelector<HTMLElement>('[data-tv-details="1"]');
+            node?.style.setProperty('--tv-backdrop-position', position);
+            node?.querySelector('.media-details-hero-backdrop')?.classList.add('is-framed');
+            void sampleSurface(position);
+        };
+        const sampleSurface = async (position: string) => {
+            const backdrop = root?.querySelector<HTMLElement>('.media-details-hero-backdrop');
+            const box = backdrop?.getBoundingClientRect();
+            if (!isTvShell && artUrl && box && box.width > 2 && box.height > 2) {
+                const fromEdge = await sampleBackdropSurfaceColor(artUrl, {
+                    width: box.width,
+                    height: box.height,
+                    position,
+                });
+                if (!cancelled && fromEdge) {
+                    applyTvDetailsSurface(fromEdge);
                     return;
                 }
             }
-            if (posterSampleUrl) {
+            if (isTvShell && posterSampleUrl) {
                 const fromPoster = await samplePosterSurfaceColor(posterSampleUrl);
                 if (!cancelled && fromPoster) {
                     applyTvDetailsSurface(fromPoster);
@@ -582,9 +585,20 @@ export const MediaPlayerDetails: React.FC<Props> = ({
             const fromArt = await sampleBackdropSurfaceColor(artUrl || posterSampleUrl);
             if (!cancelled && fromArt) applyTvDetailsSurface(fromArt);
         };
-        void sampleSurface();
+        const fallback = isTvShell ? '58% 20%' : '62% 38%';
+        const timer = window.setTimeout(() => frameArt(fallback), 280);
+        if (artUrl) {
+            void resolveImageFocalPoint(artUrl).then((focal) => {
+                window.clearTimeout(timer);
+                frameArt(isTvShell ? formatTvDetailsBackdropPosition(focal) : formatWebDetailsBackdropPosition(focal));
+            });
+        } else {
+            window.clearTimeout(timer);
+            frameArt(fallback);
+        }
         return () => {
             cancelled = true;
+            window.clearTimeout(timer);
         };
     }, [isTvShell, item?.ratingKey, item?.art, item?.thumb]);
 
@@ -852,7 +866,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                         <PlayerBackdropImage
                             key={backdropUrl}
                             src={backdropUrl}
-                            previewSrc={backdropPreviewUrl}
+                            previewSrc={isTvShell ? backdropPreviewUrl : undefined}
                             className="absolute inset-0 w-full h-full object-cover"
                             fetchPriority="high"
                             onLoad={() => setBackdropReady(true)}

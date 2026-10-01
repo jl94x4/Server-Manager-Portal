@@ -49,12 +49,12 @@ export const playerCardImageUrl = (thumb?: string | null, aspect: '2/3' | 'squar
 export const plexLogoUrl = (path?: string | null) => plexImageUrl(path, 640, 240, { fit: 'contain', quality: 70 });
 
 /**
- * TV layout is 1920 CSS px (4K zooms down to that). Plex art is almost always
- * 1920×1080, and upscale=0 means a 4K request adds bytes/decode time with no extra detail.
+ * Ask Plex for the largest art it has. upscale=0 keeps a 1080 source at 1080,
+ * and a 4K original is served at 4K instead of being crushed to 1920.
  */
-export const PLAYER_BACKDROP_WIDTH = 1920;
-export const PLAYER_BACKDROP_HEIGHT = 1080;
-export const PLAYER_BACKDROP_QUALITY = 85;
+export const PLAYER_BACKDROP_WIDTH = 3840;
+export const PLAYER_BACKDROP_HEIGHT = 2160;
+export const PLAYER_BACKDROP_QUALITY = 95;
 export const PLAYER_BACKDROP_PREVIEW_WIDTH = 640;
 export const PLAYER_BACKDROP_PREVIEW_HEIGHT = 360;
 export const PLAYER_BACKDROP_PREVIEW_QUALITY = 40;

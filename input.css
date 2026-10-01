@@ -541,6 +541,12 @@ html[data-theme="light"] .company-card .company-duotone-logo {
     bottom: auto;
     height: min(68vh, 44rem);
   }
+  html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop img {
+    transition: none;
+  }
+  html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop:not(.is-framed) img {
+    opacity: 0;
+  }
 }
 .media-details-page .media-details-hero-backdrop {
   position: absolute;
