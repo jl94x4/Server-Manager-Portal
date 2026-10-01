@@ -4524,6 +4524,20 @@ app.post('/api/settings/email-templates/test', requireAdmin, async (req, res) =>
     }
 });
 
+// Plex's auth page compares this to the forwardUrl host. A missing Origin
+// makes app.plex.tv show "We were unable to complete this request."
+const plexPinOrigin = (req) => {
+    const requested = String(req.get('origin') || '').trim();
+    if (requested && collectAllowedOrigins(req).has(requested)) return requested;
+    const pub = runtimePublicBaseUrl || getEnvPublicBaseUrl() || '';
+    if (pub) {
+        try { return new URL(pub).origin; } catch { /* ignore */ }
+    }
+    const host = String(req.get('host') || '').split(',')[0].trim();
+    if (!host) return '';
+    return `${requestIsHttps(req) ? 'https' : 'http'}://${host}`;
+};
+
 // Auth endpoints
 app.post('/api/auth/plex/login', authRateLimit, async (req, res) => {
     try {
@@ -4533,14 +4547,17 @@ app.post('/api/auth/plex/login', authRateLimit, async (req, res) => {
         const pinEndpoint = wantLinkCode
             ? 'https://plex.tv/api/v2/pins'
             : 'https://plex.tv/api/v2/pins?strong=true';
+        const origin = plexPinOrigin(req);
         const response = await fetch(pinEndpoint, {
             method: 'POST',
             headers: plexClientHeaders('', {
                 'X-Plex-Product': 'StreamPilot',
+                ...(origin ? { Origin: origin } : {}),
             }),
         });
         if (!response.ok) throw new Error('Failed to generate Plex PIN');
         const data = await response.json();
+        log(`Plex login PIN issued origin=${origin || 'none'} pinId=${data?.id || 'none'}`);
         const oauthState = data?.id ? issuePlexOauthState(req, res, data.id) : null;
         if (req.body?.skipHomeRemember === true) issuePlexHomeSkipRemember(req, res);
         // oauthState is for Capacitor / cross-origin clients that cannot rely on the OAuth cookie.
