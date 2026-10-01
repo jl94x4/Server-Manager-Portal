@@ -607,18 +607,31 @@ html[data-theme="light"] .company-card .company-duotone-logo {
     );
   }
 }
-/* Web overview: longer wash from the sampled bottom colour, covering the logo and the description. */
+/* Web overview: the still lives in the upper band and dissolves into the page before the details. */
 html:not([data-tv="1"]) .media-details-page {
-  --tv-backdrop-fade-span: 16rem;
+  --tv-backdrop-fade-span: 11rem;
 }
 html:not([data-tv="1"]) .media-details-hero-scrim-mobile {
   background: linear-gradient(to bottom, rgb(0 0 0 / 0.55) 0%, transparent 26%);
 }
 @media (min-width: 768px) {
+  /* Feather every edge of the still into the page colour. The black top vignette read as a hard frame. */
   html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop::before {
     background:
-      linear-gradient(to right, rgb(var(--tv-details-surface) / 0.9) 0%, rgb(var(--tv-details-surface) / 0.46) 16%, rgb(var(--tv-details-surface) / 0.14) 30%, transparent 44%),
-      linear-gradient(to bottom, rgb(0 0 0 / 0.4) 0%, transparent 14%);
+      linear-gradient(to right,
+        rgb(var(--tv-details-surface)) 0%,
+        rgb(var(--tv-details-surface) / 0.78) 7%,
+        rgb(var(--tv-details-surface) / 0.34) 16%,
+        transparent 30%,
+        transparent 82%,
+        rgb(var(--tv-details-surface) / 0.22) 90%,
+        rgb(var(--tv-details-surface) / 0.62) 96%,
+        rgb(var(--tv-details-surface)) 100%),
+      linear-gradient(to bottom,
+        rgb(var(--tv-details-surface)) 0%,
+        rgb(var(--tv-details-surface) / 0.62) 5%,
+        rgb(var(--tv-details-surface) / 0.18) 12%,
+        transparent 22%);
   }
 }
 html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop::after {

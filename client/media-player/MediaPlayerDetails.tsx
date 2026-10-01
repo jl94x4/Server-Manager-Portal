@@ -494,13 +494,19 @@ export const MediaPlayerDetails: React.FC<Props> = ({
             const root = document.querySelector<HTMLElement>('[data-tv-details="1"]');
             const anchor = root?.querySelector<HTMLElement>('[data-tv-fade-anchor="1"]');
             const backdrop = root?.querySelector<HTMLElement>('.media-details-hero-backdrop');
-            if (!root || !anchor || !backdrop) return;
+            const webEdge = isTvShell ? null : root?.querySelector<HTMLElement>('[data-tv-action-row="1"]');
+            const edge = webEdge || anchor;
+            if (!root || !backdrop || !edge) return;
             const zoom = readDocumentZoom();
-            // Web: solid colour begins at the logo’s lower edge so the description sits on the sample.
-            const extra = isTvShell ? 0 : -28;
+            // TV: solid colour begins at the logo’s lower edge.
+            // Web: the still stays through the title and dissolves along the play row.
+            const extra = isTvShell ? 0 : (webEdge ? 12 : -28);
+            const edgeTop = webEdge
+                ? webEdge.getBoundingClientRect().bottom
+                : edge.getBoundingClientRect().top;
             const backdropHeight = backdrop.getBoundingClientRect().height / zoom;
             let fadePx = Math.max(0, Math.round(
-                (anchor.getBoundingClientRect().top - backdrop.getBoundingClientRect().top) / zoom,
+                (edgeTop - backdrop.getBoundingClientRect().top) / zoom,
             ) + extra);
             if (!isTvShell && backdropHeight > 0) {
                 fadePx = Math.min(fadePx, Math.round(backdropHeight * 0.92));
