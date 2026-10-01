@@ -9992,7 +9992,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentRoute, onNavigate
 
         if (item.href) {
             return (
-                <a key={key} href={item.href} target="_blank" rel="noreferrer" className={options.mobile ? baseClass.replace('hover:text-text', 'hover:text-text') : 'flex items-center gap-3 px-3 py-2.5 text-muted no-underline rounded-lg transition-all text-[14px] font-medium hover:bg-white/5 hover:text-text'}>
+                <a key={key} href={item.href} target="_blank" rel="noreferrer" className={options.mobile ? baseClass : 'flex items-center gap-3 px-3 py-2.5 text-muted no-underline rounded-lg transition-all text-[14px] font-medium hover:bg-white/5 hover:text-text'}>
                     <Icon className="w-5 h-5 flex-shrink-0" /> {label}
                 </a>
             );

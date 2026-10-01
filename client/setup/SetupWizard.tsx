@@ -343,6 +343,9 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
         };
     }, [step, mediaServerType, token, serverIdentifier, plexServerUrl, setupToken]);
 
+    // Only non-secret wizard state is persisted to sessionStorage (it survives the
+    // Plex OAuth redirect). API keys and passwords stay in memory so they are never
+    // written to browser storage in clear text; a reload means re-entering them.
     const persistSetupPlex = (patch: Partial<ReturnType<typeof readStoredSetupPlex>>) => {
         const next = {
             token,
@@ -351,7 +354,6 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
             serverIdentifier,
             plexServerUrl,
             jellyfinUrl,
-            jellyfinApiKey,
             username: plexUsername,
             step,
             publicDomain,
@@ -361,23 +363,17 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
             smtpHost,
             smtpPort,
             smtpUser,
-            smtpPass,
             smtpFrom,
             smtpSecure,
-            arrInstances,
+            arrInstances: arrInstances.map((instance) => ({ ...instance, apiKey: '' })),
             tautulliUrl,
-            tautulliApiKey,
             jellyfinAnalyticsProvider,
             jellystatUrl,
-            jellystatApiKey,
             jellyglanceUrl,
-            jellyglanceApiKey,
-            tmdbApiKey,
             requestSetupMode,
             migrateFromSeerr,
             requestAppType,
             requestAppUrl,
-            requestAppApiKey,
             ...patch,
         };
         sessionStorage.setItem(SETUP_PLEX_STORAGE_KEY, JSON.stringify(next));
