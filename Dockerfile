@@ -1,5 +1,5 @@
 # --- Build frontend assets and version stamp ---
-FROM node:22-bookworm-slim AS builder
+FROM node:26-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -27,7 +27,7 @@ RUN npm run build \
     && npm cache clean --force
 
 # --- Production image ---
-FROM node:22-bookworm-slim AS runner
+FROM node:26-bookworm-slim AS runner
 
 WORKDIR /app
 
