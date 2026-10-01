@@ -494,7 +494,7 @@ export const SetupWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }
             const data = await apiFetch('/api/auth/plex/login', { method: 'POST' });
             const clientId = data.clientIdentifier || data.clientId || '';
             const forwardUrl = `${window.location.origin}${portalUrl(`/auth/setup/${data.id}`)}`;
-            const authUrl = `https://app.plex.tv/auth#?clientID=${encodeURIComponent(clientId)}&code=${data.code}&context[device][product]=Server%20Manager%20Portal&forwardUrl=${encodeURIComponent(forwardUrl)}`;
+            const authUrl = `https://app.plex.tv/auth#?clientID=${encodeURIComponent(clientId)}&code=${data.code}&context[device][product]=StreamPilot&forwardUrl=${encodeURIComponent(forwardUrl)}`;
             window.location.href = authUrl;
         } catch (e) {
             setError(e instanceof Error ? e.message : 'Failed to start Plex sign-in');

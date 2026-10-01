@@ -6811,7 +6811,7 @@ export const Login: React.FC<{ onLoginSuccess: () => void, publicConfig?: any, p
             const callbackParams = new URLSearchParams({ pinId: String(data.id) });
             if (storedRef) callbackParams.set('ref', storedRef);
             const forwardUrl = window.location.origin + portalUrl(`/api/auth/plex/callback?${callbackParams.toString()}`);
-            const authUrl = `https://app.plex.tv/auth#?clientID=${encodeURIComponent(clientId)}&code=${data.code}&context[device][product]=Server%20Manager%20Portal&forwardUrl=${encodeURIComponent(forwardUrl)}`;
+            const authUrl = `https://app.plex.tv/auth#?clientID=${encodeURIComponent(clientId)}&code=${data.code}&context[device][product]=StreamPilot&forwardUrl=${encodeURIComponent(forwardUrl)}`;
             window.location.href = authUrl;
         } catch (e) {
             setError('Failed to initiate Plex login');
@@ -13865,7 +13865,7 @@ export const PublicInviteClaim: React.FC<{ code: string }> = ({ code }) => {
             const data = await apiFetch('/api/auth/plex/login', { method: 'POST' });
             const clientId = data.clientIdentifier || data.clientId || '';
             const forwardUrl = window.location.origin + portalUrl('/invite/' + code) + '#auth/' + data.id;
-            const authUrl = `https://app.plex.tv/auth#?clientID=${encodeURIComponent(clientId)}&code=${data.code}&context[device][product]=Server%20Manager%20Portal&forwardUrl=${encodeURIComponent(forwardUrl)}`;
+            const authUrl = `https://app.plex.tv/auth#?clientID=${encodeURIComponent(clientId)}&code=${data.code}&context[device][product]=StreamPilot&forwardUrl=${encodeURIComponent(forwardUrl)}`;
             window.location.href = authUrl;
         } catch (error) {
             setError('Failed to initiate Plex login');
