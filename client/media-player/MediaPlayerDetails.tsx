@@ -942,8 +942,8 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                                 <div
                                     className={
                                         item.type === 'episode'
-                                            ? `group relative aspect-video w-[min(70%,17.4rem)] sm:w-full ${isTvShell ? 'sm:max-w-[21.6rem]' : 'sm:max-w-[22rem]'} md:max-w-none flex-shrink-0 overflow-hidden rounded-2xl border border-white/15 bg-black/50 shadow-[0_20px_60px_rgba(0,0,0,0.55)] ring-1 ring-white/10 outline-none`
-                                            : `group relative aspect-[2/3] w-[50%] max-w-[14.4rem] ${isTvShell ? 'sm:max-w-[16.8rem]' : 'sm:max-w-[18rem]'} md:w-full md:max-w-none flex-shrink-0 overflow-hidden rounded-2xl border border-white/15 bg-black/50 shadow-[0_20px_60px_rgba(0,0,0,0.55)] ring-1 ring-white/10 outline-none`
+                                            ? `group relative aspect-video w-[min(70%,17.4rem)] sm:w-full ${isTvShell ? 'sm:max-w-[21.6rem]' : 'sm:max-w-[22rem]'} md:max-w-none flex-shrink-0 overflow-hidden rounded-2xl border border-white/15 bg-black/50 ring-1 ring-white/10 outline-none`
+                                            : `group relative aspect-[2/3] w-[50%] max-w-[14.4rem] ${isTvShell ? 'sm:max-w-[16.8rem]' : 'sm:max-w-[18rem]'} md:w-full md:max-w-none flex-shrink-0 overflow-hidden rounded-2xl border border-white/15 bg-black/50 ring-1 ring-white/10 outline-none`
                                     }
                                 >
                                     <div data-tv-poster="1" className="pointer-events-none absolute inset-0 z-[5] rounded-[inherit]" aria-hidden />
