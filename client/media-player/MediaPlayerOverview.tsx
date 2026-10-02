@@ -92,9 +92,7 @@ const StudioPill: React.FC<{
                     ? 'inline-flex h-8 items-center justify-center rounded-lg px-2.5'
                     : 'inline-flex h-9 items-center justify-center rounded-lg px-3';
     const logoClass = brandColor
-        ? (wordmark
-            ? 'h-12 sm:h-14 max-w-[15rem] w-auto object-contain object-left'
-            : 'h-11 w-11 object-contain')
+        ? 'max-h-full max-w-full object-contain'
         : size === 'hero'
         ? 'h-12 sm:h-14 lg:h-[4.25rem] max-w-[16rem] sm:max-w-[20rem] w-auto object-contain object-left drop-shadow-[0_10px_24px_rgba(0,0,0,0.45)]'
         : size === 'toolbar'
@@ -105,7 +103,7 @@ const StudioPill: React.FC<{
                     ? 'h-5 max-w-[110px] sm:max-w-[130px] w-auto object-contain opacity-95'
                     : 'h-5 sm:h-6 max-w-[130px] sm:max-w-[150px] w-auto object-contain opacity-95';
     const className = brandColor
-        ? 'inline-flex h-14 items-center justify-center bg-transparent p-0'
+        ? 'inline-flex h-7 w-[6.5rem] items-center justify-center bg-transparent p-0'
         : size === 'hero'
         ? `${plateClass} border-0 bg-transparent p-0`
         : size === 'toolbar'
