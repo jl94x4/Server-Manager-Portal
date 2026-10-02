@@ -537,7 +537,7 @@ html[data-theme="light"] .company-card .company-duotone-logo {
   html:not([data-tv="1"]) .media-details-hero {
     min-height: 0;
   }
-  /* Full still in the top-right. Left and bottom settle at 8% so the page colour shows through. */
+  /* Full still in the top-right, at one even opacity across the page. */
   html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop {
     top: 0;
     right: 0;
@@ -549,28 +549,14 @@ html[data-theme="light"] .company-card .company-duotone-logo {
     aspect-ratio: auto;
     max-height: none;
   }
+  /* Even wash. The old radial fade was full in the corner and nearly gone at the edges. */
   html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop img {
     object-fit: cover;
     object-position: right top;
+    opacity: 0.54;
     transition: none;
-    -webkit-mask-image: radial-gradient(
-      farthest-corner at 100% 0%,
-      #000 0,
-      #000 min(28vh, 18rem),
-      rgb(0 0 0 / 0.08) min(78vh, 52rem),
-      rgb(0 0 0 / 0.08) 100%
-    );
-    -webkit-mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-image: radial-gradient(
-      farthest-corner at 100% 0%,
-      #000 0,
-      #000 min(28vh, 18rem),
-      rgb(0 0 0 / 0.08) min(78vh, 52rem),
-      rgb(0 0 0 / 0.08) 100%
-    );
-    mask-repeat: no-repeat;
-    mask-size: 100% 100%;
+    -webkit-mask-image: none;
+    mask-image: none;
   }
   html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop:not(.is-framed) img {
     opacity: 0;
