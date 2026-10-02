@@ -562,27 +562,21 @@ export const MediaPlayerDetails: React.FC<Props> = ({
             void sampleSurface(position);
         };
         const sampleSurface = async (position: string) => {
-            const backdrop = root?.querySelector<HTMLElement>('.media-details-hero-backdrop');
-            const box = backdrop?.getBoundingClientRect();
-            if (!isTvShell && artUrl && box && box.width > 2 && box.height > 2) {
-                const fromEdge = await sampleBackdropSurfaceColor(artUrl, {
-                    width: box.width,
-                    height: box.height,
-                    position,
-                });
-                if (!cancelled && fromEdge) {
-                    applyTvDetailsSurface(fromEdge);
-                    return;
-                }
-            }
-            if (isTvShell && posterSampleUrl) {
+            if (posterSampleUrl) {
                 const fromPoster = await samplePosterSurfaceColor(posterSampleUrl);
                 if (!cancelled && fromPoster) {
                     applyTvDetailsSurface(fromPoster);
                     return;
                 }
             }
-            const fromArt = await sampleBackdropSurfaceColor(artUrl || posterSampleUrl);
+            const backdrop = root?.querySelector<HTMLElement>('.media-details-hero-backdrop');
+            const box = backdrop?.getBoundingClientRect();
+            const fromArt = await sampleBackdropSurfaceColor(
+                artUrl || posterSampleUrl,
+                !isTvShell && artUrl && box && box.width > 2 && box.height > 2
+                    ? { width: box.width, height: box.height, position }
+                    : undefined,
+            );
             if (!cancelled && fromArt) applyTvDetailsSurface(fromArt);
         };
         const fallback = isTvShell ? '58% 20%' : '50% 46%';

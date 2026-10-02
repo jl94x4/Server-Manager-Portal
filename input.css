@@ -537,33 +537,39 @@ html[data-theme="light"] .company-card .company-duotone-logo {
   html:not([data-tv="1"]) .media-details-hero {
     min-height: 0;
   }
-  /* 16:9 frame, capped so it cannot grow into a crop. The mask fades that frame into the page. */
+  /* Full still in the top-right. Left and bottom settle at 8% so the page colour shows through. */
   html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop {
+    --details-still-h: min(63vh, 42rem);
     top: 0;
     right: 0;
-    left: auto;
-    bottom: auto;
-    margin-left: auto;
-    margin-right: 0;
-    width: min(100%, calc(min(63vh, 42rem) * 16 / 9));
-    height: min(63vh, 42rem);
+    left: 0;
+    bottom: 0;
+    margin: 0;
+    width: auto;
+    height: auto;
     aspect-ratio: auto;
-    max-height: min(63vh, 42rem);
+    max-height: none;
   }
   html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop img {
-    object-fit: contain;
-    object-position: center center;
+    object-fit: cover;
+    object-position: right top;
     transition: none;
-    -webkit-mask-image:
-      linear-gradient(to right, transparent 0%, #000 12%, #000 100%),
-      linear-gradient(to bottom, #000 0%, #000 78%, transparent 100%);
-    -webkit-mask-composite: source-in;
+    -webkit-mask-image: radial-gradient(
+      farthest-corner at 100% 0%,
+      #000 0,
+      #000 min(34vh, 22rem),
+      rgb(0 0 0 / 0.08) var(--details-still-h),
+      rgb(0 0 0 / 0.08) 100%
+    );
     -webkit-mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
-    mask-image:
-      linear-gradient(to right, transparent 0%, #000 12%, #000 100%),
-      linear-gradient(to bottom, #000 0%, #000 78%, transparent 100%);
-    mask-composite: intersect;
+    mask-image: radial-gradient(
+      farthest-corner at 100% 0%,
+      #000 0,
+      #000 min(34vh, 22rem),
+      rgb(0 0 0 / 0.08) var(--details-still-h),
+      rgb(0 0 0 / 0.08) 100%
+    );
     mask-repeat: no-repeat;
     mask-size: 100% 100%;
   }
@@ -630,29 +636,11 @@ html:not([data-tv="1"]) .media-details-hero-scrim-mobile {
   background: linear-gradient(to bottom, rgb(0 0 0 / 0.55) 0%, transparent 26%);
 }
 @media (min-width: 768px) {
-  html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop::before {
-    background: linear-gradient(to right,
-      rgb(var(--tv-details-surface) / 0.88) 0%,
-      rgb(var(--tv-details-surface) / 0.4) 16%,
-      transparent 32%);
+  /* The mask already fades into the page. A solid wash would hide the faint still. */
+  html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop::before,
+  html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop::after {
+    background: none;
   }
-}
-html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop::after {
-  content: "";
-  position: absolute;
-  z-index: 3;
-  left: 0;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    transparent 74%,
-    rgb(var(--tv-details-surface) / 0.4) 88%,
-    rgb(var(--tv-details-surface)) 100%
-  );
 }
 html:not([data-tv="1"]) .media-details-page .media-overview-summary {
   max-width: 44rem;
@@ -663,16 +651,16 @@ html:not([data-tv="1"]) .media-details-page .media-overview-summary {
     top: 0;
     right: 0;
     left: 0;
-    bottom: auto;
-    width: 100%;
-    height: 18rem;
-    max-height: 18rem;
+    bottom: 0;
+    width: auto;
+    height: auto;
+    max-height: none;
   }
   html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop img {
     object-fit: cover;
-    object-position: center 28%;
-    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 46%, transparent 100%);
-    mask-image: linear-gradient(to bottom, #000 0%, #000 46%, transparent 100%);
+    object-position: center top;
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 7rem, rgb(0 0 0 / 0.08) 16rem, rgb(0 0 0 / 0.08) 100%);
+    mask-image: linear-gradient(to bottom, #000 0%, #000 7rem, rgb(0 0 0 / 0.08) 16rem, rgb(0 0 0 / 0.08) 100%);
   }
   html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop::before {
     content: "";
@@ -683,13 +671,7 @@ html:not([data-tv="1"]) .media-details-page .media-overview-summary {
     background: linear-gradient(to bottom, rgb(0 0 0 / 0.35) 0%, transparent 28%);
   }
   html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop::after {
-    background: linear-gradient(
-      to bottom,
-      transparent 0%,
-      transparent 42%,
-      rgb(var(--tv-details-surface) / 0.55) 68%,
-      rgb(var(--tv-details-surface)) 100%
-    );
+    background: none;
   }
   html:not([data-tv="1"]) .media-details-hero-scrim-mobile {
     display: none;
