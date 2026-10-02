@@ -535,22 +535,36 @@ html[data-theme="light"] .company-card .company-duotone-logo {
 }
 @media (min-width: 768px) {
   html:not([data-tv="1"]) .media-details-hero {
-    min-height: min(56.25vw, 72vh, 46rem);
+    min-height: 0;
   }
-  /* Match a 16:9 frame so cover does not zoom a still into a close-up. */
+  /* 16:9 frame, capped so it cannot grow into a crop. The mask fades that frame into the page. */
   html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop {
     top: 0;
     right: 0;
     left: 0;
     bottom: auto;
-    width: 100%;
-    height: auto;
-    aspect-ratio: 16 / 9;
-    max-height: min(70vh, 46rem);
+    margin-inline: auto;
+    width: min(100%, calc(min(42vh, 28rem) * 16 / 9));
+    height: min(42vh, 28rem);
+    aspect-ratio: auto;
+    max-height: min(42vh, 28rem);
   }
   html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop img {
-    object-position: center 46%;
+    object-fit: contain;
+    object-position: center center;
     transition: none;
+    -webkit-mask-image:
+      linear-gradient(to right, transparent 0%, #000 18%, #000 90%, transparent 100%),
+      linear-gradient(to bottom, transparent 0%, #000 12%, #000 64%, transparent 100%);
+    -webkit-mask-composite: source-in;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-size: 100% 100%;
+    mask-image:
+      linear-gradient(to right, transparent 0%, #000 18%, #000 90%, transparent 100%),
+      linear-gradient(to bottom, transparent 0%, #000 12%, #000 64%, transparent 100%);
+    mask-composite: intersect;
+    mask-repeat: no-repeat;
+    mask-size: 100% 100%;
   }
   html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop:not(.is-framed) img {
     opacity: 0;
@@ -607,31 +621,19 @@ html[data-theme="light"] .company-card .company-duotone-logo {
     );
   }
 }
-/* Web overview: the still lives in the upper band and dissolves into the page before the details. */
+/* Web overview: the still fades out through the title. The synopsis sits on the page. */
 html:not([data-tv="1"]) .media-details-page {
-  --tv-backdrop-fade-span: 11rem;
+  --tv-backdrop-fade-span: 8rem;
 }
 html:not([data-tv="1"]) .media-details-hero-scrim-mobile {
   background: linear-gradient(to bottom, rgb(0 0 0 / 0.55) 0%, transparent 26%);
 }
 @media (min-width: 768px) {
-  /* Feather every edge of the still into the page colour. The black top vignette read as a hard frame. */
   html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop::before {
-    background:
-      linear-gradient(to right,
-        rgb(var(--tv-details-surface)) 0%,
-        rgb(var(--tv-details-surface) / 0.78) 7%,
-        rgb(var(--tv-details-surface) / 0.34) 16%,
-        transparent 30%,
-        transparent 82%,
-        rgb(var(--tv-details-surface) / 0.22) 90%,
-        rgb(var(--tv-details-surface) / 0.62) 96%,
-        rgb(var(--tv-details-surface)) 100%),
-      linear-gradient(to bottom,
-        rgb(var(--tv-details-surface)) 0%,
-        rgb(var(--tv-details-surface) / 0.62) 5%,
-        rgb(var(--tv-details-surface) / 0.18) 12%,
-        transparent 22%);
+    background: linear-gradient(to right,
+      rgb(var(--tv-details-surface)) 0%,
+      rgb(var(--tv-details-surface) / 0.55) 22%,
+      transparent 48%);
   }
 }
 html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop::after {
@@ -645,14 +647,14 @@ html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop::after 
   pointer-events: none;
   background: linear-gradient(
     to bottom,
-    transparent 0,
-    transparent calc(var(--tv-backdrop-fade-end, 58%) - var(--tv-backdrop-fade-span, 16rem)),
-    rgb(var(--tv-details-surface) / 0.22) calc(var(--tv-backdrop-fade-end, 58%) - var(--tv-backdrop-fade-span, 16rem) * 0.62),
-    rgb(var(--tv-details-surface) / 0.55) calc(var(--tv-backdrop-fade-end, 58%) - var(--tv-backdrop-fade-span, 16rem) * 0.32),
-    rgb(var(--tv-details-surface) / 0.86) calc(var(--tv-backdrop-fade-end, 58%) - var(--tv-backdrop-fade-span, 16rem) * 0.12),
-    rgb(var(--tv-details-surface)) var(--tv-backdrop-fade-end, 58%),
+    transparent 0%,
+    transparent 58%,
+    rgb(var(--tv-details-surface) / 0.45) 76%,
     rgb(var(--tv-details-surface)) 100%
   );
+}
+html:not([data-tv="1"]) .media-details-page .media-overview-summary {
+  max-width: 44rem;
 }
 .media-details-hero-scrim-bottom,
 .media-details-hero-scrim-left {

@@ -77,7 +77,7 @@ const StudioPill: React.FC<{
     onClick?: () => void;
 }> = ({ name, logoPath, size = 'md', showPlate = true, brandColor = false, wordmark = true, onClick }) => {
     const [failed, setFailed] = useState(false);
-    const showLogo = Boolean(logoPath) && !failed;
+    const showLogo = Boolean(logoPath) && !failed && !(brandColor && !wordmark);
     if (!showLogo) return null;
 
     const preserveColor = brandColor || shouldPreserveColorLogo(String(logoPath), name);
@@ -121,6 +121,7 @@ const StudioPill: React.FC<{
             alt={name}
             width={brandColor ? 780 : 300}
             duotone={!preserveColor}
+            tone={brandColor && wordmark ? 'light' : 'auto'}
             onError={() => setFailed(true)}
             className={logoClass}
         />
@@ -410,10 +411,11 @@ export const OverviewFacts: React.FC<{
     const lastPlayed = formatPlayerDate(item.lastViewedAt, locale);
     const watched = Number(item.viewedLeafCount || 0);
     const total = Number(item.leafCount || 0);
+    const streamingMarks = tvShell ? streaming : streaming.filter((row) => row.wordmark !== false);
     const serviceSections = [
         studio.length ? { label: t('media.studio'), networks: studio, size: 'sm' as const, searchAllTypes: false } : null,
         network.length && item.type !== 'episode' ? { label: t('mediaPlayerPage.network'), networks: network, size: 'sm' as const, searchAllTypes: false } : null,
-        streaming.length ? { label: t('mediaPlayerPage.streaming'), networks: streaming, size: 'sm' as const, searchAllTypes: true, brandColor: !tvShell } : null,
+        streamingMarks.length ? { label: t('mediaPlayerPage.streaming'), networks: streamingMarks, size: 'sm' as const, searchAllTypes: true, brandColor: !tvShell } : null,
     ].filter(Boolean) as Array<{ label: string; networks: NetworkLogo[]; size: 'sm' | 'md' | 'lg'; searchAllTypes: boolean }>;
     const leadCredit = (people?: PlayerPersonCredit[]) => {
         const first = (people || []).find((person) => String(person?.name || '').trim());

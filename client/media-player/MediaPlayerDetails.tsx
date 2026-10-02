@@ -494,16 +494,11 @@ export const MediaPlayerDetails: React.FC<Props> = ({
             const root = document.querySelector<HTMLElement>('[data-tv-details="1"]');
             const anchor = root?.querySelector<HTMLElement>('[data-tv-fade-anchor="1"]');
             const backdrop = root?.querySelector<HTMLElement>('.media-details-hero-backdrop');
-            const webEdge = isTvShell ? null : root?.querySelector<HTMLElement>('[data-tv-action-row="1"]');
-            const edge = webEdge || anchor;
-            if (!root || !backdrop || !edge) return;
+            if (!root || !anchor || !backdrop) return;
             const zoom = readDocumentZoom();
-            // TV: solid colour begins at the logo’s lower edge.
-            // Web: the still stays through the title and dissolves along the play row.
-            const extra = isTvShell ? 0 : (webEdge ? 12 : -28);
-            const edgeTop = webEdge
-                ? webEdge.getBoundingClientRect().bottom
-                : edge.getBoundingClientRect().top;
+            // Solid colour begins at the title so the synopsis sits on the page, not the still.
+            const extra = isTvShell ? 0 : -8;
+            const edgeTop = anchor.getBoundingClientRect().top;
             const backdropHeight = backdrop.getBoundingClientRect().height / zoom;
             let fadePx = Math.max(0, Math.round(
                 (edgeTop - backdrop.getBoundingClientRect().top) / zoom,
@@ -834,7 +829,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                 </h1>
             )}
             {item.tagline ? (
-                <p className="text-sm sm:text-base text-white/55 italic max-w-6xl">{item.tagline}</p>
+                <p className="text-sm sm:text-base text-white/80 italic max-w-3xl drop-shadow-md">{item.tagline}</p>
             ) : null}
             <div className="flex flex-wrap items-center gap-1.5">
                 {metaChips.map((chip) => (
@@ -884,7 +879,7 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                 </div>
 
                 <div className={`media-details-hero-content media-details-inset relative z-10 w-full max-w-none mx-0 pr-6 xl:pr-10 pt-2 sm:pt-3 ${
-                    isTvShell ? 'md:pt-[150px]' : 'md:pt-[16vh] lg:pt-[22vh] xl:pt-[24vh]'
+                    isTvShell ? 'md:pt-[150px]' : 'md:pt-[26vh] lg:pt-[30vh]'
                 } ${children.length ? 'pb-5' : 'pb-8'}`}>
                     {!isTvShell ? (
                         <button
