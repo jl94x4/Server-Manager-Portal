@@ -539,7 +539,6 @@ html[data-theme="light"] .company-card .company-duotone-logo {
   }
   /* Full still in the top-right. Left and bottom settle at 8% so the page colour shows through. */
   html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop {
-    --details-still-h: min(63vh, 42rem);
     top: 0;
     right: 0;
     left: 0;
@@ -557,8 +556,8 @@ html[data-theme="light"] .company-card .company-duotone-logo {
     -webkit-mask-image: radial-gradient(
       farthest-corner at 100% 0%,
       #000 0,
-      #000 min(34vh, 22rem),
-      rgb(0 0 0 / 0.08) var(--details-still-h),
+      #000 min(28vh, 18rem),
+      rgb(0 0 0 / 0.08) min(78vh, 52rem),
       rgb(0 0 0 / 0.08) 100%
     );
     -webkit-mask-repeat: no-repeat;
@@ -566,8 +565,8 @@ html[data-theme="light"] .company-card .company-duotone-logo {
     mask-image: radial-gradient(
       farthest-corner at 100% 0%,
       #000 0,
-      #000 min(34vh, 22rem),
-      rgb(0 0 0 / 0.08) var(--details-still-h),
+      #000 min(28vh, 18rem),
+      rgb(0 0 0 / 0.08) min(78vh, 52rem),
       rgb(0 0 0 / 0.08) 100%
     );
     mask-repeat: no-repeat;
