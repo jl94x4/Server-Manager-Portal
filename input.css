@@ -541,9 +541,10 @@ html[data-theme="light"] .company-card .company-duotone-logo {
   html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop {
     top: 0;
     right: 0;
-    left: 0;
+    left: auto;
     bottom: auto;
-    margin-inline: auto;
+    margin-left: auto;
+    margin-right: 0;
     width: min(100%, calc(min(42vh, 28rem) * 16 / 9));
     height: min(42vh, 28rem);
     aspect-ratio: auto;
@@ -554,13 +555,13 @@ html[data-theme="light"] .company-card .company-duotone-logo {
     object-position: center center;
     transition: none;
     -webkit-mask-image:
-      linear-gradient(to right, transparent 0%, #000 18%, #000 90%, transparent 100%),
+      linear-gradient(to right, transparent 0%, #000 16%, #000 97%, transparent 100%),
       linear-gradient(to bottom, transparent 0%, #000 12%, #000 64%, transparent 100%);
     -webkit-mask-composite: source-in;
     -webkit-mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
     mask-image:
-      linear-gradient(to right, transparent 0%, #000 18%, #000 90%, transparent 100%),
+      linear-gradient(to right, transparent 0%, #000 16%, #000 97%, transparent 100%),
       linear-gradient(to bottom, transparent 0%, #000 12%, #000 64%, transparent 100%);
     mask-composite: intersect;
     mask-repeat: no-repeat;
