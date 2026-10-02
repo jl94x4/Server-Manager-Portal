@@ -879,13 +879,13 @@ export const MediaPlayerDetails: React.FC<Props> = ({
                 </div>
 
                 <div className={`media-details-hero-content media-details-inset relative z-10 w-full max-w-none mx-0 pr-6 xl:pr-10 pt-2 sm:pt-3 ${
-                    isTvShell ? 'md:pt-[150px]' : 'md:pt-[26vh] lg:pt-[30vh]'
+                    isTvShell ? 'md:pt-[150px]' : 'md:pt-[4.5rem] lg:pt-20'
                 } ${children.length ? 'pb-5' : 'pb-8'}`}>
                     {!isTvShell ? (
                         <button
                             type="button"
                             onClick={onBack}
-                            className="light-on-media mb-3 md:mb-0 md:absolute md:top-12 lg:top-16 z-20 inline-flex items-center gap-2 text-white/90 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-full backdrop-blur-md border border-white/10 hover:border-white/20 hover:bg-black/65"
+                            className="light-on-media mb-3 md:mb-0 md:absolute md:top-4 lg:top-5 z-20 inline-flex items-center gap-2 text-white/90 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-full backdrop-blur-md border border-white/10 hover:border-white/20 hover:bg-black/65"
                         >
                             <ArrowLeft className="w-5 h-5" />
                             <span className="font-bold text-sm">{t('mediaPlayerPage.back')}</span>
