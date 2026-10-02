@@ -555,8 +555,8 @@ html[data-theme="light"] .company-card .company-duotone-logo {
     object-position: right top;
     opacity: 0.54;
     transition: none;
-    -webkit-mask-image: none;
-    mask-image: none;
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 58%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 0%, #000 58%, transparent 100%);
   }
   html:not([data-tv="1"]) .media-details-page .media-details-hero-backdrop:not(.is-framed) img {
     opacity: 0;
