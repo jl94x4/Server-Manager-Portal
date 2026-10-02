@@ -1240,6 +1240,7 @@ export const en = {
                 failed: 'Failed',
                 noTitleReported: 'No title reported',
                 waitingForScan: 'Waiting for the next webhook or manual scan.',
+                waitingForPlex: '{count} waiting for Plex — resends when it is back.',
                 open: 'Open',
             },
             collexions: {
@@ -2910,6 +2911,13 @@ export const en = {
         queue: {
             title: 'Queue', subtitle: 'Paths waiting for the minimum age.', pending: '{count} pending',
             empty: 'Queue is empty — waiting for the next webhook or manual path.',
+            emptyWhileHeld: 'Nothing else is waiting on the minimum age. Scans that could not reach Plex are in Waiting for Plex.',
+        },
+        held: {
+            title: 'Waiting for Plex',
+            subtitle: 'These refreshes stay here while Plex is unreachable, then send automatically when it responds.',
+            waiting: '{count} waiting',
+            resends: 'Resends when Plex is back',
         },
         filters: {
             allConfiguredApps: 'All configured apps', allEvents: 'All events', imports: 'Imports', grabs: 'Grabs', upgrades: 'Upgrades',

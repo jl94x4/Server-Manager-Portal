@@ -12,6 +12,7 @@ type ScannerStatus = {
     processed?: number;
     targetCount?: number;
     minimumAge?: string;
+    held?: number;
     lastActivity?: {
         at?: string;
         ok?: boolean;
@@ -60,6 +61,7 @@ export const ScannerHomeWidget: React.FC<Props> = ({ onOpen }) => {
     usePoll(() => { void load(); }, 15_000);
 
     const remaining = status?.remaining ?? 0;
+    const held = status?.held ?? 0;
     const processed = status?.processed ?? 0;
     const targets = status?.targetCount ?? 0;
     const last = status?.lastActivity;
@@ -155,6 +157,10 @@ export const ScannerHomeWidget: React.FC<Props> = ({ onOpen }) => {
                         ) : null}
                     </div>
                 </div>
+
+                {held > 0 ? (
+                    <p className="text-xs font-medium text-sky-200/90">{t('homeDashboard.widgets.scanner.waitingForPlex', { count: held })}</p>
+                ) : null}
 
                 <div className="space-y-2">
                     <div className="flex items-center justify-between gap-3 px-0.5">

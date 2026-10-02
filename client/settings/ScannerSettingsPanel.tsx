@@ -809,7 +809,9 @@ const ScannerLiveLogs: React.FC<{
             ]);
             setEntries(Array.isArray(logRes?.entries) ? logRes.entries : []);
             setProcessed(Number(logRes?.processed) || 0);
-            setQueueCount(Number(queueRes?.remaining ?? queueRes?.scans?.length) || 0);
+            const active = Number(queueRes?.remaining ?? queueRes?.scans?.length) || 0;
+            const waiting = Number(queueRes?.held ?? queueRes?.heldScans?.length) || 0;
+            setQueueCount(active + waiting);
             setError(null);
             setLastUpdated(new Date());
         } catch (e: any) {

@@ -31050,6 +31050,7 @@ app.get('/api/scanner/status', requireAdmin, requireScanner, async (req, res) =>
             enabled: true,
             minimumAge: scanner.minimumAge,
             remaining: stats.remaining,
+            held: stats.held || 0,
             processed: stats.processed,
             targetCount: targets.length,
             configuredSources,

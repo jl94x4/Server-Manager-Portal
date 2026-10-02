@@ -87,6 +87,9 @@ type QueueItem = {
     title?: string;
     quality?: string;
     isUpgrade?: boolean;
+    heldAt?: string;
+    holdReason?: string;
+    attempts?: number;
 };
 
 const MANUAL_PATH_COLLAPSED_KEY = 'scanner-manual-path-collapsed';
@@ -127,14 +130,16 @@ const ActionIcon: React.FC<{ action?: string; className?: string }> = ({ action,
 };
 
 const EventCard: React.FC<{
-    accent: 'amber' | 'emerald' | 'rose';
+    accent: 'amber' | 'emerald' | 'rose' | 'sky';
     children: React.ReactNode;
 }> = ({ accent, children }) => {
     const accentClass = accent === 'amber'
         ? 'border-l-amber-400/70'
         : accent === 'rose'
             ? 'border-l-rose-400/70'
-            : 'border-l-emerald-400/60';
+            : accent === 'sky'
+                ? 'border-l-sky-400/70'
+                : 'border-l-emerald-400/60';
     return (
         <li className={`rounded-xl border border-white/10 border-l-[3px] bg-black/20 px-3.5 py-3 transition-colors hover:bg-white/[0.03] ${accentClass}`}>
             {children}
@@ -149,6 +154,7 @@ export const ScannerDashboard: React.FC = () => {
     const [path, setPath] = useState('');
     const [status, setStatus] = useState<ScannerStatus | null>(null);
     const [queue, setQueue] = useState<QueueItem[]>([]);
+    const [held, setHeld] = useState<QueueItem[]>([]);
     const [log, setLog] = useState<LogEntry[]>([]);
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
@@ -179,6 +185,7 @@ export const ScannerDashboard: React.FC = () => {
             ]);
             setStatus(st);
             setQueue(Array.isArray(q?.scans) ? q.scans : []);
+            setHeld(Array.isArray(q?.heldScans) ? q.heldScans : []);
             setLog(Array.isArray(lg?.entries) ? lg.entries : []);
             setError(null);
         } catch (e: any) {
@@ -473,6 +480,49 @@ export const ScannerDashboard: React.FC = () => {
             ) : null}
 
             <div className="grid grid-cols-1 gap-4 md:gap-5 xl:grid-cols-2">
+                <div className="flex flex-col gap-4 md:gap-5">
+                {held.length > 0 ? (
+                    <DashboardPanel
+                        title={t('scanner.held.title')}
+                        subtitle={t('scanner.held.subtitle')}
+                        badge={(
+                            <span className="rounded-full border border-sky-400/25 bg-sky-500/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-sky-200">
+                                {t('scanner.held.waiting', { count: held.length })}
+                            </span>
+                        )}
+                    >
+                        <ul className="space-y-2">
+                            {held.map((item) => {
+                                const style = scannerActionStyles(item.action || item.reason, item.isUpgrade);
+                                return (
+                                    <EventCard key={`held-${item.folder}-${item.time}`} accent="sky">
+                                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                                            <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-400/30 bg-sky-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-sky-200">
+                                                <Clock3 className="h-3 w-3" />
+                                                {t('scanner.held.resends')}
+                                            </span>
+                                            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${style.className}`}>
+                                                <ActionIcon action={item.action} className="h-3 w-3" />
+                                                {item.reason || (style.labelKey ? t(style.labelKey) : style.label)}
+                                            </span>
+                                            <ScannerSourceBadge source={item.source} />
+                                        </div>
+                                        {item.title ? <p className="mb-1 text-sm font-semibold text-text">{item.title}</p> : null}
+                                        <p className="break-all font-mono text-xs leading-relaxed text-text/80" title={item.folder}>
+                                            {item.folder}
+                                        </p>
+                                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted">
+                                            <span>{formatScannerWhen(item.heldAt || item.time)}</span>
+                                            {item.quality ? <span>{item.quality}</span> : null}
+                                            {item.eventType ? <span className="opacity-70">{item.eventType}</span> : null}
+                                        </div>
+                                        {item.holdReason ? <p className="mt-2 text-xs text-sky-100/80">{item.holdReason}</p> : null}
+                                    </EventCard>
+                                );
+                            })}
+                        </ul>
+                    </DashboardPanel>
+                ) : null}
                 <DashboardPanel
                     title={t('scanner.queue.title')}
                     subtitle={t('scanner.queue.subtitle')}
@@ -484,7 +534,9 @@ export const ScannerDashboard: React.FC = () => {
                 >
                     {queue.length === 0 ? (
                         <div className="rounded-xl border border-dashed border-white/10 bg-black/20 px-4 py-10 text-center">
-                            <p className="text-sm text-muted">{t('scanner.queue.empty')}</p>
+                            <p className="text-sm text-muted">
+                                {held.length > 0 ? t('scanner.queue.emptyWhileHeld') : t('scanner.queue.empty')}
+                            </p>
                         </div>
                     ) : (
                         <ul className="space-y-2">
@@ -515,6 +567,7 @@ export const ScannerDashboard: React.FC = () => {
                         </ul>
                     )}
                 </DashboardPanel>
+                </div>
 
                 <DashboardPanel
                     title={t('scanner.activity.title')}
